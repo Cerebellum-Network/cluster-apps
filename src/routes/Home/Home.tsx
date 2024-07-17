@@ -1,8 +1,8 @@
 import { observer } from 'mobx-react-lite';
-import { Typography } from '@developer-console/ui';
+import { SampleComponent } from '~/components';
 
 const Home = () => {
-  return <Typography variant="h3">Home page</Typography>;
+  return <SampleComponent text="Home page" />;
 };
 
 export default observer(Home);

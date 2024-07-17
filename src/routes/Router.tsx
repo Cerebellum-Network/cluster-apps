@@ -1,6 +1,7 @@
 import { RouterProvider, createHashRouter } from 'react-router-dom';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
+import ContentStorage from '~/routes/ContentStorage/ContentStorage.tsx';
 
 /**
  * The router configuration for the app.
@@ -18,6 +19,10 @@ const router = createHashRouter([
       {
         path: 'home',
         Component: Home,
+      },
+      {
+        path: '/content-storage',
+        Component: ContentStorage,
       },
     ],
   },
