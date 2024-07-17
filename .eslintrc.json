@@ -1,0 +1,4 @@
+{
+  "extends": "@developer-console/eslint-config",
+  "root": true
+}
