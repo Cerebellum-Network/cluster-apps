@@ -1,84 +1,87 @@
 import { Box, Typography } from '@mui/material';
 import { Row } from './Row.tsx';
 
-export const FileManager = () => {
-  const rows = [
-    {
-      bucketId: '123497971',
-      usedStorage: '123.13 GB',
+type RealData = {
+  bucketId: string;
+  size: number;
+  name: string;
+  cid: string;
+};
+
+type FileNode = {
+  name: string;
+  metadata?: {
+    usedStorage: string;
+    type: string;
+  };
+  children?: FileNode[];
+};
+
+type MockData = {
+  bucketId: string;
+  usedStorage: string;
+  acl: string;
+  files: FileNode;
+};
+
+const bytesToSize = (bytes: number): string => {
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  if (bytes === 0) return '0 Bytes';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+const buildTree = (files: RealData[]): FileNode => {
+  const root: FileNode = { name: '', children: [] };
+
+  files.forEach((file) => {
+    const parts = file.name.split('/');
+    let currentNode = root;
+
+    parts?.forEach((part, index) => {
+      let node = currentNode.children?.find((child) => child.name === part);
+      if (!node) {
+        node = { name: part, children: [] };
+        currentNode.children?.push(node);
+      }
+      currentNode = node;
+
+      if (index === parts.length - 1) {
+        currentNode.metadata = {
+          usedStorage: bytesToSize(file.size),
+          type: 'public', // Adjust according to your data
+        };
+        delete currentNode.children; // Remove children for file nodes
+      }
+    });
+  });
+
+  return root;
+};
+
+const transformData = (data: RealData[]): MockData[] => {
+  const bucketMap: { [key: string]: RealData[] } = {};
+
+  data?.forEach((file) => {
+    if (!bucketMap[file.bucketId]) {
+      bucketMap[file.bucketId] = [];
+    }
+    bucketMap[file.bucketId].push(file);
+  });
+
+  return Object.keys(bucketMap).map((bucketId) => {
+    const files = bucketMap[bucketId];
+    return {
+      bucketId,
+      usedStorage: bytesToSize(files.reduce((acc, file) => acc + file.size, 0)),
       acl: 'Public',
-      files: {
-        name: '',
-        children: [
-          {
-            name: 'Folder 123',
-            metadata: {
-              usedStorage: '101 KB',
-              type: 'public',
-            },
-            children: [
-              {
-                name: 'Folder 99',
-                metadata: { usedStorage: '0 KB', type: 'public' },
-                children: [{ name: 'index.js', metadata: { usedStorage: '0 KB', type: 'public' } }],
-              },
-              { name: 'File 65.mp4', metadata: { usedStorage: '101 KB', type: 'public' } },
-            ],
-          },
-          {
-            name: 'Folder 456',
-            metadata: {
-              usedStorage: '101 KB',
-              type: 'public',
-            },
-            children: [
-              {
-                name: 'Folder 11',
-                metadata: {
-                  usedStorage: '0 KB',
-                  type: 'public',
-                },
-                children: [
-                  {
-                    name: 'index.css',
-                    metadata: {
-                      usedStorage: '101 KB',
-                      type: 'public',
-                    },
-                  },
-                ],
-              },
-              {
-                name: 'File 09.mp4',
-                metadata: {
-                  usedStorage: '101 KB',
-                  type: 'public',
-                },
-              },
-            ],
-          },
-        ],
-      },
-    },
-    {
-      bucketId: '123794123',
-      usedStorage: '1.678 GB',
-      acl: 'Private',
-      files: {
-        name: '',
-        children: [
-          {
-            name: 'Folder A',
-            children: [],
-          },
-          {
-            name: 'Folder B',
-            children: [],
-          },
-        ],
-      },
-    },
-  ];
+      files: buildTree(files),
+    };
+  });
+};
+
+export const FileManager = ({ data }: { data: RealData[] }) => {
+  const rows = transformData(data);
 
   return (
     <>

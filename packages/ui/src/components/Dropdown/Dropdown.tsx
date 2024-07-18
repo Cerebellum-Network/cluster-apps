@@ -9,7 +9,7 @@ type RenderAnchorOptions = {
   onOpen: () => void;
 };
 
-export type DropdownProps = Pick<PopoverProps, 'open' | 'children'> &
+export type DropdownProps = Pick<PopoverProps, 'open' | 'children' | 'sx'> &
   Omit<DropdownAnchorProps, 'open'> & {
     direction?: 'right' | 'left';
     dense?: boolean;
@@ -26,6 +26,7 @@ export const Dropdown = ({
   direction = 'left',
   children,
   onToggle,
+  sx,
   dense = false,
   disableGutters = false,
   disablePaddings = false,
@@ -40,7 +41,7 @@ export const Dropdown = ({
 
   return (
     <>
-      {renderAnchor({ ref: anchorRef, onOpen, open })}
+      {renderAnchor?.({ ref: anchorRef, onOpen, open })}
       <Popover
         aria-label="Overlay"
         open={open}
@@ -69,6 +70,7 @@ export const Dropdown = ({
             },
           },
         }}
+        sx={sx}
       >
         {children}
       </Popover>

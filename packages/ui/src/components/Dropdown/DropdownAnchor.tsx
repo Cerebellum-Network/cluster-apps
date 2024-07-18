@@ -44,7 +44,7 @@ export const DropdownAnchor = forwardRef(
       onOpen?.();
     };
     return (
-      <Clickable ref={ref} color="inherit" variant="text" onClick={handleOpen}>
+      <Clickable ref={ref} color="inherit" variant="text" onClick={(event) => handleOpen(event as MouseEvent)}>
         <Anchor spacing={1} direction="row" alignItems="center">
           <Left>{leftElement}</Left>
           <Center variant="body1">{label}</Center>

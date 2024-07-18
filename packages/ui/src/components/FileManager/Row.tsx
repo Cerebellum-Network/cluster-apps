@@ -3,9 +3,12 @@ import { Box, ButtonGroup, Typography } from '@mui/material';
 import { ButtonIcon, UploadButton } from '@developer-console/ui';
 import { ArrowIcon, DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
+import { useMessages } from '../../hooks';
 
 export const Row = ({ row }: { row: any }) => {
   const [open, setOpen] = useState(false);
+
+  const { showMessage } = useMessages();
 
   const treeData = flattenTree(row.files);
 
@@ -23,6 +26,10 @@ export const Row = ({ row }: { row: any }) => {
           '&:nth-child(odd)': {
             backgroundColor: '#7A9FFF0A',
           },
+          backgroundColor: open ? '#FFFFFF' : 'transparent',
+          border: open ? '1px solid #5865F2' : 'none',
+          borderBottom: open ? '1px solid #CDCCCD' : 'none',
+          borderRadius: open ? '4px 4px 0 0 ' : 'none',
         }}
         onClick={() => setOpen(!open)}
       >
@@ -40,8 +47,10 @@ export const Row = ({ row }: { row: any }) => {
       {open && (
         <Box
           sx={{
+            backgroundColor: '#FFFFFF',
             border: '1px solid #5865F2',
-            borderRadius: '4px',
+            borderTop: 'none',
+            borderRadius: '0 0 4px 4px',
             boxShadow: '0px 8px 12px 0px #1A0A7C1A',
             maxHeight: '352px',
             overflowY: 'auto',
@@ -63,11 +72,11 @@ export const Row = ({ row }: { row: any }) => {
                     width: 'calc(100% - ' + leftMargin + 'px)',
                   }}
                 >
-                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', '&:hover': { cursor: 'pointer' } }}>
                     {isBranch && (
                       <Box
                         sx={{
-                          display: 'inline-block',
+                          display: 'flex',
                           transition: 'transform 0.2s',
                           transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
                           marginRight: '8px',
@@ -76,9 +85,9 @@ export const Row = ({ row }: { row: any }) => {
                         <ArrowIcon width="16px" height="16px" />
                       </Box>
                     )}
-
-                    {isBranch ? <FilledFolderIcon /> : <FolderIcon />}
-
+                    <Box display="flex" marginRight="8px">
+                      {isBranch ? <FilledFolderIcon /> : <FolderIcon />}
+                    </Box>
                     <Typography variant="body2" sx={{ flex: 1 }}>
                       {element.name}
                     </Typography>
@@ -99,7 +108,20 @@ export const Row = ({ row }: { row: any }) => {
                   <Box sx={{ flex: 1, textAlign: 'right' }}>
                     {!isBranch ? (
                       <ButtonGroup>
-                        <ButtonIcon sx={{ marginRight: '8px' }} icon={<ShareIcon />} />
+                        <ButtonIcon
+                          sx={{ marginRight: '8px' }}
+                          icon={<ShareIcon />}
+                          onClick={() => {
+                            showMessage({
+                              appearance: 'info',
+                              message: 'Link copied to clipboard. Share it with anyone you like!',
+                              placement: {
+                                vertical: 'top',
+                                horizontal: 'right',
+                              },
+                            });
+                          }}
+                        />
                         <ButtonIcon icon={<DownloadIcon />} />
                       </ButtonGroup>
                     ) : (

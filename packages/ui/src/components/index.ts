@@ -37,6 +37,10 @@ export {
   type TableCellProps,
   Collapse,
   type CollapseProps,
+  Snackbar,
+  type SnackbarOrigin,
+  Alert,
+  type AlertColor,
 } from '@mui/material';
 
 // Custom components
