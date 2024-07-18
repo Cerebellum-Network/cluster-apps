@@ -1,9 +1,9 @@
 import { observer } from 'mobx-react-lite';
 
-import { SampleComponent } from '~/components';
+import { Typography } from '@developer-console/ui';
 
 const Onboarding = () => {
-  return <SampleComponent text="Start Journey" />;
+  return <Typography variant="h1">Onboarding</Typography>;
 };
 
 export default observer(Onboarding);
