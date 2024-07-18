@@ -4,7 +4,7 @@ import { ButtonIcon } from '@developer-console/ui';
 import { ArrowIcon, DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 
-export const Row = ({ row }) => {
+export const Row = ({ row }: { row: any }) => {
   const [open, setOpen] = useState(false);
 
   const treeData = flattenTree(row.files);
