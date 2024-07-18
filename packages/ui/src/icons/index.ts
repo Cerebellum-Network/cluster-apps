@@ -16,3 +16,4 @@ export {
 // Custom icons
 
 export * from './CereIcon';
+export * from './DiscordIcon';

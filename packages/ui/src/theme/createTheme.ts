@@ -35,7 +35,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
 
       button: {
         textTransform: 'none',
-        fontWeight: '500',
+        fontWeight: '600',
       },
     },
 
