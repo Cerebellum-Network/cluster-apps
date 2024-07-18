@@ -1,12 +1,14 @@
 import { observer } from 'mobx-react-lite';
-import { Typography, Layout } from '@developer-console/ui';
+import { Box, Typography } from '@developer-console/ui';
 
-import { AccountDropdown } from '~/components';
+import { HomeLayout } from '~/components';
 
 const Home = () => (
-  <Layout disablePaddings fullPage headerRight={<AccountDropdown />}>
-    <Typography>Home page content...</Typography>
-  </Layout>
+  <HomeLayout>
+    <Box height={600}>
+      <Typography>Home page content...</Typography>
+    </Box>
+  </HomeLayout>
 );
 
 export default observer(Home);
