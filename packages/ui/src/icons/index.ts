@@ -7,7 +7,7 @@ export type { IconProps } from '@mui/material';
 
 // MUI icons
 
-export { Menu as MenuIcon } from '@mui/icons-material';
+export { Menu as MenuIcon, ArrowForward as ArrowForwardIcon } from '@mui/icons-material';
 
 // Custom icons
 

@@ -18,16 +18,9 @@ export const Layout = ({
   fullPage = false,
   headerRight,
   header = <LayoutHeader fullPage={fullPage} rightElement={headerRight} />,
-}: LayoutProps) => {
-  return (
-    <Container
-      disableGutters={fullPage}
-      maxWidth={!fullPage && 'md'}
-      component={Stack}
-      spacing={disablePaddings ? 0 : 4}
-    >
-      {header}
-      <Content>{children}</Content>
-    </Container>
-  );
-};
+}: LayoutProps) => (
+  <Container disableGutters={fullPage} maxWidth={!fullPage && 'lg'} component={Stack} spacing={disablePaddings ? 0 : 4}>
+    {header}
+    <Content>{children}</Content>
+  </Container>
+);

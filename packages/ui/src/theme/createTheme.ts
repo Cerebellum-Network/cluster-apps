@@ -26,5 +26,10 @@ export const createTheme = () =>
       subtitle1: {
         fontWeight: 500,
       },
+
+      button: {
+        textTransform: 'none',
+        fontWeight: '500',
+      },
     },
   });
