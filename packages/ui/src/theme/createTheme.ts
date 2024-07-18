@@ -4,7 +4,8 @@ export type ThemeOptions = {
   // Add your theme options here
 };
 
-export const createTheme = () =>
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- We need to keep the options parameter for future use
+export const createTheme = (_options: ThemeOptions = {}) =>
   createMuiTheme({
     palette: {
       primary: {
