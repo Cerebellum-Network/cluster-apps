@@ -1,12 +1,17 @@
 import { observer } from 'mobx-react-lite';
-import { Typography, Layout } from '@developer-console/ui';
+import { Outlet } from 'react-router-dom';
 
-import { AccountDropdown } from '~/components';
+import { Application } from '~/applications';
+import { HomeLayout, Navigation, Sidebar } from '~/components';
 
-const Home = () => (
-  <Layout disablePaddings fullPage headerRight={<AccountDropdown />}>
-    <Typography>Home page content...</Typography>
-  </Layout>
+export type HomeProps = {
+  apps: Application[];
+};
+
+const Home = ({ apps }: HomeProps) => (
+  <HomeLayout rightElement={<Navigation items={apps} />} leftElement={<Sidebar />}>
+    <Outlet />
+  </HomeLayout>
 );
 
 export default observer(Home);

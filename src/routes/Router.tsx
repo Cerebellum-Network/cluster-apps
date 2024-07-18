@@ -1,8 +1,17 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouteObject, RouterProvider } from 'react-router-dom';
+
+import applications, { Application } from '~/applications';
 
 import { App } from './App';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
+
+export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
+const mapAppToRoute = ({ rootComponent, rootPath, ...handle }: Application): RouteObject => ({
+  path: rootPath,
+  Component: rootComponent,
+  handle,
+});
 
 /**
  * The router configuration for the app.
@@ -13,8 +22,9 @@ const router = createBrowserRouter([
     Component: App,
     children: [
       {
-        index: true,
-        Component: Home,
+        path: '/',
+        element: <Home apps={applications} />,
+        children: applications.map(mapAppToRoute),
       },
       {
         path: 'onboarding',

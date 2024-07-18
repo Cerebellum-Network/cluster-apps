@@ -14,11 +14,16 @@ export const createTheme = (_options: ThemeOptions = {}) =>
 
       secondary: {
         main: '#969696',
-        contrastText: '#000000',
+        contrastText: '#1D1B20',
       },
 
       background: {
         default: '#F5F7FA',
+      },
+
+      text: {
+        primary: '#1D1B20',
+        secondary: '#818083',
       },
     },
 
@@ -30,7 +35,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       fontWeightMedium: 500,
 
       subtitle1: {
-        fontWeight: 500,
+        fontWeight: 600,
       },
 
       button: {
