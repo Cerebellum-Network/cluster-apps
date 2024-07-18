@@ -1,40 +1,55 @@
-import { observer } from 'mobx-react-lite';
 import { ReactNode } from 'react';
+import { observer } from 'mobx-react-lite';
+import { Link, LinkProps, useMatch } from 'react-router-dom';
 
-import { Box, Stack, styled, Typography } from '@developer-console/ui';
+import { Button, ButtonProps, Stack, styled, Typography } from '@developer-console/ui';
 
 type StyleProps = {
   active?: boolean;
 };
 
-export type NavigationItemProps = StyleProps & {
+export type NavigationItemProps = {
   title: string;
+  rootPath: string;
   description: string;
   icon: ReactNode;
 };
 
-const Item = styled(Stack, {
+const NavButton = (props: ButtonProps & LinkProps) => <Button component={Link} {...props} />;
+const Item = styled(NavButton, {
   shouldForwardProp: (prop) => prop !== 'active',
 })<StyleProps>(({ theme, active }) => ({
-  cursor: 'pointer',
-  outlineStyle: 'solid',
   padding: theme.spacing(2),
-  borderTopLeftRadius: theme.shape.borderRadius,
-  borderBottomLeftRadius: theme.shape.borderRadius,
+  borderRadius: 0,
+  outlineStyle: 'solid',
   outlineWidth: active ? 2 : 1,
   outlineColor: active ? theme.palette.primary.main : theme.palette.divider,
   backgroundColor: active ? theme.palette.background.paper : 'transparent',
+  borderTopLeftRadius: theme.shape.borderRadius,
+  borderBottomLeftRadius: theme.shape.borderRadius,
+
+  '&:hover': {
+    backgroundColor: active ? theme.palette.background.paper : theme.palette.action.hover,
+  },
+
+  '& .MuiSvgIcon-root': {
+    fontSize: 35,
+    color: active ? theme.palette.primary.main : theme.palette.text.secondary,
+  },
 }));
 
-const NavigationItem = ({ title, description, icon, active }: NavigationItemProps) => {
+const NavigationItem = ({ rootPath, title, description, icon }: NavigationItemProps) => {
+  const active = !!useMatch(rootPath);
+
   return (
-    <Item active={active} direction="row" spacing={2}>
-      <Box fontSize={35} color={active ? 'primary.main' : 'text.secondary'}>
+    <Item disableRipple active={active} variant="text" color="inherit" to={rootPath}>
+      <Stack direction="row" spacing={2}>
         {icon}
-      </Box>
-      <Stack flex={1}>
-        <Typography variant="subtitle1">{title}</Typography>
-        <Typography variant="body2">{description}</Typography>
+
+        <Stack flex={1}>
+          <Typography variant="subtitle1">{title}</Typography>
+          <Typography variant="body2">{description}</Typography>
+        </Stack>
       </Stack>
     </Item>
   );
