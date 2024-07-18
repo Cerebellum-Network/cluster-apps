@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import {Typography} from '@mui/material';
+import { Typography } from '@mui/material';
 
 export const SliderDot = styled('div')({
   width: '8px',
