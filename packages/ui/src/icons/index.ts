@@ -17,3 +17,6 @@ export {
 
 export * from './CereIcon';
 export * from './DiscordIcon';
+export * from './ActivityAppIcon';
+export * from './CdnAppIcon';
+export * from './StorageAppIcon';

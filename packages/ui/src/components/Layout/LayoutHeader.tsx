@@ -1,4 +1,4 @@
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import { styled, Stack, Box, Paper, Typography } from '@mui/material';
 
 import { Logo } from '../Logo';
@@ -9,7 +9,7 @@ type StyleProps = {
 
 export type LayoutHeaderProps = PropsWithChildren<
   StyleProps & {
-    rightElement?: React.ReactNode;
+    rightElement?: ReactNode;
   }
 >;
 
