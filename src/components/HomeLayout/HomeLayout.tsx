@@ -1,31 +1,39 @@
 import { observer } from 'mobx-react-lite';
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import { Layout, Paper, Stack, styled } from '@developer-console/ui';
 import { AccountDropdown } from '../AccountDropdown';
 
-export type HomeLayoutProps = PropsWithChildren<{}>;
+export type HomeLayoutProps = PropsWithChildren<{
+  rightElement?: ReactNode;
+  leftElement?: ReactNode;
+}>;
 
-const Content = styled(Paper)(() => ({
+const Content = styled(Paper)(({ theme }) => ({
   flex: 1,
+  minWidth: 800,
+  padding: theme.spacing(4),
+  borderTopLeftRadius: 0,
+  borderTopRightRadius: 0,
+  boxShadow: '0px 8px 12px 0px #1A0A7C1A', // TODO: use theme
 }));
 
-const Navigation = styled(Stack)(() => ({
+const Left = styled(Stack)(({ theme }) => ({
+  flex: 1,
   maxWidth: 400,
   minWidth: 200,
-  border: '1px solid red',
+  padding: theme.spacing(4, 0, 3, 3),
 }));
 
-const Sidebar = styled(Stack)(() => ({
+const Right = styled(Stack)(() => ({
   width: 200,
-  border: '1px solid green',
 }));
 
-const HomeLayout = ({ children }: HomeLayoutProps) => (
+const HomeLayout = ({ children, rightElement, leftElement }: HomeLayoutProps) => (
   <Layout disablePaddings fullPage headerRight={<AccountDropdown />}>
     <Stack direction="row">
-      <Navigation>Navigation</Navigation>
-      <Content>{children}</Content>
-      <Sidebar>Sidebar</Sidebar>
+      {rightElement && <Left>{rightElement}</Left>}
+      <Content elevation={3}>{children}</Content>
+      {leftElement && <Right>{leftElement}</Right>}
     </Stack>
   </Layout>
 );

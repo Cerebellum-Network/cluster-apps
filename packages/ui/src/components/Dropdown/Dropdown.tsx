@@ -62,7 +62,7 @@ export const Dropdown = ({
               paddingX: !disablePaddings && disableGutters ? 0 : padding,
               borderRadius: 3,
               border: '1px solid #E7E8EB', // TODO: Use borders from theme
-              boxShadow: '0px 4px 4px rgba(0, 0, 0, 0.1);', // TODO: Use theme shadow
+              boxShadow: '0px 4px 4px #1A0A7C1A;', // TODO: Use theme shadow
             },
           },
         }}
