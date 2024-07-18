@@ -15,8 +15,20 @@ export {
   type ContainerProps,
   Paper,
   type PaperProps,
+  Avatar,
+  type AvatarProps,
+  Card,
+  type CardProps,
+  CardContent,
+  type CardContentProps,
+  CardHeader,
+  type CardHeaderProps,
+  CardActions,
+  type CardActionsProps,
 } from '@mui/material';
 
 // Custom components
 export * from './Logo';
 export * from './Layout';
+export * from './Dropdown';
+export * from './Truncate';
