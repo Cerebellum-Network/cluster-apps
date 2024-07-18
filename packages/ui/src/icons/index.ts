@@ -25,3 +25,4 @@ export * from './DownloadIcon';
 export * from './ActivityAppIcon';
 export * from './CdnAppIcon';
 export * from './StorageAppIcon';
+export * from './FileIcon';

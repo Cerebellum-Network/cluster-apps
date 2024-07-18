@@ -44,7 +44,10 @@ export const Dropdown = ({
       <Popover
         aria-label="Overlay"
         open={open}
-        onClose={() => onToggle?.(false)}
+        onClose={(event: MouseEvent) => {
+          event.stopPropagation();
+          onToggle?.(false);
+        }}
         anchorEl={anchorRef.current}
         anchorOrigin={{
           horizontal,

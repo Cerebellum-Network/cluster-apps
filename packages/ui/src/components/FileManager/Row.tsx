@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Box, ButtonGroup, Typography } from '@mui/material';
-import { ButtonIcon } from '@developer-console/ui';
+import { ButtonIcon, UploadButton } from '@developer-console/ui';
 import { ArrowIcon, DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 
@@ -15,11 +15,13 @@ export const Row = ({ row }: { row: any }) => {
         sx={{
           display: 'flex',
           alignItems: 'center',
-          borderBottom: '1px solid #e0e0e0',
-          padding: '8px 0',
+          padding: '16px 12px',
           '&:hover': {
             cursor: 'pointer',
-            backgroundColor: '#f5f5f5',
+            backgroundColor: '#7A9FFF0A',
+          },
+          '&:nth-child(odd)': {
+            backgroundColor: '#7A9FFF0A',
           },
         }}
         onClick={() => setOpen(!open)}
@@ -33,7 +35,7 @@ export const Row = ({ row }: { row: any }) => {
         <Typography variant="body2" sx={{ flex: 1, textAlign: 'center' }}>
           {row.acl}
         </Typography>
-        <Box sx={{ flex: 1 }}></Box> {/* Пустая колонка */}
+        <Box sx={{ flex: 1 }}></Box>
       </Box>
       {open && (
         <Box
@@ -43,22 +45,22 @@ export const Row = ({ row }: { row: any }) => {
             boxShadow: '0px 8px 12px 0px #1A0A7C1A',
             maxHeight: '352px',
             overflowY: 'auto',
-            width: '100%', // Use full width
+            width: '100%',
           }}
         >
           <TreeView
             data={treeData}
-            nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level }) => {
+            nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
               const leftMargin = 40 * (level - 1);
               return (
                 <div
-                  {...getNodeProps()}
+                  {...getNodeProps({ onClick: handleExpand })}
                   style={{
                     marginLeft: leftMargin,
-                    padding: '12px 0',
+                    padding: '12px',
                     display: 'flex',
                     alignItems: 'center',
-                    width: 'calc(100% - ' + leftMargin + 'px)', // Use remaining width
+                    width: 'calc(100% - ' + leftMargin + 'px)',
                   }}
                 >
                   <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
@@ -95,11 +97,13 @@ export const Row = ({ row }: { row: any }) => {
                     </Typography>
                   )}
                   <Box sx={{ flex: 1, textAlign: 'right' }}>
-                    {!isBranch && (
+                    {!isBranch ? (
                       <ButtonGroup>
                         <ButtonIcon sx={{ marginRight: '8px' }} icon={<ShareIcon />} />
                         <ButtonIcon icon={<DownloadIcon />} />
                       </ButtonGroup>
+                    ) : (
+                      <UploadButton />
                     )}
                   </Box>
                 </div>

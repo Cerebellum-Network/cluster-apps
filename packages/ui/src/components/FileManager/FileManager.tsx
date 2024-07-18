@@ -86,8 +86,7 @@ export const FileManager = () => {
         sx={{
           display: 'flex',
           alignItems: 'center',
-          borderBottom: '2px solid #e0e0e0',
-          padding: '8px 0',
+          padding: '8px 12px',
           backgroundColor: '#f9f9f9',
         }}
       >
