@@ -5,7 +5,6 @@ import applications, { Application } from '~/applications';
 import { App } from './App';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
-import ContentStorage from '~/routes/ContentStorage/ContentStorage.tsx';
 import { Login } from './Login';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
@@ -44,10 +43,6 @@ const router = createBrowserRouter([
       {
         path: 'onboarding',
         Component: Onboarding,
-      },
-      {
-        path: 'content-storage',
-        Component: ContentStorage,
       },
     ],
   },
