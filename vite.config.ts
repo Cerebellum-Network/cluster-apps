@@ -7,6 +7,5 @@ import tsconfigPaths from 'vite-tsconfig-paths';
  */
 export default defineConfig({
   base: './',
-  appType: 'mpa',
   plugins: [tsconfigPaths(), react()],
 });

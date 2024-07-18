@@ -1,8 +1,10 @@
 import { observer } from 'mobx-react-lite';
-import { Typography } from '@developer-console/ui';
+import { Typography, Layout } from '@developer-console/ui';
 
-const Home = () => {
-  return <Typography variant="h3">Home page</Typography>;
-};
+const Home = () => (
+  <Layout disablePaddings fullPage headerRight={<Typography>Account</Typography>}>
+    <Typography>Home page content...</Typography>
+  </Layout>
+);
 
 export default observer(Home);

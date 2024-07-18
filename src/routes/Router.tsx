@@ -1,23 +1,24 @@
-import { RouterProvider, createHashRouter } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
+import { App } from './App';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
 
 /**
  * The router configuration for the app.
- *
- * TODO: use `createBrowserRouter` instead of createHashRouter when DevOps configures the server to handle client-side routing.
  */
-const router = createHashRouter([
+const router = createBrowserRouter([
   {
     path: '/',
+    Component: App,
     children: [
       {
         index: true,
-        Component: Onboarding,
+        Component: Home,
       },
       {
-        path: 'home',
-        Component: Home,
+        path: 'onboarding',
+        Component: Onboarding,
       },
     ],
   },
