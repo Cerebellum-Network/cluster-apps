@@ -1,9 +1,14 @@
 import { observer } from 'mobx-react-lite';
-
-import { Typography } from '@developer-console/ui';
+import { Typography, Layout, Paper } from '@developer-console/ui';
 
 const Onboarding = () => {
-  return <Typography variant="h1">Onboarding</Typography>;
+  return (
+    <Layout headerRight={<Typography>Buttons</Typography>}>
+      <Paper variant="outlined">
+        <Typography>Onboarding content...</Typography>
+      </Paper>
+    </Layout>
+  );
 };
 
 export default observer(Onboarding);

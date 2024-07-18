@@ -11,7 +11,12 @@ export {
   type IconButtonProps,
   Stack,
   type StackProps,
+  Container,
+  type ContainerProps,
+  Paper,
+  type PaperProps,
 } from '@mui/material';
 
 // Custom components
 export * from './Logo';
+export * from './Layout';

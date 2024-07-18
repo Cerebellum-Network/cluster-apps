@@ -10,6 +10,14 @@ export const createTheme = () =>
       primary: {
         main: '#5865F2',
       },
+
+      background: {
+        default: '#F5F7FA',
+      },
+    },
+
+    shape: {
+      borderRadius: 8,
     },
 
     typography: {
