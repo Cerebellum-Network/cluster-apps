@@ -1,12 +1,12 @@
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import { Stack, Box, styled, Container } from '@mui/material';
 
 import { LayoutHeader } from './LayoutHeader';
 
 export type LayoutProps = PropsWithChildren<{
   fullPage?: boolean;
-  header?: React.ReactNode;
-  headerRight?: React.ReactNode;
+  header?: ReactNode;
+  headerRight?: ReactNode;
   disablePaddings?: boolean;
 }>;
 
