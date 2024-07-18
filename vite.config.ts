@@ -8,13 +8,8 @@ import svgr from 'vite-plugin-svgr';
  */
 export default defineConfig({
   base: './',
-  appType: 'mpa',
-  plugins: [
-    tsconfigPaths(),
-    react(),
-    svgr({
-      svgrOptions: { exportType: 'default', ref: true, svgo: false, titleProp: true },
-      include: '**/*.svg',
-    }),
-  ],
+  plugins: [tsconfigPaths(), react(), svgr({
+    svgrOptions: { exportType: 'default', ref: true, svgo: false, titleProp: true },
+    include: '**/*.svg',
+  })],
 });
