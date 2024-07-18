@@ -28,11 +28,11 @@ export const TreeNode = ({ node, level }) => {
       <TableRow>
         <TableCell sx={{ border: 'none' }}>
           <Box sx={{ paddingLeft: 2 * level, alignItems: 'center' }}>
-            <Box display="flex" gap="8px" width="auto">
+            <Box display="flex" alignItems="center" gap="8px" width="auto">
               {hasChildren && (
                 <Box
+                  display="inline-block"
                   sx={{
-                    display: 'inline-block',
                     transition: 'transform 0.2s',
                     transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)',
                     '&:hover': {
@@ -52,7 +52,7 @@ export const TreeNode = ({ node, level }) => {
                 }}
                 onClick={hasChildren ? handleToggle : undefined}
               >
-                {hasChildren ? <FilledFolderIcon /> : <FolderIcon />}
+                <Box marginRight="8px">{hasChildren ? <FilledFolderIcon /> : <FolderIcon />}</Box>
                 <Typography variant="body2">{node.name}</Typography>
               </Box>
             </Box>

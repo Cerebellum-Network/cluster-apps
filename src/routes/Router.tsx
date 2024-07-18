@@ -22,7 +22,7 @@ const router = createBrowserRouter([
         Component: Onboarding,
       },
       {
-        path: '/content-storage',
+        path: 'content-storage',
         Component: ContentStorage,
       },
     ],

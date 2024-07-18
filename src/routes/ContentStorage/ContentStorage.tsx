@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react-lite';
-import { Table, TableHead, TableBody, TableCell, TableRow, Typography } from '@developer-console/ui';
+import { Table, TableHead, TableBody, TableCell, TableRow, Typography, Layout } from '@developer-console/ui';
 import { useState } from 'react';
 import { TreeNode } from '~/components';
 
@@ -62,7 +62,15 @@ const ContentStorage = () => {
                   usedStorage: '0 KB',
                   type: 'public',
                 },
-                children: [{ name: 'index.css' }],
+                children: [
+                  {
+                    name: 'index.css',
+                    metadata: {
+                      usedStorage: '101 KB',
+                      type: 'public',
+                    },
+                  },
+                ],
               },
               {
                 name: 'File 09.mp4',
@@ -97,22 +105,24 @@ const ContentStorage = () => {
   ];
 
   return (
-    <Table>
-      <TableHead>
-        <TableRow>
-          <TableCell>
-            <Typography variant="body1">Bucket ID</Typography>
-          </TableCell>
-          <TableCell align="right">Used Storage</TableCell>
-          <TableCell>ACL</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.map((row) => (
-          <Row key={row.bucketId} row={row} />
-        ))}
-      </TableBody>
-    </Table>
+    <Layout>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>
+              <Typography variant="body1">Bucket ID</Typography>
+            </TableCell>
+            <TableCell align="right">Used Storage</TableCell>
+            <TableCell>ACL</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((row) => (
+            <Row key={row.bucketId} row={row} />
+          ))}
+        </TableBody>
+      </Table>
+    </Layout>
   );
 };
 
