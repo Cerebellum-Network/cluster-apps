@@ -5,6 +5,7 @@ import applications, { Application } from '~/applications';
 import { App } from './App';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
+import { Login } from './Login';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -34,6 +35,10 @@ const router = createBrowserRouter([
           },
           ...applications.map(mapAppToRoute),
         ],
+      },
+      {
+        path: 'Login',
+        Component: Login,
       },
       {
         path: 'onboarding',
