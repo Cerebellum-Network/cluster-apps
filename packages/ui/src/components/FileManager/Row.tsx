@@ -55,7 +55,7 @@ export const Row = ({ row }: { row: any }) => {
         <Typography variant="body2" flex={1} textAlign="center">
           {row.acl}
         </Typography>
-        <Box sx={{ flex: 1 }}></Box>
+        <Box flex={1}></Box>
       </StyledRow>
       {open && (
         <ExpandedRow open={open}>

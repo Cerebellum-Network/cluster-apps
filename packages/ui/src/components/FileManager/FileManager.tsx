@@ -108,24 +108,17 @@ export const FileManager = ({ data }: { data: RealData[] }) => {
 
   return (
     <>
-      <Box
-        display="flex"
-        alignItems="center"
-        padding={(theme) => theme.spacing(1, 1.5)}
-        sx={{
-          backgroundColor: '#f9f9f9',
-        }}
-      >
-        <Typography variant="body1" sx={{ flex: 1 }}>
+      <Box display="flex" alignItems="center" padding={(theme) => theme.spacing(1, 1.5)}>
+        <Typography variant="body1" flex={1}>
           Bucket ID
         </Typography>
-        <Typography variant="body1" sx={{ flex: 1, textAlign: 'right' }}>
+        <Typography variant="body1" flex={1} textAlign="right">
           Used Storage
         </Typography>
-        <Typography variant="body1" sx={{ flex: 1, textAlign: 'center' }}>
+        <Typography variant="body1" flex={1} textAlign="center">
           ACL
         </Typography>
-        <Box sx={{ flex: 1 }}></Box>
+        <Box flex={1}></Box>
       </Box>
       {rows.map((row) => (
         <Row key={row.bucketId} row={row} />

@@ -1,7 +1,10 @@
 import { FileManager } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { Box, Typography } from '@mui/material';
+import { Box, styled, Typography } from '@mui/material';
 
+const Container = styled(Box)(() => ({
+  backgroundColor: '#F5F7FA',
+}));
 const ContentStorage = () => {
   const data = [
     { bucketId: '123497971', size: 123.13, name: 'Folder 123/Folder 99/file.txt', cid: '' },
@@ -10,19 +13,18 @@ const ContentStorage = () => {
     { bucketId: '123794123', size: 101, name: 'Folder 456/File 09.mp4', cid: '' },
   ];
   return (
-    <Box display="flex" flexDirection="column" border="1px solid #CDCCCD" borderRadius="12px">
-      <Box padding="34px 32px" borderBottom="1px solid #CDCCCD">
+    <Box
+      display="flex"
+      flexDirection="column"
+      border={(theme) => `1px solid ${theme.palette.divider}`}
+      borderRadius="12px"
+    >
+      <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
         <Typography>Content Storage</Typography>
       </Box>
-      <Box
-        sx={{
-          backgroundColor: '#F5F7FA',
-        }}
-        padding="24px"
-        borderRadius="0 0 12px 12px"
-      >
+      <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
         <FileManager data={data} />
-      </Box>
+      </Container>
     </Box>
   );
 };
