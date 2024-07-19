@@ -2,9 +2,10 @@ import { FileManager } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { Box, styled, Typography } from '@mui/material';
 
-const Container = styled(Box)(() => ({
-  backgroundColor: (theme) => theme.palette.background.default,
+const Container = styled(Box)(({ theme }) => ({
+  backgroundColor: theme.palette.background.default,
 }));
+
 const ContentStorage = () => {
   const data = [
     { bucketId: '123497971', size: 123.13, name: 'Folder 123/Folder 99/file.txt', cid: '' },
