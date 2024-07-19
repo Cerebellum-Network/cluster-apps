@@ -9,7 +9,7 @@ type RenderAnchorOptions = {
   onOpen: () => void;
 };
 
-export type DropdownProps = Pick<PopoverProps, 'open' | 'children' | 'sx'> &
+export type DropdownProps = Pick<PopoverProps, 'open' | 'children'> &
   Omit<DropdownAnchorProps, 'open'> & {
     direction?: 'right' | 'left';
     dense?: boolean;
@@ -26,7 +26,6 @@ export const Dropdown = ({
   direction = 'left',
   children,
   onToggle,
-  sx,
   dense = false,
   disableGutters = false,
   disablePaddings = false,
@@ -70,7 +69,6 @@ export const Dropdown = ({
             },
           },
         }}
-        sx={sx}
       >
         {children}
       </Popover>

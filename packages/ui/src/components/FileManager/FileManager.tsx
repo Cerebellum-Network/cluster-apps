@@ -102,7 +102,7 @@ export const FileManager = ({ data }: { data: RealData[] }) => {
         <Typography variant="body1" sx={{ flex: 1, textAlign: 'center' }}>
           ACL
         </Typography>
-        <Box sx={{ flex: 1 }}></Box> {/* Пустая колонка */}
+        <Box sx={{ flex: 1 }}></Box>
       </Box>
       {rows.map((row) => (
         <Row key={row.bucketId} row={row} />

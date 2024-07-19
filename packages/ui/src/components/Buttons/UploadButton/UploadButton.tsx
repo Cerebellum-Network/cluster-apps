@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Box, MenuItem, MenuList, styled } from '@mui/material';
-import { Dropdown, FileIcon } from '@developer-console/ui';
+import { MenuItem, MenuList, styled } from '@mui/material';
+import { Dropdown, UploadFileIcon, UploadFolderIcon } from '@developer-console/ui';
 
 const StyledMenuItem = styled(MenuItem)(() => ({
+  display: 'flex',
+  gap: '8px',
+  alignItems: 'center',
   '.muimenuitem-root:hover': {
     backgroundColor: '#CBCFFB',
   },
@@ -12,7 +15,7 @@ export const UploadButton = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <Dropdown sx={{ '.MuiPaper-root': { padding: '8px' } }} open={open} onToggle={setOpen} label="Upload">
+    <Dropdown open={open} onToggle={setOpen} label="Upload">
       <MenuList>
         <StyledMenuItem
           onClick={(event) => {
@@ -20,9 +23,7 @@ export const UploadButton = () => {
           }}
           disableRipple
         >
-          <Box>
-            <FileIcon width="12px" height="12px" /> Upload File
-          </Box>
+          <UploadFileIcon width="12px" height="12px" /> Upload File
         </StyledMenuItem>
         <StyledMenuItem
           onClick={(event) => {
@@ -30,9 +31,7 @@ export const UploadButton = () => {
           }}
           disableRipple
         >
-          <Box>
-            <FileIcon width="12px" height="12px" /> Upload Folder
-          </Box>
+          <UploadFolderIcon fontSize="small" /> Upload Folder
         </StyledMenuItem>
       </MenuList>
     </Dropdown>

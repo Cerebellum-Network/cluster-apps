@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Box, ButtonGroup, Typography } from '@mui/material';
-import { ButtonIcon, UploadButton } from '@developer-console/ui';
-import { ArrowIcon, DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
+import { ButtonIcon, UploadButton, ArrowRightIcon } from '@developer-console/ui';
+import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
 
@@ -33,13 +33,13 @@ export const Row = ({ row }: { row: any }) => {
         }}
         onClick={() => setOpen(!open)}
       >
-        <Typography variant="body2" sx={{ flex: 1 }}>
+        <Typography variant="body2" flex={1}>
           {row.bucketId}
         </Typography>
-        <Typography variant="body2" sx={{ flex: 1, textAlign: 'right' }}>
+        <Typography variant="body2" flex={1} textAlign="right">
           {row.usedStorage}
         </Typography>
-        <Typography variant="body2" sx={{ flex: 1, textAlign: 'center' }}>
+        <Typography variant="body2" flex={1} textAlign="center">
           {row.acl}
         </Typography>
         <Box sx={{ flex: 1 }}></Box>
@@ -82,30 +82,32 @@ export const Row = ({ row }: { row: any }) => {
                           marginRight: '8px',
                         }}
                       >
-                        <ArrowIcon width="16px" height="16px" />
+                        <ArrowRightIcon fontSize="small" />
                       </Box>
                     )}
                     <Box display="flex" marginRight="8px">
                       {isBranch ? <FilledFolderIcon /> : <FolderIcon />}
                     </Box>
-                    <Typography variant="body2" sx={{ flex: 1 }}>
+                    <Typography variant="body2" flex={1}>
                       {element.name}
                     </Typography>
                   </Box>
                   {element.metadata?.usedStorage && (
                     <Typography
                       variant="body2"
-                      sx={{ flex: 1, textAlign: 'right', marginRight: isBranch ? `${leftMargin}px` : 0 }}
+                      flex={1}
+                      textAlign="right"
+                      marginRight={isBranch ? `${leftMargin}px` : 0}
                     >
                       {element.metadata.usedStorage}
                     </Typography>
                   )}
                   {element.metadata?.type && (
-                    <Typography variant="body2" sx={{ flex: 1, textAlign: 'center', marginRight: `${leftMargin}px` }}>
+                    <Typography variant="body2" flex={1} textAlign="center" marginRight={`${leftMargin}px`}>
                       {element.metadata.type}
                     </Typography>
                   )}
-                  <Box sx={{ flex: 1, textAlign: 'right' }}>
+                  <Box flex={1} textAlign="right">
                     {!isBranch ? (
                       <ButtonGroup>
                         <ButtonIcon
