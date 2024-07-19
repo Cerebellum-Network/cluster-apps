@@ -4,7 +4,7 @@ import { observer } from 'mobx-react-lite';
 import { useEffect, useState } from 'react';
 import ReactConfetti from 'react-confetti';
 import Card from './Card';
-import { OnboardingLayout } from '~/components/OnboardingLayout/OnboardingLayout';
+import { OnboardingLayout } from '~/components';
 import { DiscordIcon, Layout } from '@developer-console/ui';
 
 type StepState = 'hidden' | 'loading' | 'loaded' | 'success' | 'idle';

@@ -15,7 +15,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 
 import { Terms } from './Login.styled';
-import { OnboardingLayout } from '~/components/OnboardingLayout';
+import { OnboardingLayout } from '~/components';
 import { useAccountStore } from '~/hooks';
 import { Navigate, Outlet } from 'react-router-dom';
 
