@@ -41,7 +41,15 @@ export {
   type SnackbarOrigin,
   Alert,
   type AlertColor,
+  CircularProgress,
+  type CircularProgressProps,
+  FormControl,
+  type FormControlProps,
+  TextField,
+  type TextFieldProps,
 } from '@mui/material';
+
+export { default as Lottie } from 'lottie-react';
 
 // Custom components
 export * from './Logo';

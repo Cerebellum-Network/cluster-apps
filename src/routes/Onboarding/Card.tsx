@@ -1,8 +1,5 @@
 import { LoadedCard, LoadingCard, SuccessCard } from './Card.styled';
-import Lottie from 'lottie-react';
-import LoadingAnimation from '../../assets/animations/loading.json';
-import CheckAnimation from '../../assets/animations/check.json';
-import { Box } from '@mui/material';
+import { Lottie, Box, LoadingAnimation, CheckMarkAnimation, Typography } from '@developer-console/ui';
 
 interface CardProps {
   state: 'loading' | 'success' | 'loaded' | 'idle';
@@ -12,16 +9,20 @@ const Card = ({ children, state = 'idle' }: React.PropsWithChildren<CardProps>) 
   if (state === 'success') {
     return (
       <SuccessCard>
-        {children}
+        <Typography>{children}</Typography>
         <Box width="100px">
-          <Lottie animationData={CheckAnimation} />
+          <Lottie animationData={CheckMarkAnimation} />
         </Box>
       </SuccessCard>
     );
   }
 
   if (state === 'idle') {
-    return <LoadingCard>{children}</LoadingCard>;
+    return (
+      <LoadingCard>
+        <Typography>{children}</Typography>
+      </LoadingCard>
+    );
   }
 
   return state === 'loading' ? (
@@ -32,7 +33,9 @@ const Card = ({ children, state = 'idle' }: React.PropsWithChildren<CardProps>) 
       </Box>
     </LoadingCard>
   ) : (
-    <LoadedCard>{children} ✓</LoadedCard>
+    <LoadedCard>
+      <Typography>{children} ✓</Typography>
+    </LoadedCard>
   );
 };
 
