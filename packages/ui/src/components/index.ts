@@ -49,5 +49,4 @@ export * from './Layout';
 export * from './Dropdown';
 export * from './Truncate';
 export * from './FileManager';
-export * from './Buttons/ButtonIcon';
-export * from './Buttons/UploadButton';
+export * from './UploadButton';
