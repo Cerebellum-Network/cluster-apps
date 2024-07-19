@@ -1,5 +1,5 @@
 import { LoadedCard, LoadingCard, SuccessCard } from './Card.styled';
-import { Lottie, Box, LoadingAnimation, CheckMarkAnimation, Typography } from '@developer-console/ui';
+import { Box, LoadingAnimation, CheckMarkAnimation, Typography } from '@developer-console/ui';
 
 interface CardProps {
   state: 'loading' | 'success' | 'loaded' | 'idle';
