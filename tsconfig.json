@@ -26,6 +26,6 @@
       "@developer-console/*": ["./packages/*/src"] // Local packages
     }
   },
-  "include": ["src", "packages/ui/src/icons/ArrowLeft.tsx", "packages/ui/src/icons/ArrowRight.tsx"],
+  "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

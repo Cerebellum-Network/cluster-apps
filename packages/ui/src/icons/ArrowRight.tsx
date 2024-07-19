@@ -1,6 +1,6 @@
 import { SvgIcon, SvgIconProps } from '@mui/material';
 
-export const ArrowRight = (props: SvgIconProps) => {
+export const RightArrowIcon = (props: SvgIconProps) => {
   return (
     <SvgIcon {...props} width="25" height="24" viewBox="0 0 25 24">
       <path

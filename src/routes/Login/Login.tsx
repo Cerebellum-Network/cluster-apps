@@ -1,4 +1,14 @@
-import { CircularProgress, FormControl, Stack, TextField, Button, Typography } from '@developer-console/ui';
+import {
+  CircularProgress,
+  FormControl,
+  Stack,
+  TextField,
+  Button,
+  Typography,
+  RightArrowIcon,
+  DiscordIcon,
+  Layout,
+} from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -6,8 +16,8 @@ import * as yup from 'yup';
 
 import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components/OnboardingLayout';
-import { DiscordIcon, Layout, ArrowRight } from '@developer-console/ui';
 import { useAccountStore } from '~/hooks';
+import { Navigate, Outlet } from 'react-router-dom';
 
 const validationSchema = yup
   .object({
@@ -36,6 +46,10 @@ const Login = observer(() => {
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
   });
+
+  if (account?.status === 'connected') {
+    return <Navigate to="/login/onboarding" />;
+  }
 
   return (
     <Layout
@@ -79,18 +93,18 @@ const Login = observer(() => {
             id="start-account-btn"
             className="click"
             type="submit"
+            size="large"
             disabled={!isValid}
             sx={{
               pointerEvents: isLoading ? 'none' : 'auto',
               width: 600,
-              height: 56,
             }}
           >
             {isLoading ? (
               <CircularProgress sx={{ color: '#fff' }} size="20px" />
             ) : (
               <>
-                Get Started <ArrowRight />
+                Get Started <RightArrowIcon />
               </>
             )}
           </Button>
@@ -100,6 +114,7 @@ const Login = observer(() => {
           </Terms>
         </Stack>
       </OnboardingLayout>
+      <Outlet />
     </Layout>
   );
 });

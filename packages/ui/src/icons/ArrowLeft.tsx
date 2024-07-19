@@ -1,6 +1,6 @@
 import { SvgIcon, SvgIconProps } from '@mui/material';
 
-export const ArrowLeft = (props: SvgIconProps) => {
+export const LeftArrowIcon = (props: SvgIconProps) => {
   return (
     <SvgIcon {...props} width="24" height="24" viewBox="0 0 24 24">
       <g id=" Arrow Left">

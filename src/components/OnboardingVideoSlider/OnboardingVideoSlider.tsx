@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import video from '../../assets/videos/slider-video.mp4';
 import { IconButton, Stack } from '@mui/material';
-import { ArrowLeft, ArrowRight, Typography } from '@developer-console/ui';
+import { LeftArrowIcon, RightArrowIcon, Typography } from '@developer-console/ui';
 import { SliderDot } from './OnboardingVideoSlider.styled';
 
 const SLIDES = [
@@ -104,7 +104,7 @@ export const OnboardingVideoSlider = () => {
         zIndex="1"
       >
         <IconButton onClick={prevSlide}>
-          <ArrowLeft />
+          <LeftArrowIcon />
         </IconButton>
         <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
           <SliderDot className={currentSlide === 0 ? 'active' : ''} />
@@ -112,7 +112,7 @@ export const OnboardingVideoSlider = () => {
           <SliderDot className={currentSlide === 2 ? 'active' : ''} />
         </Stack>
         <IconButton onClick={nextSlide}>
-          <ArrowRight />
+          <RightArrowIcon />
         </IconButton>
       </Stack>
       <video ref={vidRef} className="videoTag" style={{ width: '100%' }} muted>

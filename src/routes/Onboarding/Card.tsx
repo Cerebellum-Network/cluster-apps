@@ -11,7 +11,7 @@ const Card = ({ children, state = 'idle' }: React.PropsWithChildren<CardProps>) 
       <SuccessCard>
         <Typography>{children}</Typography>
         <Box width="100px">
-          <Lottie animationData={CheckMarkAnimation} />
+          <CheckMarkAnimation />
         </Box>
       </SuccessCard>
     );
@@ -27,9 +27,9 @@ const Card = ({ children, state = 'idle' }: React.PropsWithChildren<CardProps>) 
 
   return state === 'loading' ? (
     <LoadingCard>
-      {children}
+      <Typography>{children}</Typography>
       <Box width="160px">
-        <Lottie animationData={LoadingAnimation} />
+        <LoadingAnimation />
       </Box>
     </LoadingCard>
   ) : (

@@ -12,6 +12,7 @@ export const OnboardingContent = styled(Stack)({
   maxWidth: '1560px',
   flexDirection: 'row',
   height: '100%',
+  width: '100%',
 });
 
 export const RightColumn = styled(Stack)({
@@ -25,8 +26,7 @@ export const RightColumn = styled(Stack)({
 });
 
 export const LeftColumn = styled(Stack)({
-  maxWidth: '1000px',
-  minWidth: '600px',
+  width: '100%',
   height: '100%',
   boxSizing: 'border-box',
   padding: '48px 40px',
