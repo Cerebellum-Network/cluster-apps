@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import video from '../../../../assets/videos/slider-video.mp4';
 import { IconButton, Stack } from '@mui/material';
-import { ArrowRight } from '../../../icons/ArrowRight';
-import { ArrowLeft } from '../../../icons/ArrowLeft';
+import { ArrowLeft, ArrowRight } from '@developer-console/ui';
 import { SliderDot, SlideTitle, SlideDescription } from './OnboardingVideoSlider.styled';
 
 const SLIDES = [

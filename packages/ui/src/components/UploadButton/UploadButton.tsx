@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ListItemIcon, MenuItem, MenuList, styled, Typography } from '@mui/material';
+import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
 import { Dropdown, UploadFileIcon, UploadFolderIcon } from '@developer-console/ui';
 
 export const UploadButton = () => {

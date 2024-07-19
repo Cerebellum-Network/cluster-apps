@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Box, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
+import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
 import { UploadButton, ArrowRightIcon } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
 
-const StyledRow = styled(Box)(({ theme, open }) => ({
+interface StyledRowProps extends BoxProps {
+  open: boolean;
+}
+const StyledRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   display: 'flex',
   alignItems: 'center',
   padding: '16px 12px',
@@ -22,7 +25,7 @@ const StyledRow = styled(Box)(({ theme, open }) => ({
   borderRadius: open ? theme.spacing(0.5, 0.5, 0, 0) : 'none',
 }));
 
-const ExpandedRow = styled(Box)(({ theme, open }) => ({
+const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   backgroundColor: theme.palette.common.white,
   border: `1px solid ${theme.palette.divider}`,
   borderTop: 'none',
@@ -120,7 +123,6 @@ export const Row = ({ row }: { row: any }) => {
                       <ButtonGroup>
                         <IconButton
                           sx={{ marginRight: '8px' }}
-                          icon={<ShareIcon />}
                           onClick={() => {
                             showMessage({
                               appearance: 'info',
@@ -131,8 +133,12 @@ export const Row = ({ row }: { row: any }) => {
                               },
                             });
                           }}
-                        />
-                        <IconButton icon={<DownloadIcon />} />
+                        >
+                          <ShareIcon />
+                        </IconButton>
+                        <IconButton>
+                          <DownloadIcon />
+                        </IconButton>
                       </ButtonGroup>
                     ) : (
                       <UploadButton />
