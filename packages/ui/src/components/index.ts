@@ -25,6 +25,8 @@ export {
   type CardHeaderProps,
   CardActions,
   type CardActionsProps,
+  CircularProgress,
+  type CircularProgressProps,
 } from '@mui/material';
 
 // Custom components
