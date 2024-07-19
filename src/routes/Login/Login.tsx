@@ -65,10 +65,10 @@ const Login = observer(() => {
     >
       <OnboardingLayout>
         <Stack justifyContent="center" alignItems="center" flex="1">
-          <Typography variant="h2" textAlign="center">
+          <Typography variant="h2" fontWeight="bold" textAlign="center">
             Welcome to [Cluster Name]
           </Typography>
-          <Typography variant="h6" textAlign="center" sx={{ mt: 4, mb: 3 }}>
+          <Typography variant="h6" fontWeight="semibold" textAlign="center" sx={{ mt: 4, mb: 3 }}>
             Unlock the power of the first Web3 Data Cloud for real-world applications. Get started in just a minutes.
           </Typography>
 

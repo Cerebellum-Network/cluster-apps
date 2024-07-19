@@ -86,7 +86,7 @@ export const OnboardingVideoSlider = () => {
         justifyContent="center"
         alignItems="center"
         position="absolute"
-        bottom="80px"
+        bottom="100px"
         left="40px"
         zIndex="1"
       >
