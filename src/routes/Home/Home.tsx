@@ -18,7 +18,7 @@ const Home = ({ apps }: HomeProps) => {
 
   return (
     <HomeLayout rightElement={<Navigation items={apps} />} leftElement={<Sidebar />}>
-      <Outlet />
+      {account.isReady() && <Outlet />}
     </HomeLayout>
   );
 };
