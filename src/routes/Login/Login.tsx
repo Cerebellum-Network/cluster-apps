@@ -8,6 +8,7 @@ import { ArrowRight } from '../../components/icons/ArrowRight';
 import { SubmitButton, Terms, SubTitle, Title } from './Login.styled';
 import { OnboardingLayout } from '~/components/layouts/onboarding/OnboardingLayout';
 import { DiscordIcon, Layout } from '@developer-console/ui';
+import { useAccountStore } from '~/hooks';
 
 const validationSchema = yup
   .object({
@@ -16,9 +17,12 @@ const validationSchema = yup
   .required();
 
 const Login = observer(() => {
+  const account = useAccountStore();
+
   const isLoading = false;
   const {
     register,
+    handleSubmit,
     formState: { errors, isValid },
     setValue: setFormValue,
     trigger: formTrigger,
@@ -28,6 +32,10 @@ const Login = observer(() => {
     defaultValues: {
       email: '',
     },
+  });
+
+  const onSubmit = handleSubmit(async (data) => {
+    await account.connect(data);
   });
 
   return (
@@ -43,7 +51,7 @@ const Login = observer(() => {
       }
     >
       <OnboardingLayout>
-        <Stack justifyContent={'center'} alignItems={'center'} flex="1">
+        <Stack component="form" onSubmit={onSubmit} justifyContent={'center'} alignItems={'center'} flex="1">
           <Title>Welcome to [Cluster Name]</Title>
           <SubTitle sx={{ mt: 4, mb: 3 }}>
             Unlock the power of the first Web3 Data Cloud for real-world applications. Get started in just a minutes.
@@ -66,9 +74,8 @@ const Login = observer(() => {
             />
           </FormControl>
           <SubmitButton
-            // onClick={handleCereWalletConnection}
-            id="start-account-btn"
             className="click"
+            type="submit"
             disabled={!isValid}
             sx={{
               pointerEvents: isLoading ? 'none' : 'auto',

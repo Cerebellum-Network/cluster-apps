@@ -13,17 +13,23 @@ import {
   Typography,
   InfoOutlinedIcon,
 } from '@developer-console/ui';
+import { useAccountStore } from '~/hooks';
 
 export type AccountDropdownProps = {};
 
 const AccountDropdown = () => {
+  const account = useAccountStore();
   const [open, setOpen] = useState(false);
+
+  if (!account.isConnected()) {
+    return null;
+  }
 
   return (
     <Dropdown
       open={open}
       onToggle={setOpen}
-      label={<Truncate text="account@cere.io" variant="email" maxLength={20} />}
+      label={<Truncate text={account.userInfo.email} variant="email" maxLength={20} />}
       leftElement={<Avatar />}
     >
       <Stack spacing={2} width={240}>
@@ -32,19 +38,19 @@ const AccountDropdown = () => {
             title="Cere Wallet"
             action={
               <Typography variant="body2" fontWeight="bold" color="text.primary">
-                <Truncate variant="hex" maxLength={8} text="5G23000J42F" />
+                <Truncate variant="hex" maxLength={8} text={account.address} />
               </Typography>
             }
           />
           <CardContent>
-            <Typography fontWeight="bold">100 CERE</Typography>
+            <Typography fontWeight="bold">{account.balance} CERE</Typography>
           </CardContent>
         </Card>
 
         <Card variant="outlined">
           <CardHeader avatar={<InfoOutlinedIcon />} title="DDC Wallet" />
           <CardContent>
-            <Typography fontWeight="bold">100 CERE</Typography>
+            <Typography fontWeight="bold">0 CERE</Typography>
           </CardContent>
           <CardActions>
             <Button fullWidth variant="outlined">
@@ -65,7 +71,7 @@ const AccountDropdown = () => {
           </CardActions>
         </Card>
 
-        <Button variant="outlined" color="secondary">
+        <Button variant="outlined" color="secondary" onClick={() => account.disconnect()}>
           Log Out
         </Button>
       </Stack>

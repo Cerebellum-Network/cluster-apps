@@ -1,1 +1,3 @@
-export const SAMPLE_CONSTANT = 'SAMPLE_CONSTANT';
+export const APP_ID = 'developer-console';
+export const APP_NAME = 'Developer Console';
+export const APP_ENV = 'dev';
