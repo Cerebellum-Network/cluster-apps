@@ -43,8 +43,6 @@ export {
   type SnackbarOrigin,
   Alert,
   type AlertColor,
-  CircularProgress,
-  type CircularProgressProps,
   FormControl,
   type FormControlProps,
   TextField,
