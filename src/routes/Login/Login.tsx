@@ -4,10 +4,9 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 
-import { ArrowRight } from '../../components/icons/ArrowRight';
 import { SubmitButton, Terms, SubTitle, Title } from './Login.styled';
 import { OnboardingLayout } from '~/components/layouts/onboarding/OnboardingLayout';
-import { DiscordIcon, Layout } from '@developer-console/ui';
+import { DiscordIcon, Layout, ArrowRight } from '@developer-console/ui';
 import { useAccountStore } from '~/hooks';
 
 const validationSchema = yup

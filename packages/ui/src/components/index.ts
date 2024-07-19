@@ -27,6 +27,22 @@ export {
   type CardActionsProps,
   CircularProgress,
   type CircularProgressProps,
+  Table,
+  type TableProps,
+  TableHead,
+  type TableHeadProps,
+  TableBody,
+  type TableBodyProps,
+  TableRow,
+  type TableRowProps,
+  TableCell,
+  type TableCellProps,
+  Collapse,
+  type CollapseProps,
+  Snackbar,
+  type SnackbarOrigin,
+  Alert,
+  type AlertColor,
 } from '@mui/material';
 
 // Custom components
@@ -34,3 +50,5 @@ export * from './Logo';
 export * from './Layout';
 export * from './Dropdown';
 export * from './Truncate';
+export * from './FileManager';
+export * from './UploadButton';
