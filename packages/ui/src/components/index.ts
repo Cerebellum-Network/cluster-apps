@@ -1,4 +1,4 @@
-// Mui components
+// Mui  components
 export {
   styled,
   Box,
