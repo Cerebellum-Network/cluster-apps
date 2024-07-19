@@ -10,7 +10,7 @@ export type NavigationProps = {
 const Navigation = ({ items }: NavigationProps) => (
   <Stack spacing={2}>
     {items.map((props) => (
-      <NavigationItem {...props} />
+      <NavigationItem key={props.rootPath} {...props} />
     ))}
   </Stack>
 );
