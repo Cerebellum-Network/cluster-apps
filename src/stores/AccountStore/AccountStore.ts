@@ -1,4 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx';
+import { fromPromise, IPromiseBasedObservable } from 'mobx-utils';
+
 import { EmbedWallet, WalletStatus, UserInfo, WalletAccount, WalletBalance } from '@cere/embed-wallet';
 import { DdcClient, CereWalletSigner, DEVNET } from '@cere-ddc-sdk/ddc-client';
 
@@ -8,11 +10,12 @@ import { Account, ReadyAccount, AccountStatus, ConnectOptions } from './types';
 
 export class AccountStore implements Account {
   private currentStatus: AccountStatus = 'not-ready';
-  private currentUserInfo?: UserInfo;
   private currentAddress?: string;
   private currentBalance?: number;
-  private currentDdc?: DdcClient;
   private currentSigner?: CereWalletSigner;
+
+  private ddcPromise?: IPromiseBasedObservable<DdcClient>;
+  private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
 
   readonly wallet = new EmbedWallet({
     appId: APP_ID,
@@ -48,39 +51,27 @@ export class AccountStore implements Account {
   }
 
   private async bootstrap(address: string) {
-    const signer = new CereWalletSigner(this.wallet);
-    const [userInfo, ddc] = await Promise.all([this.wallet.getUserInfo(), DdcClient.create(signer, DEVNET)]);
+    this.currentAddress = address;
+    this.currentSigner = new CereWalletSigner(this.wallet);
 
-    runInAction(() => {
-      this.currentAddress = address;
-      this.currentUserInfo = userInfo;
-      this.currentSigner = signer;
-      this.currentDdc = ddc;
-    });
+    this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
+    this.ddcPromise = fromPromise(DdcClient.create(this.currentSigner, DEVNET));
   }
 
   private async cleanup() {
-    this.currentUserInfo = undefined;
+    this.userInfoPromise = undefined;
     this.currentAddress = undefined;
     this.currentSigner = undefined;
-    this.currentDdc = undefined;
+    this.ddcPromise = undefined;
     this.currentBalance = undefined;
   }
 
   isReady(): this is ReadyAccount {
-    return !!this.userInfo && !!this.ddc;
-  }
-
-  get ddc() {
-    return this.currentDdc;
+    return !!this.address && !!this.userInfo;
   }
 
   get status() {
     return this.currentStatus;
-  }
-
-  get userInfo() {
-    return this.currentUserInfo;
   }
 
   get address() {
@@ -89,6 +80,18 @@ export class AccountStore implements Account {
 
   get balance() {
     return this.currentBalance;
+  }
+
+  get userInfo() {
+    return this.userInfoPromise?.case({
+      fulfilled: (userInfo) => userInfo,
+    });
+  }
+
+  get ddc() {
+    return this.ddcPromise?.case({
+      fulfilled: (ddc) => ddc,
+    });
   }
 
   async connect({ email }: ConnectOptions) {

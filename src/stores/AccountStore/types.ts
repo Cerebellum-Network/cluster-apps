@@ -20,4 +20,7 @@ export interface Account {
   signMessage(message: string): Promise<string>;
 }
 
-export type ReadyAccount = Required<Account>;
+export type ReadyAccount = Omit<Account, 'userInfo' | 'address'> & {
+  readonly userInfo: UserInfo;
+  readonly address: string;
+};

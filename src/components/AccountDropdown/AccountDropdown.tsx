@@ -13,6 +13,7 @@ import {
   Typography,
   InfoOutlinedIcon,
 } from '@developer-console/ui';
+
 import { useAccountStore } from '~/hooks';
 
 export type AccountDropdownProps = {};
@@ -43,14 +44,14 @@ const AccountDropdown = () => {
             }
           />
           <CardContent>
-            <Typography fontWeight="bold">{account.balance} CERE</Typography>
+            <Typography fontWeight="bold">{account.balance ? `${account.balance} CERE` : '-'}</Typography>
           </CardContent>
         </Card>
 
         <Card variant="outlined">
           <CardHeader avatar={<InfoOutlinedIcon />} title="DDC Wallet" />
           <CardContent>
-            <Typography fontWeight="bold">0 CERE</Typography>
+            <Typography fontWeight="bold">-</Typography>
           </CardContent>
           <CardActions>
             <Button fullWidth variant="outlined">
