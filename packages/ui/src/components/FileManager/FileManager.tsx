@@ -31,6 +31,16 @@ const bytesToSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+const calculateSize = (node: FileNode): number => {
+  if (node.metadata && node.metadata.type !== 'folder') {
+    return parseFloat(node.metadata.usedStorage);
+  }
+  if (node.children) {
+    return node.children.reduce((total, child) => total + calculateSize(child), 0);
+  }
+  return 0;
+};
+
 const buildTree = (files: RealData[]): FileNode => {
   const root: FileNode = { name: '', children: [] };
 
@@ -38,7 +48,7 @@ const buildTree = (files: RealData[]): FileNode => {
     const parts = file.name.split('/');
     let currentNode = root;
 
-    parts?.forEach((part, index) => {
+    parts.forEach((part, index) => {
       let node = currentNode.children?.find((child) => child.name === part);
       if (!node) {
         node = { name: part, children: [] };
@@ -48,21 +58,33 @@ const buildTree = (files: RealData[]): FileNode => {
 
       if (index === parts.length - 1) {
         currentNode.metadata = {
-          usedStorage: bytesToSize(file.size),
-          type: 'public', // Adjust according to your data
+          usedStorage: file.size.toString(),
+          type: 'file', // Adjust according to your data
         };
         delete currentNode.children; // Remove children for file nodes
       }
     });
   });
 
+  const addFolderSizes = (node: FileNode) => {
+    if (node.children) {
+      node.children.forEach(addFolderSizes);
+      const totalSize = node.children.reduce((sum, child) => sum + calculateSize(child), 0);
+      node.metadata = {
+        usedStorage: totalSize.toString(),
+        type: 'folder',
+      };
+    }
+  };
+
+  addFolderSizes(root);
   return root;
 };
 
 const transformData = (data: RealData[]): MockData[] => {
   const bucketMap: { [key: string]: RealData[] } = {};
 
-  data?.forEach((file) => {
+  data.forEach((file) => {
     if (!bucketMap[file.bucketId]) {
       bucketMap[file.bucketId] = [];
     }
@@ -71,11 +93,12 @@ const transformData = (data: RealData[]): MockData[] => {
 
   return Object.keys(bucketMap).map((bucketId) => {
     const files = bucketMap[bucketId];
+    const rootNode = buildTree(files);
     return {
       bucketId,
       usedStorage: bytesToSize(files.reduce((acc, file) => acc + file.size, 0)),
       acl: 'Public',
-      files: buildTree(files),
+      files: rootNode,
     };
   });
 };
@@ -86,10 +109,10 @@ export const FileManager = ({ data }: { data: RealData[] }) => {
   return (
     <>
       <Box
+        display="flex"
+        alignItems="center"
+        padding={(theme) => theme.spacing(1, 1.5)}
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '8px 12px',
           backgroundColor: '#f9f9f9',
         }}
       >

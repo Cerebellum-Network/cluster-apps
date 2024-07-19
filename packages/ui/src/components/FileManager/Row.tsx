@@ -1,9 +1,40 @@
 import { useState } from 'react';
-import { Box, ButtonGroup, IconButton, Typography } from '@mui/material';
+import { Box, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
 import { UploadButton, ArrowRightIcon } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
+
+const StyledRow = styled(Box)(({ theme, open }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: '16px 12px',
+  '&:hover': {
+    cursor: 'pointer',
+    backgroundColor: '#7A9FFF0A',
+  },
+  '&:nth-child(odd)': {
+    backgroundColor: '#7A9FFF0A',
+  },
+  backgroundColor: open ? theme.palette.common.white : 'transparent',
+  border: open ? `1px solid ${theme.palette.divider}` : 'none',
+  borderBottom: open ? `1px solid ${theme.palette.divider}` : 'none',
+  borderRadius: open ? theme.spacing(0.5, 0.5, 0, 0) : 'none',
+}));
+
+const ExpandedRow = styled(Box)(({ theme, open }) => ({
+  backgroundColor: theme.palette.common.white,
+  border: `1px solid ${theme.palette.divider}`,
+  borderTop: 'none',
+  borderRadius: theme.spacing(0, 0, 0.5, 0.5),
+  boxShadow: '0px 8px 12px 0px #1A0A7C1A',
+  maxHeight: '352px',
+  overflowY: 'auto',
+  width: '100%',
+  '&:not(:last-child)': {
+    marginBottom: open ? theme.spacing(1) : 0,
+  },
+}));
 
 export const Row = ({ row }: { row: any }) => {
   const [open, setOpen] = useState(false);
@@ -14,25 +45,7 @@ export const Row = ({ row }: { row: any }) => {
 
   return (
     <>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '16px 12px',
-          '&:hover': {
-            cursor: 'pointer',
-            backgroundColor: '#7A9FFF0A',
-          },
-          '&:nth-child(odd)': {
-            backgroundColor: '#7A9FFF0A',
-          },
-          backgroundColor: open ? '#FFFFFF' : 'transparent',
-          border: open ? '1px solid #5865F2' : 'none',
-          borderBottom: open ? '1px solid #CDCCCD' : 'none',
-          borderRadius: open ? '4px 4px 0 0 ' : 'none',
-        }}
-        onClick={() => setOpen(!open)}
-      >
+      <StyledRow open={open} onClick={() => setOpen(!open)}>
         <Typography variant="body2" flex={1}>
           {row.bucketId}
         </Typography>
@@ -43,20 +56,9 @@ export const Row = ({ row }: { row: any }) => {
           {row.acl}
         </Typography>
         <Box sx={{ flex: 1 }}></Box>
-      </Box>
+      </StyledRow>
       {open && (
-        <Box
-          sx={{
-            backgroundColor: '#FFFFFF',
-            border: '1px solid #5865F2',
-            borderTop: 'none',
-            borderRadius: '0 0 4px 4px',
-            boxShadow: '0px 8px 12px 0px #1A0A7C1A',
-            maxHeight: '352px',
-            overflowY: 'auto',
-            width: '100%',
-          }}
-        >
+        <ExpandedRow open={open}>
           <TreeView
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
@@ -72,14 +74,14 @@ export const Row = ({ row }: { row: any }) => {
                     width: 'calc(100% - ' + leftMargin + 'px)',
                   }}
                 >
-                  <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', '&:hover': { cursor: 'pointer' } }}>
+                  <Box flex={1} display="flex" alignItems="center" sx={{ '&:hover': { cursor: 'pointer' } }}>
                     {isBranch && (
                       <Box
+                        display="flex"
+                        marginRight="8px"
                         sx={{
-                          display: 'flex',
                           transition: 'transform 0.2s',
                           transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                          marginRight: '8px',
                         }}
                       >
                         <ArrowRightIcon fontSize="small" />
@@ -99,7 +101,7 @@ export const Row = ({ row }: { row: any }) => {
                       textAlign="right"
                       marginRight={isBranch ? `${leftMargin}px` : 0}
                     >
-                      {element.metadata.usedStorage}
+                      {element.metadata.usedStorage} KB
                     </Typography>
                   )}
                   {element.metadata?.type && (
@@ -107,7 +109,13 @@ export const Row = ({ row }: { row: any }) => {
                       {element.metadata.type}
                     </Typography>
                   )}
-                  <Box flex={1} textAlign="right">
+                  <Box
+                    flex={1}
+                    textAlign="right"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  >
                     {!isBranch ? (
                       <ButtonGroup>
                         <IconButton
@@ -134,7 +142,7 @@ export const Row = ({ row }: { row: any }) => {
               );
             }}
           />
-        </Box>
+        </ExpandedRow>
       )}
     </>
   );

@@ -2,14 +2,7 @@ import { memo } from 'react';
 import { SvgIcon, SvgIconProps } from '@mui/material';
 
 export const UploadFileIcon = memo((props: SvgIconProps) => (
-  <SvgIcon
-    {...props}
-    sx={{
-      width: props.width,
-      height: props.height,
-    }}
-    viewBox="0 0 12 12"
-  >
+  <SvgIcon {...props} viewBox="0 0 12 12">
     <path
       fillRule="evenodd"
       clipRule="evenodd"

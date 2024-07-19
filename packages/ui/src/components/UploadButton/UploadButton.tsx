@@ -23,7 +23,7 @@ export const UploadButton = () => {
           }}
           disableRipple
         >
-          <UploadFileIcon width="12px" height="12px" /> Upload File
+          <UploadFileIcon fontSize="inherit" /> Upload File
         </StyledMenuItem>
         <StyledMenuItem
           onClick={(event) => {

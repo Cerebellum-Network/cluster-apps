@@ -38,24 +38,13 @@ const Center = styled(Typography)(({ theme }) => ({
 }));
 
 export const DropdownAnchor = forwardRef(
-  ({ open, label, leftElement, onOpen }: DropdownAnchorProps, ref: Ref<HTMLButtonElement>) => {
-    const handleOpen = (event: MouseEvent) => {
-      event.stopPropagation();
-      onOpen?.();
-    };
-    return (
-      <Clickable
-        ref={ref}
-        color="inherit"
-        variant="text"
-        onClick={(event) => handleOpen(event as unknown as MouseEvent)}
-      >
-        <Anchor spacing={1} direction="row" alignItems="center">
-          <Left>{leftElement}</Left>
-          <Center variant="body1">{label}</Center>
-          {open ? <ArrowDropUp /> : <ArrowDropDown />}
-        </Anchor>
-      </Clickable>
-    );
-  },
+  ({ open, label, leftElement, onOpen }: DropdownAnchorProps, ref: Ref<HTMLButtonElement>) => (
+    <Clickable ref={ref} color="inherit" variant="text" onClick={onOpen}>
+      <Anchor spacing={1} direction="row" alignItems="center">
+        <Left>{leftElement}</Left>
+        <Center variant="body1">{label}</Center>
+        {open ? <ArrowDropUp /> : <ArrowDropDown />}
+      </Anchor>
+    </Clickable>
+  ),
 );
