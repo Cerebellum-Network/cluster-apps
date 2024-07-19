@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Box, styled, Typography } from '@mui/material';
 
 const Container = styled(Box)(() => ({
-  backgroundColor: '#F5F7FA',
+  backgroundColor: (theme) => theme.palette.background.default,
 }));
 const ContentStorage = () => {
   const data = [
