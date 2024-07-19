@@ -45,6 +45,12 @@ export const createTheme = (_options: ThemeOptions = {}) =>
     },
 
     components: {
+      MuiPaper: {
+        defaultProps: {
+          variant: 'outlined',
+        },
+      },
+
       MuiButton: {
         defaultProps: {
           variant: 'contained',
