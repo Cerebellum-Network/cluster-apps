@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Box, ButtonGroup, Typography } from '@mui/material';
-import { ButtonIcon, UploadButton, ArrowRightIcon } from '@developer-console/ui';
+import { Box, ButtonGroup, IconButton, Typography } from '@mui/material';
+import { UploadButton, ArrowRightIcon } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
@@ -110,7 +110,7 @@ export const Row = ({ row }: { row: any }) => {
                   <Box flex={1} textAlign="right">
                     {!isBranch ? (
                       <ButtonGroup>
-                        <ButtonIcon
+                        <IconButton
                           sx={{ marginRight: '8px' }}
                           icon={<ShareIcon />}
                           onClick={() => {
@@ -124,7 +124,7 @@ export const Row = ({ row }: { row: any }) => {
                             });
                           }}
                         />
-                        <ButtonIcon icon={<DownloadIcon />} />
+                        <IconButton icon={<DownloadIcon />} />
                       </ButtonGroup>
                     ) : (
                       <UploadButton />
