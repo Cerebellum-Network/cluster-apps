@@ -21,7 +21,7 @@ const AccountDropdown = () => {
   const account = useAccountStore();
   const [open, setOpen] = useState(false);
 
-  if (!account.isConnected()) {
+  if (!account.isReady()) {
     return null;
   }
 

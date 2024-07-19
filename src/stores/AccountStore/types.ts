@@ -13,13 +13,11 @@ export interface Account {
   readonly address?: string;
   readonly balance?: number;
 
-  isConnected(): this is ConnectedAccount;
-
+  isReady(): this is ReadyAccount;
   init(): Promise<AccountStatus>;
   connect(options: ConnectOptions): Promise<void>;
-}
-
-export type ConnectedAccount = Required<Account> & {
   disconnect(): void;
   signMessage(message: string): Promise<string>;
-};
+}
+
+export type ReadyAccount = Required<Account>;

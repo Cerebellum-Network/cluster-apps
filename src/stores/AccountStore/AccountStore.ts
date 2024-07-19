@@ -4,13 +4,7 @@ import { DdcClient, CereWalletSigner, DEVNET } from '@cere-ddc-sdk/ddc-client';
 
 import { APP_ENV, APP_ID } from '~/constants';
 import { WALLET_PERMISSIONS } from './walletConfig';
-import { Account, ConnectedAccount } from './types';
-
-type AccountStatus = WalletStatus;
-
-export type ConnectOptions = {
-  email: string;
-};
+import { Account, ReadyAccount, AccountStatus, ConnectOptions } from './types';
 
 export class AccountStore implements Account {
   private currentStatus: AccountStatus = 'not-ready';
@@ -73,7 +67,7 @@ export class AccountStore implements Account {
     this.currentBalance = undefined;
   }
 
-  isConnected(): this is ConnectedAccount {
+  isReady(): this is ReadyAccount {
     return !!this.userInfo && !!this.ddc;
   }
 
@@ -130,6 +124,6 @@ export class AccountStore implements Account {
       data: message,
     });
 
-    return sigResult?.signature;
+    return sigResult?.signature as string;
   }
 }
