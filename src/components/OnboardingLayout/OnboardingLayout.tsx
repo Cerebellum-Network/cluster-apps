@@ -1,13 +1,9 @@
-import React, { FC } from 'react';
+import React from 'react';
 import { OnboardingContainer, RightColumn, LeftColumn, OnboardingContent } from './OnboardingLayout.styled';
 
-import { OnboardingVideoSlider } from './OnboardingVideoSlider/OnboardingVideoSlider';
+import { OnboardingVideoSlider } from '../OnboardingVideoSlider';
 
-type OnboardingLayoutProps = {
-  children: React.ReactNode;
-};
-
-export const OnboardingLayout: FC<OnboardingLayoutProps> = ({ children }) => {
+export const OnboardingLayout = ({ children }: React.PropsWithChildren) => {
   return (
     <OnboardingContainer>
       <OnboardingContent gap="40px">

@@ -1,4 +1,4 @@
-import { styled } from '@mui/material/styles';
+import { styled } from '@developer-console/ui';
 
 const Card = styled('div')({
   position: 'relative',

@@ -1,14 +1,23 @@
-import { Button, CircularProgress, FormControl, Stack, TextField } from '@mui/material';
+import {
+  CircularProgress,
+  FormControl,
+  Stack,
+  TextField,
+  Button,
+  Typography,
+  RightArrowIcon,
+  DiscordIcon,
+  Layout,
+} from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 
-import { SubmitButton, Terms, SubTitle, Title } from './Login.styled';
-import { OnboardingLayout } from '~/components/layouts/onboarding/OnboardingLayout';
-import { DiscordIcon, Layout, ArrowRight } from '@developer-console/ui';
+import { Terms } from './Login.styled';
+import { OnboardingLayout } from '~/components';
 import { useAccountStore } from '~/hooks';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 const validationSchema = yup
   .object({
@@ -18,7 +27,6 @@ const validationSchema = yup
 
 const Login = observer(() => {
   const account = useAccountStore();
-  const navigate = useNavigate();
 
   const isLoading = false;
   const {
@@ -37,9 +45,11 @@ const Login = observer(() => {
 
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
-
-    navigate('/');
   });
+
+  if (account?.status === 'connected') {
+    return <Navigate to="/login/onboarding" />;
+  }
 
   return (
     <Layout
@@ -54,11 +64,13 @@ const Login = observer(() => {
       }
     >
       <OnboardingLayout>
-        <Stack component="form" onSubmit={onSubmit} justifyContent={'center'} alignItems={'center'} flex="1">
-          <Title>Welcome to [Cluster Name]</Title>
-          <SubTitle sx={{ mt: 4, mb: 3 }}>
+        <Stack justifyContent="center" alignItems="center" flex="1">
+          <Typography variant="h2" fontWeight="bold" textAlign="center">
+            Welcome to [Cluster Name]
+          </Typography>
+          <Typography variant="h6" fontWeight="semibold" textAlign="center" sx={{ mt: 4, mb: 3 }}>
             Unlock the power of the first Web3 Data Cloud for real-world applications. Get started in just a minutes.
-          </SubTitle>
+          </Typography>
 
           <FormControl>
             <TextField
@@ -76,9 +88,12 @@ const Login = observer(() => {
               }}
             />
           </FormControl>
-          <SubmitButton
+          <Button
+            onClick={onSubmit}
+            id="start-account-btn"
             className="click"
             type="submit"
+            size="large"
             disabled={!isValid}
             sx={{
               pointerEvents: isLoading ? 'none' : 'auto',
@@ -89,16 +104,17 @@ const Login = observer(() => {
               <CircularProgress sx={{ color: '#fff' }} size="20px" />
             ) : (
               <>
-                Get Started <ArrowRight />
+                Get Started <RightArrowIcon />
               </>
             )}
-          </SubmitButton>
-          <Terms>
+          </Button>
+          <Terms textAlign="center" variant="body2">
             By using your Cere wallet you automatically agree to our
             <br /> <a href="#">Terms & Conditions</a> and <a href="#">Privacy Policy</a>
           </Terms>
         </Stack>
       </OnboardingLayout>
+      <Outlet />
     </Layout>
   );
 });

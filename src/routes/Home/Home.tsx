@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react-lite';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 import { Application } from '~/applications';
 import { HomeLayout, Navigation, Sidebar } from '~/components';
@@ -11,6 +11,10 @@ export type HomeProps = {
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
+
+  if (account.status !== 'connected') {
+    return <Navigate to="/login" />;
+  }
 
   return (
     <HomeLayout rightElement={<Navigation items={apps} />} leftElement={<Sidebar />}>

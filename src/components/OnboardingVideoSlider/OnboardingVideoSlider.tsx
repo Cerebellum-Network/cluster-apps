@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import video from '../../../../assets/videos/slider-video.mp4';
+import video from '../../assets/videos/slider-video.mp4';
 import { IconButton, Stack } from '@mui/material';
-import { ArrowLeft, ArrowRight } from '@developer-console/ui';
-import { SliderDot, SlideTitle, SlideDescription } from './OnboardingVideoSlider.styled';
+import { LeftArrowIcon, RightArrowIcon, Typography } from '@developer-console/ui';
+import { SliderDot } from './OnboardingVideoSlider.styled';
 
 const SLIDES = [
   {
@@ -60,52 +60,59 @@ export const OnboardingVideoSlider = () => {
       position="relative"
       height="100%"
       width="500px"
-      bgcolor={'transparent'}
+      bgcolor="transparent"
       sx={{ filter: `hue-rotate(${getHueRotateValue(currentSlide)})` }}
     >
       <Stack
         width="440px"
-        direction={'column'}
-        justifyContent={'center'}
-        alignItems={'center'}
-        position={'absolute'}
+        direction="column"
+        justifyContent="center"
+        alignItems="center"
+        position="absolute"
         top="40px"
         left="40px"
         zIndex="1"
       >
-        <SlideTitle dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }} />
+        <Typography
+          variant="h4"
+          color="white"
+          textAlign="center"
+          dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }}
+        />
       </Stack>
       <Stack
         width="440px"
-        direction={'column'}
-        justifyContent={'center'}
-        alignItems={'center'}
-        position={'absolute'}
-        bottom="80px"
+        direction="column"
+        justifyContent="center"
+        alignItems="center"
+        position="absolute"
+        bottom="100px"
         left="40px"
         zIndex="1"
       >
-        <SlideDescription>{SLIDES[currentSlide].description}</SlideDescription>
+        <Typography textAlign="center" color="white">
+          {SLIDES[currentSlide].description}
+        </Typography>
       </Stack>
       <Stack
         width="440px"
-        direction={'row'}
+        direction="row"
         justifyContent="space-between"
-        position={'absolute'}
+        position="absolute"
         bottom="40px"
         left="40px"
-        zIndex={'1'}
+        zIndex="1"
       >
         <IconButton onClick={prevSlide}>
-          <ArrowLeft />
+          <LeftArrowIcon />
         </IconButton>
-        <Stack direction={'row'} gap="4px" alignItems={'center'} justifyContent={'center'}>
+        <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
           <SliderDot className={currentSlide === 0 ? 'active' : ''} />
           <SliderDot className={currentSlide === 1 ? 'active' : ''} />
           <SliderDot className={currentSlide === 2 ? 'active' : ''} />
         </Stack>
         <IconButton onClick={nextSlide}>
-          <ArrowRight />
+          <RightArrowIcon />
         </IconButton>
       </Stack>
       <video ref={vidRef} className="videoTag" style={{ width: '100%' }} muted>
