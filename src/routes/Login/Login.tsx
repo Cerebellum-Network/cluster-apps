@@ -8,6 +8,7 @@ import { SubmitButton, Terms, SubTitle, Title } from './Login.styled';
 import { OnboardingLayout } from '~/components/layouts/onboarding/OnboardingLayout';
 import { DiscordIcon, Layout, ArrowRight } from '@developer-console/ui';
 import { useAccountStore } from '~/hooks';
+import { useNavigate } from 'react-router-dom';
 
 const validationSchema = yup
   .object({
@@ -17,6 +18,7 @@ const validationSchema = yup
 
 const Login = observer(() => {
   const account = useAccountStore();
+  const navigate = useNavigate();
 
   const isLoading = false;
   const {
@@ -35,6 +37,8 @@ const Login = observer(() => {
 
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
+
+    navigate('/');
   });
 
   return (

@@ -1,69 +1,71 @@
-import { makeAutoObservable, runInAction } from 'mobx';
-import { fromPromise, IPromiseBasedObservable } from 'mobx-utils';
+import { makeAutoObservable, reaction, runInAction } from 'mobx';
+import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
+import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
+import { CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
+import { IndexedBucket } from '@developer-console/api';
 
-import { EmbedWallet, WalletStatus, UserInfo, WalletAccount, WalletBalance } from '@cere/embed-wallet';
-import { DdcClient, CereWalletSigner, DEVNET } from '@cere-ddc-sdk/ddc-client';
-
-import { APP_ENV, APP_ID } from '~/constants';
+import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
 import { WALLET_PERMISSIONS } from './walletConfig';
-import { Account, ReadyAccount, AccountStatus, ConnectOptions } from './types';
+import { Account, ReadyAccount, ConnectOptions } from './types';
+import {
+  createAddressResource,
+  createBalanceResource,
+  createBucketsResource,
+  createDepositResource,
+  createStatusResource,
+} from './resources';
 
 export class AccountStore implements Account {
-  private currentStatus: AccountStatus = 'not-ready';
-  private currentAddress?: string;
-  private currentBalance?: number;
-  private currentSigner?: CereWalletSigner;
+  readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
 
-  private ddcPromise?: IPromiseBasedObservable<DdcClient>;
+  private statusResource = createStatusResource(this);
+  private addressResource = createAddressResource(this);
+
+  private balanceResource?: IResource<number | undefined>;
+  private depositResource?: IResource<number | undefined>;
+  private bucketsResource?: IResource<IndexedBucket[] | undefined>;
+
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-
-  readonly wallet = new EmbedWallet({
-    appId: APP_ID,
-    env: APP_ENV,
-  });
+  private signerPromise?: IPromiseBasedObservable<CereWalletSigner>;
+  private ddcPromise?: IPromiseBasedObservable<DdcClient>;
 
   constructor() {
     makeAutoObservable(this);
 
-    this.wallet.subscribe('accounts-update', async ([, cereAccount]: WalletAccount[]) => {
-      if (!cereAccount) {
-        return this.cleanup();
-      }
+    keepAlive(this, 'status');
+    keepAlive(this, 'address');
 
-      if (this.currentAddress !== cereAccount.address) {
-        return this.bootstrap(cereAccount.address);
-      }
-    });
-
-    this.wallet.subscribe('status-update', (status: WalletStatus) =>
-      runInAction(() => {
-        this.currentStatus = status;
-      }),
-    );
-
-    this.wallet.subscribe('balance-update', ({ amount, type, token }: WalletBalance) =>
-      runInAction(() => {
-        if (type === 'native' && token === 'CERE') {
-          this.currentBalance = amount.toNumber();
-        }
-      }),
+    reaction(
+      () => this.address && this.status === 'connected',
+      (isConnected) => (isConnected ? this.bootstrap() : this.cleanup()),
     );
   }
 
-  private async bootstrap(address: string) {
-    this.currentAddress = address;
-    this.currentSigner = new CereWalletSigner(this.wallet);
+  private async bootstrap() {
+    const signer = new CereWalletSigner(this.wallet);
 
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
-    this.ddcPromise = fromPromise(DdcClient.create(this.currentSigner, DEVNET));
+    this.depositResource = createDepositResource(this);
+    this.bucketsResource = createBucketsResource(this);
+
+    this.ddcPromise = fromPromise(DdcClient.create(signer, DDC_PRESET));
+    this.signerPromise = fromPromise(signer.isReady().then(() => signer));
+
+    this.signerPromise.then(() =>
+      runInAction(() => {
+        this.balanceResource = createBalanceResource(this);
+        this.depositResource = createDepositResource(this);
+      }),
+    );
   }
 
   private async cleanup() {
     this.userInfoPromise = undefined;
-    this.currentAddress = undefined;
-    this.currentSigner = undefined;
     this.ddcPromise = undefined;
-    this.currentBalance = undefined;
+    this.balanceResource = undefined;
+    this.depositResource = undefined;
+    this.signerPromise = undefined;
+    this.bucketsResource = undefined;
   }
 
   isReady(): this is ReadyAccount {
@@ -71,20 +73,34 @@ export class AccountStore implements Account {
   }
 
   get status() {
-    return this.currentStatus;
+    return this.statusResource.current();
   }
 
   get address() {
-    return this.currentAddress;
+    return this.addressResource.current();
   }
 
   get balance() {
-    return this.currentBalance;
+    return this.balanceResource?.current();
+  }
+
+  get deposit() {
+    return this.depositResource?.current();
+  }
+
+  get buckets() {
+    return this.bucketsResource?.current();
   }
 
   get userInfo() {
     return this.userInfoPromise?.case({
       fulfilled: (userInfo) => userInfo,
+    });
+  }
+
+  get signer() {
+    return this.signerPromise?.case({
+      fulfilled: (signer) => signer,
     });
   }
 
@@ -108,25 +124,41 @@ export class AccountStore implements Account {
   }
 
   async disconnect() {
-    this.cleanup();
-
     await this.wallet.disconnect();
   }
 
   async signMessage(message: string) {
-    if (!this.currentSigner || !this.currentAddress) {
+    if (!this.signer || !this.address) {
       throw new Error('Account is not ready');
     }
 
-    await this.currentSigner.isReady();
+    await this.signer.isReady();
 
-    const signer = await this.currentSigner.getSigner();
+    const signer = await this.signer.getSigner();
     const sigResult = await signer.signRaw?.({
       type: 'bytes',
-      address: this.currentAddress,
+      address: this.address,
       data: message,
     });
 
     return sigResult?.signature as string;
+  }
+
+  async createBucket(isPublic = true) {
+    if (!this.ddc) {
+      throw new Error('DDC is not ready');
+    }
+
+    return this.ddc.createBucket(DDC_CLUSTER_ID, {
+      isPublic,
+    });
+  }
+
+  async topUp(amount: number) {
+    if (!this.ddc) {
+      throw new Error('DDC is not ready');
+    }
+
+    return this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
   }
 }

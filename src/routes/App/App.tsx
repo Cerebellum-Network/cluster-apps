@@ -1,8 +1,8 @@
+import { useEffect } from 'react';
+import { observer } from 'mobx-react-lite';
+import { Outlet } from 'react-router-dom';
 import { Box, CircularProgress, Layout, Paper } from '@developer-console/ui';
 
-import { observer } from 'mobx-react-lite';
-import { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
 import { useAppStore } from '~/hooks';
 
 const App = () => {
@@ -12,7 +12,7 @@ const App = () => {
     appStore.init();
   }, [appStore]);
 
-  if (appStore.isReady()) {
+  if (appStore.isReady) {
     return <Outlet />;
   }
 
