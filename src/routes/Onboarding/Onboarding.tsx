@@ -6,6 +6,7 @@ import ReactConfetti from 'react-confetti';
 import Card from './Card';
 import { OnboardingLayout } from '~/components';
 import { DiscordIcon, Layout } from '@developer-console/ui';
+import { useOnboardingStore } from '~/hooks';
 
 type StepState = 'hidden' | 'loading' | 'loaded' | 'success' | 'idle';
 
@@ -16,11 +17,18 @@ interface StepsState {
 }
 
 const Onboarding = () => {
+  const store = useOnboardingStore();
+
+  useEffect(() => {
+    store.startOnboarding();
+  }, [store]);
+
   const [stepsState, setStepsState] = useState<StepsState>({
     wallet: 'loaded',
     ddc: 'loading',
     tokens: 'hidden',
   });
+
   const [showConfetti, setShowConfetti] = useState(false);
 
   // TODO: Remove it when connected to the logic

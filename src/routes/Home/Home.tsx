@@ -1,5 +1,5 @@
 import { observer } from 'mobx-react-lite';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 import { Application } from '~/applications';
 import { HomeLayout, Navigation, Sidebar } from '~/components';
