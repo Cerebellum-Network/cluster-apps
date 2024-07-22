@@ -1,4 +1,4 @@
-// Mui components
+// Mui  components
 export {
   styled,
   Box,
@@ -43,7 +43,13 @@ export {
   type SnackbarOrigin,
   Alert,
   type AlertColor,
+  FormControl,
+  type FormControlProps,
+  TextField,
+  type TextFieldProps,
 } from '@mui/material';
+
+export { default as Lottie } from 'lottie-react';
 
 // Custom components
 export * from './Logo';

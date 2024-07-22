@@ -1,11 +1,10 @@
-import { Button, Stack } from '@mui/material';
+import { Button, Stack, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 
 import { useEffect, useState } from 'react';
-import { SubTitle, Title } from './Onboarding.styled';
 import ReactConfetti from 'react-confetti';
 import Card from './Card';
-import { OnboardingLayout } from '~/components/layouts/onboarding/OnboardingLayout';
+import { OnboardingLayout } from '~/components';
 import { DiscordIcon, Layout } from '@developer-console/ui';
 
 type StepState = 'hidden' | 'loading' | 'loaded' | 'success' | 'idle';
@@ -70,14 +69,18 @@ const Onboarding = () => {
       }
     >
       <OnboardingLayout>
-        <Stack justifyContent={'center'} alignItems={'center'} flex="1">
-          <SubTitle sx={{ mb: 2 }}>
+        <Stack justifyContent="center" alignItems="center" flex="1">
+          <Typography variant="h6" fontWeight="medium" textAlign="center" sx={{ mb: 2 }}>
             🎉 Welcome aboard!
             <br />
             You're almost set to use Developer Console
-          </SubTitle>
-          <Title>Setting up your environment</Title>
-          <SubTitle sx={{ my: 3, fontWeight: 500 }}>The process may take up to 30 seconds</SubTitle>
+          </Typography>
+          <Typography variant="h3" fontWeight="bold" textAlign="center">
+            Setting up your environment
+          </Typography>
+          <Typography variant="h6" fontWeight="medium" sx={{ my: 3 }}>
+            The process may take up to 30 seconds
+          </Typography>
           <Stack direction="column" gap={1}>
             <Card state="loaded">Wallet created</Card>
             {stepsState.ddc === 'loading' && <Card state="loading">Creating DDC Account</Card>}
