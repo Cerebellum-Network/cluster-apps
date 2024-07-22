@@ -1,5 +1,6 @@
 import { DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { UserInfo, WalletStatus } from '@cere/embed-wallet';
+import { IndexedBucket } from '@developer-console/api';
 
 export type AccountStatus = WalletStatus;
 
@@ -12,6 +13,7 @@ export interface Account {
   readonly userInfo?: UserInfo;
   readonly address?: string;
   readonly balance?: number;
+  readonly buckets?: IndexedBucket[];
 
   isReady(): this is ReadyAccount;
   init(): Promise<AccountStatus>;

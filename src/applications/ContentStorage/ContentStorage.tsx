@@ -1,18 +1,73 @@
-import { FileManager } from '@developer-console/ui';
+import { FileManager, useMessages } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { Box, styled, Typography } from '@mui/material';
+import { Box, CircularProgress, styled, Typography } from '@mui/material';
+import { useAccount } from '~/hooks';
+import { useCallback, useEffect, useState } from 'react';
+import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
 const ContentStorage = () => {
-  const data = [
-    { bucketId: '123497971', size: 123.13, name: 'Folder 123/Folder 99/file.txt', cid: '' },
-    { bucketId: '123497971', size: 101, name: 'Folder 123/file.txt', cid: '' },
-    { bucketId: '123794123', size: 1678, name: 'Folder 456/Folder 11/file.txt', cid: '' },
-    { bucketId: '123794123', size: 101, name: 'Folder 456/File 09.mp4', cid: '' },
-  ];
+  const [ddcClientReady, setDdcClientReady] = useState<boolean>(false);
+  const [dirs, setDirs] = useState<(Link & { bucketId: string; isPublic: boolean })[]>([]);
+  const { showMessage } = useMessages();
+
+  const { ddc: ddcClient, buckets } = useAccount();
+
+  useEffect(() => {
+    if (ddcClient) {
+      setDdcClientReady(true);
+    }
+  }, [ddcClient]);
+
+  useEffect(() => {
+    const fetchDirs = async () => {
+      if (!ddcClient) {
+        return;
+      }
+      try {
+        const newDirs = [];
+        for (const bucket of buckets) {
+          const dagUri = new DagNodeUri(bucket.id, 'fs');
+          const dir = await ddcClient.read(dagUri);
+          if (dir) {
+            const links = dir.links;
+            for (const index in links) {
+              const link = links[index];
+              newDirs.push({ bucketId: bucket.id, isPublic: bucket.isPublic, ...link });
+            }
+          }
+        }
+        setDirs((prevState) => {
+          const uniqueDirs = newDirs.filter(
+            (newDir) =>
+              !prevState.some((prevDir) => prevDir.bucketId === newDir.bucketId && prevDir.name === newDir.name),
+          );
+          return [...prevState, ...uniqueDirs];
+        });
+      } catch (e) {
+        showMessage({
+          appearance: 'error',
+          placement: {
+            vertical: 'top',
+            horizontal: 'right',
+          },
+          message: e.message,
+        });
+      }
+    };
+
+    fetchDirs();
+  }, [buckets, ddcClient, showMessage]);
+
+  const onBucketCreation = useCallback(async () => {}, []);
+
+  if (!ddcClientReady) {
+    return <CircularProgress />;
+  }
+
   return (
     <Box
       display="flex"
@@ -24,7 +79,7 @@ const ContentStorage = () => {
         <Typography>Content Storage</Typography>
       </Box>
       <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
-        <FileManager data={data} />
+        <FileManager data={dirs || []} onCreateBucket={onBucketCreation} />
       </Container>
     </Box>
   );

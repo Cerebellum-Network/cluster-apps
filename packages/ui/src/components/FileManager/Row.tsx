@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { UploadButton, ArrowRightIcon } from '@developer-console/ui';
+import { Box, BoxProps, Button, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
+import { UploadButton, ArrowRightIcon, DeleteIcon, AddCircleOutlinedIcon } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
@@ -52,11 +52,33 @@ export const Row = ({ row }: { row: any }) => {
         <Typography variant="body2" flex={1}>
           {row.bucketId}
         </Typography>
-        <Typography variant="body2" flex={1} textAlign="right">
-          {row.usedStorage}
-        </Typography>
+        <Box display="flex" alignItems="center" flex={1} justifyContent="end">
+          {open && (
+            <>
+              <IconButton
+                sx={{ marginRight: '8px' }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <DeleteIcon />
+              </IconButton>
+              <Button
+                size="small"
+                sx={{ marginRight: '8px' }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                }}
+              >
+                <AddCircleOutlinedIcon />
+                Create Folder
+              </Button>
+            </>
+          )}
+          <Typography variant="body2">{row.usedStorage}</Typography>
+        </Box>
         <Typography variant="body2" flex={1} textAlign="center">
-          {row.acl}
+          {row.acl ? 'Public' : 'Private'}
         </Typography>
         <Box flex={1}></Box>
       </StyledRow>
@@ -107,11 +129,9 @@ export const Row = ({ row }: { row: any }) => {
                       {element.metadata.usedStorage} KB
                     </Typography>
                   )}
-                  {element.metadata?.type && (
-                    <Typography variant="body2" flex={1} textAlign="center" marginRight={`${leftMargin}px`}>
-                      {element.metadata.type}
-                    </Typography>
-                  )}
+                  <Typography variant="body2" flex={1} textAlign="center" marginRight={`${leftMargin}px`}>
+                    {element.metadata?.isPublic ? 'Public' : 'Private'}
+                  </Typography>
                   <Box
                     flex={1}
                     textAlign="right"
@@ -123,7 +143,11 @@ export const Row = ({ row }: { row: any }) => {
                       <ButtonGroup>
                         <IconButton
                           sx={{ marginRight: '8px' }}
-                          onClick={() => {
+                          onClick={async () => {
+                            console.log(element);
+                            await navigator.clipboard.writeText(
+                              `https://storage.testnet.cere.network/${row.bucketId}/${element.metadata?.cid}`,
+                            );
                             showMessage({
                               appearance: 'info',
                               message: 'Link copied to clipboard. Share it with anyone you like!',
