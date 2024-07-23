@@ -5,8 +5,6 @@ import { Router } from './routes';
 import { AppStore } from './stores';
 import { AppStoreContext } from './hooks';
 
-import './style.css';
-
 const App = () => {
   const store = useMemo(() => new AppStore(), []);
 

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { SvgIcon, SvgIconProps } from '@mui/material';
+import { SvgIcon, SvgIconProps } from '@developer-console/ui';
 
 export const CdnAppIcon = memo((props: SvgIconProps) => (
   <SvgIcon {...props} viewBox="0 0 38 38">

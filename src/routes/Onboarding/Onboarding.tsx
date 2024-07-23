@@ -78,15 +78,15 @@ const Onboarding = () => {
     >
       <OnboardingLayout>
         <Stack justifyContent="center" alignItems="center" flex="1">
-          <Typography variant="h6" fontWeight="medium" textAlign="center" sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" fontWeight="medium" textAlign="center" sx={{ mb: 2 }}>
             🎉 Welcome aboard!
             <br />
             You're almost set to use Developer Console
           </Typography>
-          <Typography variant="h3" fontWeight="bold" textAlign="center">
+          <Typography variant="h2" fontWeight="bold" textAlign="center">
             Setting up your environment
           </Typography>
-          <Typography variant="h6" fontWeight="medium" sx={{ my: 3 }}>
+          <Typography variant="subtitle1" fontWeight="medium" sx={{ my: 3 }}>
             The process may take up to 30 seconds
           </Typography>
           <Stack direction="column" gap={1}>

@@ -25,7 +25,6 @@ export * from './FolderIcon';
 export * from './ShareIcon';
 export * from './DownloadIcon';
 export * from './ActivityAppIcon';
-export * from './CdnAppIcon';
 export * from './StorageAppIcon';
 export * from './UploadFileIcon';
 export * from './UploadFolderIcon';

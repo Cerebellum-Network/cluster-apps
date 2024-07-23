@@ -1,7 +1,7 @@
-import { Box, Button, Typography } from '@mui/material';
-import { Row } from './Row.tsx';
-
+import { Box, Button, Typography, styled } from '@mui/material';
 import { AddCircleOutlinedIcon } from '@developer-console/ui';
+
+import { Row } from './Row.tsx';
 
 type RealData = {
   bucketId: string;
@@ -112,11 +112,23 @@ const transformData = (data: RealData[]): MockData[] => {
     };
   });
 };
+
+/**
+ * This component resets default CSS styles.
+ */
+const CssReset = styled(Box)({
+  '& li, ul': {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+  },
+});
+
 export const FileManager = ({ data, onCreateBucket }: { data: RealData[]; onCreateBucket: () => void }) => {
   const rows = transformData(data);
 
   return (
-    <>
+    <CssReset>
       <Box display="flex" alignItems="center" padding={(theme) => theme.spacing(1, 1.5)}>
         <Typography variant="body1" flex={1}>
           Bucket ID
@@ -137,6 +149,6 @@ export const FileManager = ({ data, onCreateBucket }: { data: RealData[]; onCrea
           Create New Bucket
         </Button>
       )}
-    </>
+    </CssReset>
   );
 };
