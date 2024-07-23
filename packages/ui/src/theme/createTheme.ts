@@ -29,11 +29,14 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       secondary: {
         main: '#969696',
         contrastText: '#1D1B20',
+        light: '#F5F6FF',
       },
 
       background: {
         default: '#F5F7FA',
       },
+
+      divider: '#B2B8F9',
 
       text: {
         primary: '#1D1B20',

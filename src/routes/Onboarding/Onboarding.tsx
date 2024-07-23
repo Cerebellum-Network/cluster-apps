@@ -7,6 +7,7 @@ import Card from './Card';
 import { OnboardingLayout } from '~/components';
 import { DiscordIcon, Layout } from '@developer-console/ui';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
+import { Link } from 'react-router-dom';
 
 const Onboarding = () => {
   const store = useOnboardingStore();
@@ -43,7 +44,7 @@ const Onboarding = () => {
           <Typography variant="subtitle1" fontWeight="medium" sx={{ my: 3 }}>
             The process may take up to 30 seconds
           </Typography>
-          <Stack direction="column" gap={1}>
+          <Stack direction="column" alignItems="center" gap={1}>
             <Card state="success" disableAnimation>
               Wallet created
             </Card>
@@ -71,6 +72,9 @@ const Onboarding = () => {
                   <>
                     <Card state="success">First bucket is created successfully</Card>
                     <Card state="idle">Congrats! You’re All Set!</Card>
+                    <Link to="/">
+                      <Button>Continue</Button>
+                    </Link>
                     <ReactConfetti />
                   </>
                 ) : (

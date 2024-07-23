@@ -6,6 +6,7 @@ import { App } from './App';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
 import { Login } from './Login';
+import { IntroNavigation } from './IntroNavigation';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
       {
         path: 'login/onboarding',
         Component: Onboarding,
+      },
+      {
+        path: 'login/intro',
+        Component: IntroNavigation,
       },
     ],
   },
