@@ -1,68 +1,22 @@
 import { Button, Stack, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import ReactConfetti from 'react-confetti';
 import Card from './Card';
 import { OnboardingLayout } from '~/components';
 import { DiscordIcon, Layout } from '@developer-console/ui';
-import { useOnboardingStore } from '~/hooks';
-
-type StepState = 'hidden' | 'loading' | 'loaded' | 'success' | 'idle';
-
-interface StepsState {
-  wallet: StepState;
-  ddc: StepState;
-  tokens: StepState;
-}
+import { useAccountStore, useOnboardingStore } from '~/hooks';
 
 const Onboarding = () => {
   const store = useOnboardingStore();
+  const accountStore = useAccountStore();
 
   useEffect(() => {
-    store.startOnboarding();
-  }, [store]);
-
-  const [stepsState, setStepsState] = useState<StepsState>({
-    wallet: 'loaded',
-    ddc: 'loading',
-    tokens: 'hidden',
-  });
-
-  const [showConfetti, setShowConfetti] = useState(false);
-
-  // TODO: Remove it when connected to the logic
-  useEffect(() => {
-    setTimeout(() => {
-      setStepsState((prevStepsState) => ({ ...prevStepsState, ddc: 'success' }));
-      setTimeout(() => {
-        setStepsState((prevStepsState) => ({ ...prevStepsState, tokens: 'loading' }));
-        setTimeout(() => {
-          setStepsState((prevStepsState) => ({ ...prevStepsState, tokens: 'success' }));
-        }, 3000);
-      }, 3000);
-    }, 5000);
-  }, []);
-
-  useEffect(() => {
-    const successStep = Object.entries(stepsState).find(([, state]) => state === 'success');
-
-    if (successStep) {
-      setTimeout(() => {
-        setStepsState((prevStepsState) => ({ ...prevStepsState, [successStep[0]]: 'loaded' }));
-      }, 1500);
+    if (accountStore.address) {
+      store.startOnboarding();
     }
-  }, [stepsState]);
-
-  useEffect(() => {
-    if (stepsState.tokens === 'success') {
-      setShowConfetti(true);
-
-      setTimeout(() => {
-        setShowConfetti(false);
-      }, 10000);
-    }
-  }, [stepsState.tokens]);
+  }, [store, accountStore.address]);
 
   return (
     <Layout
@@ -90,17 +44,38 @@ const Onboarding = () => {
             The process may take up to 30 seconds
           </Typography>
           <Stack direction="column" gap={1}>
-            <Card state="loaded">Wallet created</Card>
-            {stepsState.ddc === 'loading' && <Card state="loading">Creating DDC Account</Card>}
-            {stepsState.ddc === 'success' && <Card state="success">DDC Account Created</Card>}
-            {stepsState.ddc === 'loaded' && <Card state="loaded">DDC Account Created</Card>}
-            {stepsState.tokens === 'loading' && <Card state="loading">Transferring tokens</Card>}
-            {stepsState.tokens === 'success' && <Card state="success">Tokens transferred</Card>}
-            {stepsState.tokens === 'loaded' && (
+            <Card state="success" disableAnimation>
+              Wallet created
+            </Card>
+            {store.steps[1]?.key === 'reward' && (
               <>
-                <Card state="loaded">Tokens transferred</Card>
-                <Card state="idle">Congrats! You’re All Set!</Card>
-                {showConfetti && <ReactConfetti />}
+                {store.steps[1]?.isCompleted ? (
+                  <Card state="success">Tokens transferred</Card>
+                ) : (
+                  <Card state="loading">Transferring tokens</Card>
+                )}
+              </>
+            )}
+            {store.steps[2]?.key === 'deposit' && (
+              <>
+                {store.steps[2]?.isCompleted ? (
+                  <Card state="success">Deposit is transferred successfully</Card>
+                ) : (
+                  <Card state="loading">Topping up DDC balance with deposit</Card>
+                )}
+              </>
+            )}
+            {store.steps[3]?.key === 'bucket' && (
+              <>
+                {store.steps[3]?.isCompleted ? (
+                  <>
+                    <Card state="success">First bucket is created successfully</Card>
+                    <Card state="idle">Congrats! You’re All Set!</Card>
+                    <ReactConfetti />
+                  </>
+                ) : (
+                  <Card state="loading">Creating your first bucket</Card>
+                )}
               </>
             )}
           </Stack>

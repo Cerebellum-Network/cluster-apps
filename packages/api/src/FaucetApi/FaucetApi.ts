@@ -1,6 +1,20 @@
 export class FaucetApi {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sendTokens = async (_address: string, _amount: number) => {
-    // TODO: Send tokens
+  private baseUrl = import.meta.env.VITE_FAUCET_API_URL || '';
+
+  sendTokens = async (address: string, amount: number) => {
+    const body = {
+      scope: 'CLUSTER_MANAGEMENT',
+      walletType: 'CERE',
+      address,
+      amount,
+    };
+
+    const response = await fetch(`${this.baseUrl}`, {
+      method: 'post',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    return response.json();
   };
 }
