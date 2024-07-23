@@ -2,6 +2,7 @@ import { makeAutoObservable, reaction, runInAction } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
+import { Blockchain } from '@cere-ddc-sdk/blockchain';
 import { IndexedBucket } from '@developer-console/api';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
@@ -16,6 +17,9 @@ import {
 } from './resources';
 
 export class AccountStore implements Account {
+  private isBootstrapped = false;
+
+  readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
 
   private statusResource = createStatusResource(this);
@@ -44,22 +48,23 @@ export class AccountStore implements Account {
   private async bootstrap() {
     const signer = new CereWalletSigner(this.wallet);
 
-    this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
-    this.depositResource = createDepositResource(this);
     this.bucketsResource = createBucketsResource(this);
-
-    this.ddcPromise = fromPromise(DdcClient.create(signer, DDC_PRESET));
+    this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
+    this.ddcPromise = fromPromise(DdcClient.create(signer, { blockchain: this.blockchain }));
     this.signerPromise = fromPromise(signer.isReady().then(() => signer));
 
-    this.signerPromise.then(() =>
-      runInAction(() => {
-        this.balanceResource = createBalanceResource(this);
-        this.depositResource = createDepositResource(this);
-      }),
-    );
+    await Promise.all([this.blockchain.isReady(), this.signerPromise, this.ddcPromise]);
+
+    runInAction(() => {
+      this.isBootstrapped = true;
+      this.balanceResource = createBalanceResource(this);
+      this.depositResource = createDepositResource(this);
+    });
   }
 
   private async cleanup() {
+    this.isBootstrapped = false;
+
     this.userInfoPromise = undefined;
     this.ddcPromise = undefined;
     this.balanceResource = undefined;
@@ -69,7 +74,7 @@ export class AccountStore implements Account {
   }
 
   isReady(): this is ReadyAccount {
-    return !!this.address && !!this.userInfo;
+    return this.isBootstrapped && !!this.userInfo && !!this.buckets && !!this.ddc && !!this.signer;
   }
 
   get status() {
@@ -119,6 +124,11 @@ export class AccountStore implements Account {
 
   async init() {
     await this.wallet.init();
+
+    /**
+     * Starts the blockchain connection here to lower the latency of the first request.
+     */
+    this.blockchain.isReady();
 
     return this.status;
   }

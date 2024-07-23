@@ -1,4 +1,4 @@
-import { autorun, makeAutoObservable, when } from 'mobx';
+import { makeAutoObservable, when } from 'mobx';
 import { FaucetApi } from '@developer-console/api';
 
 import { AccountStore } from '../AccountStore';
@@ -15,13 +15,6 @@ export class OnboardingStore {
 
   constructor(private accountStore: AccountStore) {
     makeAutoObservable(this);
-
-    autorun(() => {
-      console.log('Onboarding', 'Wallet connnected', this.accountStore.status === 'connected');
-      console.log('Onboarding', 'Buckets', this.accountStore.buckets?.length);
-      console.log('Onboarding', 'Balance', this.accountStore.balance);
-      console.log('Onboarding', 'Deposit', this.accountStore.deposit);
-    });
   }
 
   get steps() {
@@ -45,10 +38,20 @@ export class OnboardingStore {
   }
 
   /**
-   * If the account has buckkets created we assume the account as inboarded
+   * If the account has buckkets created or he is not a new user - we assume the account as inboarded
    */
   get isDone() {
-    return !!this.accountStore.buckets?.length;
+    const { buckets, userInfo } = this.accountStore;
+    const isOldUser = userInfo && !userInfo.isNewUser;
+    const hasBuckets = buckets && buckets.length > 0;
+
+    return isOldUser || hasBuckets;
+  }
+
+  async shouldOnboard() {
+    await when(() => this.isDone !== undefined);
+
+    return !this.isDone;
   }
 
   async startOnboarding() {
