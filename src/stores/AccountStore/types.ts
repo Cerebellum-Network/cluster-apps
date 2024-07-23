@@ -13,6 +13,7 @@ export interface Account {
   readonly userInfo?: UserInfo;
   readonly address?: string;
   readonly balance?: number;
+  readonly deposit?: number;
   readonly buckets?: IndexedBucket[];
 
   isReady(): this is ReadyAccount;
@@ -22,7 +23,7 @@ export interface Account {
   signMessage(message: string): Promise<string>;
 }
 
-export type ReadyAccount = Omit<Account, 'userInfo' | 'address'> & {
-  readonly userInfo: UserInfo;
-  readonly address: string;
+export type ReadyAccount = Required<Omit<Account, 'deposit' | 'balance'>> & {
+  readonly balance?: number;
+  readonly deposit?: number;
 };

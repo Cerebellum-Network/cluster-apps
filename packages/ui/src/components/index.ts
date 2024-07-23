@@ -49,6 +49,8 @@ export {
   type TextFieldProps,
 } from '@mui/material';
 
+export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
+
 export { default as Lottie } from 'lottie-react';
 
 // Custom components
