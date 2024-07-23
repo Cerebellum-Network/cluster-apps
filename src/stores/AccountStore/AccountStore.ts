@@ -6,7 +6,7 @@ import { Blockchain } from '@cere-ddc-sdk/blockchain';
 import { IndexedBucket } from '@developer-console/api';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
-import { WALLET_PERMISSIONS } from './walletConfig';
+import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions } from './types';
 import {
   createAddressResource,
@@ -123,7 +123,7 @@ export class AccountStore implements Account {
   }
 
   async init() {
-    await this.wallet.init();
+    await this.wallet.init(WALLET_INIT_OPTIONS);
 
     /**
      * Starts the blockchain connection here to lower the latency of the first request.
