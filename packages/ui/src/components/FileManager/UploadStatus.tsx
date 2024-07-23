@@ -9,7 +9,13 @@ interface UploadStatusProps {
   onClose: () => void;
 }
 
-const StatusBox = styled(Box)(({ theme, status }: { theme?: any; status?: Status }) => {
+interface StatusBoxProps {
+  status?: Status;
+}
+
+const StatusBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'status',
+})<StatusBoxProps>(({ theme, status }) => {
   let backgroundColor;
   let borderColor;
   let textColor;
