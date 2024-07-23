@@ -26,7 +26,7 @@ const ContentStorage = () => {
           const dir = await ddcClient.read(dagUri);
           if (dir) {
             return dir.links.map((link) => ({
-              bucketId: bucket.id,
+              bucketId: bucket.id.toString(),
               isPublic: bucket.isPublic,
               ...link,
             }));
@@ -40,7 +40,9 @@ const ContentStorage = () => {
         setDirs((prevState) => {
           const uniqueDirs = newDirs.filter(
             (newDir) =>
-              !prevState.some((prevDir) => prevDir.bucketId === newDir.bucketId && prevDir.name === newDir.name),
+              !prevState.some(
+                (prevDir) => prevDir.bucketId.toString() === newDir.bucketId.toString() && prevDir.name === newDir.name,
+              ),
           );
           return [...prevState, ...uniqueDirs];
         });
@@ -51,7 +53,7 @@ const ContentStorage = () => {
             vertical: 'top',
             horizontal: 'right',
           },
-          message: e.message,
+          message: (e as Error).message,
         });
       }
     };

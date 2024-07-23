@@ -57,7 +57,7 @@ const buildTree = (files: RealData[]): FileNode => {
     parts.forEach((part, index) => {
       let node = currentNode.children?.find((child) => child.name === part);
       if (!node) {
-        node = { name: part, children: [] };
+        node = { name: part, children: [], isPublic: currentNode.isPublic };
         currentNode.children?.push(node);
       }
       currentNode = node;
@@ -112,7 +112,6 @@ const transformData = (data: RealData[]): MockData[] => {
     };
   });
 };
-
 export const FileManager = ({ data, onCreateBucket }: { data: RealData[]; onCreateBucket: () => void }) => {
   const rows = transformData(data);
 
