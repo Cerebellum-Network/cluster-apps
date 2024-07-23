@@ -1,6 +1,6 @@
 import { FileManager, useMessages } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { Box, CircularProgress, styled, Typography } from '@mui/material';
+import { Box, styled, Typography } from '@mui/material';
 import { useAccount } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
@@ -10,17 +10,10 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 const ContentStorage = () => {
-  const [ddcClientReady, setDdcClientReady] = useState<boolean>(false);
   const [dirs, setDirs] = useState<(Link & { bucketId: string; isPublic: boolean })[]>([]);
   const { showMessage } = useMessages();
 
   const { ddc: ddcClient, buckets } = useAccount();
-
-  useEffect(() => {
-    if (ddcClient) {
-      setDdcClientReady(true);
-    }
-  }, [ddcClient]);
 
   useEffect(() => {
     const fetchDirs = async () => {
@@ -28,18 +21,22 @@ const ContentStorage = () => {
         return;
       }
       try {
-        const newDirs = [];
-        for (const bucket of buckets) {
+        const dirPromises = buckets.map(async (bucket) => {
           const dagUri = new DagNodeUri(bucket.id, 'fs');
           const dir = await ddcClient.read(dagUri);
           if (dir) {
-            const links = dir.links;
-            for (const index in links) {
-              const link = links[index];
-              newDirs.push({ bucketId: bucket.id, isPublic: bucket.isPublic, ...link });
-            }
+            return dir.links.map((link) => ({
+              bucketId: bucket.id,
+              isPublic: bucket.isPublic,
+              ...link,
+            }));
           }
-        }
+          return [];
+        });
+
+        const results = await Promise.all(dirPromises);
+        const newDirs = results.flat();
+
         setDirs((prevState) => {
           const uniqueDirs = newDirs.filter(
             (newDir) =>
@@ -63,10 +60,6 @@ const ContentStorage = () => {
   }, [buckets, ddcClient, showMessage]);
 
   const onBucketCreation = useCallback(async () => {}, []);
-
-  if (!ddcClientReady) {
-    return <CircularProgress />;
-  }
 
   return (
     <Box
