@@ -12,6 +12,8 @@ export {
   ArrowForward as ArrowForwardIcon,
   InfoOutlined as InfoOutlinedIcon,
   ArrowRight as ArrowRightIcon,
+  Delete as DeleteIcon,
+  AddCircleOutlined as AddCircleOutlinedIcon,
 } from '@mui/icons-material';
 
 // Custom icons
