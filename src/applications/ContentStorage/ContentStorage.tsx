@@ -1,10 +1,11 @@
-import { FileManager } from '@developer-console/ui';
+import { Docs, DocsGroup, DocsSection, FileManager } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { Box, styled, Typography } from '@mui/material';
 import { useAccount, useFetchDirs } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri } from '@cere-ddc-sdk/ddc-client';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
+import { DataStorageDocsIcon } from './icons';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -134,31 +135,42 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
-  console.log('DIRS', dirs);
-
   return (
-    <Box
-      display="flex"
-      flexDirection="column"
-      border={(theme) => `1px solid ${theme.palette.divider}`}
-      borderRadius="12px"
-    >
-      <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
-        <Typography>Content Storage</Typography>
+    <>
+      <Box
+        display="flex"
+        flexDirection="column"
+        border={(theme) => `1px solid ${theme.palette.divider}`}
+        borderRadius="12px"
+        marginBottom="20px"
+      >
+        <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
+          <Typography>Content Storage</Typography>
+        </Box>
+        <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
+          <FileManager
+            data={dirs || []}
+            isLoading={loading}
+            onCreateBucket={onBucketCreation}
+            onUpload={handleUpload}
+            uploadType={uploadType}
+            uploadStatus={uploadStatus}
+            setUploadStatus={handleCloseStatus}
+            onFileDownload={handleFileDownload}
+          />
+        </Container>
       </Box>
-      <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
-        <FileManager
-          data={dirs || []}
-          isLoading={loading}
-          onCreateBucket={onBucketCreation}
-          onUpload={handleUpload}
-          uploadType={uploadType}
-          uploadStatus={uploadStatus}
-          setUploadStatus={handleCloseStatus}
-          onFileDownload={handleFileDownload}
-        />
-      </Container>
-    </Box>
+      <Docs
+        icon={<DataStorageDocsIcon />}
+        title="Get started with Decentralised cloud storage "
+        description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
+      >
+        <DocsGroup title="Upload your content using DDC SDK">
+          <DocsSection title="Upload your file step-by-step guide">""</DocsSection>
+          <DocsSection title="Quick start guide in Github">""</DocsSection>
+        </DocsGroup>
+      </Docs>
+    </>
   );
 };
 
