@@ -1,4 +1,4 @@
-import { Box, Typography } from '@mui/material';
+import { Box, styled, Typography } from '@mui/material';
 import { Row } from './Row.tsx';
 
 type RealData = {
@@ -103,11 +103,22 @@ const transformData = (data: RealData[]): MockData[] => {
   });
 };
 
+/**
+ * This component resets default CSS styles.
+ */
+const CssReset = styled(Box)({
+  '& li, ul': {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+  },
+});
+
 export const FileManager = ({ data }: { data: RealData[] }) => {
   const rows = transformData(data);
 
   return (
-    <>
+    <CssReset>
       <Box display="flex" alignItems="center" padding={(theme) => theme.spacing(1, 1.5)}>
         <Typography variant="body1" flex={1}>
           Bucket ID
@@ -123,6 +134,6 @@ export const FileManager = ({ data }: { data: RealData[] }) => {
       {rows.map((row) => (
         <Row key={row.bucketId} row={row} />
       ))}
-    </>
+    </CssReset>
   );
 };

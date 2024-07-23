@@ -34,7 +34,7 @@ const AccountDropdown = () => {
       leftElement={<Avatar />}
     >
       <Stack spacing={2} width={240}>
-        <Card variant="outlined">
+        <Card variant="outlined" size="small">
           <CardHeader
             title="Cere Wallet"
             action={
@@ -48,7 +48,7 @@ const AccountDropdown = () => {
           </CardContent>
         </Card>
 
-        <Card variant="outlined">
+        <Card variant="outlined" size="small">
           <CardHeader avatar={<InfoOutlinedIcon />} title="DDC Wallet" />
           <CardContent>
             <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
@@ -60,7 +60,7 @@ const AccountDropdown = () => {
           </CardActions>
         </Card>
 
-        <Card variant="outlined">
+        <Card variant="outlined" size="small">
           <CardHeader title="Current Package" />
           <CardContent>
             <Typography fontWeight="bold">Starter Pack</Typography>

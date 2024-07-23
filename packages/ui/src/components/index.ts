@@ -47,6 +47,14 @@ export {
   type FormControlProps,
   TextField,
   type TextFieldProps,
+  SvgIcon,
+  type SvgIconProps,
+  Accordion,
+  type AccordionProps,
+  AccordionSummary,
+  type AccordionSummaryProps,
+  AccordionDetails,
+  type AccordionDetailsProps,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
@@ -60,3 +68,5 @@ export * from './Dropdown';
 export * from './Truncate';
 export * from './FileManager';
 export * from './UploadButton';
+export * from './Docs';
+export * from './Markdown';
