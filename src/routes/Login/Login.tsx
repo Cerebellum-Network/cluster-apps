@@ -16,8 +16,8 @@ import * as yup from 'yup';
 
 import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
-import { useAccountStore } from '~/hooks';
-import { Navigate, Outlet } from 'react-router-dom';
+import { useAccountStore, useOnboardingStore } from '~/hooks';
+import { Outlet, useNavigate } from 'react-router-dom';
 
 const validationSchema = yup
   .object({
@@ -27,12 +27,13 @@ const validationSchema = yup
 
 const Login = observer(() => {
   const account = useAccountStore();
+  const onboarding = useOnboardingStore();
+  const navigate = useNavigate();
 
-  const isLoading = false;
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isSubmitting },
     setValue: setFormValue,
     trigger: formTrigger,
   } = useForm({
@@ -45,11 +46,10 @@ const Login = observer(() => {
 
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
-  });
+    const shouldOnboard = await onboarding.shouldOnboard();
 
-  if (account?.status === 'connected') {
-    return <Navigate to="/login/onboarding" />;
-  }
+    navigate(shouldOnboard ? '/login/onboarding' : '/');
+  });
 
   return (
     <Layout
@@ -96,11 +96,11 @@ const Login = observer(() => {
             size="large"
             disabled={!isValid}
             sx={{
-              pointerEvents: isLoading ? 'none' : 'auto',
+              pointerEvents: isSubmitting ? 'none' : 'auto',
               width: 600,
             }}
           >
-            {isLoading ? (
+            {isSubmitting ? (
               <CircularProgress sx={{ color: '#fff' }} size="20px" />
             ) : (
               <>

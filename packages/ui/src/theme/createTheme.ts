@@ -1,3 +1,4 @@
+import '@mui/lab/themeAugmentation';
 import { createTheme as createMuiTheme } from '@mui/material';
 
 export type ThemeOptions = {

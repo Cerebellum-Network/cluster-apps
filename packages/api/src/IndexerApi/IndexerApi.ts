@@ -1,3 +1,5 @@
+import { INDEXER_ENDPOINT } from '../constants';
+
 export type IndexedBucket = {
   id: bigint;
   isPublic: boolean;
@@ -10,10 +12,10 @@ type DdcBucketsResult = {
 };
 
 export class IndexerApi {
-  private readonly baseUrl = 'http://178.18.148.201:4350/graphql';
+  private readonly endpoint = INDEXER_ENDPOINT;
 
   async getBuckets(accountId: string) {
-    const response = await fetch(this.baseUrl, {
+    const response = await fetch(this.endpoint, {
       method: 'POST',
       body: JSON.stringify({
         query: `

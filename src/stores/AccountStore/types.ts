@@ -1,5 +1,6 @@
 import { DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { UserInfo, WalletStatus } from '@cere/embed-wallet';
+import { IndexedBucket } from '@developer-console/api';
 
 export type AccountStatus = WalletStatus;
 
@@ -12,6 +13,8 @@ export interface Account {
   readonly userInfo?: UserInfo;
   readonly address?: string;
   readonly balance?: number;
+  readonly deposit?: number;
+  readonly buckets?: IndexedBucket[];
 
   isReady(): this is ReadyAccount;
   init(): Promise<AccountStatus>;
@@ -20,7 +23,7 @@ export interface Account {
   signMessage(message: string): Promise<string>;
 }
 
-export type ReadyAccount = Omit<Account, 'userInfo' | 'address'> & {
-  readonly userInfo: UserInfo;
-  readonly address: string;
+export type ReadyAccount = Required<Omit<Account, 'deposit' | 'balance'>> & {
+  readonly balance?: number;
+  readonly deposit?: number;
 };
