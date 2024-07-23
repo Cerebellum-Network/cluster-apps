@@ -1,8 +1,9 @@
 import { makeAutoObservable, when } from 'mobx';
+import { fromPromise } from 'mobx-utils';
 import { FaucetApi } from '@developer-console/api';
 
+import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '~/constants';
 import { AccountStore } from '../AccountStore';
-import { fromPromise } from 'mobx-utils';
 
 export type OnboardingStep = {
   key: 'wallet' | 'reward' | 'deposit' | 'bucket';
@@ -57,12 +58,12 @@ export class OnboardingStore {
   async startOnboarding() {
     await this.addStep('wallet', () => when(() => this.accountStore.status === 'connected'));
     await this.addStep('reward', async () => {
-      await this.faucetApi.sendTokens(this.accountStore.address!, 50);
+      await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
 
       return when(() => !!this.accountStore.balance);
     });
 
-    await this.addStep('deposit', () => this.accountStore.topUp(40));
-    await this.addStep('bucket', () => this.accountStore.createBucket());
+    await this.addStep('deposit', () => this.accountStore.topUp(ONBOARDIN_DEPOSIT_AMOUNT));
+    await this.addStep('bucket', () => this.accountStore.createBucket(ONBOARDIN_PUBLIC_BUCKET));
   }
 }
