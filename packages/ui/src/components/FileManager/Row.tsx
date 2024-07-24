@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Box, BoxProps, Button, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { UploadButton, ArrowRightIcon, DeleteIcon, AddCircleOutlinedIcon } from '@developer-console/ui';
+import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
+import { UploadButton, ArrowRightIcon, UploadStatus } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
+import { RowData } from './types.ts';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -17,7 +17,7 @@ const StyledRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
     backgroundColor: '#7A9FFF0A',
   },
   '&:nth-child(odd)': {
-    backgroundColor: '#7A9FFF0A',
+    backgroundColor: open ? theme.palette.common.white : '#7A9FFF0A',
   },
   backgroundColor: open ? theme.palette.common.white : 'transparent',
   border: open ? `1px solid ${theme.palette.divider}` : 'none',
@@ -39,42 +39,58 @@ const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   },
 }));
 
-export const Row = ({ row }: { row: any }) => {
-  const [open, setOpen] = useState(false);
-
+export const Row = ({
+  row,
+  onUpload,
+  uploadStatus,
+  uploadType,
+  onRowClick,
+  isOpen,
+  onCloseUpload,
+  onFileDownload,
+}: {
+  row: RowData;
+  onUpload: (values: { acceptedFiles: File[]; bucketId: string; cnsName: string; isFolder: boolean }) => void;
+  uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  uploadType: 'file' | 'folder';
+  isOpen: boolean;
+  onRowClick: () => void;
+  onCloseUpload: () => void;
+  onFileDownload: (bucketId: string, source: string, name: string) => void;
+}) => {
   const { showMessage } = useMessages();
 
   const treeData = flattenTree(row.files);
 
   return (
     <>
-      <StyledRow open={open} onClick={() => setOpen(!open)}>
+      <StyledRow open={isOpen} onClick={onRowClick}>
         <Typography variant="body2" flex={1}>
           {row.bucketId}
         </Typography>
         <Box display="flex" alignItems="center" flex={1} justifyContent="end">
-          {open && (
-            <>
-              <IconButton
-                sx={{ marginRight: '8px' }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-              <Button
-                size="small"
-                sx={{ marginRight: '8px' }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
-              >
-                <AddCircleOutlinedIcon />
-                Create Folder
-              </Button>
-            </>
-          )}
+          {/*{isOpen && (*/}
+          {/*  <>*/}
+          {/*    <IconButton*/}
+          {/*      sx={{ marginRight: '8px' }}*/}
+          {/*      onClick={(event) => {*/}
+          {/*        event.stopPropagation();*/}
+          {/*      }}*/}
+          {/*    >*/}
+          {/*      <DeleteIcon />*/}
+          {/*    </IconButton>*/}
+          {/*    <Button*/}
+          {/*      size="small"*/}
+          {/*      sx={{ marginRight: '8px' }}*/}
+          {/*      onClick={(event) => {*/}
+          {/*        event.stopPropagation();*/}
+          {/*      }}*/}
+          {/*    >*/}
+          {/*      <AddCircleOutlinedIcon />*/}
+          {/*      Create Folder*/}
+          {/*    </Button>*/}
+          {/*  </>*/}
+          {/*)}*/}
           <Typography variant="body2">{row.usedStorage}</Typography>
         </Box>
         <Typography variant="body2" flex={1} textAlign="center">
@@ -82,8 +98,9 @@ export const Row = ({ row }: { row: any }) => {
         </Typography>
         <Box flex={1}></Box>
       </StyledRow>
-      {open && (
-        <ExpandedRow open={open}>
+      {isOpen && (
+        <ExpandedRow open={isOpen}>
+          {uploadStatus !== 'idle' && <UploadStatus status={uploadStatus} type={uploadType} onClose={onCloseUpload} />}
           <TreeView
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
@@ -160,12 +177,16 @@ export const Row = ({ row }: { row: any }) => {
                         >
                           <ShareIcon />
                         </IconButton>
-                        <IconButton>
+                        <IconButton
+                          onClick={() => {
+                            onFileDownload(row.bucketId, element.metadata?.cid as unknown as string, element.name);
+                          }}
+                        >
                           <DownloadIcon />
                         </IconButton>
                       </ButtonGroup>
                     ) : (
-                      <UploadButton />
+                      <UploadButton bucketId={row.bucketId} cnsName={element.name} onDrop={onUpload} />
                     )}
                   </Box>
                 </div>
