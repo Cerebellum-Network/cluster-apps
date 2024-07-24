@@ -1,22 +1,23 @@
-import { Docs, DocsGroup, DocsSection, FileManager } from '@developer-console/ui';
+import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { Box, styled, Typography } from '@mui/material';
 import { useAccount, useFetchDirs } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { DataStorageDocsIcon } from './icons';
-import { StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { FileManager } from './FileManager/FileManager';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
 const ContentStorage = () => {
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('success');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
+  const [isBucketCreating, setIsBucketCreating] = useState(false);
 
-  const { ddc: ddcClient, buckets } = useAccount();
+  const { ddc: ddcClient, buckets, refreshBuckets } = useAccount();
 
   const { dirs, loading } = useFetchDirs(buckets, ddcClient);
 
@@ -32,8 +33,11 @@ const ContentStorage = () => {
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
+    setIsBucketCreating(true);
     await ddcClient.createBucket(DDC_CLUSTER_ID, { isPublic: true });
-  }, [ddcClient]);
+    await refreshBuckets();
+    setIsBucketCreating(false);
+  }, [ddcClient, refreshBuckets]);
 
   const singleFileUpload = useCallback(
     async ({ acceptedFile, cnsName, bucketId }: { acceptedFile: File; bucketId: string; cnsName: string }) => {
@@ -169,6 +173,7 @@ const ContentStorage = () => {
         <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
           <FileManager
             data={dirs || []}
+            userHasBuckets={buckets.length > 0 || false}
             isLoading={loading}
             onCreateBucket={onBucketCreation}
             onUpload={handleUpload}
@@ -176,6 +181,7 @@ const ContentStorage = () => {
             uploadStatus={uploadStatus}
             setUploadStatus={handleCloseStatus}
             onFileDownload={handleFileDownload}
+            isBucketCreating={isBucketCreating}
           />
         </Container>
       </Box>
@@ -188,7 +194,14 @@ const ContentStorage = () => {
           <DocsSection title="Upload your file step-by-step guide">
             <StepByStepUploadDoc />
           </DocsSection>
-          <DocsSection title="Quick start guide in Github">""</DocsSection>
+          <DocsSection
+            title="Quick start guide in Github"
+            rightSection={
+              <Button href={GITHUB_GUIDE_LINK} startIcon={<GithubLogoIcon />} target="_blank" rel="noopener noreferrer">
+                Open in Github
+              </Button>
+            }
+          />
         </DocsGroup>
       </Docs>
     </>

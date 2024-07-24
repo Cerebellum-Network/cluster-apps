@@ -1,7 +1,7 @@
-import { Box, Button, Typography, styled, CircularProgress } from '@mui/material';
+import { Box, Button, Typography, styled } from '@mui/material';
 import { Row } from './Row.tsx';
 
-import { AddCircleOutlinedIcon } from '@developer-console/ui';
+import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ const CssReset = styled(Box)({
 
 export const FileManager = ({
   data,
+  userHasBuckets,
   isLoading,
   onCreateBucket,
   onUpload,
@@ -26,6 +27,7 @@ export const FileManager = ({
   uploadStatus,
   setUploadStatus,
   onFileDownload,
+  isBucketCreating,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -35,6 +37,8 @@ export const FileManager = ({
   uploadType: 'file' | 'folder';
   setUploadStatus: (status: 'idle' | 'uploading' | 'success' | 'error') => void;
   onFileDownload: (bucketId: string, source: string, name: string) => void;
+  userHasBuckets: boolean;
+  isBucketCreating: boolean;
 }) => {
   const [openRow, setOpenRow] = useState<string | null>(null);
 
@@ -64,9 +68,10 @@ export const FileManager = ({
       </Box>
       <Box>
         {isLoading ? (
-          <Box display="flex" justifyContent="center" alignItems="center">
-            Loading your buckets ...
-            <CircularProgress sx={{ marginLeft: '8px', fontSize: '10px' }} />
+          <Box display="flex" alignItems="center" justifyContent="center">
+            <Box width="96px" height="55px">
+              <LoadingAnimation />
+            </Box>
           </Box>
         ) : (
           rows.map((row) => (
@@ -83,11 +88,31 @@ export const FileManager = ({
             />
           ))
         )}
-        <Box marginTop="20px" display="flex" alignItems="center" justifyContent="center">
-          <Button onClick={onCreateBucket} disabled={isLoading}>
-            <AddCircleOutlinedIcon sx={{ marginRight: '8px' }} />
-            Create New Bucket
-          </Button>
+        <Box marginTop="20px" display="flex" alignItems="center" justifyContent="center" flexDirection="column">
+          {isBucketCreating && (
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              paddingBottom={(theme) => theme.spacing(2.5)}
+            >
+              <Box width="96px" height="55px">
+                <LoadingAnimation />
+              </Box>
+            </Box>
+          )}
+          {userHasBuckets ? (
+            <Button startIcon={<AddCircleOutlinedIcon />} onClick={onCreateBucket} disabled={isLoading}>
+              {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
+            </Button>
+          ) : (
+            <Button disabled={isBucketCreating}>
+              {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
+            </Button>
+          )}
+          <Typography marginTop={(theme) => theme.spacing(2.5)} variant="caption" fontSize="small">
+            Buckets allow you to create discrete and decoupled storage bins for each of your applications
+          </Typography>
         </Box>
       </Box>
     </CssReset>
