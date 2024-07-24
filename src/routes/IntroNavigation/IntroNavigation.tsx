@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 import { OnboardingLayout } from '~/components';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
 import NavigationItem from './NavigationItem';
+import { GoogleAnalyticsId } from '~/gtag.ts';
 
 const Onboarding = () => {
   const store = useOnboardingStore();
@@ -31,19 +32,19 @@ const Onboarding = () => {
       </Typography>
       <Stack gap={2} width="100%">
         <Stack width="100%" direction="row" gap={2}>
-          <NavigationItem href="/" icon={<CloudFlashIcon />}>
+          <NavigationItem href="/" className={GoogleAnalyticsId.buildStorageBtn} icon={<CloudFlashIcon />}>
             Store my app files in the cloud
           </NavigationItem>
-          <NavigationItem href="/" icon={<DecentralizedServerIcon />}>
+          <NavigationItem href="/" className={GoogleAnalyticsId.buildDeliverBtn} icon={<DecentralizedServerIcon />}>
             Deliver content globally without a central server
           </NavigationItem>
         </Stack>
         <Stack width="100%" direction="row" gap={2}>
-          <NavigationItem href="/" icon={<BarTrackingIcon />}>
-            Store my app files in the cloud
+          <NavigationItem href="/" className={GoogleAnalyticsId.buildAnalyzeBtn} icon={<BarTrackingIcon />}>
+            Track App Activity and analyze user bahavior
           </NavigationItem>
-          <NavigationItem smallIcon href="/" icon={<RightArrowIcon />}>
-            Deliver content globally without a central server
+          <NavigationItem smallIcon href="/" className={GoogleAnalyticsId.buildSkipBtn} icon={<RightArrowIcon />}>
+            Skip this, and I'll explore it myself
           </NavigationItem>
         </Stack>
       </Stack>

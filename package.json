@@ -7,6 +7,7 @@
     "start": "vite --open",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
     "preview": "vite preview",
     "check-types": "tsc --noEmit"
   },

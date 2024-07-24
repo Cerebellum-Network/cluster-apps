@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { Button, DiscordIcon, Layout, Stack } from '@developer-console/ui';
+import { GoogleAnalyticsId } from '~/gtag.ts';
 
 const OnboardingRoot = () => {
   return (
@@ -10,7 +11,9 @@ const OnboardingRoot = () => {
             Developer Docs
           </Button>
 
-          <Button startIcon={<DiscordIcon />}>Discord</Button>
+          <Button startIcon={<DiscordIcon />} className={GoogleAnalyticsId.joinDiscordBtn}>
+            Discord
+          </Button>
         </Stack>
       }
     >
