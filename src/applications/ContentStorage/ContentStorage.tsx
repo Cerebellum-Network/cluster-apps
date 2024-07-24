@@ -3,7 +3,6 @@ import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
-import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
@@ -17,7 +16,10 @@ const ContentStorage = () => {
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
 
-  const { ddc: ddcClient, buckets, refreshBuckets } = useAccount();
+  const account = useAccount();
+
+  const ddcClient = account.ddc;
+  const buckets = account.buckets;
 
   const { dirs, loading } = useFetchDirs(buckets, ddcClient);
 
@@ -34,10 +36,10 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
     setIsBucketCreating(true);
-    await ddcClient.createBucket(DDC_CLUSTER_ID, { isPublic: true });
-    await refreshBuckets();
+    await account.createBucket(true);
+    await account.refreshBuckets();
     setIsBucketCreating(false);
-  }, [ddcClient, refreshBuckets]);
+  }, [account, ddcClient]);
 
   const singleFileUpload = useCallback(
     async ({ acceptedFile, cnsName, bucketId }: { acceptedFile: File; bucketId: string; cnsName: string }) => {

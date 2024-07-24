@@ -98,7 +98,15 @@ export const Row = ({
         <Typography variant="body2" flex={1} textAlign="center">
           {row.acl ? 'Public' : 'Private'}
         </Typography>
-        <Box flex={1}></Box>
+        <Box
+          flex={1}
+          textAlign="end"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {isOpen && <UploadButton onDrop={onUpload} bucketId={row.bucketId} cnsName="fs" />}
+        </Box>
       </StyledRow>
       {isOpen && (
         <ExpandedRow open={isOpen}>

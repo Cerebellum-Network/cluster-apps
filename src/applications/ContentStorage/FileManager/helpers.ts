@@ -16,8 +16,12 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
   const root: FileNode = { name: '', isPublic, children: [] };
 
   files.forEach((file) => {
-    const parts = file.name.split('/');
+    const parts = file?.name ? file.name.split('/') : [];
     let currentNode: FileNode = root;
+
+    if (parts.length === 0) {
+      currentNode.children = [];
+    }
 
     parts.forEach((part, index) => {
       let node = (currentNode.children || [])?.find((child) => child.name === part);
@@ -29,8 +33,8 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
 
       if (index === parts.length - 1) {
         currentNode.metadata = {
-          usedStorage: file.size.toString(),
-          cid: file.cid,
+          usedStorage: file.size?.toString() || '',
+          cid: file?.cid || '',
           type: 'file',
           isPublic: file.isPublic,
           fullPath: file.name,
@@ -83,7 +87,7 @@ export const transformData = (data: RealData[]): RowData[] => {
     const rootNode = buildTree(files, isPublic);
     return {
       bucketId,
-      usedStorage: bytesToSize(files.reduce((acc, file) => acc + file.size, 0)),
+      usedStorage: bytesToSize(files.reduce((acc, file) => acc + (file?.size || 0), 0)),
       acl: rootNode.isPublic,
       files: rootNode,
     };
