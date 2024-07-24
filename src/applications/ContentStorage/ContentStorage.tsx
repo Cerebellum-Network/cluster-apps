@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Box, styled, Typography } from '@mui/material';
 import { useAccount, useFetchDirs } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
-import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri } from '@cere-ddc-sdk/ddc-client';
+import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { DataStorageDocsIcon } from './icons';
 import { StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
@@ -55,9 +55,16 @@ const ContentStorage = () => {
 
         await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
         setUploadStatus('success');
+        return {
+          cid: uri.cid,
+          path: acceptedFile.webkitRelativePath || acceptedFile.name,
+          contentType: acceptedFile.type,
+          size: acceptedFile.size,
+        };
       } catch (err) {
         setUploadStatus('error');
         console.error(err);
+        return null;
       }
     },
     [ddcClient],
@@ -81,8 +88,26 @@ const ContentStorage = () => {
         const acceptedFile = acceptedFiles[0];
         await singleFileUpload({ acceptedFile, bucketId, cnsName });
       }
+      const uploadedFiles = await Promise.all(
+        acceptedFiles.map(async (acceptedFile) => await singleFileUpload({ acceptedFile, cnsName, bucketId })),
+      );
+
+      const validUploadedFiles = uploadedFiles.filter(
+        (file): file is { path: string; cid: string; size: number; contentType: string } =>
+          file !== null && file !== undefined,
+      );
+
+      const appDagNode = new DagNode(
+        new Uint8Array(0),
+        validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path)),
+        validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
+      );
+
+      const appDagNodeUri = await ddcClient.store(BigInt(bucketId), appDagNode, cnsName ? { name: cnsName } : {});
+
+      return appDagNodeUri.cid;
     },
-    [singleFileUpload],
+    [ddcClient, singleFileUpload],
   );
 
   const handleCloseStatus = () => {

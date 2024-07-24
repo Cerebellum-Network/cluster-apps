@@ -1,4 +1,4 @@
-import { Button, Stack, Typography } from '@developer-console/ui';
+import { Stack, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 
 import { useEffect } from 'react';
@@ -6,19 +6,26 @@ import ReactConfetti from 'react-confetti';
 import Card from './Card';
 import { OnboardingLayout } from '~/components';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
-import { Link } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 const Onboarding = () => {
   const store = useOnboardingStore();
+  const navigate = useNavigate();
   const accountStore = useAccountStore();
+  const isConnected = accountStore.status === 'connected';
 
   useEffect(() => {
-    if (accountStore.address) {
-      store.startOnboarding();
+    if (isConnected) {
+      store
+        .startOnboarding()
+        .then(() => new Promise((resolve) => setTimeout(resolve, 5000)))
+        .then(() => navigate('/'));
     }
-  }, [store, accountStore.address]);
+  }, [store, isConnected, navigate]);
 
-  return (
+  return !isConnected ? (
+    <Navigate to="/login" />
+  ) : (
     <OnboardingLayout>
       <Stack justifyContent="center" alignItems="center" flex="1">
         <Typography variant="subtitle1" fontWeight="medium" textAlign="center" sx={{ mb: 2 }}>
@@ -60,9 +67,7 @@ const Onboarding = () => {
                 <>
                   <Card state="success">First bucket is created successfully</Card>
                   <Card state="idle">Congrats! You’re All Set!</Card>
-                  <Link to="/login/intro">
-                    <Button>Continue</Button>
-                  </Link>
+
                   <ReactConfetti />
                 </>
               ) : (
