@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri } from '@cere-ddc-sdk/ddc-client';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { DataStorageDocsIcon } from './icons';
+import { StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -159,7 +160,9 @@ const ContentStorage = () => {
         description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection title="Upload your file step-by-step guide">""</DocsSection>
+          <DocsSection title="Upload your file step-by-step guide">
+            <StepByStepUploadDoc />
+          </DocsSection>
           <DocsSection title="Quick start guide in Github">""</DocsSection>
         </DocsGroup>
       </Docs>
