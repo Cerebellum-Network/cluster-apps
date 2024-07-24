@@ -22,6 +22,7 @@ export interface Account {
   disconnect(): void;
   signMessage(message: string): Promise<string>;
   createBucket(isPublic: boolean): Promise<bigint>;
+  refreshBuckets(): Promise<void>;
 }
 
 export type ReadyAccount = Required<Omit<Account, 'deposit' | 'balance'>> & {

@@ -1,22 +1,28 @@
-import { Docs, DocsGroup, DocsSection, FileManager } from '@developer-console/ui';
+import { Docs, DocsGroup, DocsSection, GithubLogoIcon } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { Box, styled, Typography } from '@mui/material';
+import { Box, Button, styled, Typography } from '@mui/material';
 import { useAccount, useFetchDirs } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { DataStorageDocsIcon } from './icons';
-import { StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { FileManager } from './FileManager/FileManager';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
+const GithubButton = styled(Button)(({ theme }) => ({
+  marginLeft: 'auto',
+  gap: theme.spacing(1),
+}));
+
 const ContentStorage = () => {
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('success');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
 
-  const { ddc: ddcClient, buckets } = useAccount();
+  const { ddc: ddcClient, buckets, refreshBuckets } = useAccount();
 
   const { dirs, loading } = useFetchDirs(buckets, ddcClient);
 
@@ -33,7 +39,8 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
     await ddcClient.createBucket(DDC_CLUSTER_ID, { isPublic: true });
-  }, [ddcClient]);
+    await refreshBuckets();
+  }, [ddcClient, refreshBuckets]);
 
   const singleFileUpload = useCallback(
     async ({ acceptedFile, cnsName, bucketId }: { acceptedFile: File; bucketId: string; cnsName: string }) => {
@@ -154,6 +161,11 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleOnGithubLinkClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    window.open(GITHUB_GUIDE_LINK, '_blank');
+  }, []);
+
   return (
     <>
       <Box
@@ -188,7 +200,14 @@ const ContentStorage = () => {
           <DocsSection title="Upload your file step-by-step guide">
             <StepByStepUploadDoc />
           </DocsSection>
-          <DocsSection title="Quick start guide in Github">""</DocsSection>
+          <DocsSection
+            title="Quick start guide in Github"
+            rightSection={
+              <GithubButton onClick={handleOnGithubLinkClick} startIcon={<GithubLogoIcon />}>
+                <Typography>Open in Github</Typography>
+              </GithubButton>
+            }
+          />
         </DocsGroup>
       </Docs>
     </>
