@@ -36,7 +36,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         default: '#F5F7FA',
       },
 
-      divider: '#B2B8F9',
+      divider: '#E6E6E6',
 
       text: {
         primary: '#1D1B20',
