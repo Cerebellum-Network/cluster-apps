@@ -15,6 +15,7 @@ import {
 } from '@developer-console/ui';
 
 import { useAccountStore } from '~/hooks';
+import { GoogleAnalyticsId } from '~/gtag.ts';
 
 export type AccountDropdownProps = {};
 
@@ -72,7 +73,12 @@ const AccountDropdown = () => {
           </CardActions>
         </Card>
 
-        <Button variant="outlined" color="secondary" onClick={() => account.disconnect()}>
+        <Button
+          className={GoogleAnalyticsId.SignOut}
+          variant="outlined"
+          color="secondary"
+          onClick={() => account.disconnect()}
+        >
           Log Out
         </Button>
       </Stack>

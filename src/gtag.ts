@@ -1,6 +1,7 @@
 export enum GoogleAnalyticsId {
   SignIn = 'SIGNIN',
   SignUp = 'SIGNUP',
+  SignOut = 'SIGNOUT',
 
   buildStorageBtn = 'build-storage-btn',
   buildDeliverBtn = 'build-deliver-btn',
@@ -11,6 +12,7 @@ export enum GoogleAnalyticsId {
   createFirstBucketBtn = 'create-first-bucket-btn',
   anotherBucketBtn = 'another-bucket-btn',
 
+  createBucketBtn = 'create-bucket-btn',
   deleteBucket = 'delete-bucket',
   uploadFileBucket = 'upload-file-bucket',
   uploadFolderBucket = 'upload-folder-bucket',
@@ -22,4 +24,10 @@ export enum GoogleAnalyticsId {
   qrscannerCasestudy = 'qrscanner-casestudy',
   sdkGuideGame = 'sdk-guide-game',
   aiArticleBtn = 'ai-article-btn',
+
+  repoCereDdcSdkJsBtn = 'repo-cere-ddc-sdk-js-btn',
 }
+
+export const gtagEvent = (eventId: GoogleAnalyticsId) => {
+  gtag?.('event', eventId);
+};

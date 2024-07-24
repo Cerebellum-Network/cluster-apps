@@ -5,6 +5,7 @@ import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
 import { useState } from 'react';
+import { GoogleAnalyticsId } from '~/gtag.ts';
 
 /**
  * This component resets default CSS styles.
@@ -102,11 +103,16 @@ export const FileManager = ({
             </Box>
           )}
           {userHasBuckets ? (
-            <Button startIcon={<AddCircleOutlinedIcon />} onClick={onCreateBucket} disabled={isLoading}>
+            <Button
+              startIcon={<AddCircleOutlinedIcon />}
+              className={GoogleAnalyticsId.createBucketBtn}
+              onClick={onCreateBucket}
+              disabled={isLoading}
+            >
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
             </Button>
           ) : (
-            <Button disabled={isBucketCreating}>
+            <Button disabled={isBucketCreating} className={GoogleAnalyticsId.createFirstBucketBtn}>
               {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
             </Button>
           )}
