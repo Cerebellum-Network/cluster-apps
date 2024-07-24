@@ -1,8 +1,26 @@
 import { observer } from 'mobx-react-lite';
-import { Typography } from '@developer-console/ui';
+import { Navigate, Outlet } from 'react-router-dom';
 
-const Home = () => {
-  return <Typography variant="h3">Home page</Typography>;
+import { Application } from '~/applications';
+import { HomeLayout, Navigation, Sidebar } from '~/components';
+import { useAccountStore } from '~/hooks';
+
+export type HomeProps = {
+  apps: Application[];
+};
+
+const Home = ({ apps }: HomeProps) => {
+  const account = useAccountStore();
+
+  if (account.status !== 'connected') {
+    return <Navigate to="/login" />;
+  }
+
+  return (
+    <HomeLayout rightElement={<Navigation items={apps} />} leftElement={<Sidebar />}>
+      {account.isReady() && <Outlet />}
+    </HomeLayout>
+  );
 };
 
 export default observer(Home);

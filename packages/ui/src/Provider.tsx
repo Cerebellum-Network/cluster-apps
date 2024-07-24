@@ -2,6 +2,7 @@ import { PropsWithChildren, useMemo } from 'react';
 import { CssBaseline, ThemeProvider } from '@mui/material';
 
 import { createTheme, ThemeOptions } from './theme';
+import { MessagesProvider } from './hooks';
 
 export type ProviderProps = PropsWithChildren<{
   options?: ThemeOptions;
@@ -13,7 +14,7 @@ export const Provider = ({ children, options }: ProviderProps) => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {children}
+      <MessagesProvider>{children}</MessagesProvider>
     </ThemeProvider>
   );
 };
