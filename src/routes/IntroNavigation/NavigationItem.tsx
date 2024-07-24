@@ -13,7 +13,7 @@ const NavigationItem = ({ children, icon, href, smallIcon = false }: NavigationI
   return (
     <Link to={href} style={{ width: '100%' }}>
       <NavigationCard>
-        <Typography variant="h5" color="text.primary">
+        <Typography variant="subtitle1" color="text.primary">
           {children}
         </Typography>
         <IconContainer smallIcon={smallIcon}>{icon}</IconContainer>
