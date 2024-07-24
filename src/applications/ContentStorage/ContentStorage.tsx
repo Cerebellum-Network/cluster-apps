@@ -53,13 +53,6 @@ const ContentStorage = () => {
         ]);
 
         await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
-        const fileResponse = await ddcClient!.read(uri);
-        const contentBuffer = await fileResponse.arrayBuffer();
-
-        if (contentBuffer.byteLength !== acceptedFile.size) {
-          setUploadStatus('error');
-          throw new Error('Uploaded size does not match input');
-        }
         setUploadStatus('success');
       } catch (err) {
         setUploadStatus('error');

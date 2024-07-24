@@ -179,7 +179,6 @@ export const Row = ({
                         </IconButton>
                         <IconButton
                           onClick={() => {
-                            console.log(element);
                             onFileDownload(row.bucketId, element.metadata?.cid as unknown as string, element.name);
                           }}
                         >

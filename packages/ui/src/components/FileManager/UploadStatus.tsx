@@ -50,7 +50,7 @@ const StatusBox = styled(Box, {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'space-between',
-    margin: '20px',
+    margin: theme.spacing(2.5),
   };
 });
 
