@@ -7,6 +7,7 @@ import { Onboarding } from './Onboarding';
 import { Home } from './Home';
 import { Login } from './Login';
 import { IntroNavigation } from './IntroNavigation';
+import { OnboardingRoot } from './OnboardingRoot';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -39,15 +40,21 @@ const router = createBrowserRouter([
       },
       {
         path: 'login',
-        Component: Login,
-      },
-      {
-        path: 'login/onboarding',
-        Component: Onboarding,
-      },
-      {
-        path: 'login/intro',
-        Component: IntroNavigation,
+        element: <OnboardingRoot />,
+        children: [
+          {
+            index: true,
+            element: <Login />,
+          },
+          {
+            path: 'onboarding',
+            element: <Onboarding />,
+          },
+          {
+            path: 'intro',
+            element: <IntroNavigation />,
+          },
+        ],
       },
     ],
   },

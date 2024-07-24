@@ -6,16 +6,17 @@ import { Typography } from '@developer-console/ui';
 interface NavigationItemProps extends React.PropsWithChildren {
   icon: React.ReactNode;
   href: string;
+  smallIcon?: boolean;
 }
 
-const NavigationItem = ({ children, icon, href }: NavigationItemProps) => {
+const NavigationItem = ({ children, icon, href, smallIcon = false }: NavigationItemProps) => {
   return (
     <Link to={href} style={{ width: '100%' }}>
       <NavigationCard>
-        <Typography variant="h5" color="black">
+        <Typography variant="h5" color="text.primary">
           {children}
         </Typography>
-        <IconContainer>{icon}</IconContainer>
+        <IconContainer smallIcon={smallIcon}>{icon}</IconContainer>
       </NavigationCard>
     </Link>
   );

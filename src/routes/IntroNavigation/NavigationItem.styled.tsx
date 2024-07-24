@@ -1,22 +1,25 @@
-import { styled } from '@mui/material';
+import { Paper, styled } from '@mui/material';
 
-export const NavigationCard = styled('div')(({ theme }) => ({
+export const NavigationCard = styled(Paper)(({ theme }) => ({
   position: 'relative',
   height: 200,
-  width: '100%',
   padding: '40px 20px 0px 40px',
-  borderRadius: 12,
-  border: `1px solid ${theme.palette.divider}`,
   background: theme.palette.secondary.light,
 }));
 
-export const IconContainer = styled('div')({
+export const IconContainer = styled('div')<{ smallIcon?: boolean }>(({ smallIcon }) => ({
   position: 'absolute',
   right: 20,
   bottom: 20,
+  color: '#5865F2',
 
-  '& svg': {
-    height: 96,
-    width: 96,
-  },
-});
+  '& svg': smallIcon
+    ? {
+        height: 48,
+        width: 48,
+      }
+    : {
+        height: 96,
+        width: 96,
+      },
+}));
