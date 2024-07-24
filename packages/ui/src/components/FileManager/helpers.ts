@@ -3,8 +3,8 @@ import { KB } from '@cere-ddc-sdk/ddc-client';
 import { randomBytes } from 'crypto';
 
 export const calculateSize = (node: FileNode): number => {
-  if (node.metadata && node.metadata.type !== 'folder') {
-    return parseFloat(node.metadata.usedStorage);
+  if (node.metadata && node.metadata.type === 'file') {
+    return parseInt(node.metadata.usedStorage, 10);
   }
   if (node.children) {
     return node.children.reduce((total, child) => total + calculateSize(child), 0);
@@ -12,8 +12,8 @@ export const calculateSize = (node: FileNode): number => {
   return 0;
 };
 
-export const buildTree = (files: RealData[]): FileNode => {
-  const root: FileNode = { name: '', isPublic: true, children: [] };
+export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
+  const root: FileNode = { name: '', isPublic, children: [] };
 
   files.forEach((file) => {
     const parts = file.name.split('/');
@@ -48,7 +48,7 @@ export const buildTree = (files: RealData[]): FileNode => {
         usedStorage: totalSize.toString(),
         type: 'folder',
         cid: node.metadata?.cid || '',
-        isPublic: node.metadata?.isPublic || true,
+        isPublic: node.isPublic,
         fullPath: node.metadata?.fullPath,
       };
     }
@@ -58,11 +58,12 @@ export const buildTree = (files: RealData[]): FileNode => {
   return root;
 };
 
-const bytesToSize = (bytes: number): string => {
+export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   if (bytes === 0) return '0 Bytes';
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i];
+  const sizeInUnits = bytes / Math.pow(1024, i);
+  return `${parseFloat(sizeInUnits.toFixed(2))} ${sizes[i]}`;
 };
 
 export const transformData = (data: RealData[]): RowData[] => {
@@ -77,7 +78,9 @@ export const transformData = (data: RealData[]): RowData[] => {
 
   return Object.keys(bucketMap).map((bucketId) => {
     const files = bucketMap[bucketId];
-    const rootNode = buildTree(files);
+    const isPublic = files.some((child) => child.isPublic);
+
+    const rootNode = buildTree(files, isPublic);
     return {
       bucketId,
       usedStorage: bytesToSize(files.reduce((acc, file) => acc + file.size, 0)),

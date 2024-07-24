@@ -13,7 +13,7 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 const ContentStorage = () => {
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('success');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
 
   const { ddc: ddcClient, buckets } = useAccount();
@@ -129,6 +129,9 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
+  console.log('DIRS', dirs);
+  console.log('DIRS', JSON.stringify(dirs));
+
   return (
     <>
       <Box
@@ -163,7 +166,10 @@ const ContentStorage = () => {
           <DocsSection title="Upload your file step-by-step guide">
             <StepByStepUploadDoc />
           </DocsSection>
-          <DocsSection title="Quick start guide in Github">""</DocsSection>
+          <DocsSection
+            title="Quick start guide in Github"
+            githubLink="https://github.com/Cerebellum-Network/cere-ddc-sdk-js/tree/main?tab=readme-ov-file#cere-ddc-sdk-for-javascripttypescript"
+          />
         </DocsGroup>
       </Docs>
     </>

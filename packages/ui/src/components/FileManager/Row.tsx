@@ -4,6 +4,7 @@ import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../ico
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { useMessages } from '../../hooks';
 import { RowData } from './types.ts';
+import { bytesToSize } from './helpers.ts';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -143,7 +144,7 @@ export const Row = ({
                       textAlign="right"
                       marginRight={isBranch ? `${leftMargin}px` : 0}
                     >
-                      {element.metadata.usedStorage} KB
+                      {bytesToSize(Number(element.metadata.usedStorage))}
                     </Typography>
                   )}
                   <Typography variant="body2" flex={1} textAlign="center" marginRight={`${leftMargin}px`}>
