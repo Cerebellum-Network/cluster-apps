@@ -1,3 +1,5 @@
+import { useCallback, useState } from 'react';
+import { observer } from 'mobx-react-lite';
 import {
   Paper,
   Docs,
@@ -8,41 +10,58 @@ import {
   BucketSelect,
   BucketAccess,
   BucketAccessProps,
-  Button,
+  LoadingButton,
+  useMessages,
 } from '@developer-console/ui';
-import { observer } from 'mobx-react-lite';
 
 import { CdnDocsIcon } from './icons';
 import { DDC_CLUSTER_NAME } from '~/constants';
 import { StartGuideDoc, UploadWithCliDoc, StreamDoc, SuccessDoc } from './docs';
-import { useState } from 'react';
+
+import { useAccount } from '~/hooks';
 
 const ContentDelivery = () => {
-  const [bucketId, setBucketId] = useState<bigint>(1n);
-  const [access, setAccess] = useState<BucketAccessProps['value']>('private');
+  const account = useAccount();
+  const { showMessage } = useMessages();
+  const [isSaving, setSaving] = useState(false);
+  const [bucketId, setBucketId] = useState<bigint>();
+  const [access, setAccess] = useState<BucketAccessProps['value']>();
+  const currentBucket = account.buckets.find((bucket) => bucket.id === bucketId) || account.buckets[0];
+  const currentBucketAccess = access || (currentBucket?.isPublic ? 'public' : 'private');
+
+  const handleSaveAccess = useCallback(async () => {
+    setSaving(true);
+    await account.saveBucket(currentBucket.id, { isPublic: currentBucketAccess === 'public' });
+
+    setSaving(false);
+    showMessage({ message: 'Bucket access has been saved', appearance: 'success' });
+  }, [account, currentBucket, currentBucketAccess, showMessage]);
 
   return (
     <Stack spacing={2}>
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
         <Typography variant="subtitle1">Please select one of your buckets</Typography>
         <BucketSelect
-          value={bucketId}
+          value={currentBucket.id}
           label="Bucket"
-          options={[
-            { id: 1n, access: 'private', storedBytes: 100 },
-            { id: 2n, access: 'public', storedBytes: 20000 },
-            { id: 3n, access: 'public', storedBytes: 30000000 },
-          ]}
+          options={account.buckets.map((bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
       </Paper>
 
       <Paper component={Stack} padding={2} spacing={2}>
         <Typography variant="subtitle1">File access control</Typography>
-        <BucketAccess value={access} onChange={(value) => setAccess(value)} />
-        <Button size="large" sx={{ width: 150, alignSelf: 'flex-start' }}>
+        <BucketAccess value={currentBucketAccess} onChange={(value) => setAccess(value)} />
+
+        <LoadingButton
+          size="large"
+          variant="contained"
+          loading={isSaving}
+          onClick={handleSaveAccess}
+          sx={{ width: 150, alignSelf: 'flex-start' }}
+        >
           Save
-        </Button>
+        </LoadingButton>
       </Paper>
 
       <Docs
