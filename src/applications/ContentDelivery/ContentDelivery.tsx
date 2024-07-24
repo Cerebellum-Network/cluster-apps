@@ -1,4 +1,15 @@
-import { Paper, Docs, DocsGroup, DocsSection, Stack, Typography, BucketSelect } from '@developer-console/ui';
+import {
+  Paper,
+  Docs,
+  DocsGroup,
+  DocsSection,
+  Stack,
+  Typography,
+  BucketSelect,
+  BucketAccess,
+  BucketAccessProps,
+  Button,
+} from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 
 import { CdnDocsIcon } from './icons';
@@ -7,6 +18,7 @@ import { useState } from 'react';
 
 const ContentDelivery = () => {
   const [bucketId, setBucketId] = useState<bigint>(1n);
+  const [access, setAccess] = useState<BucketAccessProps['value']>('private');
 
   return (
     <Stack spacing={2}>
@@ -22,6 +34,14 @@ const ContentDelivery = () => {
           ]}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
+      </Paper>
+
+      <Paper component={Stack} padding={2} spacing={2}>
+        <Typography variant="subtitle1">File access control</Typography>
+        <BucketAccess value={access} onChange={(value) => setAccess(value)} />
+        <Button size="large" sx={{ width: 150, alignSelf: 'flex-start' }}>
+          Save
+        </Button>
       </Paper>
 
       <Docs

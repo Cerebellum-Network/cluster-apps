@@ -39,6 +39,10 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         primary: '#1D1B20',
         secondary: '#818083',
       },
+
+      action: {
+        selected: '#F5F7FA',
+      },
     },
 
     shape: {
