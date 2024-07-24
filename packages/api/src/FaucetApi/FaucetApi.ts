@@ -1,5 +1,5 @@
 export class FaucetApi {
-  private baseUrl = import.meta.env.VITE_FAUCET_API_URL || '';
+  private baseUrl = import.meta.env.VITE_FAUCET_ENDPOINT || '';
 
   sendTokens = async (address: string, amount: number) => {
     const body = {
