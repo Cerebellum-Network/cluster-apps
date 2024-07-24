@@ -33,3 +33,6 @@ export * from './UploadFileIcon';
 export * from './UploadFolderIcon';
 export * from './ArrowLeft';
 export * from './ArrowRight';
+export * from './CloudFlashIcon';
+export * from './BarTrackingIcon';
+export * from './DecentralizedServerIcon';

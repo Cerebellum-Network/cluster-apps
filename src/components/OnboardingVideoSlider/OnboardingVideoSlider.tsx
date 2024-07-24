@@ -102,8 +102,9 @@ export const OnboardingVideoSlider = () => {
         bottom="40px"
         left="40px"
         zIndex="1"
+        color="white"
       >
-        <IconButton onClick={prevSlide}>
+        <IconButton onClick={prevSlide} color="inherit">
           <LeftArrowIcon />
         </IconButton>
         <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
@@ -111,7 +112,7 @@ export const OnboardingVideoSlider = () => {
           <SliderDot className={currentSlide === 1 ? 'active' : ''} />
           <SliderDot className={currentSlide === 2 ? 'active' : ''} />
         </Stack>
-        <IconButton onClick={nextSlide}>
+        <IconButton onClick={nextSlide} color="inherit">
           <RightArrowIcon />
         </IconButton>
       </Stack>
