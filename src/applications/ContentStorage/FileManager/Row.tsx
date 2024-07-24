@@ -1,10 +1,10 @@
 import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
 import { UploadButton, ArrowRightIcon, UploadStatus } from '@developer-console/ui';
-import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
+import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
-import { useMessages } from '../../hooks';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
+import { DDC_STORAGE_NODE_URL } from '~/constants.ts';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -164,7 +164,7 @@ export const Row = ({
                           onClick={async () => {
                             console.log(element);
                             await navigator.clipboard.writeText(
-                              `https://storage.testnet.cere.network/${row.bucketId}/${element.metadata?.cid}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}`,
                             );
                             showMessage({
                               appearance: 'info',

@@ -66,7 +66,7 @@ export * from './Logo';
 export * from './Layout';
 export * from './Dropdown';
 export * from './Truncate';
-export * from './FileManager';
+export * from '../../../../src/applications/ContentStorage/FileManager';
 export * from './UploadButton';
 export * from './Docs';
 export * from './Markdown';

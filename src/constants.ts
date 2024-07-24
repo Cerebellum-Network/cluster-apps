@@ -20,6 +20,7 @@ const ddcPreset = (import.meta.env.VITE_DDC_NETWORK || 'testnet') as keyof typeo
 export const DDC_PRESET = ddcPresets[ddcPreset];
 export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || '';
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
+export const DDC_STORAGE_NODE_URL = import.meta.env.VITE_DDC_STORAGE_NODE_URL || '';
 
 /**
  * Cere blockchain configuration
