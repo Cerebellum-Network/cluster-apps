@@ -23,11 +23,11 @@ export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || ''; //'0x82
 /**
  * Cere blockchain configuration
  */
-export const CERE_DECIMALS = import.meta.env.VITE_CERE_DECIMALS || 10;
+export const CERE_DECIMALS = Number(import.meta.env.VITE_CERE_DECIMALS || 10);
 
 /**
  * Onboarding configuration
  */
-export const ONBOARDIN_REWARD_AMOUNT = import.meta.env.VITE_ONBOARDIN_REWARD_AMOUNT || 50;
-export const ONBOARDIN_DEPOSIT_AMOUNT = import.meta.env.VITE_ONBOARDIN_DEPOSIT_AMOUNT || 40;
+export const ONBOARDIN_REWARD_AMOUNT = Number(import.meta.env.VITE_ONBOARDIN_REWARD_AMOUNT || 50);
+export const ONBOARDIN_DEPOSIT_AMOUNT = Number(import.meta.env.VITE_ONBOARDIN_DEPOSIT_AMOUNT || 40);
 export const ONBOARDIN_PUBLIC_BUCKET = false;
