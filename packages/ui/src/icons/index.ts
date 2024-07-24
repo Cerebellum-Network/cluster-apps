@@ -12,6 +12,8 @@ export {
   ArrowForward as ArrowForwardIcon,
   InfoOutlined as InfoOutlinedIcon,
   ArrowRight as ArrowRightIcon,
+  Delete as DeleteIcon,
+  AddCircleOutlined as AddCircleOutlinedIcon,
 } from '@mui/icons-material';
 
 // Custom icons
@@ -23,7 +25,6 @@ export * from './FolderIcon';
 export * from './ShareIcon';
 export * from './DownloadIcon';
 export * from './ActivityAppIcon';
-export * from './CdnAppIcon';
 export * from './StorageAppIcon';
 export * from './UploadFileIcon';
 export * from './UploadFolderIcon';

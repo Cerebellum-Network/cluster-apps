@@ -1,4 +1,6 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Button, Typography, styled } from '@mui/material';
+import { AddCircleOutlinedIcon } from '@developer-console/ui';
+
 import { Row } from './Row.tsx';
 
 type RealData = {
@@ -6,13 +8,17 @@ type RealData = {
   size: number;
   name: string;
   cid: string;
+  isPublic: boolean;
 };
 
 type FileNode = {
   name: string;
+  isPublic: boolean;
   metadata?: {
     usedStorage: string;
     type: string;
+    cid: string;
+    isPublic: boolean;
   };
   children?: FileNode[];
 };
@@ -20,7 +26,7 @@ type FileNode = {
 type MockData = {
   bucketId: string;
   usedStorage: string;
-  acl: string;
+  acl: boolean;
   files: FileNode;
 };
 
@@ -42,7 +48,7 @@ const calculateSize = (node: FileNode): number => {
 };
 
 const buildTree = (files: RealData[]): FileNode => {
-  const root: FileNode = { name: '', children: [] };
+  const root: FileNode = { name: '', isPublic: true, children: [] };
 
   files.forEach((file) => {
     const parts = file.name.split('/');
@@ -51,7 +57,7 @@ const buildTree = (files: RealData[]): FileNode => {
     parts.forEach((part, index) => {
       let node = currentNode.children?.find((child) => child.name === part);
       if (!node) {
-        node = { name: part, children: [] };
+        node = { name: part, children: [], isPublic: currentNode.isPublic };
         currentNode.children?.push(node);
       }
       currentNode = node;
@@ -59,9 +65,11 @@ const buildTree = (files: RealData[]): FileNode => {
       if (index === parts.length - 1) {
         currentNode.metadata = {
           usedStorage: file.size.toString(),
-          type: 'file', // Adjust according to your data
+          cid: file.cid,
+          type: 'file',
+          isPublic: file.isPublic,
         };
-        delete currentNode.children; // Remove children for file nodes
+        delete currentNode.children;
       }
     });
   });
@@ -73,6 +81,8 @@ const buildTree = (files: RealData[]): FileNode => {
       node.metadata = {
         usedStorage: totalSize.toString(),
         type: 'folder',
+        cid: node.metadata?.cid || '',
+        isPublic: node.metadata?.isPublic || true,
       };
     }
   };
@@ -97,17 +107,28 @@ const transformData = (data: RealData[]): MockData[] => {
     return {
       bucketId,
       usedStorage: bytesToSize(files.reduce((acc, file) => acc + file.size, 0)),
-      acl: 'Public',
+      acl: rootNode.isPublic,
       files: rootNode,
     };
   });
 };
 
-export const FileManager = ({ data }: { data: RealData[] }) => {
+/**
+ * This component resets default CSS styles.
+ */
+const CssReset = styled(Box)({
+  '& li, ul': {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+  },
+});
+
+export const FileManager = ({ data, onCreateBucket }: { data: RealData[]; onCreateBucket: () => void }) => {
   const rows = transformData(data);
 
   return (
-    <>
+    <CssReset>
       <Box display="flex" alignItems="center" padding={(theme) => theme.spacing(1, 1.5)}>
         <Typography variant="body1" flex={1}>
           Bucket ID
@@ -120,9 +141,14 @@ export const FileManager = ({ data }: { data: RealData[] }) => {
         </Typography>
         <Box flex={1}></Box>
       </Box>
-      {rows.map((row) => (
-        <Row key={row.bucketId} row={row} />
-      ))}
-    </>
+      {rows.length > 0 ? (
+        rows.map((row) => <Row key={row.bucketId} row={row} />)
+      ) : (
+        <Button onClick={onCreateBucket}>
+          <AddCircleOutlinedIcon />
+          Create New Bucket
+        </Button>
+      )}
+    </CssReset>
   );
 };

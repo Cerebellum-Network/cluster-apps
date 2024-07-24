@@ -1,19 +1,35 @@
+import { useEffect, useState } from 'react';
 import { LoadedCard, LoadingCard, SuccessCard } from './Card.styled';
 import { Box, LoadingAnimation, CheckMarkAnimation, Typography } from '@developer-console/ui';
 
 interface CardProps {
-  state: 'loading' | 'success' | 'loaded' | 'idle';
+  state: 'loading' | 'success' | 'idle';
+  disableAnimation?: boolean;
 }
 
-const Card = ({ children, state = 'idle' }: React.PropsWithChildren<CardProps>) => {
+const Card = ({ children, state = 'idle', disableAnimation }: React.PropsWithChildren<CardProps>) => {
+  const [playSuccessAnimation, setPlaySuccessAnimation] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (state === 'success' && playSuccessAnimation !== false && !playSuccessAnimation) {
+      setPlaySuccessAnimation(true);
+
+      setTimeout(() => setPlaySuccessAnimation(false), 1500);
+    }
+  }, [state, playSuccessAnimation]);
+
   if (state === 'success') {
-    return (
+    return playSuccessAnimation && !disableAnimation ? (
       <SuccessCard>
         <Typography>{children}</Typography>
         <Box width="100px">
           <CheckMarkAnimation />
         </Box>
       </SuccessCard>
+    ) : (
+      <LoadedCard>
+        <Typography>{children} ✓</Typography>
+      </LoadedCard>
     );
   }
 
@@ -25,17 +41,13 @@ const Card = ({ children, state = 'idle' }: React.PropsWithChildren<CardProps>) 
     );
   }
 
-  return state === 'loading' ? (
+  return (
     <LoadingCard>
       <Typography>{children}</Typography>
       <Box width="160px">
         <LoadingAnimation />
       </Box>
     </LoadingCard>
-  ) : (
-    <LoadedCard>
-      <Typography>{children} ✓</Typography>
-    </LoadedCard>
   );
 };
 

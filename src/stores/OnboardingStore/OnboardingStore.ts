@@ -59,7 +59,6 @@ export class OnboardingStore {
     await this.addStep('wallet', () => when(() => this.accountStore.status === 'connected'));
     await this.addStep('reward', async () => {
       await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
-
       return when(() => !!this.accountStore.balance);
     });
 

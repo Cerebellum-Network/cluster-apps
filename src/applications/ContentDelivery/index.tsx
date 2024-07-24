@@ -1,6 +1,6 @@
-import { CdnAppIcon } from '@developer-console/ui';
 import { Application } from '../types';
 
+import { CdnAppIcon } from './icons';
 import ContentDelivery from './ContentDelivery';
 
 const application: Application = {
