@@ -22,7 +22,7 @@ const ContentStorage = () => {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
 
-  const { ddc: ddcClient, buckets } = useAccount();
+  const { ddc: ddcClient, buckets, refreshBuckets } = useAccount();
 
   const { dirs, loading } = useFetchDirs(buckets, ddcClient);
 
@@ -39,7 +39,8 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
     await ddcClient.createBucket(DDC_CLUSTER_ID, { isPublic: true });
-  }, [ddcClient]);
+    await refreshBuckets();
+  }, [ddcClient, refreshBuckets]);
 
   const singleFileUpload = useCallback(
     async ({ acceptedFile, cnsName, bucketId }: { acceptedFile: File; bucketId: string; cnsName: string }) => {
