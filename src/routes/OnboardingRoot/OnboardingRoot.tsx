@@ -1,16 +1,25 @@
 import { Outlet } from 'react-router-dom';
 import { Button, DiscordIcon, Layout, Stack } from '@developer-console/ui';
+import { DEVELOPER_DOCS_LINK, DISCORD_LINK } from '~/constants.ts';
 
 const OnboardingRoot = () => {
   return (
     <Layout
       headerRight={
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" color="secondary">
+          <Button
+            href={DEVELOPER_DOCS_LINK}
+            variant="outlined"
+            color="secondary"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Developer Docs
           </Button>
 
-          <Button startIcon={<DiscordIcon />}>Discord</Button>
+          <Button href={DISCORD_LINK} startIcon={<DiscordIcon />} target="_blank" rel="noopener noreferrer">
+            Discord
+          </Button>
         </Stack>
       }
     >

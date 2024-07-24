@@ -7,7 +7,7 @@ import * as yup from 'yup';
 
 import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
-import { DDC_CLUSTER_NAME } from '~/constants';
+import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
 
 const validationSchema = yup
@@ -76,7 +76,14 @@ const Login = observer(() => {
 
         <Terms textAlign="center" variant="body2">
           By using your Cere wallet you automatically agree to our
-          <br /> <a href="#">Terms & Conditions</a> and <a href="#">Privacy Policy</a>
+          <br />{' '}
+          <a href={TERMS_AND_CONDITIONS_LINK} target="_blank" rel="noopener noreferrer">
+            Terms & Conditions
+          </a>{' '}
+          and{' '}
+          <a href={PRIVACY_POLICY} target="_blank" rel="noopener noreferrer">
+            Privacy Policy
+          </a>
         </Terms>
       </Stack>
     </OnboardingLayout>
