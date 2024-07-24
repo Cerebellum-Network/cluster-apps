@@ -32,7 +32,7 @@ export const CERE_DECIMALS = Number(import.meta.env.VITE_CERE_DECIMALS || 10);
  */
 export const ONBOARDIN_REWARD_AMOUNT = Number(import.meta.env.VITE_ONBOARDIN_REWARD_AMOUNT || 50);
 export const ONBOARDIN_DEPOSIT_AMOUNT = Number(import.meta.env.VITE_ONBOARDIN_DEPOSIT_AMOUNT || 40);
-export const ONBOARDIN_PUBLIC_BUCKET = false;
+export const ONBOARDIN_PUBLIC_BUCKET = true;
 
 /**
  * Project Links

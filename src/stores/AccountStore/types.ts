@@ -26,7 +26,7 @@ export interface Account {
   connect(options: ConnectOptions): Promise<void>;
   disconnect(): void;
   signMessage(message: string): Promise<string>;
-  createBucket(isPublic: boolean): Promise<bigint>;
+  createBucket(params: BucketParams): Promise<bigint>;
   saveBucket(bucketId: bigint, params: BucketParams): Promise<void>;
   refreshBuckets(): Promise<void>;
 }

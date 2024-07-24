@@ -63,6 +63,6 @@ export class OnboardingStore {
     });
 
     await this.addStep('deposit', () => this.accountStore.topUp(ONBOARDIN_DEPOSIT_AMOUNT));
-    await this.addStep('bucket', () => this.accountStore.createBucket(ONBOARDIN_PUBLIC_BUCKET));
+    await this.addStep('bucket', () => this.accountStore.createBucket({ isPublic: ONBOARDIN_PUBLIC_BUCKET }));
   }
 }

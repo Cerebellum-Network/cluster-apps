@@ -175,14 +175,12 @@ export class AccountStore implements Account {
     return sigResult?.signature as string;
   }
 
-  async createBucket(isPublic = true) {
+  async createBucket(params: BucketParams) {
     if (!this.ddc) {
       throw new Error('DDC is not ready');
     }
 
-    return this.ddc.createBucket(DDC_CLUSTER_ID, {
-      isPublic,
-    });
+    return this.ddc.createBucket(DDC_CLUSTER_ID, params);
   }
 
   async saveBucket(bucketId: bigint, params: BucketParams) {
