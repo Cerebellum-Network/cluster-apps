@@ -129,9 +129,6 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
-  console.log('DIRS', dirs);
-  console.log('DIRS', JSON.stringify(dirs));
-
   return (
     <>
       <Box
