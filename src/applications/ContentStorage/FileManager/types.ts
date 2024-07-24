@@ -4,9 +4,9 @@ export type DirectoryType = Link & { bucketId: string; isPublic: boolean };
 
 export type RealData = {
   bucketId: string;
-  size: number;
-  name: string;
-  cid: string;
+  size?: number;
+  name?: string;
+  cid?: string;
   isPublic: boolean;
 };
 

@@ -37,15 +37,12 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
             }
           }
         } catch (dirError) {
-          // console.error(`Error reading directory for bucket ${bucket.id}:`, dirError);
+          newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...({} as Link) });
+          console.error(`Error reading directory for bucket ${bucket.id}:`, dirError);
         }
       }
       setDirs((prevState) => {
-        const uniqueDirs = newDirs.filter(
-          (newDir) =>
-            !prevState.some((prevDir) => prevDir.bucketId === newDir.bucketId && prevDir.name === newDir.name),
-        );
-        return [...prevState, ...uniqueDirs];
+        return [...prevState, ...newDirs];
       });
     } catch (e) {
       setError((e as Error).message);
