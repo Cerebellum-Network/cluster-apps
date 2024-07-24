@@ -13,6 +13,7 @@ import {
 import { observer } from 'mobx-react-lite';
 
 import { CdnDocsIcon } from './icons';
+import { DDC_CLUSTER_NAME } from '~/constants';
 import { StartGuideDoc, UploadWithCliDoc, StreamDoc, SuccessDoc } from './docs';
 import { useState } from 'react';
 
@@ -59,7 +60,7 @@ const ContentDelivery = () => {
           </DocsSection>
         </DocsGroup>
 
-        <DocsGroup title="Stream from [Cluster Name]">
+        <DocsGroup title={`Stream from ${DDC_CLUSTER_NAME}`}>
           <DocsSection title="Step-by-step guide">
             <StreamDoc />
           </DocsSection>

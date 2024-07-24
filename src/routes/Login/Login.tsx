@@ -1,21 +1,14 @@
-import {
-  CircularProgress,
-  FormControl,
-  Stack,
-  TextField,
-  Button,
-  Typography,
-  RightArrowIcon,
-} from '@developer-console/ui';
+import { FormControl, Stack, TextField, Typography, RightArrowIcon, LoadingButton } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 
 import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
+import { DDC_CLUSTER_NAME } from '~/constants';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
-import { useNavigate } from 'react-router-dom';
 
 const validationSchema = yup
   .object({
@@ -32,11 +25,8 @@ const Login = observer(() => {
     register,
     handleSubmit,
     formState: { errors, isValid, isSubmitting },
-    setValue: setFormValue,
-    trigger: formTrigger,
   } = useForm({
     resolver: yupResolver(validationSchema),
-    mode: 'all',
     defaultValues: {
       email: '',
     },
@@ -51,17 +41,18 @@ const Login = observer(() => {
 
   return (
     <OnboardingLayout>
-      <Stack justifyContent="center" alignItems="center" flex="1">
-        <Typography variant="h2" textAlign="center">
-          Welcome to [Cluster Name]
+      <Stack component="form" justifyContent="center" alignItems="center" flex="1" width={600} onSubmit={onSubmit}>
+        <Typography variant="h1" textAlign="center">
+          Welcome to {DDC_CLUSTER_NAME}
         </Typography>
-        <Typography variant="subtitle1" textAlign="center" sx={{ mt: 4, mb: 3 }}>
+        <Typography textAlign="center" sx={{ mt: 4, mb: 3 }}>
           Unlock the power of the first Web3 Data Cloud for real-world applications. Get started in just a minutes.
         </Typography>
 
         <FormControl>
           <TextField
             {...register('email')}
+            fullWidth
             type="email"
             label="Account Email"
             placeholder="Enter your email"
@@ -69,32 +60,20 @@ const Login = observer(() => {
             error={!!errors?.['email']?.message}
             sx={{ width: 600, mb: 3 }}
             InputProps={{ style: { borderRadius: 12 } }}
-            onChange={(value) => {
-              setFormValue('email', value.target.value);
-              formTrigger(['email']);
-            }}
           />
         </FormControl>
-        <Button
-          onClick={onSubmit}
-          id="start-account-btn"
-          className="click"
+        <LoadingButton
+          fullWidth
           type="submit"
+          variant="contained"
           size="large"
           disabled={!isValid}
-          sx={{
-            pointerEvents: isSubmitting ? 'none' : 'auto',
-            width: 600,
-          }}
+          loading={isSubmitting}
+          endIcon={<RightArrowIcon />}
         >
-          {isSubmitting ? (
-            <CircularProgress sx={{ color: '#fff' }} size="20px" />
-          ) : (
-            <>
-              Get Started <RightArrowIcon />
-            </>
-          )}
-        </Button>
+          Get Started
+        </LoadingButton>
+
         <Terms textAlign="center" variant="body2">
           By using your Cere wallet you automatically agree to our
           <br /> <a href="#">Terms & Conditions</a> and <a href="#">Privacy Policy</a>

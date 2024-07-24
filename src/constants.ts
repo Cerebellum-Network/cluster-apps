@@ -18,7 +18,8 @@ export const APP_ENV = import.meta.env.VITE_APP_ENV || 'dev';
  */
 const ddcPreset = (import.meta.env.VITE_DDC_NETWORK || 'testnet') as keyof typeof ddcPresets;
 export const DDC_PRESET = ddcPresets[ddcPreset];
-export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || ''; //'0x825c4b2352850de9986d9d28568db6f0c023a1e3';
+export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || '';
+export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
 
 /**
  * Cere blockchain configuration
