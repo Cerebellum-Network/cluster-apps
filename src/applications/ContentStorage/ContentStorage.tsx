@@ -36,7 +36,7 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
     setIsBucketCreating(true);
-    await account.createBucket(true);
+    await account.createBucket({ isPublic: true });
     await account.refreshBuckets();
     setIsBucketCreating(false);
   }, [account, ddcClient]);
