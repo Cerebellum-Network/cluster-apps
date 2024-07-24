@@ -201,4 +201,15 @@ export class AccountStore implements Account {
 
     return this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
   }
+
+  /**
+   * TODO: Figure out a genreic way of updating resources
+   */
+  async refreshBuckets() {
+    if (!this.ddc || !this.address) {
+      throw new Error('DDC is not ready');
+    }
+
+    this.bucketsResource = createBucketsResource(this);
+  }
 }

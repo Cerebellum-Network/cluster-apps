@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
 import { IndexedBucket } from '@developer-console/api';
-import { DirectoryType } from '@developer-console/ui';
+import { DirectoryType } from '~/applications/ContentStorage/FileManager';
 
 interface UseFetchDirsResult {
   dirs: DirectoryType[];
@@ -58,54 +58,6 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
   useEffect(() => {
     fetchDirs();
   }, [fetchDirs]);
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-expect-error
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const mock = [
-    {
-      bucketId: '200883',
-      isPublic: false,
-      cid: 'baebb4igympzgyi6uwiqff6dgfaeykgeg6c6uyhlkuxbtows65k5sj7pwqu',
-      name: 'assets/bg.jpg',
-      size: 50098,
-    },
-    {
-      bucketId: '200883',
-      isPublic: false,
-      cid: 'baebb4icrjg62o4tku6k2mjtm47tsn5iqjalr7eddtp36cseylrcbvmzc7e',
-      name: 'assets/styles.css',
-      size: 173,
-    },
-    {
-      bucketId: '200883',
-      isPublic: false,
-      cid: 'baebb4iar25fccjc42jo6pfdus6whik3h3lusglaktvksnms54plwhppb5q',
-      name: 'index.html',
-      size: 198,
-    },
-    {
-      bucketId: '200893',
-      isPublic: true,
-      cid: 'baebb4igympzgyi6uwiqff6dgfaeykgeg6c6uyhlkuxbtows65k5sj7pwqu',
-      name: 'assets/bg.jpg',
-      size: 50098,
-    },
-    {
-      bucketId: '200893',
-      isPublic: true,
-      cid: 'baebb4icrjg62o4tku6k2mjtm47tsn5iqjalr7eddtp36cseylrcbvmzc7e',
-      name: 'assets/styles.css',
-      size: 173,
-    },
-    {
-      bucketId: '200893',
-      isPublic: true,
-      cid: 'baebb4iar25fccjc42jo6pfdus6whik3h3lusglaktvksnms54plwhppb5q',
-      name: 'index.html',
-      size: 198,
-    },
-  ];
 
   return { dirs, loading, error };
 };
