@@ -207,5 +207,21 @@ export const createTheme = (_options: ThemeOptions = {}) =>
           },
         },
       },
+
+      MuiSelect: {
+        defaultProps: {
+          MenuProps: {
+            anchorOrigin: {
+              horizontal: 'right',
+              vertical: 'bottom',
+            },
+
+            transformOrigin: {
+              vertical: -8,
+              horizontal: 'right',
+            },
+          },
+        },
+      },
     },
   });

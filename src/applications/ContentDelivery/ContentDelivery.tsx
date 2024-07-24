@@ -1,36 +1,55 @@
-import { Docs, DocsGroup, DocsSection } from '@developer-console/ui';
+import { Paper, Docs, DocsGroup, DocsSection, Stack, Typography, BucketSelect } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 
 import { CdnDocsIcon } from './icons';
 import { StartGuideDoc, UploadWithCliDoc, StreamDoc, SuccessDoc } from './docs';
+import { useState } from 'react';
 
 const ContentDelivery = () => {
+  const [bucketId, setBucketId] = useState<bigint>(1n);
+
   return (
-    <Docs
-      icon={<CdnDocsIcon />}
-      title="Start streaming now with Cere!"
-      description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
-    >
-      <DocsGroup title="Upload your content using DDC SDK">
-        <DocsSection title="Upload your content using DDC CLI">
-          <UploadWithCliDoc />
-        </DocsSection>
+    <Stack spacing={2}>
+      <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
+        <Typography variant="subtitle1">Please select one of your buckets</Typography>
+        <BucketSelect
+          value={bucketId}
+          label="Bucket"
+          options={[
+            { id: 1n, access: 'private', storedBytes: 100 },
+            { id: 2n, access: 'public', storedBytes: 20000 },
+            { id: 3n, access: 'public', storedBytes: 30000000 },
+          ]}
+          onChange={(bucketId) => setBucketId(bucketId)}
+        />
+      </Paper>
 
-        <DocsSection title="Quick start guide in Github">
-          <StartGuideDoc />
-        </DocsSection>
-      </DocsGroup>
+      <Docs
+        icon={<CdnDocsIcon />}
+        title="Start streaming now with Cere!"
+        description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
+      >
+        <DocsGroup title="Upload your content using DDC SDK">
+          <DocsSection title="Upload your content using DDC CLI">
+            <UploadWithCliDoc />
+          </DocsSection>
 
-      <DocsGroup title="Stream from [Cluster Name]">
-        <DocsSection title="Step-by-step guide">
-          <StreamDoc />
-        </DocsSection>
+          <DocsSection title="Quick start guide in Github">
+            <StartGuideDoc />
+          </DocsSection>
+        </DocsGroup>
 
-        <DocsSection title="Success user stories">
-          <SuccessDoc />
-        </DocsSection>
-      </DocsGroup>
-    </Docs>
+        <DocsGroup title="Stream from [Cluster Name]">
+          <DocsSection title="Step-by-step guide">
+            <StreamDoc />
+          </DocsSection>
+
+          <DocsSection title="Success user stories">
+            <SuccessDoc />
+          </DocsSection>
+        </DocsGroup>
+      </Docs>
+    </Stack>
   );
 };
 
