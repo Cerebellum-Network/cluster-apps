@@ -1,19 +1,10 @@
-import {
-  Accordion,
-  AccordionProps,
-  AccordionSummary,
-  AccordionDetails,
-  styled,
-  Typography,
-  Button,
-} from '@mui/material';
+import { Accordion, AccordionProps, AccordionSummary, AccordionDetails, styled, Typography } from '@mui/material';
 import { ReactNode } from 'react';
-import { GithubLogoIcon } from '@developer-console/ui';
 
 export type DocsSectionProps = Omit<AccordionProps, 'children'> & {
   children?: ReactNode;
   title: string;
-  githubLink?: string;
+  rightSection?: ReactNode;
 };
 
 const Root = styled(Accordion)(() => ({
@@ -36,31 +27,14 @@ const Content = styled(AccordionDetails)(() => ({
   backgroundColor: '#F5F6FF',
 }));
 
-const GithubButton = styled(Button)(({ theme }) => ({
-  marginLeft: 'auto',
-  gap: theme.spacing(1),
-}));
-
-export const DocsSection = ({ title, children, githubLink, ...props }: DocsSectionProps) => {
-  const handleLinkClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (githubLink) {
-      event.stopPropagation();
-      window.open(githubLink, '_blank');
-    }
-  };
-
+export const DocsSection = ({ title, children, rightSection, ...props }: DocsSectionProps) => {
   return (
     <Root {...props} square disableGutters>
       <Summary>
         <Typography variant="subtitle1">{title}</Typography>
-        {githubLink && (
-          <GithubButton onClick={handleLinkClick}>
-            <GithubLogoIcon />
-            <Typography>Open in Github</Typography>
-          </GithubButton>
-        )}
+        {rightSection && rightSection}
       </Summary>
-      {!githubLink && children && <Content>{children}</Content>}
+      {!rightSection && children && <Content>{children}</Content>}
     </Root>
   );
 };

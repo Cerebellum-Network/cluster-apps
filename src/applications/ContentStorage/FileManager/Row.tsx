@@ -1,10 +1,11 @@
 import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { UploadButton, ArrowRightIcon, UploadStatus } from '@developer-console/ui';
+import { UploadButton, ArrowRightIcon } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
 import { DDC_STORAGE_NODE_URL } from '~/constants.ts';
+import { UploadStatus } from './UploadStatus.tsx';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;

@@ -1,15 +1,21 @@
-import { Docs, DocsGroup, DocsSection, FileManager } from '@developer-console/ui';
+import { Docs, DocsGroup, DocsSection, GithubLogoIcon } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { Box, styled, Typography } from '@mui/material';
+import { Box, Button, styled, Typography } from '@mui/material';
 import { useAccount, useFetchDirs } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { DataStorageDocsIcon } from './icons';
-import { StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { FileManager } from './FileManager/FileManager';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
+}));
+
+const GithubButton = styled(Button)(({ theme }) => ({
+  marginLeft: 'auto',
+  gap: theme.spacing(1),
 }));
 
 const ContentStorage = () => {
@@ -154,6 +160,11 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleOnGithubLinkClick = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    window.open(GITHUB_GUIDE_LINK, '_blank');
+  }, []);
+
   return (
     <>
       <Box
@@ -190,7 +201,11 @@ const ContentStorage = () => {
           </DocsSection>
           <DocsSection
             title="Quick start guide in Github"
-            githubLink="https://github.com/Cerebellum-Network/cere-ddc-sdk-js/tree/main?tab=readme-ov-file#cere-ddc-sdk-for-javascripttypescript"
+            rightSection={
+              <GithubButton onClick={handleOnGithubLinkClick} startIcon={<GithubLogoIcon />}>
+                <Typography>Open in Github</Typography>
+              </GithubButton>
+            }
           />
         </DocsGroup>
       </Docs>
