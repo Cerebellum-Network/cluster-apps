@@ -66,7 +66,6 @@ export * from './Logo';
 export * from './Layout';
 export * from './Dropdown';
 export * from './Truncate';
-export * from './UploadButton';
 export * from './Docs';
 export * from './Markdown';
 export * from './BucketSelect';
