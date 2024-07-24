@@ -12,7 +12,7 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 const ContentStorage = () => {
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('success');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
 
   const { ddc: ddcClient, buckets } = useAccount();
