@@ -4,8 +4,8 @@ import { BytesSize } from '../BytesSize';
 
 type BucketSelectOption = {
   id: bigint;
-  access: 'private' | 'public';
-  storedBytes: number;
+  isPublic: boolean;
+  storedBytes?: number;
 };
 
 export type BucketSelectProps = Omit<TextFieldProps, 'value' | 'onChange'> & {
@@ -24,11 +24,6 @@ const Select = styled(TextField)({
   minWidth: 300,
 });
 
-const accessLabels = {
-  private: 'Private',
-  public: 'Public',
-};
-
 export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: BucketSelectProps, ref) => {
   const handleChange: NonNullable<TextFieldProps['onChange']> = useCallback(
     (event) => {
@@ -44,17 +39,15 @@ export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: 
 
   return (
     <Select {...props} value={value?.toString()} select inputRef={ref} onChange={handleChange}>
-      {options.map(({ id, access, storedBytes }) => {
+      {options.map(({ id, isPublic, storedBytes }) => {
         const bucketId = id.toString();
 
         return (
           <Item key={bucketId} value={bucketId}>
             <Stack direction="row" spacing={1} divider={<Typography color="text.secondary">|</Typography>}>
               <Typography variant="body2">ID: {bucketId}</Typography>
-              <Typography variant="body2">
-                <BytesSize bytes={storedBytes} />
-              </Typography>
-              <Typography variant="body2">{accessLabels[access]}</Typography>
+              {storedBytes && <Typography variant="body2">{<BytesSize bytes={storedBytes} />}</Typography>}
+              <Typography variant="body2">{isPublic ? 'Public' : 'Private'}</Typography>
             </Stack>
           </Item>
         );
