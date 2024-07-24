@@ -76,7 +76,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       h4: {
         fontSize: '1.25rem', // 20px,
         lineHeight: '1.625rem', // 26px,
-        fontWeight: 500,
+        fontWeight: 600,
       },
 
       subtitle1: {
