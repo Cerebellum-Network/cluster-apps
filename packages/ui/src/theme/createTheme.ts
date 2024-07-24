@@ -39,6 +39,10 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         primary: '#1D1B20',
         secondary: '#818083',
       },
+
+      action: {
+        selected: '#F5F7FA',
+      },
     },
 
     shape: {
@@ -204,6 +208,22 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         styleOverrides: {
           action: {
             alignSelf: 'center',
+          },
+        },
+      },
+
+      MuiSelect: {
+        defaultProps: {
+          MenuProps: {
+            anchorOrigin: {
+              horizontal: 'right',
+              vertical: 'bottom',
+            },
+
+            transformOrigin: {
+              vertical: -8,
+              horizontal: 'right',
+            },
           },
         },
       },
