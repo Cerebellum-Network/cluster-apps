@@ -99,6 +99,32 @@ export class AccountStore implements Account {
     return this.statusResource.current();
   }
 
+  /**
+   * TODO: Figure out how to get the aggregated stats
+   */
+  get metrics() {
+    const defaultStats: Omit<BucketStats, 'bucketId'> = {
+      gets: 0,
+      puts: 0,
+      storedBytes: 0,
+      transferredBytes: 0,
+    };
+
+    return (
+      this.bucketStatsPromise?.case({
+        fulfilled: (stats) =>
+          stats.reduce((acc, { storedBytes, transferredBytes, gets, puts }) => {
+            acc.storedBytes += storedBytes;
+            acc.transferredBytes += transferredBytes;
+            acc.gets += gets;
+            acc.puts += puts;
+
+            return acc;
+          }, defaultStats),
+      }) || defaultStats
+    );
+  }
+
   get address() {
     return this.addressResource.current();
   }

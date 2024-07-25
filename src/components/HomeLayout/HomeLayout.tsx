@@ -1,7 +1,9 @@
 import { observer } from 'mobx-react-lite';
 import { PropsWithChildren, ReactNode } from 'react';
-import { Layout, Paper, Stack, styled } from '@developer-console/ui';
+import { Paper, Stack, styled } from '@developer-console/ui';
 import { AccountDropdown } from '../AccountDropdown';
+
+import { Layout } from '../Layout';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;

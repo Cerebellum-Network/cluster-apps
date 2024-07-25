@@ -37,8 +37,17 @@ export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: 
     [onChange, options],
   );
 
+  const noOptions = options.length === 0;
+  const finalValue = noOptions ? '-' : value?.toString() || '';
+
   return (
-    <Select {...props} value={value?.toString()} select inputRef={ref} onChange={handleChange}>
+    <Select {...props} disabled={noOptions} value={finalValue} select inputRef={ref} onChange={handleChange}>
+      {noOptions && (
+        <Item value="-">
+          <Typography>No buckets</Typography>
+        </Item>
+      )}
+
       {options.map(({ id, isPublic, storedBytes }) => {
         const bucketId = id.toString();
 

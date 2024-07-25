@@ -9,6 +9,7 @@ type StyleProps = {
 
 export type LayoutHeaderProps = PropsWithChildren<
   StyleProps & {
+    title?: string;
     rightElement?: ReactNode;
   }
 >;
@@ -52,11 +53,16 @@ const HeaderRight = styled(HeaderLeft)(({ theme }) => ({
   right: theme.spacing(4),
 }));
 
-export const LayoutHeader = ({ children, fullPage = false, rightElement }: LayoutHeaderProps) => (
+export const LayoutHeader = ({
+  children,
+  title = 'Developer Console',
+  fullPage = false,
+  rightElement,
+}: LayoutHeaderProps) => (
   <Stack component={Header} fullPage={fullPage} spacing={4} direction="row" boxShadow="none">
     <HeaderLeft>
       <Logo size="large">
-        <Typography variant="subtitle1">Developer Console</Typography>
+        <Typography variant="subtitle1">{title}</Typography>
         <Typography variant="caption">Powered by Cere Network</Typography>
       </Logo>
     </HeaderLeft>

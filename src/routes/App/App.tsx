@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Outlet } from 'react-router-dom';
-import { Box, Layout, LoadingAnimation, Paper, styled } from '@developer-console/ui';
+import { Box, LoadingAnimation, Paper, styled } from '@developer-console/ui';
 
 import { useAppStore } from '~/hooks';
+import { Layout } from '~/components';
 
 /**
  * TODO: Figure out how to properly size such animation components

@@ -37,3 +37,4 @@ export * from './CloudFlashIcon';
 export * from './BarTrackingIcon';
 export * from './DecentralizedServerIcon';
 export * from './GithubLogoIcon';
+export * from './ClockIcon';

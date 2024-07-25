@@ -12,6 +12,10 @@ export class StatsApi {
   private baseUrl = STATS_ENDPOINT;
 
   getBucketsStats = async (bucketIds: bigint[]) => {
+    if (bucketIds.length === 0) {
+      return [];
+    }
+
     const url = new URL('/statistics/buckets', this.baseUrl);
 
     if (bucketIds.length) {

@@ -1,8 +1,9 @@
 import { Outlet } from 'react-router-dom';
-import { Button, DiscordIcon, Layout, Stack } from '@developer-console/ui';
+import { Button, DiscordIcon, Stack } from '@developer-console/ui';
 import { AnalyticsId } from '@developer-console/analytics';
 
 import { DEVELOPER_DOCS_LINK, DISCORD_LINK } from '~/constants.ts';
+import { Layout } from '~/components';
 
 const OnboardingRoot = () => {
   return (

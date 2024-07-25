@@ -27,10 +27,14 @@ const ContentDelivery = () => {
   const [isSaving, setSaving] = useState(false);
   const [bucketId, setBucketId] = useState<bigint>();
   const [access, setAccess] = useState<BucketAccessProps['value']>();
-  const currentBucket = account.buckets.find((bucket) => bucket.id === bucketId) || account.buckets[0];
+  const currentBucket = account.buckets.find((bucket) => bucket.id === bucketId) || account.buckets.at(0);
   const currentBucketAccess = access || (currentBucket?.isPublic ? 'public' : 'private');
 
   const handleSaveAccess = useCallback(async () => {
+    if (!currentBucket) {
+      return;
+    }
+
     setSaving(true);
     await account.saveBucket(currentBucket.id, { isPublic: currentBucketAccess === 'public' });
 
@@ -45,29 +49,33 @@ const ContentDelivery = () => {
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
         <Typography variant="subtitle1">Please select one of your buckets</Typography>
         <BucketSelect
-          value={currentBucket.id}
+          value={currentBucket?.id}
           label="Bucket"
           options={account.buckets.map((bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
       </Paper>
 
-      <Typography variant="h4">Bucket ID: {`${currentBucket.id}`} CDN Options</Typography>
+      {currentBucket && (
+        <>
+          <Typography variant="h4">Bucket ID: {`${currentBucket.id}`} CDN Options</Typography>
 
-      <Paper component={Stack} padding={2} spacing={2}>
-        <Typography variant="subtitle1">File Access Control</Typography>
-        <BucketAccess value={currentBucketAccess} onChange={(value) => setAccess(value)} />
+          <Paper component={Stack} padding={2} spacing={2}>
+            <Typography variant="subtitle1">File Access Control</Typography>
+            <BucketAccess value={currentBucketAccess} onChange={(value) => setAccess(value)} />
 
-        <LoadingButton
-          size="large"
-          variant="contained"
-          loading={isSaving}
-          onClick={handleSaveAccess}
-          sx={{ width: 150, alignSelf: 'flex-start' }}
-        >
-          Save
-        </LoadingButton>
-      </Paper>
+            <LoadingButton
+              size="large"
+              variant="contained"
+              loading={isSaving}
+              onClick={handleSaveAccess}
+              sx={{ width: 150, alignSelf: 'flex-start' }}
+            >
+              Save
+            </LoadingButton>
+          </Paper>
+        </>
+      )}
 
       <Docs
         icon={<CdnDocsIcon />}
