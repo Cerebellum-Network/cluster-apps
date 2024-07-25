@@ -15,6 +15,7 @@ import {
   createDepositResource,
   createStatusResource,
 } from './resources';
+import { bucketCreated, clearUser, setUser, userSignedUp } from '@developer-console/reporting';
 
 export class AccountStore implements Account {
   private isBootstrapped = false;
@@ -149,7 +150,13 @@ export class AccountStore implements Account {
 
   get userInfo() {
     return this.userInfoPromise?.case({
-      fulfilled: (userInfo) => userInfo,
+      fulfilled: (userInfo) => {
+        if (userInfo.isNewUser) {
+          userSignedUp(this.address!);
+        }
+        setUser({ id: this.address!, email: userInfo.email });
+        return userInfo;
+      },
     });
   }
 
@@ -191,6 +198,7 @@ export class AccountStore implements Account {
   }
 
   async disconnect() {
+    clearUser();
     await this.wallet.disconnect();
   }
 
@@ -216,7 +224,9 @@ export class AccountStore implements Account {
       throw new Error('DDC is not ready');
     }
 
-    return this.ddc.createBucket(DDC_CLUSTER_ID, params);
+    const createdBucket = await this.ddc.createBucket(DDC_CLUSTER_ID, params);
+    bucketCreated(createdBucket.toString());
+    return createdBucket;
   }
 
   async saveBucket(bucketId: bigint, params: BucketParams) {
