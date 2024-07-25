@@ -4,6 +4,10 @@
 
 -
 
-### v.0.1.0
+### v0.1.0
 
 - Prepared new version of app
+
+### v0.1.1
+
+- Added analitycs flags
