@@ -83,7 +83,7 @@ const ContentDelivery = () => {
         description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection className={AnalyticsId.starterGuideStreaming} title="Upload your content using DDC CLI">
+          <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your content using DDC CLI">
             <UploadWithCliDoc />
           </DocsSection>
 
@@ -93,11 +93,11 @@ const ContentDelivery = () => {
         </DocsGroup>
 
         <DocsGroup title={`Stream from ${DDC_CLUSTER_NAME}`}>
-          <DocsSection className={AnalyticsId.starterDragonOne} title="Step-by-step guide">
+          <DocsSection analyticId={AnalyticsId.starterDragonOne} title="Step-by-step guide">
             <StreamDoc />
           </DocsSection>
 
-          <DocsSection className={AnalyticsId.successUserStories} title="Success user stories">
+          <DocsSection analyticId={AnalyticsId.successUserStories} title="Success user stories">
             <SuccessDoc />
           </DocsSection>
         </DocsGroup>
