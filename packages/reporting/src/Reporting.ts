@@ -26,6 +26,9 @@ export class Reporting {
   message = (message: string, level: Exclude<SeverityLevel, 'fatal'> = 'log') => {
     console[level === 'warning' ? 'warn' : level]('Reporting:', message);
 
-    captureMessage(message, level);
+    captureMessage(message, {
+      level,
+      tags: {},
+    });
   };
 }

@@ -38,10 +38,11 @@ const Login = observer(() => {
     await account.connect(data);
     const shouldOnboard = await onboarding.shouldOnboard();
 
-    trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);
     if (shouldOnboard) {
-      await emailCampaignService.addContact(data.email);
+      emailCampaignService.addContact(data.email).catch(reportError);
     }
+
+    trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);
     navigate(shouldOnboard ? '/login/onboarding' : '/');
   });
 
