@@ -9,10 +9,9 @@ export enum GoogleAnalyticsId {
   buildSkipBtn = 'build-skip-btn',
 
   joinDiscordBtn = 'join-discord-btn',
-  createFirstBucketBtn = 'create-first-bucket-btn',
-  anotherBucketBtn = 'another-bucket-btn',
 
-  createBucketBtn = 'create-bucket-btn',
+  createFirstBucketBtn = 'create-first-bucket-btn',
+  createBucketBtn = 'another-bucket-btn',
   deleteBucket = 'delete-bucket',
   uploadFileBucket = 'upload-file-bucket',
   uploadFolderBucket = 'upload-folder-bucket',
