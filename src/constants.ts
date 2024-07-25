@@ -46,8 +46,3 @@ export const DEVELOPER_DOCS_LINK = 'https://www.developer.cere.network/get-start
 export const TERMS_AND_CONDITIONS_LINK =
   'https://www.notion.so/cere/Terms-and-conditions-6728e7cf5ab74c0eb95e52b62e4f0b6f?pvs=4';
 export const PRIVACY_POLICY = 'https://www.notion.so/cere/Privacy-policy-520cc63dbf8d4840b3cbad6eeee9c218?pvs=4';
-
-/**
- * Tool
- */
-export const SENTRY_DNS = process.env.REACT_APP_SENTRY_DNS;

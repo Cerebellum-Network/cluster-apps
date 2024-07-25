@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { Button, DiscordIcon, Stack } from '@developer-console/ui';
-import { GoogleAnalyticsId } from '~/gtm.ts';
+import { AnalyticsId } from '@developer-console/analytics';
 
 import { DEVELOPER_DOCS_LINK, DISCORD_LINK } from '~/constants.ts';
 import { Layout } from '~/components';
@@ -23,7 +23,7 @@ const OnboardingRoot = () => {
           <Button
             href={DISCORD_LINK}
             startIcon={<DiscordIcon />}
-            className={GoogleAnalyticsId.joinDiscordBtn}
+            className={AnalyticsId.joinDiscordBtn}
             target="_blank"
             rel="noopener noreferrer"
           >
