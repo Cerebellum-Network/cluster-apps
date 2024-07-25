@@ -93,11 +93,11 @@ const ContentDelivery = () => {
         </DocsGroup>
 
         <DocsGroup title={`Stream from ${DDC_CLUSTER_NAME}`}>
-          <DocsSection title="Step-by-step guide">
+          <DocsSection className={AnalyticsId.starterDragonOne} title="Step-by-step guide">
             <StreamDoc />
           </DocsSection>
 
-          <DocsSection title="Success user stories">
+          <DocsSection className={AnalyticsId.successUserStories} title="Success user stories">
             <SuccessDoc />
           </DocsSection>
         </DocsGroup>
