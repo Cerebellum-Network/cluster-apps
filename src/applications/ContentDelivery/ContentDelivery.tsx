@@ -40,6 +40,8 @@ const ContentDelivery = () => {
 
   return (
     <Stack spacing={2}>
+      <Typography variant="h4">Content Delivery</Typography>
+
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
         <Typography variant="subtitle1">Please select one of your buckets</Typography>
         <BucketSelect
@@ -50,8 +52,10 @@ const ContentDelivery = () => {
         />
       </Paper>
 
+      <Typography variant="h4">Bucket ID: {`${currentBucket.id}`} CDN Options</Typography>
+
       <Paper component={Stack} padding={2} spacing={2}>
-        <Typography variant="subtitle1">File access control</Typography>
+        <Typography variant="subtitle1">File Access Control</Typography>
         <BucketAccess value={currentBucketAccess} onChange={(value) => setAccess(value)} />
 
         <LoadingButton

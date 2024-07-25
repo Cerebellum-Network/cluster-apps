@@ -35,6 +35,6 @@ export class IndexerApi {
 
     const { data }: DdcBucketsResult = await response.json();
 
-    return data.ddcBuckets;
+    return data.ddcBuckets.map((bucket) => ({ ...bucket, id: BigInt(bucket.id) }));
   }
 }
