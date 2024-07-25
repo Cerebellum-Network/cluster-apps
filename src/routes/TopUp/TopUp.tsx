@@ -29,7 +29,7 @@ const TopUp = () => {
     form.reset();
     showMessage({
       appearance: 'success',
-      message: `Congrats! You topped up your DDC Account with 100 ${data.amount} tokens`,
+      message: `Congrats! You topped up your DDC Account with ${data.amount} tokens`,
     });
   });
 
