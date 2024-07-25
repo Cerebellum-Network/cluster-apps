@@ -32,16 +32,20 @@ const Onboarding = () => {
       </Typography>
       <Stack gap={2} width="100%">
         <Stack width="100%" direction="row" gap={2}>
-          <NavigationItem href="/" className={AnalyticsId.buildStorageBtn} icon={<CloudFlashIcon />}>
+          <NavigationItem href="/content-storage" className={AnalyticsId.buildStorageBtn} icon={<CloudFlashIcon />}>
             Store my app files in the cloud
           </NavigationItem>
-          <NavigationItem href="/" className={AnalyticsId.buildDeliverBtn} icon={<DecentralizedServerIcon />}>
+          <NavigationItem
+            href="/content-delivery"
+            className={AnalyticsId.buildDeliverBtn}
+            icon={<DecentralizedServerIcon />}
+          >
             Deliver content globally without a central server
           </NavigationItem>
         </Stack>
         <Stack width="100%" direction="row" gap={2}>
-          <NavigationItem href="/" className={AnalyticsId.buildAnalyzeBtn} icon={<BarTrackingIcon />}>
-            Track App Activity and analyze user bahavior
+          <NavigationItem href="/activity-capture" className={AnalyticsId.buildAnalyzeBtn} icon={<BarTrackingIcon />}>
+            Track App Activity and analyze user behavior
           </NavigationItem>
           <NavigationItem smallIcon href="/" className={AnalyticsId.buildSkipBtn} icon={<RightArrowIcon />}>
             Skip this, and I'll explore it myself

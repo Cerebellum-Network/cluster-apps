@@ -43,6 +43,7 @@ export class OnboardingStore {
    */
   get isDone() {
     const { buckets, userInfo } = this.accountStore;
+
     const isOldUser = userInfo && !userInfo.isNewUser;
     const hasBuckets = buckets && buckets.length > 0;
 

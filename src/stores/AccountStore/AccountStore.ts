@@ -37,7 +37,10 @@ export class AccountStore implements Account {
   private statsApi = new StatsApi();
 
   constructor() {
-    makeAutoObservable(this);
+    makeAutoObservable(this, {
+      wallet: false,
+      blockchain: false,
+    });
 
     keepAlive(this, 'status');
     keepAlive(this, 'address');
@@ -163,6 +166,13 @@ export class AccountStore implements Account {
   }
 
   async connect({ email }: ConnectOptions) {
+    /**
+     * If the user is already connected - disconnect first
+     */
+    if (this.status === 'connected') {
+      await this.disconnect();
+    }
+
     await this.wallet.connect({
       email,
       permissions: WALLET_PERMISSIONS,

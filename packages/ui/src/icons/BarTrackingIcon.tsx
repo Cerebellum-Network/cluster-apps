@@ -10,7 +10,7 @@ export const BarTrackingIcon = memo((props: SvgIconProps) => (
       height="81.6"
       rx="16.32"
       stroke="currentColor"
-      stroke-width="2"
+      strokeWidth="2"
       fill="none"
     />
     <rect
@@ -21,7 +21,7 @@ export const BarTrackingIcon = memo((props: SvgIconProps) => (
       rx="4.08"
       fill="white"
       stroke="currentColor"
-      stroke-width="2"
+      strokeWidth="2"
     />
     <rect
       x="40.4746"
@@ -31,7 +31,7 @@ export const BarTrackingIcon = memo((props: SvgIconProps) => (
       rx="4.08"
       fill="white"
       stroke="currentColor"
-      stroke-width="2"
+      strokeWidth="2"
     />
     <rect
       x="59.8828"
@@ -41,7 +41,7 @@ export const BarTrackingIcon = memo((props: SvgIconProps) => (
       rx="4.08"
       fill="white"
       stroke="currentColor"
-      stroke-width="2"
+      strokeWidth="2"
     />
   </SvgIcon>
 ));
