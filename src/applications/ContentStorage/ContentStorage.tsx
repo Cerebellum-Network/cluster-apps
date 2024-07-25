@@ -258,7 +258,7 @@ const ContentStorage = () => {
         description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection className={AnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
+          <DocsSection analyticId={AnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
             <StepByStepUploadDoc />
           </DocsSection>
           <DocsSection
