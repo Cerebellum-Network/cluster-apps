@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 import { Provider as UIProvider } from '@developer-console/ui';
 
 import { Router } from './routes';
@@ -6,7 +6,7 @@ import { AppStore } from './stores';
 import { AppStoreContext } from './hooks';
 
 const App = () => {
-  const store = useMemo(() => new AppStore(), []);
+  const [store] = useState(() => new AppStore());
 
   return (
     <UIProvider>

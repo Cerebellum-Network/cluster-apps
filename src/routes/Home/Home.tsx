@@ -1,3 +1,4 @@
+import { Box, LoadingAnimation, styled } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
@@ -9,6 +10,14 @@ export type HomeProps = {
   apps: Application[];
 };
 
+/**
+ * TODO: Figure out how to properly size such animation components
+ */
+const Loading = styled(LoadingAnimation)({
+  width: 200,
+  height: 200,
+});
+
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
 
@@ -18,7 +27,13 @@ const Home = ({ apps }: HomeProps) => {
 
   return (
     <HomeLayout rightElement={<Navigation items={apps} />} leftElement={<Sidebar />}>
-      {account.isReady() && <Outlet />}
+      {account.isReady() ? (
+        <Outlet />
+      ) : (
+        <Box height="100%" display="flex" justifyContent="center" alignItems="center">
+          <Loading />
+        </Box>
+      )}
     </HomeLayout>
   );
 };
