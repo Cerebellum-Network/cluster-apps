@@ -9,10 +9,9 @@ export enum GoogleAnalyticsId {
   buildSkipBtn = 'build-skip-btn',
 
   joinDiscordBtn = 'join-discord-btn',
-  createFirstBucketBtn = 'create-first-bucket-btn',
-  anotherBucketBtn = 'another-bucket-btn',
 
-  createBucketBtn = 'create-bucket-btn',
+  createFirstBucketBtn = 'create-first-bucket-btn',
+  createBucketBtn = 'another-bucket-btn',
   deleteBucket = 'delete-bucket',
   uploadFileBucket = 'upload-file-bucket',
   uploadFolderBucket = 'upload-folder-bucket',
@@ -28,6 +27,6 @@ export enum GoogleAnalyticsId {
   repoCereDdcSdkJsBtn = 'repo-cere-ddc-sdk-js-btn',
 }
 
-export const gtagEvent = (eventId: GoogleAnalyticsId) => {
+export const gtmEvent = (eventId: GoogleAnalyticsId) => {
   window.dataLayer?.push({ event: eventId });
 };

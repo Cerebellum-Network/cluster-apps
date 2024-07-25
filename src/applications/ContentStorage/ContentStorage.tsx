@@ -7,6 +7,7 @@ import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { GoogleAnalyticsId } from '~/gtm.ts';
+import { reportError } from '~/reporting';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -69,6 +70,7 @@ const ContentStorage = () => {
           size: acceptedFile.size,
         };
       } catch (err) {
+        reportError(err);
         setUploadStatus('error');
         console.error(err);
         return null;

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
 import { IndexedBucket } from '@developer-console/api';
 import { DirectoryType } from '~/applications/ContentStorage/FileManager';
+import { reportError } from '~/reporting';
 
 interface UseFetchDirsResult {
   dirs: DirectoryType[];
@@ -37,6 +38,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
             }
           }
         } catch (dirError) {
+          reportError(dirError);
           newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...({} as Link) });
           console.error(`Error reading directory for bucket ${bucket.id}:`, dirError);
         }
@@ -45,6 +47,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         return [...prevState, ...newDirs];
       });
     } catch (e) {
+      reportError(e);
       setError((e as Error).message);
     } finally {
       setLoading(false);
