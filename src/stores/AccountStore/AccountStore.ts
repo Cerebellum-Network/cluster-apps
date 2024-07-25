@@ -233,7 +233,7 @@ export class AccountStore implements Account {
       throw new Error('DDC is not ready');
     }
 
-    return this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
+    await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
   }
 
   /**
