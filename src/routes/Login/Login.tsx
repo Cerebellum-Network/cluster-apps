@@ -9,7 +9,7 @@ import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
-import { GoogleAnalyticsId, gtagEvent } from '~/gtag.ts';
+import { GoogleAnalyticsId, gtagEvent } from '~/gtm.ts';
 
 const validationSchema = yup
   .object({

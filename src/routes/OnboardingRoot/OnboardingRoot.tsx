@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { Button, DiscordIcon, Layout, Stack } from '@developer-console/ui';
-import { GoogleAnalyticsId } from '~/gtag.ts';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 import { DEVELOPER_DOCS_LINK, DISCORD_LINK } from '~/constants.ts';
 
 const OnboardingRoot = () => {

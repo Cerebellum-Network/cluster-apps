@@ -15,7 +15,7 @@ import {
 } from '@developer-console/ui';
 
 import { useAccountStore } from '~/hooks';
-import { GoogleAnalyticsId } from '~/gtag.ts';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 export type AccountDropdownProps = {};
 

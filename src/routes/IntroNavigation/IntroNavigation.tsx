@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { OnboardingLayout } from '~/components';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
 import NavigationItem from './NavigationItem';
-import { GoogleAnalyticsId } from '~/gtag.ts';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 const Onboarding = () => {
   const store = useOnboardingStore();

@@ -5,7 +5,7 @@ import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
 import { useState } from 'react';
-import { GoogleAnalyticsId } from '~/gtag.ts';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 /**
  * This component resets default CSS styles.

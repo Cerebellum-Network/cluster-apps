@@ -6,7 +6,7 @@ import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
-import { GoogleAnalyticsId } from '~/gtag.ts';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,

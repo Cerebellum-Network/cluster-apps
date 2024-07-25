@@ -19,7 +19,7 @@ import { DDC_CLUSTER_NAME } from '~/constants';
 import { StartGuideDoc, UploadWithCliDoc, StreamDoc, SuccessDoc } from './docs';
 
 import { useAccount } from '~/hooks';
-import { GoogleAnalyticsId } from '~/gtag.ts';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 const ContentDelivery = () => {
   const account = useAccount();

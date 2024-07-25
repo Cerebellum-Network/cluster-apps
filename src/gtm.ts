@@ -29,5 +29,5 @@ export enum GoogleAnalyticsId {
 }
 
 export const gtagEvent = (eventId: GoogleAnalyticsId) => {
-  gtag?.('event', eventId);
+  window.dataLayer?.push({ event: eventId });
 };
