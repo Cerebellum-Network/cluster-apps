@@ -19,7 +19,7 @@ export class ClusterManagementApi {
   }
 
   async addContact(email: string) {
-    const response = await this.api.post('add-contact', { email });
+    const response = await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-contact`, { email });
     return parseResponse(response.data);
   }
 }
