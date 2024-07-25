@@ -53,7 +53,13 @@ export const Row = ({
   onFileDownload,
 }: {
   row: RowData;
-  onUpload: (values: { acceptedFiles: File[]; bucketId: string; cnsName: string; isFolder: boolean }) => void;
+  onUpload: (values: {
+    acceptedFiles: File[];
+    bucketId: string;
+    cnsName: string;
+    isFolder: boolean;
+    filePath?: string;
+  }) => void;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder';
   isOpen: boolean;
@@ -197,7 +203,14 @@ export const Row = ({
                         </IconButton>
                       </ButtonGroup>
                     ) : (
-                      <UploadButton bucketId={row.bucketId} cnsName={element.name} onDrop={onUpload} />
+                      <UploadButton
+                        bucketId={row.bucketId}
+                        cnsName={element.name}
+                        filePath={
+                          element.metadata!.type === 'folder' ? (element?.metadata?.fullPath as string) : element.name
+                        }
+                        onDrop={onUpload}
+                      />
                     )}
                   </Box>
                 </div>
