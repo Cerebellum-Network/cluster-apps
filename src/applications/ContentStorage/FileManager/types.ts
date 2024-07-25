@@ -13,6 +13,7 @@ export type RealData = {
 export type FileNode = {
   name: string;
   isPublic: boolean;
+  fullPath?: string;
   metadata?: {
     usedStorage: string;
     type: string;

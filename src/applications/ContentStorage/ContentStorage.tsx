@@ -23,7 +23,7 @@ const ContentStorage = () => {
   const ddcClient = account.ddc;
   const buckets = account.buckets;
 
-  const { dirs, loading } = useFetchDirs(buckets, ddcClient);
+  const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -44,8 +44,22 @@ const ContentStorage = () => {
   }, [account, ddcClient]);
 
   const singleFileUpload = useCallback(
-    async ({ acceptedFile, cnsName, bucketId }: { acceptedFile: File; bucketId: string; cnsName: string }) => {
-      setUploadStatus('uploading');
+    async ({
+      acceptedFile,
+      cnsName,
+      bucketId,
+      isFolder,
+      filePath,
+    }: {
+      acceptedFile: File;
+      bucketId: string;
+      cnsName: string;
+      isFolder: boolean;
+      filePath?: string;
+    }) => {
+      if (!isFolder) {
+        setUploadStatus('uploading');
+      }
       try {
         const dagNodeData = JSON.stringify({ createTime: Date.now() });
         const existingDagNode = await ddcClient!
@@ -54,18 +68,24 @@ const ContentStorage = () => {
 
         const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
         const uri = await ddcClient!.store(BigInt(bucketId!), file);
-        const fileLink = new Link(uri.cid, acceptedFile.size, acceptedFile.name);
+        const fileLink = new Link(
+          uri.cid,
+          acceptedFile.size,
+          `${filePath || ''}${acceptedFile.webkitRelativePath !== '' ? acceptedFile.webkitRelativePath : acceptedFile.name}`,
+        );
 
         const dagNode = new DagNode(dagNodeData, [
-          ...existingDagNode.links.filter((link) => link.name !== acceptedFile.name),
+          ...(isFolder ? existingDagNode.links.filter((link) => link.name !== acceptedFile.name) : []),
           fileLink,
         ]);
 
         await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
-        setUploadStatus('success');
+        if (!isFolder) {
+          setUploadStatus('success');
+        }
         return {
           cid: uri.cid,
-          path: acceptedFile.webkitRelativePath || acceptedFile.name,
+          path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
           contentType: acceptedFile.type,
           size: acceptedFile.size,
         };
@@ -85,38 +105,61 @@ const ContentStorage = () => {
       bucketId,
       cnsName,
       isFolder,
+      filePath,
     }: {
       acceptedFiles: File[];
       bucketId: string;
       cnsName: string;
       isFolder: boolean;
+      filePath?: string;
     }) => {
       setUploadType(isFolder ? 'folder' : 'file');
 
       if (!isFolder) {
         const acceptedFile = acceptedFiles[0];
-        await singleFileUpload({ acceptedFile, bucketId, cnsName });
+        await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
+        refetchBucket(BigInt(bucketId));
+        return;
       }
-      const uploadedFiles = await Promise.all(
-        acceptedFiles.map(async (acceptedFile) => await singleFileUpload({ acceptedFile, cnsName, bucketId })),
-      );
+      try {
+        setUploadStatus('uploading');
+        const uploadedFiles = await Promise.all(
+          acceptedFiles.map(
+            async (acceptedFile) =>
+              await singleFileUpload({ acceptedFile, cnsName, bucketId, filePath, isFolder: true }),
+          ),
+        );
 
-      const validUploadedFiles = uploadedFiles.filter(
-        (file): file is { path: string; cid: string; size: number; contentType: string } =>
-          file !== null && file !== undefined,
-      );
+        const validUploadedFiles = uploadedFiles.filter(
+          (file): file is { path: string; cid: string; size: number; contentType: string } =>
+            file !== null && file !== undefined,
+        );
 
-      const appDagNode = new DagNode(
-        new Uint8Array(0),
-        validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path)),
-        validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
-      );
+        const dagNodeData = JSON.stringify({ createTime: Date.now() });
+        const existingDagNode = await ddcClient!
+          .read(new DagNodeUri(BigInt(bucketId), cnsName))
+          .catch(() => new DagNode(dagNodeData));
 
-      const appDagNodeUri = await ddcClient.store(BigInt(bucketId), appDagNode, cnsName ? { name: cnsName } : {});
+        const appDagNode = new DagNode(
+          JSON.stringify({ createTime: Date.now() }),
+          [...existingDagNode.links, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
+          validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
+        );
 
-      return appDagNodeUri.cid;
+        const appDagNodeUri = await ddcClient.store(BigInt(bucketId), appDagNode, cnsName ? { name: cnsName } : {});
+
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+
+        refetchBucket(BigInt(bucketId));
+
+        return appDagNodeUri.cid;
+      } catch (e) {
+        setUploadStatus('error');
+        console.error(e);
+        return null;
+      }
     },
-    [ddcClient, singleFileUpload],
+    [ddcClient, refetchBucket, singleFileUpload],
   );
 
   const handleCloseStatus = () => {

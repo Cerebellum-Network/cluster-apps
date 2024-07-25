@@ -9,6 +9,7 @@ interface UseFetchDirsResult {
   dirs: DirectoryType[];
   loading: boolean;
   error: string | null;
+  refetchBucket: (bucketId: bigint) => void;
 }
 
 export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetchDirsResult => {
@@ -60,5 +61,39 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
     fetchDirs();
   }, [fetchDirs]);
 
-  return { dirs, loading, error };
+  const refetchBucket = useCallback(
+    async (bucketId: bigint) => {
+      if (!ddcClient) {
+        return;
+      }
+
+      try {
+        const dagUri = new DagNodeUri(bucketId, 'fs');
+        const newDirs: DirectoryType[] = [];
+        try {
+          const dir = await ddcClient.read(dagUri);
+          if (dir) {
+            const links: Link[] = dir.links;
+            for (const link of links) {
+              newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...link });
+            }
+          }
+        } catch (dirError) {
+          console.error(`Error reading directory for bucket ${bucketId}:`, dirError);
+          newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...({} as Link) });
+        }
+
+        setDirs((prevDirs) => {
+          return [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs];
+        });
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ddcClient],
+  );
+
+  return { dirs, loading, error, refetchBucket };
 };
