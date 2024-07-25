@@ -1,4 +1,4 @@
-import { init, captureException, captureMessage, BrowserOptions, SeverityLevel, setUser, setTag } from '@sentry/react';
+import { init, captureException, captureMessage, BrowserOptions, SeverityLevel, setUser } from '@sentry/react';
 
 export type ReportingOptions = Pick<BrowserOptions, 'environment'> & {
   appVersion: string;
@@ -30,11 +30,8 @@ export class Reporting {
   ) => {
     console[level === 'warning' ? 'warn' : level]('Reporting:', message);
 
-    Object.keys(additionalTags).forEach((key) => {
-      setTag(key, additionalTags[key]);
-    });
-
-    captureMessage(message, level);
+    const options = Object.keys(additionalTags).length ? { level, tags: additionalTags } : { level };
+    captureMessage(message, options);
   };
 
   setUser = (user: { id: string; username?: string; email?: string }) => {
