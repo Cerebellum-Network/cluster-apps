@@ -59,7 +59,7 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
           <ListItemIcon>
             <UploadFileIcon fontSize="small" />
           </ListItemIcon>
-          <Typography>Upload File</Typography>
+          <Typography className={AnalyticsId.uploadFileBucket}>Upload File</Typography>
         </MenuItem>
         <MenuItem
           className={AnalyticsId.uploadFolderBucket}
@@ -72,7 +72,7 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
           <ListItemIcon>
             <UploadFolderIcon fontSize="small" />
           </ListItemIcon>
-          <Typography>Upload Folder</Typography>
+          <Typography className={AnalyticsId.uploadFolderBucket}>Upload Folder</Typography>
         </MenuItem>
       </MenuList>
     </Dropdown>
