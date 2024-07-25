@@ -50,7 +50,10 @@ export class OnboardingStore {
   }
 
   async shouldOnboard() {
-    await when(() => this.isDone !== undefined);
+    await when(() => this.isDone !== undefined, {
+      timeout: 30000,
+      name: 'shouldOnboard',
+    });
 
     return !this.isDone;
   }
@@ -59,7 +62,11 @@ export class OnboardingStore {
     await this.addStep('wallet', () => when(() => this.accountStore.status === 'connected'));
     await this.addStep('reward', async () => {
       await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
-      return when(() => !!this.accountStore.balance);
+
+      return when(() => !!this.accountStore.balance, {
+        timeout: 30000,
+        name: 'tokenTransfer',
+      });
     });
 
     await this.addStep('deposit', () => this.accountStore.topUp(ONBOARDIN_DEPOSIT_AMOUNT));

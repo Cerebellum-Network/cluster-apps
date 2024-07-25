@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
 import { Dropdown, UploadFileIcon, UploadFolderIcon } from '@developer-console/ui';
-import { GoogleAnalyticsId } from '~/gtm.ts';
+import { AnalyticsId } from '@developer-console/analytics';
 
 interface UploadComponentProps {
   onDrop: (values: { acceptedFiles: File[]; bucketId: string; cnsName: string; isFolder: boolean }) => void;
@@ -42,7 +42,7 @@ export const UploadButton = ({ bucketId, cnsName, onDrop }: UploadComponentProps
     <Dropdown open={openDropdown} onToggle={setOpen} label="Upload">
       <MenuList>
         <MenuItem
-          className={GoogleAnalyticsId.uploadFileBucket}
+          className={AnalyticsId.uploadFileBucket}
           onClick={(event) => {
             event.stopPropagation();
             handleUploadFile();
@@ -55,7 +55,7 @@ export const UploadButton = ({ bucketId, cnsName, onDrop }: UploadComponentProps
           <Typography>Upload File</Typography>
         </MenuItem>
         <MenuItem
-          className={GoogleAnalyticsId.uploadFolderBucket}
+          className={AnalyticsId.uploadFolderBucket}
           onClick={(event) => {
             event.stopPropagation();
             handleUploadFolder();

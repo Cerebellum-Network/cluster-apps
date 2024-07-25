@@ -1,3 +1,6 @@
+import { useEffect } from 'react';
+import { observer } from 'mobx-react-lite';
+import { AnalyticsId } from '@developer-console/analytics';
 import {
   RightArrowIcon,
   BarTrackingIcon,
@@ -6,13 +9,10 @@ import {
   Stack,
   Typography,
 } from '@developer-console/ui';
-import { observer } from 'mobx-react-lite';
 
-import { useEffect } from 'react';
 import { OnboardingLayout } from '~/components';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
 import NavigationItem from './NavigationItem';
-import { GoogleAnalyticsId } from '~/gtm.ts';
 
 const Onboarding = () => {
   const store = useOnboardingStore();
@@ -32,18 +32,18 @@ const Onboarding = () => {
       </Typography>
       <Stack gap={2} width="100%">
         <Stack width="100%" direction="row" gap={2}>
-          <NavigationItem href="/" className={GoogleAnalyticsId.buildStorageBtn} icon={<CloudFlashIcon />}>
+          <NavigationItem href="/" className={AnalyticsId.buildStorageBtn} icon={<CloudFlashIcon />}>
             Store my app files in the cloud
           </NavigationItem>
-          <NavigationItem href="/" className={GoogleAnalyticsId.buildDeliverBtn} icon={<DecentralizedServerIcon />}>
+          <NavigationItem href="/" className={AnalyticsId.buildDeliverBtn} icon={<DecentralizedServerIcon />}>
             Deliver content globally without a central server
           </NavigationItem>
         </Stack>
         <Stack width="100%" direction="row" gap={2}>
-          <NavigationItem href="/" className={GoogleAnalyticsId.buildAnalyzeBtn} icon={<BarTrackingIcon />}>
+          <NavigationItem href="/" className={AnalyticsId.buildAnalyzeBtn} icon={<BarTrackingIcon />}>
             Track App Activity and analyze user bahavior
           </NavigationItem>
-          <NavigationItem smallIcon href="/" className={GoogleAnalyticsId.buildSkipBtn} icon={<RightArrowIcon />}>
+          <NavigationItem smallIcon href="/" className={AnalyticsId.buildSkipBtn} icon={<RightArrowIcon />}>
             Skip this, and I'll explore it myself
           </NavigationItem>
         </Stack>

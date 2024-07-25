@@ -1,3 +1,5 @@
+import { AnalyticsId } from '@developer-console/analytics';
+import { reportError } from '@developer-console/reporting';
 import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs } from '~/hooks';
@@ -6,8 +8,6 @@ import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
-import { GoogleAnalyticsId } from '~/gtm.ts';
-import { reportError } from '~/reporting';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -196,14 +196,14 @@ const ContentStorage = () => {
         description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection className={GoogleAnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
+          <DocsSection className={AnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
             <StepByStepUploadDoc />
           </DocsSection>
           <DocsSection
             title="Quick start guide in Github"
             rightSection={
               <Button
-                className={GoogleAnalyticsId.repoCereDdcSdkJsBtn}
+                className={AnalyticsId.repoCereDdcSdkJsBtn}
                 href={GITHUB_GUIDE_LINK}
                 startIcon={<GithubLogoIcon />}
                 target="_blank"

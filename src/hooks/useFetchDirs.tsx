@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
 import { IndexedBucket } from '@developer-console/api';
+import { reportError } from '@developer-console/reporting';
+
 import { DirectoryType } from '~/applications/ContentStorage/FileManager';
-import { reportError } from '~/reporting';
 
 interface UseFetchDirsResult {
   dirs: DirectoryType[];
