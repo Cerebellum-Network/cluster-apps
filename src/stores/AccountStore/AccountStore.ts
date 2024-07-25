@@ -15,7 +15,7 @@ import {
   createDepositResource,
   createStatusResource,
 } from './resources';
-import { bucketCreated, clearUser, reportError, setUser, userSignedUp } from '@developer-console/reporting';
+import { bucketCreated, clearUser, setUser, userSignedUp } from '@developer-console/reporting';
 
 export class AccountStore implements Account {
   private isBootstrapped = false;
@@ -76,7 +76,6 @@ export class AccountStore implements Account {
         if (userInfo?.isNewUser) {
           userSignedUp(this.address!);
         }
-        reportError('Check errors');
         setUser({ id: this.address!, email: userInfo?.email });
       },
     );
