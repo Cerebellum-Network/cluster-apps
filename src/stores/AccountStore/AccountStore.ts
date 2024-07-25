@@ -73,10 +73,14 @@ export class AccountStore implements Account {
     reaction(
       () => this.userInfo,
       (userInfo) => {
-        if (userInfo?.isNewUser) {
-          userSignedUp(this.address!);
+        if (userInfo) {
+          if (userInfo?.isNewUser) {
+            userSignedUp(this.address!);
+          }
+          setUser({ id: this.address!, email: userInfo?.email });
+        } else {
+          clearUser();
         }
-        setUser({ id: this.address!, email: userInfo?.email });
       },
     );
 
@@ -201,7 +205,6 @@ export class AccountStore implements Account {
   }
 
   async disconnect() {
-    clearUser();
     await this.wallet.disconnect();
   }
 
