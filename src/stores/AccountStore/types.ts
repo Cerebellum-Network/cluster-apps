@@ -28,6 +28,7 @@ export interface Account {
   signMessage(message: string): Promise<string>;
   createBucket(params: BucketParams): Promise<bigint>;
   saveBucket(bucketId: bigint, params: BucketParams): Promise<void>;
+  topUp(amount: number): Promise<void>;
   refreshBuckets(): Promise<void>;
 }
 

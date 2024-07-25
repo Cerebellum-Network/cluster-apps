@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Button, Typography, styled } from '@mui/material';
+import { Box, Button, Typography, styled, BoxProps } from '@mui/material';
 import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
 import { AnalyticsId } from '@developer-console/analytics';
 
@@ -18,6 +18,15 @@ const CssReset = styled(Box)({
   },
 });
 
+interface StyledBoxProps extends BoxProps {
+  locked?: boolean;
+}
+
+const StyledBox = styled(Box)<StyledBoxProps>(({ locked }) => ({
+  opacity: !locked ? '100%' : '30%',
+  cursor: !locked ? 'pointer' : 'not-allowed',
+}));
+
 export const FileManager = ({
   data,
   userHasBuckets,
@@ -29,6 +38,8 @@ export const FileManager = ({
   setUploadStatus,
   onFileDownload,
   isBucketCreating,
+  firstBucketLocked,
+  onUnlockFirstBucket,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -46,11 +57,15 @@ export const FileManager = ({
   onFileDownload: (bucketId: string, source: string, name: string) => void;
   userHasBuckets: boolean;
   isBucketCreating: boolean;
+  firstBucketLocked: boolean;
+  onUnlockFirstBucket: () => void;
 }) => {
   const [openRow, setOpenRow] = useState<string | null>(null);
 
   const handleRowClick = (bucketId: string) => {
-    setOpenRow((prev) => (prev === bucketId ? null : bucketId));
+    if (!(firstBucketLocked && userHasBuckets)) {
+      setOpenRow((prev) => (prev === bucketId ? null : bucketId));
+    }
   };
 
   const rows = transformData(data);
@@ -61,7 +76,12 @@ export const FileManager = ({
 
   return (
     <CssReset>
-      <Box display="flex" alignItems="center" padding={(theme) => theme.spacing(1, 1.5)}>
+      <StyledBox
+        locked={firstBucketLocked && userHasBuckets}
+        display="flex"
+        alignItems="center"
+        padding={(theme) => theme.spacing(1, 1.5)}
+      >
         <Typography variant="body1" flex={1}>
           Bucket ID
         </Typography>
@@ -72,7 +92,7 @@ export const FileManager = ({
           ACL
         </Typography>
         <Box flex={1}></Box>
-      </Box>
+      </StyledBox>
       <Box>
         {isLoading ? (
           <Box display="flex" alignItems="center" justifyContent="center">
@@ -83,6 +103,7 @@ export const FileManager = ({
         ) : (
           rows.map((row) => (
             <Row
+              firstBucketLocked={firstBucketLocked}
               uploadStatus={uploadStatus}
               uploadType={uploadType}
               key={row.bucketId}
@@ -108,7 +129,7 @@ export const FileManager = ({
               </Box>
             </Box>
           )}
-          {userHasBuckets ? (
+          {userHasBuckets && !firstBucketLocked ? (
             <Button
               startIcon={<AddCircleOutlinedIcon />}
               className={AnalyticsId.createBucketBtn}
@@ -118,7 +139,11 @@ export const FileManager = ({
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
             </Button>
           ) : (
-            <Button disabled={isBucketCreating} className={AnalyticsId.createFirstBucketBtn}>
+            <Button
+              onClick={onUnlockFirstBucket}
+              disabled={isBucketCreating}
+              className={AnalyticsId.createFirstBucketBtn}
+            >
               {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
             </Button>
           )}

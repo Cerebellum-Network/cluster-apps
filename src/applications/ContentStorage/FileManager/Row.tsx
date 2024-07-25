@@ -10,13 +10,14 @@ import { UploadButton } from './UploadButton.tsx';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
+  locked?: boolean;
 }
-const StyledRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
+const StyledRow = styled(Box)<StyledRowProps>(({ theme, open, locked }) => ({
   display: 'flex',
   alignItems: 'center',
   padding: '16px 12px',
   '&:hover': {
-    cursor: 'pointer',
+    cursor: !locked ? 'pointer' : 'not-allowed',
     backgroundColor: '#7A9FFF0A',
   },
   '&:nth-child(odd)': {
@@ -26,6 +27,8 @@ const StyledRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   border: open ? `1px solid ${theme.palette.divider}` : 'none',
   borderBottom: open ? `1px solid ${theme.palette.divider}` : 'none',
   borderRadius: open ? theme.spacing(0.5, 0.5, 0, 0) : 'none',
+  opacity: !locked ? '100%' : '30%',
+  cursor: !locked ? 'pointer' : 'not-allowed',
 }));
 
 const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
@@ -51,6 +54,7 @@ export const Row = ({
   isOpen,
   onCloseUpload,
   onFileDownload,
+  firstBucketLocked,
 }: {
   row: RowData;
   onUpload: (values: {
@@ -66,6 +70,7 @@ export const Row = ({
   onRowClick: () => void;
   onCloseUpload: () => void;
   onFileDownload: (bucketId: string, source: string, name: string) => void;
+  firstBucketLocked: boolean;
 }) => {
   const { showMessage } = useMessages();
 
@@ -73,7 +78,7 @@ export const Row = ({
 
   return (
     <>
-      <StyledRow open={isOpen} onClick={onRowClick}>
+      <StyledRow locked={firstBucketLocked} open={isOpen} onClick={onRowClick}>
         <Typography variant="body2" flex={1}>
           {row.bucketId}
         </Typography>

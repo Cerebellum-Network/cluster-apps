@@ -8,6 +8,7 @@ import { Home } from './Home';
 import { Login } from './Login';
 import { IntroNavigation } from './IntroNavigation';
 import { OnboardingRoot } from './OnboardingRoot';
+import { TopUp } from './TopUp';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -34,6 +35,10 @@ const router = createBrowserRouter([
           {
             index: true,
             element: <Navigate replace to={defaultApp.rootPath} />,
+          },
+          {
+            path: 'top-up',
+            Component: TopUp,
           },
           ...applications.map(mapAppToRoute),
         ],
