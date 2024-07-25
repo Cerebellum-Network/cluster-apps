@@ -31,10 +31,10 @@ const RightSection = styled(Box)(() => ({
   marginLeft: 'auto',
 }));
 
-export const DocsSection = ({ title, children, rightSection, ...props }: DocsSectionProps) => {
+export const DocsSection = ({ title, children, rightSection, className, ...props }: DocsSectionProps) => {
   return (
     <Root {...props} square disableGutters>
-      <Summary>
+      <Summary className={className}>
         <Typography variant="subtitle1">{title}</Typography>
         {rightSection && <RightSection>{rightSection}</RightSection>}
       </Summary>
