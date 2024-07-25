@@ -3,7 +3,7 @@ import { fromPromise } from 'mobx-utils';
 import { FaucetApi } from '@developer-console/api';
 
 import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '~/constants';
-import { AccountStore } from '~/stores';
+import { AccountStore } from '../AccountStore';
 
 export type OnboardingStep = {
   key: 'wallet' | 'reward' | 'deposit' | 'bucket';

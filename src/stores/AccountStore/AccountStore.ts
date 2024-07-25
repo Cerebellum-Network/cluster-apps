@@ -15,7 +15,7 @@ import {
   createDepositResource,
   createStatusResource,
 } from './resources';
-import { bucketCreated, clearUser, setUser, userSignedUp } from '@developer-console/reporting';
+import { bucketCreated, clearUser, reportError, setUser, userSignedUp } from '@developer-console/reporting';
 
 export class AccountStore implements Account {
   private isBootstrapped = false;
@@ -70,6 +70,16 @@ export class AccountStore implements Account {
     this.signerPromise = fromPromise(signer.isReady().then(() => signer));
 
     await Promise.all([this.blockchain.isReady(), this.signerPromise, this.ddcPromise]);
+    reaction(
+      () => this.userInfo,
+      (userInfo) => {
+        if (userInfo?.isNewUser) {
+          userSignedUp(this.address!);
+        }
+        reportError('Check errors');
+        setUser({ id: this.address!, email: userInfo?.email });
+      },
+    );
 
     runInAction(() => {
       this.isBootstrapped = true;
@@ -150,13 +160,7 @@ export class AccountStore implements Account {
 
   get userInfo() {
     return this.userInfoPromise?.case({
-      fulfilled: (userInfo) => {
-        if (userInfo.isNewUser) {
-          userSignedUp(this.address!);
-        }
-        setUser({ id: this.address!, email: userInfo.email });
-        return userInfo;
-      },
+      fulfilled: (userInfo) => userInfo,
     });
   }
 

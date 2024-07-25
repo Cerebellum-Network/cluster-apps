@@ -1,4 +1,4 @@
-import { init, captureException, captureMessage, BrowserOptions, SeverityLevel, setUser } from '@sentry/react';
+import { init, captureException, captureMessage, BrowserOptions, SeverityLevel, setUser, setTag } from '@sentry/react';
 
 export type ReportingOptions = Pick<BrowserOptions, 'environment'> & {
   appVersion: string;
@@ -23,8 +23,16 @@ export class Reporting {
     captureException(error);
   };
 
-  message = (message: string, level: Exclude<SeverityLevel, 'fatal'> = 'log') => {
+  message = (
+    message: string,
+    level: Exclude<SeverityLevel, 'fatal'> = 'log',
+    additionalTags: Record<string, any> = {},
+  ) => {
     console[level === 'warning' ? 'warn' : level]('Reporting:', message);
+
+    Object.keys(additionalTags).forEach((key) => {
+      setTag(key, additionalTags[key]);
+    });
 
     captureMessage(message, level);
   };
@@ -38,10 +46,10 @@ export class Reporting {
   };
 
   bucketCreated = (bucketId: string) => {
-    this.message(`Bucket created: ${bucketId}`, 'info');
+    this.message(`Bucket created: ${bucketId}`, 'info', { event: 'bucketCreated', bucketId });
   };
 
   userSignedUp = (walletId: string) => {
-    this.message(`User signed up: ${walletId}`, 'info');
+    this.message(`User signed up: ${walletId}`, 'info', { event: 'userSignedUp', walletId });
   };
 }
