@@ -19,10 +19,12 @@ export enum AnalyticsId {
 
   starterGuideStorage = 'starter-guide-storage',
   starterGuideStreaming = 'starter-guide-streaming',
+  starterDragonOne = 'starter-dragon-one',
   qrgenerationCasestudy = 'qrgeneration-casestudy',
   qrscannerCasestudy = 'qrscanner-casestudy',
   sdkGuideGame = 'sdk-guide-game',
   aiArticleBtn = 'ai-article-btn',
+  successUserStories = 'success-user-stories',
 
   repoCereDdcSdkJsBtn = 'repo-cere-ddc-sdk-js-btn',
 }
