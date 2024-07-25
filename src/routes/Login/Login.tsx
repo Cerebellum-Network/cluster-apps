@@ -9,7 +9,7 @@ import * as yup from 'yup';
 import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
-import { useAccountStore, useOnboardingStore } from '~/hooks';
+import { useAccountStore, useOnboardingStore, useEmailCampaignService } from '~/hooks';
 
 const validationSchema = yup
   .object({
@@ -21,6 +21,7 @@ const Login = observer(() => {
   const account = useAccountStore();
   const onboarding = useOnboardingStore();
   const navigate = useNavigate();
+  const emailCampaignService = useEmailCampaignService();
 
   const {
     register,
@@ -38,6 +39,9 @@ const Login = observer(() => {
     const shouldOnboard = await onboarding.shouldOnboard();
 
     trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);
+    if (shouldOnboard) {
+      await emailCampaignService.addContact(data.email);
+    }
     navigate(shouldOnboard ? '/login/onboarding' : '/');
   });
 
