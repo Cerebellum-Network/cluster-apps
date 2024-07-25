@@ -1,9 +1,9 @@
+import { CLUSTER_MANAGEMENT_ENDPOINT } from '../constants.ts';
 import axios from 'axios';
-import { parseResponse } from '~/helpers';
-import { CLUSTER_MANAGEMENT_API_URL } from '~/constants.ts';
+import { parseResponse } from './helpers';
 
-export class EmailCampaignService {
-  constructor(protected readonly baseUrl = `${CLUSTER_MANAGEMENT_API_URL}/email-campaigns/`) {}
+export class ClusterManagementApi {
+  constructor(protected readonly baseUrl = `${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/`) {}
 
   protected readonly api = axios.create({
     baseURL: this.baseUrl,

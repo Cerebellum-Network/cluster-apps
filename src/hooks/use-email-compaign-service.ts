@@ -1,7 +1,7 @@
 import { useRef } from 'react';
-import { EmailCampaignService } from '~/services/email-compaign.service.ts';
+import { ClusterManagementApi } from '@developer-console/api';
 
 export const useEmailCampaignService = () => {
-  const emailCampaignServiceRef = useRef(new EmailCampaignService());
+  const emailCampaignServiceRef = useRef(new ClusterManagementApi());
   return emailCampaignServiceRef.current;
 };
