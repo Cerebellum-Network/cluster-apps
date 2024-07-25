@@ -6,11 +6,19 @@ declare global {
   }
 }
 
+export type AnalyticsOptions = TagManagerArgs & {
+  enabled?: boolean;
+};
+
 export class Analytics {
-  constructor(private options: TagManagerArgs) {}
+  constructor(private options: AnalyticsOptions) {}
 
   init() {
-    TagManager.initialize(this.options);
+    if (this.options.enabled === false) {
+      return;
+    }
+
+    return TagManager.initialize(this.options);
   }
 
   trackEvent = (event: string, data: Record<string, any> = {}) => {

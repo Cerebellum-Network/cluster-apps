@@ -32,7 +32,13 @@ export const FileManager = ({
 }: {
   data: RealData[];
   onCreateBucket: () => void;
-  onUpload: (values: { acceptedFiles: File[]; bucketId: string; cnsName: string; isFolder: boolean }) => void;
+  onUpload: (values: {
+    acceptedFiles: File[];
+    bucketId: string;
+    cnsName: string;
+    isFolder: boolean;
+    filePath?: string;
+  }) => void;
   isLoading: boolean;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder';

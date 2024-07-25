@@ -4,12 +4,19 @@ import { Dropdown, UploadFileIcon, UploadFolderIcon } from '@developer-console/u
 import { AnalyticsId } from '@developer-console/analytics';
 
 interface UploadComponentProps {
-  onDrop: (values: { acceptedFiles: File[]; bucketId: string; cnsName: string; isFolder: boolean }) => void;
+  onDrop: (values: {
+    acceptedFiles: File[];
+    bucketId: string;
+    cnsName: string;
+    isFolder: boolean;
+    filePath?: string;
+  }) => void;
   bucketId: string;
   cnsName: string;
+  filePath?: string;
 }
 
-export const UploadButton = ({ bucketId, cnsName, onDrop }: UploadComponentProps) => {
+export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProps) => {
   const [openDropdown, setOpen] = useState(false);
 
   const handleUploadFile = () => {
@@ -18,7 +25,7 @@ export const UploadButton = ({ bucketId, cnsName, onDrop }: UploadComponentProps
     input.multiple = true;
     input.onchange = (e: any) => {
       const files = Array.from(e.target.files) as File[];
-      onDrop({ acceptedFiles: files, bucketId, cnsName, isFolder: false });
+      onDrop({ acceptedFiles: files, bucketId, cnsName: 'fs', isFolder: false, filePath });
     };
     input.click();
     setOpen((prevState) => !prevState);
@@ -32,7 +39,7 @@ export const UploadButton = ({ bucketId, cnsName, onDrop }: UploadComponentProps
     input.onchange = (e: Event) => {
       const target = e.target as HTMLInputElement;
       const files = Array.from(target.files || []);
-      onDrop({ acceptedFiles: files, bucketId, cnsName, isFolder: true });
+      onDrop({ acceptedFiles: files, bucketId, cnsName: 'fs', isFolder: true, filePath });
     };
     input.click();
     setOpen((prevState) => !prevState);
