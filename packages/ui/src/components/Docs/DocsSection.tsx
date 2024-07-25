@@ -1,10 +1,12 @@
 import { Accordion, AccordionProps, AccordionSummary, AccordionDetails, styled, Typography, Box } from '@mui/material';
 import { ReactNode } from 'react';
+import { trackEvent } from '@developer-console/analytics';
 
 export type DocsSectionProps = Omit<AccordionProps, 'children'> & {
   children?: ReactNode;
   title: string;
   rightSection?: ReactNode;
+  analyticId?: string;
 };
 
 const Root = styled(Accordion)(() => ({
@@ -31,10 +33,10 @@ const RightSection = styled(Box)(() => ({
   marginLeft: 'auto',
 }));
 
-export const DocsSection = ({ title, children, rightSection, className, ...props }: DocsSectionProps) => {
+export const DocsSection = ({ title, children, rightSection, analyticId, ...props }: DocsSectionProps) => {
   return (
-    <Root {...props} square disableGutters>
-      <Summary className={className}>
+    <Root {...props} square disableGutters onChange={(_, expanded) => expanded && analyticId && trackEvent(analyticId)}>
+      <Summary>
         <Typography variant="subtitle1">{title}</Typography>
         {rightSection && <RightSection>{rightSection}</RightSection>}
       </Summary>

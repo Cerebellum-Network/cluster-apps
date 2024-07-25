@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
 import { Dropdown, UploadFileIcon, UploadFolderIcon } from '@developer-console/ui';
-import { AnalyticsId } from '@developer-console/analytics';
+import { AnalyticsId, trackEvent } from '@developer-console/analytics';
 
 interface UploadComponentProps {
   onDrop: (values: {
@@ -49,9 +49,9 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
     <Dropdown open={openDropdown} onToggle={setOpen} label="Upload">
       <MenuList>
         <MenuItem
-          className={AnalyticsId.uploadFileBucket}
           onClick={(event) => {
             event.stopPropagation();
+            trackEvent(AnalyticsId.uploadFileBucket);
             handleUploadFile();
           }}
           disableRipple
@@ -62,9 +62,9 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
           <Typography className={AnalyticsId.uploadFileBucket}>Upload File</Typography>
         </MenuItem>
         <MenuItem
-          className={AnalyticsId.uploadFolderBucket}
           onClick={(event) => {
             event.stopPropagation();
+            trackEvent(AnalyticsId.uploadFolderBucket);
             handleUploadFolder();
           }}
           disableRipple
