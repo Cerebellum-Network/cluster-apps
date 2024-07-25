@@ -21,6 +21,8 @@ const Onboarding = () => {
         .then(() => new Promise((resolve) => setTimeout(resolve, 5000)))
         .then(() => navigate('/login/intro'));
     }
+
+    return () => store.reset();
   }, [store, isConnected, navigate]);
 
   return !isConnected ? (
