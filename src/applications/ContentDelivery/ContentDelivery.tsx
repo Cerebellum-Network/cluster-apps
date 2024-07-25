@@ -19,6 +19,7 @@ import { DDC_CLUSTER_NAME } from '~/constants';
 import { StartGuideDoc, UploadWithCliDoc, StreamDoc, SuccessDoc } from './docs';
 
 import { useAccount } from '~/hooks';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 const ContentDelivery = () => {
   const account = useAccount();
@@ -74,7 +75,7 @@ const ContentDelivery = () => {
         description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection title="Upload your content using DDC CLI">
+          <DocsSection className={GoogleAnalyticsId.starterGuideStreaming} title="Upload your content using DDC CLI">
             <UploadWithCliDoc />
           </DocsSection>
 

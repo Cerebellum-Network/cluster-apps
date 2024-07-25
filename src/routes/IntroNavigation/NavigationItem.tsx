@@ -7,11 +7,12 @@ interface NavigationItemProps extends React.PropsWithChildren {
   icon: React.ReactNode;
   href: string;
   smallIcon?: boolean;
+  className?: string | undefined;
 }
 
-const NavigationItem = ({ children, icon, href, smallIcon = false }: NavigationItemProps) => {
+const NavigationItem = ({ children, icon, href, className, smallIcon = false }: NavigationItemProps) => {
   return (
-    <Link to={href} style={{ width: '100%' }}>
+    <Link to={href} style={{ width: '100%' }} className={className}>
       <NavigationCard>
         <Typography variant="subtitle1" color="text.primary">
           {children}

@@ -6,6 +6,7 @@ import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
+import { GoogleAnalyticsId } from '~/gtm.ts';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -193,13 +194,19 @@ const ContentStorage = () => {
         description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection title="Upload your file step-by-step guide">
+          <DocsSection className={GoogleAnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
             <StepByStepUploadDoc />
           </DocsSection>
           <DocsSection
             title="Quick start guide in Github"
             rightSection={
-              <Button href={GITHUB_GUIDE_LINK} startIcon={<GithubLogoIcon />} target="_blank" rel="noopener noreferrer">
+              <Button
+                className={GoogleAnalyticsId.repoCereDdcSdkJsBtn}
+                href={GITHUB_GUIDE_LINK}
+                startIcon={<GithubLogoIcon />}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Open in Github
               </Button>
             }
