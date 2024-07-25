@@ -11,3 +11,7 @@
 ### v0.1.1
 
 - Added analitycs flags
+
+### v0.1.2
+
+- Fixed single file upload

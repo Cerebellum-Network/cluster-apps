@@ -49,7 +49,6 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         return [...prevState, ...newDirs];
       });
     } catch (e) {
-      reportError(e);
       setError((e as Error).message);
     } finally {
       setLoading(false);
