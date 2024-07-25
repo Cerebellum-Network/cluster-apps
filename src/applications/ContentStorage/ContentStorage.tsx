@@ -17,6 +17,7 @@ const ContentStorage = () => {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
+  const [firstBucketLocked, setFirstBucketLocked] = useState(true);
 
   const account = useAccount();
 
@@ -34,6 +35,13 @@ const ContentStorage = () => {
     }
     return () => clearTimeout(timer);
   }, [uploadStatus]);
+
+  useEffect(() => {
+    const firstBucketLocked = localStorage.getItem('firstBucketLocked');
+    if (firstBucketLocked === 'false') {
+      setFirstBucketLocked(false);
+    }
+  }, []);
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
@@ -206,6 +214,15 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleFirstBucketUnlock = useCallback(async () => {
+    setIsBucketCreating(true);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    setIsBucketCreating(false);
+    setFirstBucketLocked(false);
+    localStorage.setItem('firstBucketLocked', 'false');
+  }, []);
+
   return (
     <>
       <Box
@@ -230,6 +247,8 @@ const ContentStorage = () => {
             setUploadStatus={handleCloseStatus}
             onFileDownload={handleFileDownload}
             isBucketCreating={isBucketCreating}
+            firstBucketLocked={firstBucketLocked}
+            onUnlockFirstBucket={handleFirstBucketUnlock}
           />
         </Container>
       </Box>

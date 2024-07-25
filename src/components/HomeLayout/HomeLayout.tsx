@@ -14,7 +14,6 @@ const Content = styled(Paper)(({ theme }) => ({
   zIndex: 1,
   flex: 1,
   minWidth: 800,
-  minHeight: 600,
   padding: theme.spacing(4),
   borderTopLeftRadius: 0,
   borderTopRightRadius: 0,
