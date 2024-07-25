@@ -1,5 +1,7 @@
+import { FAUCET_ENDPOINT } from '../constants';
+
 export class FaucetApi {
-  private baseUrl = import.meta.env.VITE_FAUCET_API_URL || '';
+  private baseUrl = FAUCET_ENDPOINT;
 
   sendTokens = async (address: string, amount: number) => {
     const body = {
@@ -9,7 +11,7 @@ export class FaucetApi {
       amount,
     };
 
-    const response = await fetch(`${this.baseUrl}`, {
+    const response = await fetch(this.baseUrl, {
       method: 'post',
       body: JSON.stringify(body),
       headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
+import { NavLink } from 'react-router-dom';
+import { AnalyticsId } from '@developer-console/analytics';
 import {
   Dropdown,
   Avatar,
@@ -54,7 +56,7 @@ const AccountDropdown = () => {
             <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
           </CardContent>
           <CardActions>
-            <Button fullWidth variant="outlined">
+            <Button component={NavLink} fullWidth variant="outlined" to="/top-up">
               Top Up
             </Button>
           </CardActions>
@@ -65,14 +67,19 @@ const AccountDropdown = () => {
           <CardContent>
             <Typography fontWeight="bold">Starter Pack</Typography>
           </CardContent>
-          <CardActions>
+          {/* <CardActions>
             <Button fullWidth variant="outlined" color="success">
               Upgrade
             </Button>
-          </CardActions>
+          </CardActions> */}
         </Card>
 
-        <Button variant="outlined" color="secondary" onClick={() => account.disconnect()}>
+        <Button
+          className={AnalyticsId.signOut}
+          variant="outlined"
+          color="secondary"
+          onClick={() => account.disconnect()}
+        >
           Log Out
         </Button>
       </Stack>

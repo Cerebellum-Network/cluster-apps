@@ -43,6 +43,7 @@ export class OnboardingStore {
    */
   get isDone() {
     const { buckets, userInfo } = this.accountStore;
+
     const isOldUser = userInfo && !userInfo.isNewUser;
     const hasBuckets = buckets && buckets.length > 0;
 
@@ -50,19 +51,32 @@ export class OnboardingStore {
   }
 
   async shouldOnboard() {
-    await when(() => this.isDone !== undefined);
+    await when(() => this.isDone !== undefined, {
+      timeout: 30000,
+      name: 'shouldOnboard',
+    });
 
     return !this.isDone;
   }
 
   async startOnboarding() {
+    this.reset();
+
     await this.addStep('wallet', () => when(() => this.accountStore.status === 'connected'));
     await this.addStep('reward', async () => {
       await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
-      return when(() => !!this.accountStore.balance);
+
+      return when(() => !!this.accountStore.balance, {
+        timeout: 30000,
+        name: 'tokenTransfer',
+      });
     });
 
     await this.addStep('deposit', () => this.accountStore.topUp(ONBOARDIN_DEPOSIT_AMOUNT));
-    await this.addStep('bucket', () => this.accountStore.createBucket(ONBOARDIN_PUBLIC_BUCKET));
+    await this.addStep('bucket', () => this.accountStore.createBucket({ isPublic: ONBOARDIN_PUBLIC_BUCKET }));
+  }
+
+  reset() {
+    this.currentSteps = [];
   }
 }

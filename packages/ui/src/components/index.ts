@@ -55,6 +55,8 @@ export {
   type AccordionSummaryProps,
   AccordionDetails,
   type AccordionDetailsProps,
+  Divider,
+  type DividerProps,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
@@ -66,7 +68,10 @@ export * from './Logo';
 export * from './Layout';
 export * from './Dropdown';
 export * from './Truncate';
-export * from './FileManager';
-export * from './UploadButton';
 export * from './Docs';
 export * from './Markdown';
+export * from './BucketSelect';
+export * from './BytesSize';
+export * from './BucketAccess';
+export * from './ChartWidget';
+export * from './QRCode';

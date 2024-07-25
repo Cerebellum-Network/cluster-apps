@@ -18,7 +18,6 @@ export const OnboardingContent = styled(Stack)({
 export const RightColumn = styled(Stack)({
   flex: 1,
   overflow: 'hidden',
-  // padding: '40px',
   boxSizing: 'border-box',
   minWidth: '500px',
   height: '100%',

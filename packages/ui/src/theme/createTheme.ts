@@ -29,15 +29,22 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       secondary: {
         main: '#969696',
         contrastText: '#1D1B20',
+        light: '#F5F6FF',
       },
 
       background: {
         default: '#F5F7FA',
       },
 
+      divider: '#E6E6E6',
+
       text: {
         primary: '#1D1B20',
         secondary: '#818083',
+      },
+
+      action: {
+        selected: '#F5F7FA',
       },
     },
 
@@ -69,7 +76,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       h4: {
         fontSize: '1.25rem', // 20px,
         lineHeight: '1.625rem', // 26px,
-        fontWeight: 500,
+        fontWeight: 600,
       },
 
       subtitle1: {
@@ -204,6 +211,22 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         styleOverrides: {
           action: {
             alignSelf: 'center',
+          },
+        },
+      },
+
+      MuiSelect: {
+        defaultProps: {
+          MenuProps: {
+            anchorOrigin: {
+              horizontal: 'right',
+              vertical: 'bottom',
+            },
+
+            transformOrigin: {
+              vertical: -8,
+              horizontal: 'right',
+            },
           },
         },
       },

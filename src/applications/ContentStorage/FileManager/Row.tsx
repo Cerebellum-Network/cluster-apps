@@ -1,28 +1,34 @@
-import { useState } from 'react';
-import { Box, BoxProps, Button, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { UploadButton, ArrowRightIcon, DeleteIcon, AddCircleOutlinedIcon } from '@developer-console/ui';
-import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon } from '../../icons';
+import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
+import { ArrowRightIcon } from '@developer-console/ui';
+import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
-import { useMessages } from '../../hooks';
+import { RowData } from './types.ts';
+import { bytesToSize } from './helpers.ts';
+import { DDC_STORAGE_NODE_URL } from '~/constants.ts';
+import { UploadStatus } from './UploadStatus.tsx';
+import { UploadButton } from './UploadButton.tsx';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
+  locked?: boolean;
 }
-const StyledRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
+const StyledRow = styled(Box)<StyledRowProps>(({ theme, open, locked }) => ({
   display: 'flex',
   alignItems: 'center',
   padding: '16px 12px',
   '&:hover': {
-    cursor: 'pointer',
+    cursor: !locked ? 'pointer' : 'not-allowed',
     backgroundColor: '#7A9FFF0A',
   },
   '&:nth-child(odd)': {
-    backgroundColor: '#7A9FFF0A',
+    backgroundColor: open ? theme.palette.common.white : '#7A9FFF0A',
   },
   backgroundColor: open ? theme.palette.common.white : 'transparent',
   border: open ? `1px solid ${theme.palette.divider}` : 'none',
   borderBottom: open ? `1px solid ${theme.palette.divider}` : 'none',
   borderRadius: open ? theme.spacing(0.5, 0.5, 0, 0) : 'none',
+  opacity: !locked ? '100%' : '30%',
+  cursor: !locked ? 'pointer' : 'not-allowed',
 }));
 
 const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
@@ -39,51 +45,84 @@ const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   },
 }));
 
-export const Row = ({ row }: { row: any }) => {
-  const [open, setOpen] = useState(false);
-
+export const Row = ({
+  row,
+  onUpload,
+  uploadStatus,
+  uploadType,
+  onRowClick,
+  isOpen,
+  onCloseUpload,
+  onFileDownload,
+  firstBucketLocked,
+}: {
+  row: RowData;
+  onUpload: (values: {
+    acceptedFiles: File[];
+    bucketId: string;
+    cnsName: string;
+    isFolder: boolean;
+    filePath?: string;
+  }) => void;
+  uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
+  uploadType: 'file' | 'folder';
+  isOpen: boolean;
+  onRowClick: () => void;
+  onCloseUpload: () => void;
+  onFileDownload: (bucketId: string, source: string, name: string) => void;
+  firstBucketLocked: boolean;
+}) => {
   const { showMessage } = useMessages();
 
   const treeData = flattenTree(row.files);
 
   return (
     <>
-      <StyledRow open={open} onClick={() => setOpen(!open)}>
+      <StyledRow locked={firstBucketLocked} open={isOpen} onClick={onRowClick}>
         <Typography variant="body2" flex={1}>
           {row.bucketId}
         </Typography>
         <Box display="flex" alignItems="center" flex={1} justifyContent="end">
-          {open && (
-            <>
-              <IconButton
-                sx={{ marginRight: '8px' }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-              <Button
-                size="small"
-                sx={{ marginRight: '8px' }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                }}
-              >
-                <AddCircleOutlinedIcon />
-                Create Folder
-              </Button>
-            </>
-          )}
+          {/*{isOpen && (*/}
+          {/*  <>*/}
+          {/*    <IconButton*/}
+          {/*      sx={{ marginRight: '8px' }}*/}
+          {/*      onClick={(event) => {*/}
+          {/*        event.stopPropagation();*/}
+          {/*      }}*/}
+          {/*    >*/}
+          {/*      <DeleteIcon />*/}
+          {/*    </IconButton>*/}
+          {/*    <Button*/}
+          {/*      size="small"*/}
+          {/*      sx={{ marginRight: '8px' }}*/}
+          {/*      onClick={(event) => {*/}
+          {/*        event.stopPropagation();*/}
+          {/*      }}*/}
+          {/*    >*/}
+          {/*      <AddCircleOutlinedIcon />*/}
+          {/*      Create Folder*/}
+          {/*    </Button>*/}
+          {/*  </>*/}
+          {/*)}*/}
           <Typography variant="body2">{row.usedStorage}</Typography>
         </Box>
         <Typography variant="body2" flex={1} textAlign="center">
           {row.acl ? 'Public' : 'Private'}
         </Typography>
-        <Box flex={1}></Box>
+        <Box
+          flex={1}
+          textAlign="end"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          {isOpen && <UploadButton onDrop={onUpload} bucketId={row.bucketId} cnsName="fs" />}
+        </Box>
       </StyledRow>
-      {open && (
-        <ExpandedRow open={open}>
+      {isOpen && (
+        <ExpandedRow open={isOpen}>
+          {uploadStatus !== 'idle' && <UploadStatus status={uploadStatus} type={uploadType} onClose={onCloseUpload} />}
           <TreeView
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
@@ -126,7 +165,7 @@ export const Row = ({ row }: { row: any }) => {
                       textAlign="right"
                       marginRight={isBranch ? `${leftMargin}px` : 0}
                     >
-                      {element.metadata.usedStorage} KB
+                      {bytesToSize(Number(element.metadata.usedStorage))}
                     </Typography>
                   )}
                   <Typography variant="body2" flex={1} textAlign="center" marginRight={`${leftMargin}px`}>
@@ -146,7 +185,7 @@ export const Row = ({ row }: { row: any }) => {
                           onClick={async () => {
                             console.log(element);
                             await navigator.clipboard.writeText(
-                              `https://storage.testnet.cere.network/${row.bucketId}/${element.metadata?.cid}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}`,
                             );
                             showMessage({
                               appearance: 'info',
@@ -160,12 +199,23 @@ export const Row = ({ row }: { row: any }) => {
                         >
                           <ShareIcon />
                         </IconButton>
-                        <IconButton>
+                        <IconButton
+                          onClick={() => {
+                            onFileDownload(row.bucketId, element.metadata?.cid as unknown as string, element.name);
+                          }}
+                        >
                           <DownloadIcon />
                         </IconButton>
                       </ButtonGroup>
                     ) : (
-                      <UploadButton />
+                      <UploadButton
+                        bucketId={row.bucketId}
+                        cnsName={element.name}
+                        filePath={
+                          element.metadata!.type === 'folder' ? (element?.metadata?.fullPath as string) : element.name
+                        }
+                        onDrop={onUpload}
+                      />
                     )}
                   </Box>
                 </div>

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import video from '../../assets/videos/slider-video.mp4';
 import { IconButton, Stack } from '@mui/material';
 import { LeftArrowIcon, RightArrowIcon, Typography } from '@developer-console/ui';
+
+import { DDC_CLUSTER_NAME } from '~/constants';
 import { SliderDot } from './OnboardingVideoSlider.styled';
+import video from '../../assets/videos/slider-video.mp4';
 
 const SLIDES = [
   {
-    title: `[Cluster Name] <br/> Developer Console`,
+    title: `${DDC_CLUSTER_NAME} <br/> Developer Console`,
     description:
       'Unlock the power of the first web3 Data Cloud for real-world applications and get started in just a minute with Cere Wallet',
   },
@@ -102,8 +104,9 @@ export const OnboardingVideoSlider = () => {
         bottom="40px"
         left="40px"
         zIndex="1"
+        color="white"
       >
-        <IconButton onClick={prevSlide}>
+        <IconButton onClick={prevSlide} color="inherit">
           <LeftArrowIcon />
         </IconButton>
         <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
@@ -111,7 +114,7 @@ export const OnboardingVideoSlider = () => {
           <SliderDot className={currentSlide === 1 ? 'active' : ''} />
           <SliderDot className={currentSlide === 2 ? 'active' : ''} />
         </Stack>
-        <IconButton onClick={nextSlide}>
+        <IconButton onClick={nextSlide} color="inherit">
           <RightArrowIcon />
         </IconButton>
       </Stack>
