@@ -10,5 +10,9 @@ const defaultInstance = new Reporting({
 
 export const reportError = defaultInstance.error;
 export const reportMesssage = defaultInstance.message;
+export const setUser = defaultInstance.setUser;
+export const clearUser = defaultInstance.clearUser;
+export const bucketCreated = defaultInstance.bucketCreated;
+export const userSignedUp = defaultInstance.userSignedUp;
 
 export default defaultInstance;
