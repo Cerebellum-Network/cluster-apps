@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { parseResponse } from '~/helpers';
+import { CLUSTER_MANAGEMENT_API_URL } from '~/constants.ts';
 
 export class EmailCampaignService {
-  constructor(protected readonly baseUrl = `${process.env.REACT_APP_CLUSTER_MANAGEMENT_API_URL}/email-campaigns/`) {}
+  constructor(protected readonly baseUrl = `${CLUSTER_MANAGEMENT_API_URL}/email-campaigns/`) {}
 
   protected readonly api = axios.create({
     baseURL: this.baseUrl,
