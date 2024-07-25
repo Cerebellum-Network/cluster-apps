@@ -65,44 +65,33 @@ const ContentStorage = () => {
       isFolder: boolean;
       filePath?: string;
     }) => {
-      if (!isFolder) {
-        setUploadStatus('uploading');
-      }
-      try {
-        const dagNodeData = JSON.stringify({ createTime: Date.now() });
-        const existingDagNode = await ddcClient!
-          .read(new DagNodeUri(BigInt(bucketId), cnsName))
-          .catch(() => new DagNode(dagNodeData));
+      const dagNodeData = JSON.stringify({ createTime: Date.now() });
+      const existingDagNode = await ddcClient!
+        .read(new DagNodeUri(BigInt(bucketId), cnsName))
+        .catch(() => new DagNode(dagNodeData));
 
-        const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
-        const uri = await ddcClient!.store(BigInt(bucketId!), file);
-        const fileLink = new Link(
-          uri.cid,
-          acceptedFile.size,
-          `${filePath || ''}${acceptedFile.webkitRelativePath !== '' ? acceptedFile.webkitRelativePath : acceptedFile.name}`,
-        );
+      const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
+      const uri = await ddcClient!.store(BigInt(bucketId!), file);
+      const fileLink = new Link(
+        uri.cid,
+        acceptedFile.size,
+        isFolder
+          ? `${filePath || ''}${acceptedFile.webkitRelativePath !== '' ? acceptedFile.webkitRelativePath : acceptedFile.name}`
+          : acceptedFile.name,
+      );
 
-        const dagNode = new DagNode(dagNodeData, [
-          ...(isFolder ? existingDagNode.links.filter((link) => link.name !== acceptedFile.name) : []),
-          fileLink,
-        ]);
+      const dagNode = new DagNode(dagNodeData, [
+        ...existingDagNode.links.filter((link) => link.name !== acceptedFile.name),
+        fileLink,
+      ]);
 
-        await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
-        if (!isFolder) {
-          setUploadStatus('success');
-        }
-        return {
-          cid: uri.cid,
-          path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
-          contentType: acceptedFile.type,
-          size: acceptedFile.size,
-        };
-      } catch (err) {
-        reportError(err);
-        setUploadStatus('error');
-        console.error(err);
-        return null;
-      }
+      await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
+      return {
+        cid: uri.cid,
+        path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
+        contentType: acceptedFile.type,
+        size: acceptedFile.size,
+      };
     },
     [ddcClient],
   );
@@ -124,10 +113,21 @@ const ContentStorage = () => {
       setUploadType(isFolder ? 'folder' : 'file');
 
       if (!isFolder) {
-        const acceptedFile = acceptedFiles[0];
-        await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
-        refetchBucket(BigInt(bucketId));
-        return;
+        setUploadStatus('uploading');
+        try {
+          const acceptedFile = acceptedFiles[0];
+          await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
+          await new Promise((resolve) => setTimeout(resolve, 10000));
+          await refetchBucket(BigInt(bucketId));
+          setUploadStatus('success');
+
+          return;
+        } catch (err) {
+          reportError(err);
+          setUploadStatus('error');
+          console.error(err);
+          return null;
+        }
       }
       try {
         setUploadStatus('uploading');
@@ -156,9 +156,11 @@ const ContentStorage = () => {
 
         const appDagNodeUri = await ddcClient.store(BigInt(bucketId), appDagNode, cnsName ? { name: cnsName } : {});
 
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        await new Promise((resolve) => setTimeout(resolve, 10000));
 
-        refetchBucket(BigInt(bucketId));
+        await refetchBucket(BigInt(bucketId));
+
+        setUploadStatus('success');
 
         return appDagNodeUri.cid;
       } catch (e) {
