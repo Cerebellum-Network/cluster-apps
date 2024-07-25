@@ -27,6 +27,6 @@ export enum GoogleAnalyticsId {
   repoCereDdcSdkJsBtn = 'repo-cere-ddc-sdk-js-btn',
 }
 
-export const gtagEvent = (eventId: GoogleAnalyticsId) => {
+export const gtmEvent = (eventId: GoogleAnalyticsId) => {
   window.dataLayer?.push({ event: eventId });
 };

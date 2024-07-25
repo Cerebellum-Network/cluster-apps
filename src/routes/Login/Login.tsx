@@ -9,7 +9,7 @@ import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
-import { GoogleAnalyticsId, gtagEvent } from '~/gtm.ts';
+import { GoogleAnalyticsId, gtmEvent } from '~/gtm.ts';
 
 const validationSchema = yup
   .object({
@@ -36,7 +36,7 @@ const Login = observer(() => {
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
     const shouldOnboard = await onboarding.shouldOnboard();
-    gtagEvent(shouldOnboard ? GoogleAnalyticsId.SignUp : GoogleAnalyticsId.SignIn);
+    gtmEvent(shouldOnboard ? GoogleAnalyticsId.SignUp : GoogleAnalyticsId.SignIn);
     navigate(shouldOnboard ? '/login/onboarding' : '/');
   });
 
