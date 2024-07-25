@@ -1,7 +1,7 @@
-export enum GoogleAnalyticsId {
-  SignIn = 'SIGNIN',
-  SignUp = 'SIGNUP',
-  SignOut = 'SIGNOUT',
+export enum AnalyticsId {
+  signIn = 'SIGNIN',
+  signUp = 'SIGNUP',
+  signOut = 'SIGNOUT',
 
   buildStorageBtn = 'build-storage-btn',
   buildDeliverBtn = 'build-deliver-btn',
@@ -26,7 +26,3 @@ export enum GoogleAnalyticsId {
 
   repoCereDdcSdkJsBtn = 'repo-cere-ddc-sdk-js-btn',
 }
-
-export const gtmEvent = (eventId: GoogleAnalyticsId) => {
-  window.dataLayer?.push({ event: eventId });
-};

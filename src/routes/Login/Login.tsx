@@ -1,3 +1,4 @@
+import { AnalyticsId, trackEvent } from '@developer-console/analytics';
 import { FormControl, LoadingButton, RightArrowIcon, Stack, TextField, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useForm } from 'react-hook-form';
@@ -9,7 +10,6 @@ import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
-import { GoogleAnalyticsId, gtmEvent } from '~/gtm.ts';
 
 const validationSchema = yup
   .object({
@@ -36,7 +36,8 @@ const Login = observer(() => {
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
     const shouldOnboard = await onboarding.shouldOnboard();
-    gtmEvent(shouldOnboard ? GoogleAnalyticsId.SignUp : GoogleAnalyticsId.SignIn);
+
+    trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);
     navigate(shouldOnboard ? '/login/onboarding' : '/');
   });
 

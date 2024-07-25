@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { observer } from 'mobx-react-lite';
+import { AnalyticsId } from '@developer-console/analytics';
 import {
   Dropdown,
   Avatar,
@@ -15,7 +16,6 @@ import {
 } from '@developer-console/ui';
 
 import { useAccountStore } from '~/hooks';
-import { GoogleAnalyticsId } from '~/gtm.ts';
 
 export type AccountDropdownProps = {};
 
@@ -74,7 +74,7 @@ const AccountDropdown = () => {
         </Card>
 
         <Button
-          className={GoogleAnalyticsId.SignOut}
+          className={AnalyticsId.signOut}
           variant="outlined"
           color="secondary"
           onClick={() => account.disconnect()}

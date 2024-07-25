@@ -1,11 +1,11 @@
+import { useState } from 'react';
 import { Box, Button, Typography, styled } from '@mui/material';
-import { Row } from './Row.tsx';
-
 import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
+import { AnalyticsId } from '@developer-console/analytics';
+
+import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
-import { useState } from 'react';
-import { GoogleAnalyticsId } from '~/gtm.ts';
 
 /**
  * This component resets default CSS styles.
@@ -105,14 +105,14 @@ export const FileManager = ({
           {userHasBuckets ? (
             <Button
               startIcon={<AddCircleOutlinedIcon />}
-              className={GoogleAnalyticsId.createBucketBtn}
+              className={AnalyticsId.createBucketBtn}
               onClick={onCreateBucket}
               disabled={isLoading}
             >
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
             </Button>
           ) : (
-            <Button disabled={isBucketCreating} className={GoogleAnalyticsId.createFirstBucketBtn}>
+            <Button disabled={isBucketCreating} className={AnalyticsId.createFirstBucketBtn}>
               {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
             </Button>
           )}
