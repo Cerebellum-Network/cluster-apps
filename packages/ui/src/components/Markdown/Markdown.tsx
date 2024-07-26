@@ -5,6 +5,7 @@ import 'github-markdown-css/github-markdown-light.css';
 
 import MD from 'react-markdown';
 import highlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 
 export type MarkdownProps = {
   children?: string;
@@ -35,6 +36,6 @@ const Content = styled(Box)(({ theme }) => ({
 
 export const Markdown = ({ content, children }: MarkdownProps) => (
   <Content className="markdown-body">
-    <MD rehypePlugins={[highlight]}>{content || children}</MD>
+    <MD rehypePlugins={[highlight, rehypeRaw]}>{content || children}</MD>
   </Content>
 );
