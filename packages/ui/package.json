@@ -15,10 +15,13 @@
     "@mui/lab": "^5.0.0-alpha.172",
     "@mui/material": "^5.16.4",
     "byte-size": "^9.0.0",
+    "github-markdown-css": "^5.6.1",
     "lottie-react": "^2.4.0",
     "mui-markdown": "^1.1.14",
     "prism-react-renderer": "^2.3.1",
-    "react-qr-code": "^2.0.15"
+    "react-markdown": "^9.0.1",
+    "react-qr-code": "^2.0.15",
+    "rehype-highlight": "^7.0.0"
   },
   "devDependencies": {
     "@types/byte-size": "^8.1.2"

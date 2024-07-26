@@ -1,11 +1,11 @@
 import { Markdown } from '@developer-console/ui';
 
-import * as startGuide from './startGuide.md';
-import * as success from './success.md';
-import * as stream from './stream.md';
-import * as uploadWithCli from './uploadWithCli.md';
+import startGuide from './startGuide.md?raw';
+import success from './success.md?raw';
+import stream from './stream.md?raw';
+import uploadWithCli from './uploadWithCli.md?raw';
 
-export const StartGuideDoc = () => <Markdown content={startGuide.markdown} />;
-export const SuccessDoc = () => <Markdown content={success.markdown} />;
-export const StreamDoc = () => <Markdown content={stream.markdown} />;
-export const UploadWithCliDoc = () => <Markdown content={uploadWithCli.markdown} />;
+export const StartGuideDoc = () => <Markdown content={startGuide} />;
+export const SuccessDoc = () => <Markdown content={success} />;
+export const StreamDoc = () => <Markdown content={stream} />;
+export const UploadWithCliDoc = () => <Markdown content={uploadWithCli} />;
