@@ -4,6 +4,11 @@
 
 -
 
+### v0.2.1
+
+- Added guides
+- Added CNS Record cache control option
+
 ### v0.2.0
 
 - Update markdown integration + error reportings
