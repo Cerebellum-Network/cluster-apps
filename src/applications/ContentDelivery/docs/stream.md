@@ -161,7 +161,7 @@ import { EncryptedVideoPlayer } from '@cere/media-sdk-react';
 import React from 'react';
 export const NFTVideoComponent = () => { 
   const collectionId = '...'; // Your collection ID from Freeport Creator Suite
-  const nftId = ...; // Your NFT ID from Freeport Creator Suite
+  const nftId = '...'; // Your NFT ID from Freeport Creator Suite
   const assetUrl = '...'; // Your asset URL from Freeport Creator Suite
 
   return (
