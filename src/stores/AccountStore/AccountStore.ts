@@ -67,7 +67,7 @@ export class AccountStore implements Account {
     reaction(
       () => this.userInfo,
       (userInfo) => {
-        Reporting.message(`User info: ${JSON.stringify(userInfo)}`, 'info', {
+        Reporting.message(`User info: ${JSON.stringify(userInfo ? userInfo : undefined)}`, 'info', {
           event: 'userInfo',
           email: userInfo?.email || '',
         });
