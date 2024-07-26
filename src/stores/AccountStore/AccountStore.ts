@@ -1,9 +1,10 @@
-import { makeAutoObservable, reaction, runInAction } from 'mobx';
+import { makeAutoObservable, reaction, runInAction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedBucket, StatsApi } from '@developer-console/api';
+import Reporting from '@developer-console/reporting';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
@@ -15,7 +16,6 @@ import {
   createDepositResource,
   createStatusResource,
 } from './resources';
-import { bucketCreated, clearUser, setUser, userSignedUp } from '@developer-console/reporting';
 
 export class AccountStore implements Account {
   private isBootstrapped = false;
@@ -23,6 +23,7 @@ export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
 
+  private bcReadyPromise = fromPromise(this.blockchain.isReady());
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
 
@@ -59,6 +60,40 @@ export class AccountStore implements Account {
         this.bucketStatsPromise = ids ? fromPromise(this.statsApi.getBucketsStats(ids)) : undefined;
       },
     );
+
+    /**
+     * Track user changes and update the user in the reporting
+     */
+    reaction(
+      () => this.userInfo,
+      (userInfo) => {
+        Reporting.message(`User info: ${JSON.stringify(userInfo ? userInfo : undefined)}`, 'info', {
+          event: 'userInfo',
+          email: userInfo?.email || '',
+        });
+        if (userInfo?.isNewUser) {
+          Reporting.userSignedUp(this.address!);
+        }
+
+        return userInfo ? Reporting.setUser({ id: this.address!, email: userInfo.email }) : Reporting.clearUser();
+      },
+    );
+
+    /**
+     * Report an error if the blockchain is not ready after 30s
+     */
+    when(
+      () => this.bcReadyPromise.state === 'fulfilled',
+      () => {},
+      {
+        timeout: 30000,
+        onError: (originalException) =>
+          Reporting.error(`Blockchain is not ready after 30s`, {
+            originalException,
+            data: { rpc: DDC_PRESET.blockchain },
+          }),
+      },
+    );
   }
 
   private async bootstrap() {
@@ -70,19 +105,6 @@ export class AccountStore implements Account {
     this.signerPromise = fromPromise(signer.isReady().then(() => signer));
 
     await Promise.all([this.blockchain.isReady(), this.signerPromise, this.ddcPromise]);
-    reaction(
-      () => this.userInfo,
-      (userInfo) => {
-        if (userInfo) {
-          if (userInfo?.isNewUser) {
-            userSignedUp(this.address!);
-          }
-          setUser({ id: this.address!, email: userInfo?.email });
-        } else {
-          clearUser();
-        }
-      },
-    );
 
     runInAction(() => {
       this.isBootstrapped = true;
@@ -196,11 +218,6 @@ export class AccountStore implements Account {
   async init() {
     await this.wallet.init(WALLET_INIT_OPTIONS);
 
-    /**
-     * Starts the blockchain connection here to lower the latency of the first request.
-     */
-    this.blockchain.isReady();
-
     return this.status;
   }
 
@@ -230,9 +247,11 @@ export class AccountStore implements Account {
       throw new Error('DDC is not ready');
     }
 
-    const createdBucket = await this.ddc.createBucket(DDC_CLUSTER_ID, params);
-    bucketCreated(createdBucket.toString());
-    return createdBucket;
+    return this.ddc.createBucket(DDC_CLUSTER_ID, params).then((bucketId) => {
+      Reporting.bucketCreated(bucketId);
+
+      return bucketId;
+    });
   }
 
   async saveBucket(bucketId: bigint, params: BucketParams) {
@@ -241,6 +260,7 @@ export class AccountStore implements Account {
     }
 
     const tx = this.blockchain.ddcCustomers.setBucketParams(bucketId, params);
+
     await this.blockchain.send(tx, { account: this.signer });
   }
 

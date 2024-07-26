@@ -4,6 +4,10 @@
 
 -
 
+### v0.2.0
+
+- Update markdown integration + error reportings
+
 ### v0.1.0
 
 - Prepared new version of app
