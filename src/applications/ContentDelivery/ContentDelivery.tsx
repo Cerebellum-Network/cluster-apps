@@ -13,11 +13,13 @@ import {
   BucketAccessProps,
   LoadingButton,
   useMessages,
+  Button,
+  GithubLogoIcon,
 } from '@developer-console/ui';
 
 import { CdnDocsIcon } from './icons';
 import { DDC_CLUSTER_NAME } from '~/constants';
-import { StartGuideDoc, UploadWithCliDoc, StreamDoc, SuccessDoc } from './docs';
+import { UploadWithCliDoc, StreamDoc, SuccessDoc, GITHUB_GUIDE_LINK } from './docs';
 
 import { useAccount } from '~/hooks';
 
@@ -87,9 +89,20 @@ const ContentDelivery = () => {
             <UploadWithCliDoc />
           </DocsSection>
 
-          <DocsSection title="Quick start guide in Github">
-            <StartGuideDoc />
-          </DocsSection>
+          <DocsSection
+            title="Quick start guide in Github"
+            rightSection={
+              <Button
+                className={AnalyticsId.repoCereDdcSdkJsBtn}
+                href={GITHUB_GUIDE_LINK}
+                startIcon={<GithubLogoIcon />}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open in Github
+              </Button>
+            }
+          />
         </DocsGroup>
 
         <DocsGroup title={`Stream from ${DDC_CLUSTER_NAME}`}>
