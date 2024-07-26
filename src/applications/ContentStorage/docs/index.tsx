@@ -1,6 +1,6 @@
 import { Markdown } from '@developer-console/ui';
 
-import uploadWithCli from './uploadWithCli.md';
+import uploadWithCli from './uploadWithCli.md?raw';
 
 export const StepByStepUploadDoc = () => <Markdown content={uploadWithCli} />;
 
