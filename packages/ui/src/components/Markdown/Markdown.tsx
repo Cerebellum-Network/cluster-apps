@@ -1,44 +1,40 @@
-import { Typography } from '@mui/material';
-import { MuiMarkdown, Overrides, getOverrides } from 'mui-markdown';
-import { Highlight, themes } from 'prism-react-renderer';
+import { Box, styled } from '@mui/material';
+
+import 'highlight.js/styles/github.css';
+import 'github-markdown-css/github-markdown-light.css';
+
+import MD from 'react-markdown';
+import highlight from 'rehype-highlight';
 
 export type MarkdownProps = {
   children?: string;
   content?: string;
 };
 
-const overrides: Overrides = {
-  h1: {
-    component: Typography,
-    props: { variant: 'h4', fontWeight: 600, lineHeight: 3 },
-  },
-  h2: {
-    component: Typography,
-    props: { variant: 'h4', fontWeight: 600, lineHeight: 3 },
-  },
-  h3: {
-    component: Typography,
-    props: { variant: 'subtitle1', lineHeight: 3 },
-  },
-  h4: {
-    component: Typography,
-    props: { variant: 'subtitle1', lineHeight: 3 },
-  },
-};
+const Content = styled(Box)(({ theme }) => ({
+  backgroundColor: 'transparent',
 
-export const Markdown = ({ content, children }: MarkdownProps) => {
-  return (
-    <MuiMarkdown
-      overrides={{
-        ...getOverrides({
-          Highlight,
-          themes,
-          theme: themes.ultramin,
-        }),
-        ...overrides,
-      }}
-    >
-      {content || children}
-    </MuiMarkdown>
-  );
-};
+  ...theme.typography.body1,
+  color: theme.palette.text.primary,
+
+  ['& a']: {
+    color: theme.palette.primary.main,
+  },
+
+  ['& pre']: {
+    padding: theme.spacing(2),
+    borderRadius: theme.shape.borderRadius,
+    backgroundColor: theme.palette.background.paper,
+  },
+
+  ['& code']: {
+    borderRadius: 2,
+    backgroundColor: theme.palette.background.paper,
+  },
+}));
+
+export const Markdown = ({ content, children }: MarkdownProps) => (
+  <Content className="markdown-body">
+    <MD rehypePlugins={[highlight]}>{content || children}</MD>
+  </Content>
+);

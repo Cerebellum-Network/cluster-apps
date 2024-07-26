@@ -1,6 +1,7 @@
 import { makeAutoObservable, when } from 'mobx';
 import { fromPromise } from 'mobx-utils';
 import { FaucetApi } from '@developer-console/api';
+import { reportError } from '@developer-console/reporting';
 
 import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '~/constants';
 import { AccountStore } from '../AccountStore';
@@ -54,6 +55,7 @@ export class OnboardingStore {
     await when(() => this.isDone !== undefined, {
       timeout: 30000,
       name: 'shouldOnboard',
+      onError: (originalException) => reportError('Onboarding status is not defained after 30s', { originalException }),
     });
 
     return !this.isDone;
@@ -69,6 +71,7 @@ export class OnboardingStore {
       return when(() => !!this.accountStore.balance, {
         timeout: 30000,
         name: 'tokenTransfer',
+        onError: (originalException) => reportError('Reward tokens are not received after 30s', { originalException }),
       });
     });
 
