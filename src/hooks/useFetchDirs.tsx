@@ -32,7 +32,9 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
       for (const bucket of buckets) {
         const dagUri = new DagNodeUri(BigInt(bucket.id), 'fs');
         try {
-          const dir = await ddcClient.read(dagUri);
+          const dir = await ddcClient.read(dagUri, {
+            cacheControl: 'no-cache',
+          });
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {
@@ -70,7 +72,9 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         const dagUri = new DagNodeUri(bucketId, 'fs');
         const newDirs: DirectoryType[] = [];
         try {
-          const dir = await ddcClient.read(dagUri);
+          const dir = await ddcClient.read(dagUri, {
+            cacheControl: 'no-cache',
+          });
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {

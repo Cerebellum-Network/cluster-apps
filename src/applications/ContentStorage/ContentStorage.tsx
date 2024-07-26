@@ -67,7 +67,9 @@ const ContentStorage = () => {
     }) => {
       const dagNodeData = JSON.stringify({ createTime: Date.now() });
       const existingDagNode = await ddcClient!
-        .read(new DagNodeUri(BigInt(bucketId), cnsName))
+        .read(new DagNodeUri(BigInt(bucketId), cnsName), {
+          cacheControl: 'no-cache',
+        })
         .catch(() => new DagNode(dagNodeData));
 
       const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
@@ -145,7 +147,9 @@ const ContentStorage = () => {
 
         const dagNodeData = JSON.stringify({ createTime: Date.now() });
         const existingDagNode = await ddcClient!
-          .read(new DagNodeUri(BigInt(bucketId), cnsName))
+          .read(new DagNodeUri(BigInt(bucketId), cnsName), {
+            cacheControl: 'no-cache',
+          })
           .catch(() => new DagNode(dagNodeData));
 
         const appDagNode = new DagNode(
@@ -178,7 +182,9 @@ const ContentStorage = () => {
 
   const handleFileDownload = async (bucketId: string, source: string, name: string) => {
     const fileUri = new FileUri(BigInt(bucketId), source, { name });
-    const fileResponse = await ddcClient.read(fileUri);
+    const fileResponse = await ddcClient.read(fileUri, {
+      cacheControl: 'no-cache',
+    });
 
     const reader = fileResponse.body?.getReader();
     if (!reader) {
