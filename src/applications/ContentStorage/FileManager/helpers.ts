@@ -49,7 +49,7 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
       node.children.forEach(addFolderSizes);
       const totalSize = node.children.reduce((sum, child) => sum + calculateSize(child), 0);
       const child = node.children[0];
-      const fullPath = child?.fullPath?.replace(`${child.name}`, '');
+      const fullPath = child?.fullPath?.replace(`${child.name}`, '').replace('//', '/');
       node.metadata = {
         usedStorage: totalSize.toString(),
         type: 'folder',

@@ -79,7 +79,7 @@ const ContentStorage = () => {
         acceptedFile.size,
         isFolder
           ? `${filePath || ''}${acceptedFile.webkitRelativePath !== '' ? acceptedFile.webkitRelativePath : acceptedFile.name}`
-          : acceptedFile.name,
+          : `${filePath ? filePath : ''}${acceptedFile.name}`,
       );
 
       const dagNode = new DagNode(dagNodeData, [
@@ -119,7 +119,7 @@ const ContentStorage = () => {
         try {
           const acceptedFile = acceptedFiles[0];
           await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
-          await new Promise((resolve) => setTimeout(resolve, 10000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
           await refetchBucket(BigInt(bucketId));
           setUploadStatus('success');
 
@@ -160,7 +160,7 @@ const ContentStorage = () => {
 
         const appDagNodeUri = await ddcClient.store(BigInt(bucketId), appDagNode, cnsName ? { name: cnsName } : {});
 
-        await new Promise((resolve) => setTimeout(resolve, 10000));
+        await new Promise((resolve) => setTimeout(resolve, 5000));
 
         await refetchBucket(BigInt(bucketId));
 
