@@ -38,7 +38,12 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {
-              newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...link });
+              const exists = newDirs.some(
+                (newDir) => newDir.bucketId === bucket.id.toString() && newDir.cid === link.cid,
+              );
+              if (!exists) {
+                newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...link });
+              }
             }
           }
         } catch (dirError) {
@@ -48,7 +53,11 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         }
       }
       setDirs((prevState) => {
-        return [...prevState, ...newDirs];
+        const allDirs = [...prevState, ...newDirs];
+        const uniqueDirs = allDirs.filter(
+          (dir, index, self) => index === self.findIndex((d) => d.bucketId === dir.bucketId && d.cid === dir.cid),
+        );
+        return uniqueDirs;
       });
     } catch (e) {
       setError((e as Error).message);
@@ -78,7 +87,12 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {
-              newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...link });
+              const exists = newDirs.some(
+                (newDir) => newDir.bucketId === bucketId.toString() && newDir.cid === link.cid,
+              );
+              if (!exists) {
+                newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...link });
+              }
             }
           }
         } catch (dirError) {
@@ -87,7 +101,11 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         }
 
         setDirs((prevDirs) => {
-          return [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs];
+          const allDirs = [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs];
+          const uniqueDirs = allDirs.filter(
+            (dir, index, self) => index === self.findIndex((d) => d.bucketId === dir.bucketId && d.cid === dir.cid),
+          );
+          return uniqueDirs;
         });
       } catch (e) {
         setError((e as Error).message);

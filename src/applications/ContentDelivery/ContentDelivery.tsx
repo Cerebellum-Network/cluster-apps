@@ -19,7 +19,13 @@ import {
 
 import { CdnDocsIcon } from './icons';
 import { DDC_CLUSTER_NAME } from '~/constants';
-import { UploadWithCliDoc, StreamDoc, SuccessDoc, GITHUB_GUIDE_LINK } from './docs';
+import {
+  UploadWithCliDoc,
+  StreamDoc,
+  SuccessDoc,
+  GITHUB_GUIDE_LINK,
+  GITHUB_TOKEN_BASED_CONTROL_GUIDE_LINK,
+} from './docs';
 
 import { useAccount } from '~/hooks';
 
@@ -64,7 +70,20 @@ const ContentDelivery = () => {
 
           <Paper component={Stack} padding={2} spacing={2}>
             <Typography variant="subtitle1">File Access Control</Typography>
-            <BucketAccess value={currentBucketAccess} onChange={(value) => setAccess(value)} />
+            <BucketAccess
+              value={currentBucketAccess}
+              onChange={(value) => setAccess(value)}
+              guideButton={
+                <Button
+                  href={GITHUB_TOKEN_BASED_CONTROL_GUIDE_LINK}
+                  startIcon={<GithubLogoIcon />}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open in Github
+                </Button>
+              }
+            />
 
             <LoadingButton
               size="large"

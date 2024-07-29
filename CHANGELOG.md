@@ -4,6 +4,11 @@
 
 -
 
+### v0.3.1
+
+- Added link to guide for token based access
+- Fixed file uploading and bucket's size
+
 ### v0.3.0
 
 - Updated Cere Wallet integration to not trigger 3rd party wallets during connect
