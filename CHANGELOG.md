@@ -4,6 +4,10 @@
 
 -
 
+### v0.3.0
+
+- Updated Cere Wallet integration to not trigger 3rd party wallets during connect
+
 ### v0.2.1
 
 - Added guides
