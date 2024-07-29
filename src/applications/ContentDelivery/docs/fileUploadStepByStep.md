@@ -10,7 +10,7 @@
     - Download Node.js
     - Follow the installation steps provided on the Node.js website. 
 2) Access Your Cere Wallet: 
-   - Visit the staging wallet at [wallet.cere.io](https://wallet.cere.io). 
+   - Visit the wallet at [wallet.cere.io](https://wallet.cere.io). 
    - Log in using your email OTP.
    - You'll see your EVM and Cere wallets, along with your $CERE token balance.
 3) Download Wallet Backup: 
