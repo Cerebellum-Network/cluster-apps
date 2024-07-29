@@ -22,6 +22,8 @@ export class AccountStore implements Account {
 
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
+  readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
+  readonly ddc = new DdcClient(this.signer, { blockchain: this.blockchain });
 
   private bcReadyPromise = fromPromise(this.blockchain.isReady());
   private statusResource = createStatusResource(this);
@@ -32,9 +34,7 @@ export class AccountStore implements Account {
   private bucketsResource?: IResource<IndexedBucket[] | undefined>;
 
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-  private signerPromise?: IPromiseBasedObservable<CereWalletSigner>;
   private bucketStatsPromise?: IPromiseBasedObservable<BucketStats[]>;
-  private ddcPromise?: IPromiseBasedObservable<DdcClient>;
 
   private statsApi = new StatsApi();
 
@@ -71,6 +71,7 @@ export class AccountStore implements Account {
           event: 'userInfo',
           email: userInfo?.email || '',
         });
+
         if (userInfo?.isNewUser) {
           Reporting.userSignedUp(this.address!);
         }
@@ -82,29 +83,16 @@ export class AccountStore implements Account {
     /**
      * Report an error if the blockchain is not ready after 30s
      */
-    when(
-      () => this.bcReadyPromise.state === 'fulfilled',
-      () => {},
-      {
-        timeout: 30000,
-        onError: (originalException) =>
-          Reporting.error(`Blockchain is not ready after 30s`, {
-            originalException,
-            data: { rpc: DDC_PRESET.blockchain },
-          }),
-      },
-    );
+    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch((originalException) => {
+      Reporting.error(`Blockchain is not ready after 30s`, { originalException });
+    });
   }
 
   private async bootstrap() {
-    const signer = new CereWalletSigner(this.wallet);
-
     this.bucketsResource = createBucketsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
-    this.ddcPromise = fromPromise(DdcClient.create(signer, { blockchain: this.blockchain }));
-    this.signerPromise = fromPromise(signer.isReady().then(() => signer));
 
-    await Promise.all([this.blockchain.isReady(), this.signerPromise, this.ddcPromise]);
+    await this.blockchain.isReady();
 
     runInAction(() => {
       this.isBootstrapped = true;
@@ -115,12 +103,9 @@ export class AccountStore implements Account {
 
   private async cleanup() {
     this.isBootstrapped = false;
-
     this.userInfoPromise = undefined;
-    this.ddcPromise = undefined;
     this.balanceResource = undefined;
     this.depositResource = undefined;
-    this.signerPromise = undefined;
     this.bucketsResource = undefined;
   }
 
@@ -131,7 +116,7 @@ export class AccountStore implements Account {
   }
 
   isReady(): this is ReadyAccount {
-    return this.isBootstrapped && !!this.userInfo && !!this.buckets && !!this.ddc && !!this.signer;
+    return this.isBootstrapped && !!this.userInfo && !!this.buckets;
   }
 
   get status() {
@@ -189,18 +174,6 @@ export class AccountStore implements Account {
     });
   }
 
-  get signer() {
-    return this.signerPromise?.case({
-      fulfilled: (signer) => signer,
-    });
-  }
-
-  get ddc() {
-    return this.ddcPromise?.case({
-      fulfilled: (ddc) => ddc,
-    });
-  }
-
   async connect({ email }: ConnectOptions) {
     /**
      * If the user is already connected - disconnect first
@@ -226,7 +199,7 @@ export class AccountStore implements Account {
   }
 
   async signMessage(message: string) {
-    if (!this.signer || !this.address) {
+    if (!this.address) {
       throw new Error('Account is not ready');
     }
 
@@ -243,9 +216,7 @@ export class AccountStore implements Account {
   }
 
   async createBucket(params: BucketParams) {
-    if (!this.ddc) {
-      throw new Error('DDC is not ready');
-    }
+    await this.blockchain.isReady();
 
     return this.ddc.createBucket(DDC_CLUSTER_ID, params).then((bucketId) => {
       Reporting.bucketCreated(bucketId);
@@ -255,19 +226,15 @@ export class AccountStore implements Account {
   }
 
   async saveBucket(bucketId: bigint, params: BucketParams) {
-    if (!this.signer) {
-      throw new Error('Account is not ready');
-    }
+    await this.blockchain.isReady();
 
-    const tx = this.blockchain.ddcCustomers.setBucketParams(bucketId, params);
-
-    await this.blockchain.send(tx, { account: this.signer });
+    await this.blockchain.send(this.blockchain.ddcCustomers.setBucketParams(bucketId, params), {
+      account: this.signer,
+    });
   }
 
   async topUp(amount: number) {
-    if (!this.ddc) {
-      throw new Error('DDC is not ready');
-    }
+    await this.blockchain.isReady();
 
     await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
   }
@@ -276,10 +243,6 @@ export class AccountStore implements Account {
    * TODO: Figure out a genreic way of updating resources
    */
   async refreshBuckets() {
-    if (!this.ddc || !this.address) {
-      throw new Error('DDC is not ready');
-    }
-
     this.bucketsResource = createBucketsResource(this);
   }
 }

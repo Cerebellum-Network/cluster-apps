@@ -22,7 +22,9 @@ interface StyledBoxProps extends BoxProps {
   locked?: boolean;
 }
 
-const StyledBox = styled(Box)<StyledBoxProps>(({ locked }) => ({
+const StyledBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'locked',
+})<StyledBoxProps>(({ locked }) => ({
   opacity: !locked ? '100%' : '30%',
   cursor: !locked ? 'pointer' : 'not-allowed',
 }));

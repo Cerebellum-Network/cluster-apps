@@ -12,7 +12,9 @@ interface StyledRowProps extends BoxProps {
   open: boolean;
   locked?: boolean;
 }
-const StyledRow = styled(Box)<StyledRowProps>(({ theme, open, locked }) => ({
+const StyledRow = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'open' && prop !== 'locked',
+})<StyledRowProps>(({ theme, open, locked }) => ({
   display: 'flex',
   alignItems: 'center',
   padding: '16px 12px',

@@ -52,10 +52,8 @@ export class OnboardingStore {
   }
 
   async shouldOnboard() {
-    await when(() => this.isDone !== undefined, {
-      timeout: 30000,
-      name: 'shouldOnboard',
-      onError: (originalException) => reportError('Onboarding status is not defained after 30s', { originalException }),
+    await when(() => this.isDone !== undefined, { timeout: 30000 }).catch((originalException) => {
+      reportError('Onboarding status is not defained after 30s', { originalException });
     });
 
     return !this.isDone;
@@ -68,10 +66,8 @@ export class OnboardingStore {
     await this.addStep('reward', async () => {
       await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
 
-      return when(() => !!this.accountStore.balance, {
-        timeout: 30000,
-        name: 'tokenTransfer',
-        onError: (originalException) => reportError('Reward tokens are not received after 30s', { originalException }),
+      return when(() => !!this.accountStore.balance, { timeout: 60000 }).catch(() => {
+        throw new Error('Onboarding tokens were not received after 60s');
       });
     });
 
