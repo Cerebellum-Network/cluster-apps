@@ -6,7 +6,7 @@
 ### DAVINCI: EXPLORING THE NEXT EVOLUTIONARY STAGE OF MEDIA
 
 <p align="center">
-  <img src="/src/assets/images/success_story_banner.jpg" alt="Success Story Banner">
+  <img src="/assets/success_story_banner.jpg" alt="Success Story Banner">
 </p>
 
 __Music Streaming Today: Innovation at the Red Light__
@@ -26,7 +26,7 @@ __How One App Is Shaking Things Up__
 [Davinci](https://app.ondavinci.com/) is a platform that our readers might be familiar with, as we’ve covered it before. It is a fan engagement platform, built using Cere’s extensive set of tools, that recognizes music streaming, not as a standalone thing, but as a main pillar lifting something far greater—a bridge between artists and fans.
 
 <p align="center">
-  <img src="/src/assets/images/davinci-1.jpg" alt="Success Story Banner">
+  <img src="/assets/davinci-1.jpg" alt="Success Story Banner">
 </p>
 
 All major music streaming services start and stop at the exact same spot; they’re almost exclusively streaming platforms that barely deviate from a recurring and limiting design philosophy. Davinci, however, raises a very interesting question: why can’t fans and artists, the two most important elements of this equation, decide this for themselves? 
@@ -39,8 +39,8 @@ The same platform also supports events–both digital and in the real world–th
 
 
 <p align="center">
-  <img src="/src/assets/images/davinci2.jpg" style="display: inline-block; margin: 0 10px; width: 300px" alt="">
-  <img src="/src/assets/images/davinci3.jpg" style="display: inline-block; margin: 0 10px; width: 300px" alt="">
+  <img src="/assets/davinci2.jpg" style="display: inline-block; margin: 0 10px; width: 300px" alt="">
+  <img src="/assets/davinci3.jpg" style="display: inline-block; margin: 0 10px; width: 300px" alt="">
 </p>
 
 But if Davinci can do it, why can’t Spotify, or Apple? 
