@@ -185,7 +185,6 @@ export const Row = ({
                         <IconButton
                           sx={{ marginRight: '8px' }}
                           onClick={async () => {
-                            console.log(element);
                             await navigator.clipboard.writeText(
                               `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}`,
                             );

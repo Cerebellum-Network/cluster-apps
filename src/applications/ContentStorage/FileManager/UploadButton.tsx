@@ -16,7 +16,7 @@ interface UploadComponentProps {
   filePath?: string;
 }
 
-export const UploadButton = ({ bucketId, filePath, onDrop, cnsName }: UploadComponentProps) => {
+export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProps) => {
   const [openDropdown, setOpen] = useState(false);
 
   const handleUploadFile = () => {
@@ -25,7 +25,7 @@ export const UploadButton = ({ bucketId, filePath, onDrop, cnsName }: UploadComp
     input.multiple = true;
     input.onchange = (e: any) => {
       const files = Array.from(e.target.files) as File[];
-      onDrop({ acceptedFiles: files, bucketId, cnsName, isFolder: false, filePath });
+      onDrop({ acceptedFiles: files, bucketId, cnsName: 'fs', isFolder: false, filePath });
     };
     input.click();
     setOpen((prevState) => !prevState);
