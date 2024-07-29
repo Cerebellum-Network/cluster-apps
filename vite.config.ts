@@ -18,13 +18,13 @@ export default defineConfig({
         Buffer: true,
       },
     }),
-    viteStaticCopy({
-      targets: [
-        {
-          src: 'src/assets/images/*',
-          dest: 'assets',
-        },
-      ],
-    }),
+    // viteStaticCopy({
+    //   targets: [
+    //     {
+    //       src: 'src/assets/*',
+    //       dest: 'assets',
+    //     },
+    //   ],
+    // }),
   ],
 });
