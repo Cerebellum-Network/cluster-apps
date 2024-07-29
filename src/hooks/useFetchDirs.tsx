@@ -48,6 +48,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           }
         } catch (dirError) {
           reportError(dirError);
+          newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...({} as Link) });
           console.error(`Error reading directory for bucket ${bucket.id}:`, dirError);
         }
       }
@@ -96,6 +97,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           }
         } catch (dirError) {
           console.error(`Error reading directory for bucket ${bucketId}:`, dirError);
+          newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...({} as Link) });
         }
 
         setDirs((prevDirs) => {
