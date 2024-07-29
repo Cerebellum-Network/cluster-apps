@@ -53,7 +53,7 @@ const Login = observer(() => {
           Welcome to {DDC_CLUSTER_NAME}
         </Typography>
         <Typography textAlign="center" sx={{ mt: 4, mb: 3 }}>
-          Unlock the power of the first Web3 Data Cloud for real-world applications. Get started in just a minutes.
+          Get started for free in just a minutes, no credit card required.
         </Typography>
 
         <FormControl>
