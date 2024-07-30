@@ -1,11 +1,11 @@
 import { observer } from 'mobx-react-lite';
 import { PropsWithChildren, ReactNode } from 'react';
 import { Button, DiscordIcon, Paper, Stack, styled } from '@developer-console/ui';
-import { AccountDropdown } from '../AccountDropdown';
+import { AnalyticsId } from '@developer-console/analytics';
 
 import { Layout } from '../Layout';
 import { DISCORD_LINK } from '~/constants.ts';
-import { AnalyticsId } from '@developer-console/analytics';
+import { AccountDropdown } from '../AccountDropdown';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
@@ -38,7 +38,7 @@ const HomeLayout = ({ children, rightElement, leftElement }: HomeLayoutProps) =>
     disablePaddings
     fullPage
     headerRight={
-      <Stack direction="row" gap={(theme) => theme.spacing(1)}>
+      <Stack direction="row" spacing={2}>
         <Button
           href={DISCORD_LINK}
           startIcon={<DiscordIcon />}

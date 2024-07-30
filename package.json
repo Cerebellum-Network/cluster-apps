@@ -12,8 +12,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@cere-ddc-sdk/blockchain": "^2.12.1",
-    "@cere-ddc-sdk/ddc-client": "^2.12.1",
+    "@cere-ddc-sdk/blockchain": "^2.12.2",
+    "@cere-ddc-sdk/ddc-client": "^2.12.2",
     "@cere/embed-wallet": "^0.20.1",
     "@hookform/resolvers": "^3.9.0",
     "mobx": "^6.13.1",

@@ -1,3 +1,4 @@
+import { ReactNode, useCallback } from 'react';
 import {
   FormControl,
   Radio,
@@ -6,10 +7,9 @@ import {
   FormControlProps,
   styled,
   Stack,
-  Box,
   Typography,
+  FormControlLabel,
 } from '@mui/material';
-import { ReactNode, useCallback } from 'react';
 
 export type BucketAccessValue = 'public' | 'private' | 'gnr';
 export type BucketAccessProps = Omit<FormControlProps, 'onChange'> & {
@@ -23,9 +23,9 @@ type OptionStyleProps = {
   disabled?: boolean;
 };
 
-const Option = styled(Box, {
-  shouldForwardProp: (prop) => prop !== 'selected' && prop !== 'disabled',
-})<OptionStyleProps>(({ theme, selected, disabled }) => ({
+const Option = styled(FormControlLabel, {
+  shouldForwardProp: (prop) => prop !== 'selected',
+})<OptionStyleProps>(({ theme, selected }) => ({
   padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
   borderWidth: 1,
@@ -33,14 +33,16 @@ const Option = styled(Box, {
   borderColor: theme.palette.divider,
   display: 'flex',
   alignItems: 'center',
+
   ...(selected && {
     borderColor: theme.palette.primary.main,
     backgroundColor: theme.palette.action.selected,
   }),
-  ...(disabled && {
-    opacity: 0.5,
-    pointerEvents: 'none',
-  }),
+
+  ['& .MuiFormControlLabel-label']: {
+    display: 'flex',
+    flex: 1,
+  },
 }));
 
 export const BucketAccess = ({ value, onChange, guideButton, ...props }: BucketAccessProps) => {
@@ -53,21 +55,23 @@ export const BucketAccess = ({ value, onChange, guideButton, ...props }: BucketA
     <FormControl {...props}>
       <RadioGroup value={value} onChange={handleChange}>
         <Stack spacing={1}>
-          <Option selected={value === 'public'}>
-            <Radio value="public" />
-            <Typography>Public</Typography>
-          </Option>
-          <Option selected={value === 'private'}>
-            <Radio value="private" />
-            <Box display="flex" alignItems="center" flexGrow={1}>
-              <Typography>Token-Based Control</Typography>
-            </Box>
-            {guideButton && <Box ml={2}>{guideButton}</Box>}
-          </Option>
-          <Option selected={value === 'gnr'} disabled>
-            <Radio value="gnr" />
-            <Typography>NFT Global Registry (Coming Soon)</Typography>
-          </Option>
+          <Option value="public" selected={value === 'public'} control={<Radio />} label="Public" />
+          <Option
+            value="private"
+            selected={value === 'private'}
+            control={<Radio />}
+            label={
+              !guideButton ? (
+                <>Private</>
+              ) : (
+                <Stack flex={1} direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography>Private</Typography>
+                  {guideButton}
+                </Stack>
+              )
+            }
+          />
+          <Option disabled value="gnr" control={<Radio />} label="NFT Global Registry (Coming Soon)" />
         </Stack>
       </RadioGroup>
     </FormControl>
