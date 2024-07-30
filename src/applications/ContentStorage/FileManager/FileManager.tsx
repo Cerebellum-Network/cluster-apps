@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Box, Button, Typography, styled, BoxProps } from '@mui/material';
 import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
 import { AnalyticsId } from '@developer-console/analytics';
@@ -42,6 +41,8 @@ export const FileManager = ({
   isBucketCreating,
   firstBucketLocked,
   onUnlockFirstBucket,
+  onRowClick,
+  selectedBucket,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -61,15 +62,9 @@ export const FileManager = ({
   isBucketCreating: boolean;
   firstBucketLocked: boolean;
   onUnlockFirstBucket: () => void;
+  onRowClick: (bucketId: string) => void;
+  selectedBucket: string | null;
 }) => {
-  const [openRow, setOpenRow] = useState<string | null>(null);
-
-  const handleRowClick = (bucketId: string) => {
-    if (!(firstBucketLocked && userHasBuckets)) {
-      setOpenRow((prev) => (prev === bucketId ? null : bucketId));
-    }
-  };
-
   const rows = transformData(data);
 
   const handleCloseStatus = () => {
@@ -111,8 +106,8 @@ export const FileManager = ({
               key={row.bucketId}
               row={row}
               onUpload={onUpload}
-              isOpen={openRow === row.bucketId}
-              onRowClick={() => handleRowClick(row.bucketId)}
+              isOpen={selectedBucket === row.bucketId}
+              onRowClick={() => onRowClick(row.bucketId)}
               onCloseUpload={handleCloseStatus}
               onFileDownload={onFileDownload}
             />
