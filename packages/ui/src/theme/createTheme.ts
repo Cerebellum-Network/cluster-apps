@@ -131,6 +131,13 @@ export const createTheme = (_options: ThemeOptions = {}) =>
               color: theme.palette.text.primary,
             }),
           }),
+          containedSecondary: {
+            backgroundColor: '#000000',
+            color: '#fff',
+            '&:hover': {
+              opacity: '30%',
+            },
+          },
         },
       },
 

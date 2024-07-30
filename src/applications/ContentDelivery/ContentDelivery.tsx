@@ -75,6 +75,8 @@ const ContentDelivery = () => {
               onChange={(value) => setAccess(value)}
               guideButton={
                 <Button
+                  variant="contained"
+                  color="secondary"
                   href={GITHUB_TOKEN_BASED_CONTROL_GUIDE_LINK}
                   startIcon={<GithubLogoIcon />}
                   target="_blank"
@@ -112,6 +114,8 @@ const ContentDelivery = () => {
             title="Quick start guide in Github"
             rightSection={
               <Button
+                variant="contained"
+                color="secondary"
                 className={AnalyticsId.repoCereDdcSdkJsBtn}
                 href={GITHUB_GUIDE_LINK}
                 startIcon={<GithubLogoIcon />}

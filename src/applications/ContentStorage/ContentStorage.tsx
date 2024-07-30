@@ -284,6 +284,8 @@ const ContentStorage = () => {
             title="Quick start guide in Github"
             rightSection={
               <Button
+                variant="contained"
+                color="secondary"
                 className={AnalyticsId.repoCereDdcSdkJsBtn}
                 href={GITHUB_GUIDE_LINK}
                 startIcon={<GithubLogoIcon />}
