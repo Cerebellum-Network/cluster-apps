@@ -379,6 +379,7 @@ const ContentStorage = () => {
         </DocsGroup>
       </Docs>
       <Joyride
+        styles={{ overlay: { height: '100%' } }}
         steps={steps}
         run={firstBucketLocked && !loading}
         continuous
