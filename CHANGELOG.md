@@ -4,6 +4,10 @@
 
 -
 
+### v0.3.3
+
+- Fixed congratulations message text
+
 ### v0.3.2
 
 - Added overlay for mobile with discord
