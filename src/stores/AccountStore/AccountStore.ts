@@ -92,7 +92,7 @@ export class AccountStore implements Account {
     this.bucketsResource = createBucketsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
 
-    await this.blockchain.isReady();
+    await Promise.all([this.blockchain.isReady(), this.signer.isReady()]);
 
     runInAction(() => {
       this.isBootstrapped = true;
@@ -180,9 +180,15 @@ export class AccountStore implements Account {
      */
     if (this.status === 'connected') {
       await this.disconnect();
+
+      /**
+       * Wait for the wallet to disconnect
+       * TODO: Figure out a better way to handle this on Cere Wallet side
+       */
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    await this.wallet.connect({
+    await this.signer.connect({
       email,
       permissions: WALLET_PERMISSIONS,
     });
