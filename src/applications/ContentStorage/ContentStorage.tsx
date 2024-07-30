@@ -8,6 +8,7 @@ import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
+import { Bucket } from '~/stores';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -16,6 +17,7 @@ const Container = styled(Box)(({ theme }) => ({
 const ContentStorage = () => {
   const questsStore = useQuestsStore();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
@@ -23,7 +25,8 @@ const ContentStorage = () => {
   const account = useAccount();
 
   const ddcClient = account.ddc;
-  const buckets = account.buckets;
+
+  const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
 
   const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
 
@@ -47,10 +50,20 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
     setIsBucketCreating(true);
-    await account.createBucket({ isPublic: true });
-    await account.refreshBuckets();
+    const createdBucketId = await account.createBucket({ isPublic: true });
+    const bucketInfo = await ddcClient.getBucket(createdBucketId);
+    if (bucketInfo) {
+      setBuckets((prevState) => {
+        return [
+          ...prevState,
+          { id: bucketInfo.bucketId, isPublic: bucketInfo.isPublic, isRemoved: bucketInfo.isRemoved, stats: undefined },
+        ];
+      });
+      await refetchBucket(createdBucketId);
+      setSelectedBucket(createdBucketId.toString());
+    }
     setIsBucketCreating(false);
-  }, [account, ddcClient]);
+  }, [account, ddcClient, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -242,6 +255,15 @@ const ContentStorage = () => {
     localStorage.setItem('firstBucketLocked', 'false');
   }, []);
 
+  const handleRowClick = useCallback(
+    (bucketId: string) => {
+      if (!(firstBucketLocked && buckets.length > 0)) {
+        setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
+      }
+    },
+    [buckets.length, firstBucketLocked],
+  );
+
   return (
     <>
       <Box
@@ -268,6 +290,8 @@ const ContentStorage = () => {
             isBucketCreating={isBucketCreating}
             firstBucketLocked={firstBucketLocked}
             onUnlockFirstBucket={handleFirstBucketUnlock}
+            onRowClick={handleRowClick}
+            selectedBucket={selectedBucket}
           />
         </Container>
       </Box>
