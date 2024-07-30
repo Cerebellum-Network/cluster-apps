@@ -253,9 +253,6 @@ const ContentStorage = () => {
     [buckets.length, firstBucketLocked],
   );
 
-  console.log('CURRET_ROW', selectedBucket);
-  console.log('BUCKETS', buckets);
-
   return (
     <>
       <Box
