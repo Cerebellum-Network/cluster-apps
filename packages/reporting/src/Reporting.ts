@@ -13,6 +13,12 @@ export type ReportingOptions = Pick<BrowserOptions, 'environment'> & {
   tags?: Record<string, any>;
 };
 
+export type ReportingUser = {
+  id: string;
+  username?: string;
+  email?: string;
+};
+
 export class Reporting {
   constructor(private options: BrowserOptions) {}
 
@@ -31,19 +37,14 @@ export class Reporting {
     captureException(error, hint);
   };
 
-  message = (message: string, level: Exclude<SeverityLevel, 'fatal'> = 'log', tags: Record<string, any>) => {
+  message = (message: string, level: Exclude<SeverityLevel, 'fatal'> = 'log', tags?: Record<string, any>) => {
     console[level === 'warning' ? 'warn' : level]('Reporting:', message);
 
     captureMessage(message, { level, tags });
   };
 
-  setUser = (user: { id: string; username?: string; email?: string }) => {
-    setUser(user);
-  };
-
-  clearUser = () => {
-    setUser(null);
-  };
+  setUser = (user: ReportingUser) => setUser(user);
+  clearUser = () => setUser(null);
 
   bucketCreated = (bucketId: bigint) => {
     this.message(`Bucket created: ${bucketId}`, 'info', {

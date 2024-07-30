@@ -83,8 +83,8 @@ export class AccountStore implements Account {
     /**
      * Report an error if the blockchain is not ready after 30s
      */
-    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch((originalException) => {
-      Reporting.error(`Blockchain is not ready after 30s`, { originalException });
+    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch(() => {
+      Reporting.message(`Blockchain is not ready after 30s`, 'warning');
     });
   }
 
