@@ -6,7 +6,6 @@ import { App } from './App';
 import { Onboarding } from './Onboarding';
 import { Home } from './Home';
 import { Login } from './Login';
-import { IntroNavigation } from './IntroNavigation';
 import { OnboardingRoot } from './OnboardingRoot';
 import { TopUp } from './TopUp';
 
@@ -54,10 +53,6 @@ const router = createBrowserRouter([
           {
             path: 'onboarding',
             element: <Onboarding />,
-          },
-          {
-            path: 'intro',
-            element: <IntroNavigation />,
           },
         ],
       },

@@ -19,7 +19,7 @@ const Onboarding = () => {
       store
         .startOnboarding()
         .then(() => new Promise((resolve) => setTimeout(resolve, 5000)))
-        .then(() => navigate('/login/intro'));
+        .then(() => navigate('/'));
     }
 
     return () => store.reset();
