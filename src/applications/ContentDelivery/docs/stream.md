@@ -14,32 +14,22 @@ This method allows you to stream video content directly from DDC without any acc
 ## Upload Video to DDC
 Before streaming, you need to upload your video content to DDC. This process involves creating a configuration file and using the DDC CLI tool.
 
-1. Create a DDC bucket:If you haven't already, complete the onboarding process in the Cere Developer Console and create a bucket. Buckets are containers for your content in DDC.
+1. __Create a DDC bucket__: If you haven't already, complete the onboarding process in the Cere Developer Console and create a bucket. Buckets are containers for your content in DDC.
 2. Prepare `ddc.config.json`: This configuration file is crucial for interacting with DDC. It contains your credentials and specifies which network and bucket you're using.
 
-For Testnet:
 ```json
 {
-  "signer": "YOUR MNEMONIC HERE OR path to wallet key",
-  "clusterId": "0x825c4b2352850de9986d9d28568db6f0c023a1e3",
-  "bucketId": "Your bucket ID",
-  "blockchainRpc": "wss://archive.testnet.cere.network/ws",
-  "logLevel": "info"
-}
-```
-For Mainnet:
-```json
-{
-  "signer": "YOUR MNEMONIC HERE OR path to wallet key",
+  "signer": "./your-wallet-address.json",
   "clusterId": "0x0059f5ada35eee46802d80750d5ca4a490640511",
-  "bucketId": "Your bucket ID",
-  "blockchainRpc": "wss://rpc.mainnet.cere.network/ws",
+  "bucketId": "your-bucket-id",
+  "network": "mainnet",
   "logLevel": "info"
 }
 ```
-Note: Replace "YOUR MNEMONIC HERE OR path to wallet key" with your actual mnemonic or the path to your wallet key file, which you can export from the Cere Wallet within the Developer Console. The `bucketId` should be the ID of the bucket you created in Cluster Management.
+> Replace `signer` with the path to your wallet key file, which you can export from the [Cere wallet](https://wallet.cere.io). The `bucketId` should be the ID of the bucket you created in Developer Console.
 
 3. Upload your video:Use the DDC CLI tool to upload your video file. Open a terminal, navigate to the directory containing your ddc.config.json file and your video, then run:
+
 ```bash
 npx @cere-ddc-sdk/cli@latest --config=ddc.config.json upload "your-video-file.mp4"
 ```
@@ -55,7 +45,6 @@ Save this information, as you'll need it to construct your streaming URL.
 ## Construct Streaming URL
 With your video uploaded, you can now construct the URL for streaming. The URL structure differs slightly between testnet and mainnet:
 
-__Testnet:__ `https://cdn.testnet.cere.network/<YOUR_BUCKET_ID>/<YOUR_CID>`
 __Mainnet:__ `https://cdn.dragon.cere.network/<YOUR_BUCKET_ID>/<YOUR_CID>`
 
 Replace
@@ -71,28 +60,24 @@ with the CID you received after uploading.
 
 For example, if your bucket ID is "101061n" and your CID is `"baebb4ibg7dutnehizvyhx2pv65eozejvduc277gf5fhuykdwlgxwza32sq"`, your streaming URL would be:
 
-Testnet:
-
-`https://cdn.testnet.cere.network/101061n/baebb4ibg7dutnehizvyhx2pv65eozejvduc277gf5fhuykdwlgxwza32sq`
-
-Mainnet:
-
-`https://cdn.dragon.cere.network/101061n/baebb4ibg7dutnehizvyhx2pv65eozejvduc277gf5fhuykdwlgxwza32sq`
+```
+https://cdn.dragon.cere.network/101061n/baebb4ibg7dutnehizvyhx2pv65eozejvduc277gf5fhuykdwlgxwza32sq
+```
 
 
 ## Implement Streaming
 
 Now that you have your streaming URL, you can implement video playback using one of three methods:
 1. Direct Browser Streaming: The simplest method - just enter the streaming URL in a web browser. This is useful for quick testing or if you're embedding the video in an iframe.
-2. HTML5 Video Tag:For more control over playback within a web page, use the HTML5 <video> tag:
-```js
-<!-- For Testnet --> <video src="<https://cdn.testnet.cere.network/><YOUR_BUCKET_ID>/<YOUR_CID>" controls></video>
+2. HTML5 Video Tag:For more control over playback within a web page, use the HTML5 `<video>` tag:
 
-<!-- For Mainnet --> <video src="<https://cdn.dragon.cere.network/><YOUR_BUCKET_ID>/<YOUR_CID>" controls></video>
+```js
+<video src="<https://cdn.dragon.cere.network/><YOUR_BUCKET_ID>/<YOUR_CID>" controls></video>
 ```
+
 The controls attribute adds default video controls (play, pause, volume, etc.). You can further customize the video player with additional attributes or JavaScript.
 
-3. Media SDK:For the most flexibility and features, especially within a React application, use the Cere Media SDK:
+3. Media SDK: For the most flexibility and features, especially within a React application, use the Cere Media SDK:
    - Install the SDK: `npm install @cere/media-sdk-client @cere/media-sdk-react --save`
    - Implement in React:
 
@@ -100,14 +85,9 @@ The controls attribute adds default video controls (play, pause, volume, etc.). 
 import { VideoPlayer } from '@cere/media-sdk-react'; import React from 'react';
 
 export const VideoComponent = () => {
-  const videoUrl = "<https://cdn.testnet.cere.network/><YOUR_BUCKET_ID>/<YOUR_CID>";
+  const videoUrl = "<https://cdn.dragon.cere.network/<YOUR_BUCKET_ID>/<YOUR_CID>";
 
-  return (
-    <div>
-      <h2>My DDC Video</h2> <VideoPlayer src={videoUrl} />
-      <VideoPlayer src={videoUrl} />
-    </div>
-  );
+  return <VideoPlayer src={videoUrl} />;
 };
 ```
 The controls attribute adds default video controls (play, pause, volume, etc.). You can further customize the video player with additional attributes or JavaScript.
@@ -117,37 +97,38 @@ NFT-gated streaming allows you to restrict video access to NFT holders, enabling
 
 ## Mint NFT and Upload Content
 1. Access Freeport Creator Suite:Open the Freeport Creator Suite, which provides tools for minting NFTs and managing content.
-2. Select NFT Minter:In the Creator Suite, navigate to the NFT minter section.
-3. Prepare Metamask:Ensure you have the Metamask browser extension installed and configured. You'll need this to interact with the blockchain.
+2. Select NFT Minter: In the Creator Suite, navigate to the NFT minter section.
+3. Prepare Metamask: Ensure you have the Metamask browser extension installed and configured. You'll need this to interact with the blockchain.
 4. Mint Your NFT:
    - Go to: My Account → Mint NFT
    - First, create a Collection if you haven't already. This groups related NFTs.
    - Enter your NFT information, including name, description, and other metadata.
    - Attach your video file to the NFT. This associates the content with the token.
-5. Complete the Minting Process:Follow the prompts to finalize the NFT creation. This process will upload your content to DDC and create the corresponding NFT on the blockchain.
+5. Complete the Minting Process: Follow the prompts to finalize the NFT creation. This process will upload your content to DDC and create the corresponding NFT on the blockchain.
 
 ## Integrate Media SDK
 To implement NFT-gated streaming in your application:
 
 1. Install the Media SDK
 
-`npm install @cere/media-sdk-client @cere/media-sdk-react --save`
+`npm install @cere/media-sdk-client @cere/media-sdk-react @cere/embed-wallet --save`
 
 2. Set up the MediaSdkClientProvider
    Wrap your React application with the provider to enable SDK functionality:
 ```tsx
 import { MediaSdkClientProvider } from '@cere/media-sdk-react';
-import { ethers } from 'ethers';
+import { EmbedWallet } from '@cere/embed-wallet'; 
 
 const App = () => { 
-  // Create an ethers-compatible signer 
-  const provider = new ethers.providers.Web3Provider(window.ethereum);
-  const signer = provider.getSigner();
+  const cereWallet = new EmbedWallet();
 
-  const options = { tenant: "davinci", deployment: "production" };
+  /**
+   * Initialize and connect Cere Wallet using this documentation:
+   * https://www.npmjs.com/package/@cere/embed-wallet
+   */
 
   return (
-    <MediaSdkClientProvider signer={signer} options={options}>
+    <MediaSdkClientProvider signer={cereWallet.getSigner()}>
       {/* Your app components */} 
     </MediaSdkClientProvider> 
   );
@@ -158,21 +139,18 @@ Use the `EncryptedVideoPlayer` component to render your NFT-gated video:
 
 ```tsx
 import { EncryptedVideoPlayer } from '@cere/media-sdk-react';
-import React from 'react';
+
 export const NFTVideoComponent = () => { 
   const collectionId = '...'; // Your collection ID from Freeport Creator Suite
   const nftId = '...'; // Your NFT ID from Freeport Creator Suite
   const assetUrl = '...'; // Your asset URL from Freeport Creator Suite
 
   return (
-    <div>
-      <h2>Exclusive NFT Content</h2>
-      <EncryptedVideoPlayer
-        src={assetUrl}
-        collectionAddress={collectionId}
-        nftId={nftId}
-      />
-    </div> 
+    <EncryptedVideoPlayer
+      src={assetUrl}
+      collectionAddress={collectionId}
+      nftId={nftId}
+    />
   );
 };
 ```
