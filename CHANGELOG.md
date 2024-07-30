@@ -4,6 +4,12 @@
 
 -
 
+### v0.3.2
+
+- Added overlay for mobile with discord
+- Web3Signer not ready errors in Sentry
+- File upload quest
+
 ### v0.3.1
 
 - Added link to guide for token based access

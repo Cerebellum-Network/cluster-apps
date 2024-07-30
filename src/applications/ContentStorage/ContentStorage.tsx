@@ -2,19 +2,22 @@ import { AnalyticsId } from '@developer-console/analytics';
 import { reportError } from '@developer-console/reporting';
 import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs } from '~/hooks';
+import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
+import { Bucket } from '~/stores';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
 const ContentStorage = () => {
+  const questsStore = useQuestsStore();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
@@ -22,7 +25,8 @@ const ContentStorage = () => {
   const account = useAccount();
 
   const ddcClient = account.ddc;
-  const buckets = account.buckets;
+
+  const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
 
   const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
 
@@ -46,10 +50,20 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
     setIsBucketCreating(true);
-    await account.createBucket({ isPublic: true });
-    await account.refreshBuckets();
+    const createdBucketId = await account.createBucket({ isPublic: true });
+    const bucketInfo = await ddcClient.getBucket(createdBucketId);
+    if (bucketInfo) {
+      setBuckets((prevState) => {
+        return [
+          ...prevState,
+          { id: bucketInfo.bucketId, isPublic: bucketInfo.isPublic, isRemoved: bucketInfo.isRemoved, stats: undefined },
+        ];
+      });
+      await refetchBucket(createdBucketId);
+      setSelectedBucket(createdBucketId.toString());
+    }
     setIsBucketCreating(false);
-  }, [account, ddcClient]);
+  }, [account, ddcClient, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -88,6 +102,7 @@ const ContentStorage = () => {
       ]);
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
+
       return {
         cid: uri.cid,
         path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
@@ -121,6 +136,11 @@ const ContentStorage = () => {
           await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
           await new Promise((resolve) => setTimeout(resolve, 5000));
           await refetchBucket(BigInt(bucketId));
+
+          /**
+           * Mark the file upload quest as completed
+           */
+          questsStore.markCompleted('uploadFile');
           setUploadStatus('success');
 
           return;
@@ -164,6 +184,10 @@ const ContentStorage = () => {
 
         await refetchBucket(BigInt(bucketId));
 
+        /**
+         * Mark the file upload quest as completed
+         */
+        questsStore.markCompleted('uploadFile');
         setUploadStatus('success');
 
         return appDagNodeUri.cid;
@@ -173,7 +197,7 @@ const ContentStorage = () => {
         return null;
       }
     },
-    [ddcClient, refetchBucket, singleFileUpload],
+    [ddcClient, questsStore, refetchBucket, singleFileUpload],
   );
 
   const handleCloseStatus = () => {
@@ -231,6 +255,15 @@ const ContentStorage = () => {
     localStorage.setItem('firstBucketLocked', 'false');
   }, []);
 
+  const handleRowClick = useCallback(
+    (bucketId: string) => {
+      if (!(firstBucketLocked && buckets.length > 0)) {
+        setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
+      }
+    },
+    [buckets.length, firstBucketLocked],
+  );
+
   return (
     <>
       <Box
@@ -257,6 +290,8 @@ const ContentStorage = () => {
             isBucketCreating={isBucketCreating}
             firstBucketLocked={firstBucketLocked}
             onUnlockFirstBucket={handleFirstBucketUnlock}
+            onRowClick={handleRowClick}
+            selectedBucket={selectedBucket}
           />
         </Container>
       </Box>
@@ -273,6 +308,8 @@ const ContentStorage = () => {
             title="Quick start guide in Github"
             rightSection={
               <Button
+                variant="contained"
+                color="secondary"
                 className={AnalyticsId.repoCereDdcSdkJsBtn}
                 href={GITHUB_GUIDE_LINK}
                 startIcon={<GithubLogoIcon />}

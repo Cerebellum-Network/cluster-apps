@@ -67,24 +67,23 @@ export class AccountStore implements Account {
     reaction(
       () => this.userInfo,
       (userInfo) => {
-        Reporting.message(`User info: ${JSON.stringify(userInfo ? userInfo : undefined)}`, 'info', {
-          event: 'userInfo',
-          email: userInfo?.email || '',
-        });
-
-        if (userInfo?.isNewUser) {
-          Reporting.userSignedUp(this.address!);
+        if (!userInfo) {
+          return Reporting.clearUser();
         }
 
-        return userInfo ? Reporting.setUser({ id: this.address!, email: userInfo.email }) : Reporting.clearUser();
+        Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name });
+
+        if (userInfo.isNewUser) {
+          Reporting.userSignedUp(this.address!);
+        }
       },
     );
 
     /**
      * Report an error if the blockchain is not ready after 30s
      */
-    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch((originalException) => {
-      Reporting.error(`Blockchain is not ready after 30s`, { originalException });
+    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch(() => {
+      Reporting.message(`Blockchain is not ready after 30s`, 'warning');
     });
   }
 
@@ -92,7 +91,7 @@ export class AccountStore implements Account {
     this.bucketsResource = createBucketsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
 
-    await this.blockchain.isReady();
+    await Promise.all([this.blockchain.isReady(), this.signer.isReady()]);
 
     runInAction(() => {
       this.isBootstrapped = true;
@@ -180,9 +179,15 @@ export class AccountStore implements Account {
      */
     if (this.status === 'connected') {
       await this.disconnect();
+
+      /**
+       * Wait for the wallet to disconnect
+       * TODO: Figure out a better way to handle this on Cere Wallet side
+       */
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    await this.wallet.connect({
+    await this.signer.connect({
       email,
       permissions: WALLET_PERMISSIONS,
     });

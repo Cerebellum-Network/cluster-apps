@@ -1,7 +1,7 @@
 import { makeAutoObservable, when } from 'mobx';
 import { fromPromise } from 'mobx-utils';
 import { FaucetApi } from '@developer-console/api';
-import { reportError } from '@developer-console/reporting';
+import Reporting from '@developer-console/reporting';
 
 import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '~/constants';
 import { AccountStore } from '../AccountStore';
@@ -52,14 +52,16 @@ export class OnboardingStore {
   }
 
   async shouldOnboard() {
-    await when(() => this.isDone !== undefined, { timeout: 30000 }).catch((originalException) => {
-      reportError('Onboarding status is not defained after 30s', { originalException });
+    await when(() => this.isDone !== undefined, { timeout: 30000 }).catch(() => {
+      Reporting.message('Onboarding status is not properly detected after 30s', 'warning');
     });
 
     return !this.isDone;
   }
 
   async startOnboarding() {
+    Reporting.message('User started onboarding', 'info', { event: 'onboardingStart' });
+
     this.reset();
 
     await this.addStep('wallet', () => when(() => this.accountStore.status === 'connected'));
@@ -73,6 +75,8 @@ export class OnboardingStore {
 
     await this.addStep('deposit', () => this.accountStore.topUp(ONBOARDIN_DEPOSIT_AMOUNT));
     await this.addStep('bucket', () => this.accountStore.createBucket({ isPublic: ONBOARDIN_PUBLIC_BUCKET }));
+
+    Reporting.message('User finished onboarding', 'info', { event: 'onboardingFinish' });
   }
 
   reset() {

@@ -15,7 +15,7 @@
    - You'll see your EVM and Cere wallets, along with your $CERE token balance.
 3) Download Wallet Backup: 
    - Go to Settings in your [Cere wallet](https://wallet.cere.io).
-   - Click "Download" to save your wallet backup JSON file.
+   - Export your Cere account as an Encrypted JSON file.
    - This file is crucial for accessing your bucket, so keep it secure.
 
 ## Configuring Your Environment
@@ -26,14 +26,14 @@
     ```json
     {
       "path": "./your-wallet-address.json",
-      "clusterId": "0x7cfe5ddfafd1f0faba7a1194c12e6a0f3d0d6ce9",
+      "clusterId": "0x0059f5ada35eee46802d80750d5ca4a490640511",
       "bucketId": "your-bucket-id",
-      "blockchainRpc": "<https://node-partner-test.cere.network/ws>",
+      "network": "mainnet",
       "logLevel": "info"
     }
     ```
    - The path should point to your wallet backup file.
-   - Find your bucketId in the developer console.
+   - Find your `bucketId` in the developer console.
 
 
 ## Uploading Content to DDC
@@ -56,7 +56,7 @@ You have two options for uploading content:
    - Run the following command:
 
 ```bash
-npx @cere-ddc-sdk/cli@latest --config=ddcc.config.js upload "your-file-name"
+npx @cere-ddc-sdk/cli@latest --config=dcc.config.js upload "your-file-name"
 ```
 3) Verify Upload:
    - After successful upload, you'll receive metadata including:
@@ -70,6 +70,6 @@ npx @cere-ddc-sdk/cli@latest --config=ddcc.config.js upload "your-file-name"
 ## Accessing Your Uploaded Content
 
 To access your uploaded content, construct the URL using the following format:
-- `Testnet: https://cdn.testnet.cere.network/<YOUR_BUCKET_ID>/<YOUR_CID>`
+- `Mainnet: https://cdn.dragon.cere.network/<YOUR_BUCKET_ID>/<YOUR_CID>`
 
 Replace `<YOUR_BUCKET_ID>` and `<YOUR_CID>` with the values provided after upload.
