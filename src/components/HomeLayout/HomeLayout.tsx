@@ -40,6 +40,8 @@ const HomeLayout = ({ children, rightElement, leftElement }: HomeLayoutProps) =>
     headerRight={
       <Stack direction="row" spacing={2}>
         <Button
+          variant="outlined"
+          color="secondary"
           href={DISCORD_LINK}
           startIcon={<DiscordIcon />}
           className={AnalyticsId.joinDiscordBtn}
