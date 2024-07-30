@@ -25,7 +25,7 @@ const Layout = (props: LayoutProps) => {
 
       showConfetti(true);
       showMessage({
-        message: 'Congratulations! You just earned 50 points.',
+        message: 'Congrats! You just earned 50 CERE tokens',
         appearance: 'success',
         autoDismiss: true,
       });
