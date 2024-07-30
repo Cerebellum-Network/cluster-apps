@@ -16,8 +16,7 @@ export const Provider = ({ children, options }: ProviderProps) => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      {isMobile && <MobileOverlay />}
-      <MessagesProvider>{children}</MessagesProvider>
+      {isMobile ? <MobileOverlay /> : <MessagesProvider>{children}</MessagesProvider>}
     </ThemeProvider>
   );
 };
