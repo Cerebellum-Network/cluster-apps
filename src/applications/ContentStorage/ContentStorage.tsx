@@ -249,11 +249,12 @@ const ContentStorage = () => {
   const handleFirstBucketUnlock = useCallback(async () => {
     setIsBucketCreating(true);
     await new Promise((resolve) => setTimeout(resolve, 3000));
+    setSelectedBucket(buckets[0].id.toString());
 
     setIsBucketCreating(false);
     setFirstBucketLocked(false);
     localStorage.setItem('firstBucketLocked', 'false');
-  }, []);
+  }, [buckets]);
 
   const handleRowClick = useCallback(
     (bucketId: string) => {

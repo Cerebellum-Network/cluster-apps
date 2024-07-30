@@ -4,6 +4,10 @@
 
 -
 
+### v0.3.4
+
+- Fixed opening fist created bucket
+
 ### v0.3.3
 
 - Fixed congratulations message text
