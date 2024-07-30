@@ -17,6 +17,8 @@ export {
   Close as CloseIcon,
   GppMaybeOutlined as WarningIcon,
   CheckOutlined as CheckIcon,
+  EmojiEventsOutlined as RewardIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 
 // Custom icons

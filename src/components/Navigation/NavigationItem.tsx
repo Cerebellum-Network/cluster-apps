@@ -13,6 +13,7 @@ export type NavigationItemProps = {
   rootPath: string;
   description: string;
   icon: ReactNode;
+  widget?: ReactNode;
 };
 
 const NavButton = (props: ButtonProps & LinkProps) => <Button component={Link} {...props} />;
@@ -38,18 +39,22 @@ const Item = styled(NavButton, {
   },
 }));
 
-const NavigationItem = ({ rootPath, title, description, icon }: NavigationItemProps) => {
+const NavigationItem = ({ rootPath, title, description, icon, widget }: NavigationItemProps) => {
   const active = !!useMatch(rootPath);
 
   return (
     <Item disableRipple active={active} variant="text" color="inherit" to={rootPath}>
-      <Stack direction="row" spacing={2}>
-        {icon}
+      <Stack spacing={2}>
+        <Stack direction="row" spacing={2}>
+          {icon}
 
-        <Stack flex={1}>
-          <Typography variant="subtitle1">{title}</Typography>
-          <Typography variant="body2">{description}</Typography>
+          <Stack flex={1}>
+            <Typography variant="subtitle1">{title}</Typography>
+            <Typography variant="body2">{description}</Typography>
+          </Stack>
         </Stack>
+
+        {widget}
       </Stack>
     </Item>
   );
