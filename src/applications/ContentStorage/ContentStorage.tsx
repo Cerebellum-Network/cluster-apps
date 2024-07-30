@@ -2,7 +2,7 @@ import { AnalyticsId } from '@developer-console/analytics';
 import { reportError } from '@developer-console/reporting';
 import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs } from '~/hooks';
+import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
@@ -14,6 +14,7 @@ const Container = styled(Box)(({ theme }) => ({
 }));
 
 const ContentStorage = () => {
+  const questsStore = useQuestsStore();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
@@ -88,6 +89,7 @@ const ContentStorage = () => {
       ]);
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
+
       return {
         cid: uri.cid,
         path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
@@ -121,6 +123,11 @@ const ContentStorage = () => {
           await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
           await new Promise((resolve) => setTimeout(resolve, 5000));
           await refetchBucket(BigInt(bucketId));
+
+          /**
+           * Mark the file upload quest as completed
+           */
+          questsStore.markCompleted('uploadFile');
           setUploadStatus('success');
 
           return;
@@ -164,6 +171,10 @@ const ContentStorage = () => {
 
         await refetchBucket(BigInt(bucketId));
 
+        /**
+         * Mark the file upload quest as completed
+         */
+        questsStore.markCompleted('uploadFile');
         setUploadStatus('success');
 
         return appDagNodeUri.cid;
@@ -173,7 +184,7 @@ const ContentStorage = () => {
         return null;
       }
     },
-    [ddcClient, refetchBucket, singleFileUpload],
+    [ddcClient, questsStore, refetchBucket, singleFileUpload],
   );
 
   const handleCloseStatus = () => {
