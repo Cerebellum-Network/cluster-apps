@@ -67,16 +67,15 @@ export class AccountStore implements Account {
     reaction(
       () => this.userInfo,
       (userInfo) => {
-        Reporting.message(`User info: ${JSON.stringify(userInfo ? userInfo : undefined)}`, 'info', {
-          event: 'userInfo',
-          email: userInfo?.email || '',
-        });
-
-        if (userInfo?.isNewUser) {
-          Reporting.userSignedUp(this.address!);
+        if (!userInfo) {
+          return Reporting.clearUser();
         }
 
-        return userInfo ? Reporting.setUser({ id: this.address!, email: userInfo.email }) : Reporting.clearUser();
+        Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name });
+
+        if (userInfo.isNewUser) {
+          Reporting.userSignedUp(this.address!);
+        }
       },
     );
 
