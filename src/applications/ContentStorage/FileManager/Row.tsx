@@ -7,6 +7,7 @@ import { bytesToSize } from './helpers.ts';
 import { DDC_STORAGE_NODE_URL } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
+import { RefObject } from 'react';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -57,6 +58,7 @@ export const Row = ({
   onCloseUpload,
   onFileDownload,
   firstBucketLocked,
+  secondStepRef,
 }: {
   row: RowData;
   onUpload: (values: {
@@ -73,6 +75,7 @@ export const Row = ({
   onCloseUpload: () => void;
   onFileDownload: (bucketId: string, source: string, name: string) => void;
   firstBucketLocked: boolean;
+  secondStepRef: RefObject<HTMLDivElement>;
 }) => {
   const { showMessage } = useMessages();
 
@@ -209,14 +212,16 @@ export const Row = ({
                         </IconButton>
                       </ButtonGroup>
                     ) : (
-                      <UploadButton
-                        bucketId={row.bucketId}
-                        cnsName={element.name}
-                        filePath={
-                          element.metadata!.type === 'folder' ? (element?.metadata?.fullPath as string) : element.name
-                        }
-                        onDrop={onUpload}
-                      />
+                      <div ref={secondStepRef} className="selector-for-first-element">
+                        <UploadButton
+                          bucketId={row.bucketId}
+                          cnsName={element.name}
+                          filePath={
+                            element.metadata!.type === 'folder' ? (element?.metadata?.fullPath as string) : element.name
+                          }
+                          onDrop={onUpload}
+                        />
+                      </div>
                     )}
                   </Box>
                 </div>

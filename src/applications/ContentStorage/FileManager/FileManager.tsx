@@ -5,6 +5,7 @@ import { AnalyticsId } from '@developer-console/analytics';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
+import { RefObject } from 'react';
 
 /**
  * This component resets default CSS styles.
@@ -43,6 +44,8 @@ export const FileManager = ({
   onUnlockFirstBucket,
   onRowClick,
   selectedBucket,
+  firstStepRef,
+  secondStepRef,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -64,6 +67,8 @@ export const FileManager = ({
   onUnlockFirstBucket: () => void;
   onRowClick: (bucketId: string) => void;
   selectedBucket: string | null;
+  firstStepRef: RefObject<HTMLButtonElement>;
+  secondStepRef: RefObject<HTMLDivElement>;
 }) => {
   const rows = transformData(data);
 
@@ -110,6 +115,7 @@ export const FileManager = ({
               onRowClick={() => onRowClick(row.bucketId)}
               onCloseUpload={handleCloseStatus}
               onFileDownload={onFileDownload}
+              secondStepRef={secondStepRef}
             />
           ))
         )}
@@ -139,6 +145,7 @@ export const FileManager = ({
             <Button
               onClick={onUnlockFirstBucket}
               disabled={isBucketCreating}
+              ref={firstStepRef}
               className={AnalyticsId.createFirstBucketBtn}
             >
               {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}

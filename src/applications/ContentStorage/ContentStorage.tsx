@@ -2,17 +2,34 @@ import { AnalyticsId } from '@developer-console/analytics';
 import { reportError } from '@developer-console/reporting';
 import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typography } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
-import { useCallback, useEffect, useState } from 'react';
+import { useAccount, useFetchDirs, useQuestsStore, useTour } from '~/hooks';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
+import Joyride, { Placement, Step } from 'react-joyride';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
+
+const createStep = (
+  target: HTMLElement | string,
+  title: string,
+  content: ReactNode,
+  placement: Placement = 'top',
+): Step => ({
+  target,
+  title,
+  content,
+  disableBeacon: true,
+  disableOverlayClose: false,
+  hideCloseButton: true,
+  hideFooter: true,
+  placement,
+});
 
 const ContentStorage = () => {
   const questsStore = useQuestsStore();
@@ -246,14 +263,34 @@ const ContentStorage = () => {
     URL.revokeObjectURL(url);
   };
 
+  const firstElementRef = useRef<HTMLButtonElement>(null);
+  const secondElementRef = useRef<HTMLDivElement>(null);
+
+  const { stepIndex, steps, handleJoyrideCallback, setRun, setSteps } = useTour({ steps: [] });
+
   const handleFirstBucketUnlock = useCallback(async () => {
+    setSelectedBucket(buckets?.[0].id.toString());
+
     setIsBucketCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    setSteps(
+      [
+        ...steps,
+        createStep(
+          '.selector-for-first-element',
+          'Ready to Upload?',
+          <Typography variant="caption" color="secondary">
+            Your bucket is ready. Add your first file to get your first 50 CERE tokens.
+          </Typography>,
+        ),
+      ],
+      stepIndex + 1,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     setIsBucketCreating(false);
     setFirstBucketLocked(false);
     localStorage.setItem('firstBucketLocked', 'false');
-  }, []);
+  }, [buckets, setSteps, stepIndex, steps]);
 
   const handleRowClick = useCallback(
     (bucketId: string) => {
@@ -263,6 +300,23 @@ const ContentStorage = () => {
     },
     [buckets.length, firstBucketLocked],
   );
+
+  useEffect(() => {
+    if (firstBucketLocked && !loading && firstElementRef.current) {
+      setSelectedBucket(buckets?.[0].id.toString());
+      setSteps([
+        createStep(
+          firstElementRef.current,
+          'Let’s get started!',
+          <Typography variant="caption" color="secondary">
+            Create your first bucket to store your data
+          </Typography>,
+          'left',
+        ),
+      ]);
+      setRun(true);
+    }
+  }, [firstElementRef, secondElementRef, buckets, firstBucketLocked, loading, setRun, setSteps]);
 
   return (
     <>
@@ -292,6 +346,8 @@ const ContentStorage = () => {
             onUnlockFirstBucket={handleFirstBucketUnlock}
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
+            firstStepRef={firstElementRef}
+            secondStepRef={secondElementRef}
           />
         </Container>
       </Box>
@@ -322,6 +378,14 @@ const ContentStorage = () => {
           />
         </DocsGroup>
       </Docs>
+      <Joyride
+        steps={steps}
+        run={firstBucketLocked && !loading}
+        continuous
+        stepIndex={stepIndex}
+        scrollToFirstStep
+        callback={handleJoyrideCallback}
+      />
     </>
   );
 };
