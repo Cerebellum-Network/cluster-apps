@@ -76,4 +76,5 @@ export * from './BucketAccess';
 export * from './ChartWidget';
 export * from './QRCode';
 export * from './RewardWidget';
+export * from './Hint';
 export * from './MobileOverlay';

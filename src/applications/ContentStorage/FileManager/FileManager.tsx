@@ -5,6 +5,7 @@ import { AnalyticsId } from '@developer-console/analytics';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
+import { QuestHint } from '~/components';
 
 /**
  * This component resets default CSS styles.
@@ -136,13 +137,20 @@ export const FileManager = ({
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
             </Button>
           ) : (
-            <Button
-              onClick={onUnlockFirstBucket}
-              disabled={isBucketCreating}
-              className={AnalyticsId.createFirstBucketBtn}
+            <QuestHint
+              quest="uploadFile"
+              step="createBucket"
+              title="Let’s get started!"
+              content="Create your first bucket to store your data"
             >
-              {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
-            </Button>
+              <Button
+                onClick={onUnlockFirstBucket}
+                disabled={isBucketCreating}
+                className={AnalyticsId.createFirstBucketBtn}
+              >
+                {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
+              </Button>
+            </QuestHint>
           )}
           <Typography marginTop={(theme) => theme.spacing(2.5)} variant="caption" fontSize="small">
             Buckets allow you to create discrete and decoupled storage bins for each of your applications
