@@ -76,7 +76,7 @@ export const OnboardingVideoSlider = () => {
         zIndex="1"
       >
         <Typography
-          variant="h4"
+          variant="h2"
           color="white"
           textAlign="center"
           dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }}
@@ -92,7 +92,7 @@ export const OnboardingVideoSlider = () => {
         left="40px"
         zIndex="1"
       >
-        <Typography textAlign="center" color="white">
+        <Typography textAlign="center" color="white" variant="subtitle1">
           {SLIDES[currentSlide].description}
         </Typography>
       </Stack>

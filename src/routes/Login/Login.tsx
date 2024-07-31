@@ -52,9 +52,9 @@ const Login = observer(() => {
         <Typography variant="h1" textAlign="center">
           Welcome to {DDC_CLUSTER_NAME}
         </Typography>
-        <Typography textAlign="center" sx={{ mt: 4, mb: 3 }}>
-          Unlock the power of the first Web3 Data Cloud for real-world applications. <br />
-          Get started for free in just a minutes, no credit card required.
+        <Typography textAlign="center" variant="h4" sx={{ mt: 4, mb: 3 }}>
+          Unlock the power of the first Web3 Data Cloud for real-world applications. Get started for free in just a
+          minutes, no credit card required.
         </Typography>
 
         <FormControl>
@@ -82,7 +82,7 @@ const Login = observer(() => {
           Get Started
         </LoadingButton>
 
-        <Terms textAlign="center" variant="body2">
+        <Terms textAlign="center" variant="caption">
           By using your Cere wallet you automatically agree to our
           <br />{' '}
           <a href={TERMS_AND_CONDITIONS_LINK} target="_blank" rel="noopener noreferrer">

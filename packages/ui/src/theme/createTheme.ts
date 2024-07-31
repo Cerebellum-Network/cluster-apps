@@ -53,16 +53,17 @@ export const createTheme = (_options: ThemeOptions = {}) =>
     },
 
     typography: {
+      fontFamily: 'HumanSans, sans-serif',
       fontWeightMedium: 500,
 
       h1: {
-        fontSize: '2rem', // 32px
+        fontSize: '3rem', // 48px
         lineHeight: '2.5rem', // 40px
         fontWeight: 700,
       },
 
       h2: {
-        fontSize: '1.75rem', // 28px
+        fontSize: '2.125rem', // 34px
         lineHeight: '2.25rem', // 36px
         fontWeight: 700,
       },
@@ -76,13 +77,13 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       h4: {
         fontSize: '1.25rem', // 20px,
         lineHeight: '1.625rem', // 26px,
-        fontWeight: 600,
+        fontWeight: 500,
       },
 
       subtitle1: {
-        fontSize: '1rem', // 16px,
+        fontSize: '0.938rem', // 16px,
         lineHeight: '1.5rem', // 24px,
-        fontWeight: 600,
+        fontWeight: 500,
       },
 
       subtitle2: {
@@ -102,6 +103,8 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       },
 
       caption: {
+        color: '#818083',
+        fontWeight: 400,
         fontSize: '0.75rem', // 12px,
         lineHeight: '1rem', // 16px,
       },
