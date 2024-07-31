@@ -1,4 +1,6 @@
 import { makeAutoObservable, reaction } from 'mobx';
+import Reporting from '@developer-console/reporting';
+
 import { AccountStore } from '../AccountStore';
 import { Quest } from './Quest';
 
@@ -66,6 +68,8 @@ export class QuestsStore {
 
     if (stepObj) {
       stepObj.isDone = true;
+
+      Reporting.message(`Quest step ${quest}:${step} is done`, 'info', { event: 'questStepDone' });
     }
   }
 
@@ -79,13 +83,15 @@ export class QuestsStore {
 
   markCompleted(quest: QuestName, isCompleted = true) {
     this.questsMap[quest].isCompleted = isCompleted;
-
     this.storeQuests();
+
+    if (isCompleted) {
+      Reporting.message(`Quest ${quest} is completed`, 'info', { event: 'questCompleted' });
+    }
   }
 
   markNotified(quest: QuestName, isNotified = true) {
     this.questsMap[quest].isNotified = isNotified;
-
     this.storeQuests();
   }
 }
