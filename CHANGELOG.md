@@ -4,6 +4,10 @@
 
 -
 
+### v0.4.0
+
+- Fixes and improvements
+
 ### v0.3.4
 
 - Fixed opening fist created bucket
