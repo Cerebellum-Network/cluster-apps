@@ -27,7 +27,7 @@ export class AccountStore implements Account {
 
   private bcReadyPromise = fromPromise(this.blockchain.isReady());
   private statusResource = createStatusResource(this);
-  private addressResource? = createAddressResource(this);
+  private addressResource = createAddressResource(this);
 
   private balanceResource?: IResource<number | undefined>;
   private depositResource?: IResource<number | undefined>;
@@ -106,7 +106,6 @@ export class AccountStore implements Account {
     this.balanceResource = undefined;
     this.depositResource = undefined;
     this.bucketsResource = undefined;
-    this.addressResource = undefined;
   }
 
   private getBucketStats(bucketId: bigint) {
@@ -150,7 +149,7 @@ export class AccountStore implements Account {
   }
 
   get address() {
-    return this.addressResource?.current();
+    return this.addressResource.current();
   }
 
   get balance() {
