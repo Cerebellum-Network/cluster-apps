@@ -49,6 +49,8 @@ const ContentStorage = () => {
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
+
+    questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
     const createdBucketId = await account.createBucket({ isPublic: true });
     const bucketInfo = await ddcClient.getBucket(createdBucketId);
@@ -63,7 +65,7 @@ const ContentStorage = () => {
       setSelectedBucket(createdBucketId.toString());
     }
     setIsBucketCreating(false);
-  }, [account, ddcClient, refetchBucket]);
+  }, [account, ddcClient, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -96,10 +98,7 @@ const ContentStorage = () => {
           : `${filePath ? filePath : ''}${acceptedFile.name}`,
       );
 
-      const dagNode = new DagNode(dagNodeData, [
-        ...existingDagNode.links.filter((link) => link.name !== acceptedFile.name),
-        fileLink,
-      ]);
+      const dagNode = new DagNode(dagNodeData, [...existingDagNode.links, fileLink]);
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
@@ -128,6 +127,7 @@ const ContentStorage = () => {
       filePath?: string;
     }) => {
       setUploadType(isFolder ? 'folder' : 'file');
+      questsStore.markStepDone('uploadFile', 'startUploading');
 
       if (!isFolder) {
         setUploadStatus('uploading');
@@ -247,6 +247,8 @@ const ContentStorage = () => {
   };
 
   const handleFirstBucketUnlock = useCallback(async () => {
+    questsStore.markStepDone('uploadFile', 'createBucket');
+
     setIsBucketCreating(true);
     await new Promise((resolve) => setTimeout(resolve, 3000));
     setSelectedBucket(buckets[0].id.toString());
@@ -254,7 +256,7 @@ const ContentStorage = () => {
     setIsBucketCreating(false);
     setFirstBucketLocked(false);
     localStorage.setItem('firstBucketLocked', 'false');
-  }, [buckets]);
+  }, [buckets, questsStore]);
 
   const handleRowClick = useCallback(
     (bucketId: string) => {

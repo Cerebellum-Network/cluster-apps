@@ -9,17 +9,8 @@ export class ClusterManagementApi {
     baseURL: this.baseUrl,
   });
 
-  async sendEmail(subject: string, body: string, to: string) {
-    const response = await this.api.post('send-email', {
-      subject,
-      body,
-      to,
-    });
-    return parseResponse(response.data);
-  }
-
-  async addContact(email: string) {
-    const response = await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-contact`, { email });
+  async addContactToBrevo(email: string) {
+    const response = await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-brevo-contact`, { email });
     return parseResponse(response.data);
   }
 }
