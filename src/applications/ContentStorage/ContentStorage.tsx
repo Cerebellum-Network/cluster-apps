@@ -49,6 +49,8 @@ const ContentStorage = () => {
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
+
+    questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
     const createdBucketId = await account.createBucket({ isPublic: true });
     const bucketInfo = await ddcClient.getBucket(createdBucketId);
@@ -63,7 +65,7 @@ const ContentStorage = () => {
       setSelectedBucket(createdBucketId.toString());
     }
     setIsBucketCreating(false);
-  }, [account, ddcClient, refetchBucket]);
+  }, [account, ddcClient, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -128,6 +130,7 @@ const ContentStorage = () => {
       filePath?: string;
     }) => {
       setUploadType(isFolder ? 'folder' : 'file');
+      questsStore.markStepDone('uploadFile', 'startUploading');
 
       if (!isFolder) {
         setUploadStatus('uploading');

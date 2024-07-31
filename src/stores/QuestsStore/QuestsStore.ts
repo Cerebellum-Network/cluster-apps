@@ -1,20 +1,13 @@
 import { makeAutoObservable, reaction } from 'mobx';
 import { AccountStore } from '../AccountStore';
+import { Quest } from './Quest';
 
-type QuestName = 'uploadFile';
-type Quest = {
-  name: QuestName;
-  isCompleted: boolean;
-  isNotified: boolean;
-};
+export type QuestName = 'uploadFile';
+export type QuestStep = 'createBucket' | 'startUploading';
 
 export class QuestsStore {
-  private questsMap: Record<QuestName, Quest> = {
-    uploadFile: {
-      isCompleted: false,
-      isNotified: false,
-      name: 'uploadFile',
-    },
+  private questsMap = {
+    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading']),
   };
 
   constructor(private accountStore: AccountStore) {
@@ -23,18 +16,21 @@ export class QuestsStore {
     reaction(
       () => accountStore.address,
       (address) => {
-        if (address) {
-          const storedQuests = localStorage.getItem(`dc:quests:${accountStore.address}`);
+        if (!address) {
+          return;
+        }
 
-          this.questsMap = storedQuests
-            ? JSON.parse(storedQuests)
-            : {
-                uploadFile: {
-                  isCompleted: false,
-                  isNotified: false,
-                  name: 'uploadFile',
-                },
-              };
+        let parsedQuests: any = {};
+        const storedQuests = localStorage.getItem(`dc:quests:${accountStore.address}`);
+
+        try {
+          parsedQuests = storedQuests ? JSON.parse(storedQuests) : {};
+        } catch (e) {
+          localStorage.removeItem(`dc:quests:${address}`);
+        }
+
+        if (parsedQuests.uploadFile) {
+          this.questsMap.uploadFile.fromJson(parsedQuests.uploadFile);
         }
       },
     );
@@ -49,7 +45,28 @@ export class QuestsStore {
       return;
     }
 
-    localStorage.setItem(`dc:quests:${this.accountStore.address}`, JSON.stringify(this.questsMap));
+    localStorage.setItem(
+      `dc:quests:${this.accountStore.address}`,
+      JSON.stringify({
+        uploadFile: this.questsMap.uploadFile.toJson(),
+      }),
+    );
+  }
+
+  isStepDone(quest: QuestName, step: QuestStep) {
+    if (this.questsMap[quest].isCompleted) {
+      return true;
+    }
+
+    return this.questsMap[quest].steps.some(({ name, isDone }) => name === step && isDone);
+  }
+
+  markStepDone(quest: QuestName, step: QuestStep) {
+    const stepObj = this.questsMap[quest].steps.find(({ name }) => name === step);
+
+    if (stepObj) {
+      stepObj.isDone = true;
+    }
   }
 
   isCompleted(quest: QuestName) {

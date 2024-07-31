@@ -128,29 +128,30 @@ export const FileManager = ({
             </Box>
           )}
           {userHasBuckets && !firstBucketLocked ? (
+            <Button
+              startIcon={<AddCircleOutlinedIcon />}
+              className={AnalyticsId.createBucketBtn}
+              onClick={onCreateBucket}
+              disabled={isLoading}
+            >
+              {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
+            </Button>
+          ) : (
             <QuestHint
-              // skip={isLoading}
-              skip
+              skip={isLoading}
+              quest="uploadFile"
+              step="createBucket"
               title="Let’s get started!"
               content="Create your first bucket to store your data"
             >
               <Button
-                startIcon={<AddCircleOutlinedIcon />}
-                className={AnalyticsId.createBucketBtn}
-                onClick={onCreateBucket}
-                disabled={isLoading}
+                onClick={onUnlockFirstBucket}
+                disabled={isBucketCreating}
+                className={AnalyticsId.createFirstBucketBtn}
               >
-                {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
+                {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
               </Button>
             </QuestHint>
-          ) : (
-            <Button
-              onClick={onUnlockFirstBucket}
-              disabled={isBucketCreating}
-              className={AnalyticsId.createFirstBucketBtn}
-            >
-              {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
-            </Button>
           )}
           <Typography marginTop={(theme) => theme.spacing(2.5)} variant="caption" fontSize="small">
             Buckets allow you to create discrete and decoupled storage bins for each of your applications
