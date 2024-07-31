@@ -27,7 +27,7 @@ export class AccountStore implements Account {
 
   private bcReadyPromise = fromPromise(this.blockchain.isReady());
   private statusResource = createStatusResource(this);
-  private addressResource?: IResource<string | undefined> = createAddressResource(this);
+  private addressResource? = createAddressResource(this);
 
   private balanceResource?: IResource<number | undefined>;
   private depositResource?: IResource<number | undefined>;
@@ -202,8 +202,6 @@ export class AccountStore implements Account {
 
   async disconnect() {
     await this.wallet.disconnect();
-
-    console.log('ADDR', this.address);
   }
 
   async signMessage(message: string) {
