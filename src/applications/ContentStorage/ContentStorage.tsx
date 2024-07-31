@@ -250,6 +250,8 @@ const ContentStorage = () => {
   };
 
   const handleFirstBucketUnlock = useCallback(async () => {
+    questsStore.markStepDone('uploadFile', 'createBucket');
+
     setIsBucketCreating(true);
     await new Promise((resolve) => setTimeout(resolve, 3000));
     setSelectedBucket(buckets[0].id.toString());
@@ -257,7 +259,7 @@ const ContentStorage = () => {
     setIsBucketCreating(false);
     setFirstBucketLocked(false);
     localStorage.setItem('firstBucketLocked', 'false');
-  }, [buckets]);
+  }, [buckets, questsStore]);
 
   const handleRowClick = useCallback(
     (bucketId: string) => {

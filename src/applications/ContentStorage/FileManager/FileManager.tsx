@@ -138,7 +138,6 @@ export const FileManager = ({
             </Button>
           ) : (
             <QuestHint
-              skip={isLoading}
               quest="uploadFile"
               step="createBucket"
               title="Let’s get started!"
