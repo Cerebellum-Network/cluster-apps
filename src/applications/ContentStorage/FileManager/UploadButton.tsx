@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
-import { Dropdown, UploadFileIcon, UploadFolderIcon } from '@developer-console/ui';
+import { Dropdown, UploadFileIcon, UploadFolderIcon, DropdownAnchor } from '@developer-console/ui';
 import { AnalyticsId, trackEvent } from '@developer-console/analytics';
+
+import { QuestHint } from '~/components';
 
 interface UploadComponentProps {
   onDrop: (values: {
@@ -46,7 +48,19 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
   };
 
   return (
-    <Dropdown open={openDropdown} onToggle={setOpen} label="Upload">
+    <Dropdown
+      open={openDropdown}
+      onToggle={setOpen}
+      renderAnchor={(props) => (
+        <QuestHint
+          position="left"
+          title="Ready to Upload?"
+          content="Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens"
+        >
+          <DropdownAnchor label="Upload" {...props} />
+        </QuestHint>
+      )}
+    >
       <MenuList>
         <MenuItem
           onClick={(event) => {

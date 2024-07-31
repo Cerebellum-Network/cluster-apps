@@ -38,8 +38,8 @@ const Center = styled(Typography)(({ theme }) => ({
 }));
 
 export const DropdownAnchor = forwardRef(
-  ({ open, label, leftElement, onOpen }: DropdownAnchorProps, ref: Ref<HTMLButtonElement>) => (
-    <Clickable ref={ref} color="inherit" variant="text" onClick={onOpen}>
+  ({ open, label, leftElement, onOpen, ...props }: DropdownAnchorProps, ref: Ref<HTMLButtonElement>) => (
+    <Clickable ref={ref} {...props} color="inherit" variant="text" onClick={onOpen}>
       <Anchor spacing={1} direction="row" alignItems="center">
         <Left>{leftElement}</Left>
         <Center variant="body1">{label}</Center>

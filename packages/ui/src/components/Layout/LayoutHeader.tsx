@@ -27,6 +27,7 @@ const Header = styled(Paper, {
   borderWidth: 1,
   borderStyle: 'solid',
   borderColor: theme.palette.divider,
+  zIndex: theme.zIndex.appBar,
 
   ...(fullPage && {
     borderRadius: 0,

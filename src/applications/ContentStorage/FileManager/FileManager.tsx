@@ -5,6 +5,7 @@ import { AnalyticsId } from '@developer-console/analytics';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
+import { QuestHint } from '~/components';
 
 /**
  * This component resets default CSS styles.
@@ -127,14 +128,21 @@ export const FileManager = ({
             </Box>
           )}
           {userHasBuckets && !firstBucketLocked ? (
-            <Button
-              startIcon={<AddCircleOutlinedIcon />}
-              className={AnalyticsId.createBucketBtn}
-              onClick={onCreateBucket}
-              disabled={isLoading}
+            <QuestHint
+              // skip={isLoading}
+              skip
+              title="Let’s get started!"
+              content="Create your first bucket to store your data"
             >
-              {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
-            </Button>
+              <Button
+                startIcon={<AddCircleOutlinedIcon />}
+                className={AnalyticsId.createBucketBtn}
+                onClick={onCreateBucket}
+                disabled={isLoading}
+              >
+                {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
+              </Button>
+            </QuestHint>
           ) : (
             <Button
               onClick={onUnlockFirstBucket}
