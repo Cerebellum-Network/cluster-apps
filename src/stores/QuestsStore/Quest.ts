@@ -17,6 +17,15 @@ export class Quest<T = string> {
     this.steps = steps.map((name) => ({ name, isDone: false }));
   }
 
+  reset() {
+    this.isCompleted = false;
+    this.isNotified = false;
+
+    this.steps.forEach((step) => {
+      step.isDone = false;
+    });
+  }
+
   toJson() {
     return {
       name: this.name,

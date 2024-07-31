@@ -19,7 +19,7 @@ export class QuestsStore {
       () => accountStore.address,
       (address) => {
         if (!address) {
-          return;
+          return this.questsMap.uploadFile.reset();
         }
 
         let parsedQuests: any = {};
@@ -33,6 +33,8 @@ export class QuestsStore {
 
         if (parsedQuests.uploadFile) {
           this.questsMap.uploadFile.fromJson(parsedQuests.uploadFile);
+        } else {
+          this.questsMap.uploadFile.reset();
         }
       },
     );
