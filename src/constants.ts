@@ -14,6 +14,7 @@ const ddcPresets = {
 export const APP_ID = import.meta.env.VITE_APP_ID || 'developer-console';
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Developer Console';
 export const APP_ENV = import.meta.env.VITE_APP_ENV || 'dev';
+export const APP_EMAIL = import.meta.env.VITE_APP_EMAIL || 'team@cere.network';
 export const APP_VERSION = npmPackage.version;
 
 /**
