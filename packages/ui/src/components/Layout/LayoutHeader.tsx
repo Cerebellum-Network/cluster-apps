@@ -32,6 +32,13 @@ const Header = styled(Paper, {
   ...(fullPage && {
     borderRadius: 0,
   }),
+  [theme.breakpoints.down('sm')]: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    justifyContent: 'space-between',
+  },
 }));
 
 const HeaderContent = styled(Stack)({
@@ -47,11 +54,18 @@ const HeaderLeft = styled(Box)(({ theme }) => ({
   top: 0,
   bottom: 0,
   left: theme.spacing(4),
+  [theme.breakpoints.down('sm')]: {
+    left: theme.spacing(2),
+  },
 }));
 
 const HeaderRight = styled(HeaderLeft)(({ theme }) => ({
   left: 'auto',
   right: theme.spacing(4),
+  [theme.breakpoints.down('sm')]: {
+    right: theme.spacing(2),
+    left: 'auto',
+  },
 }));
 
 export const LayoutHeader = ({

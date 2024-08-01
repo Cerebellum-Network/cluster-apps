@@ -8,12 +8,17 @@ export const OnboardingContainer = styled(Stack)({
   alignItems: 'center',
 });
 
-export const OnboardingContent = styled(Stack)({
+export const OnboardingContent = styled(Stack)(({ theme }) => ({
   maxWidth: '1560px',
   flexDirection: 'row',
   height: '100%',
   width: '100%',
-});
+  gap: theme.spacing(5),
+  [theme.breakpoints.down('sm')]: {
+    flexDirection: 'column',
+    gap: theme.spacing(1),
+  },
+}));
 
 export const RightColumn = styled(Stack)({
   flex: 1,
@@ -24,14 +29,17 @@ export const RightColumn = styled(Stack)({
   borderRadius: '20px',
 });
 
-export const LeftColumn = styled(Stack)({
+export const LeftColumn = styled(Stack)(({ theme }) => ({
   width: '100%',
   height: '100%',
   boxSizing: 'border-box',
-  padding: '48px 40px',
+  padding: theme.spacing(6, 5),
   borderRadius: '20px',
   background: '#fff',
   border: '1px solid #E6E6E6',
   alignItems: 'center',
   justifyContent: 'center',
-});
+  [theme.breakpoints.down('sm')]: {
+    padding: theme.spacing(2),
+  },
+}));
