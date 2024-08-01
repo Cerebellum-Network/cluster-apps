@@ -1,8 +1,6 @@
 import { observer } from 'mobx-react-lite';
 import { PropsWithChildren, ReactNode } from 'react';
-import { Paper, Stack, styled } from '@developer-console/ui';
-import { Button, DiscordIcon, MobileOverlay, Paper, Stack, styled } from '@developer-console/ui';
-import { AnalyticsId } from '@developer-console/analytics';
+import { Paper, Stack, styled, MobileOverlay } from '@developer-console/ui';
 
 import { Layout } from '../Layout';
 import { AccountDropdown } from '../AccountDropdown';
