@@ -4,6 +4,10 @@
 
 -
 
+### v0.4.1
+
+- Fix mobile overlay
+
 ### v0.4.0
 
 - Fixes and improvements
