@@ -59,7 +59,7 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
           title="Ready to Upload?"
           content="Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens"
         >
-          <DropdownAnchor withArrow label="Upload" {...props} />
+          <DropdownAnchor label="Upload" {...props} />
         </QuestHint>
       )}
     >
