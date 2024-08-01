@@ -10,6 +10,22 @@ import { Terms } from './Login.styled';
 import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore, useEmailCampaignService } from '~/hooks';
+import { styled } from '@mui/material';
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  borderRadius: '12px',
+  width: '100%',
+  marginBottom: theme.spacing(2),
+}));
+
+const StyledStack = styled(Stack)(() => ({
+  justifyContent: 'center',
+  alignItems: 'center',
+  flex: 1,
+  width: '100%',
+  maxWidth: 600,
+  margin: 'auto',
+}));
 
 const validationSchema = yup
   .object({
@@ -48,7 +64,7 @@ const Login = observer(() => {
 
   return (
     <OnboardingLayout>
-      <Stack component="form" justifyContent="center" alignItems="center" flex="1" width={600} onSubmit={onSubmit}>
+      <StyledStack justifyContent="center" alignItems="center" flex="1" onSubmit={onSubmit}>
         <Typography variant="h1" textAlign="center">
           Welcome to {DDC_CLUSTER_NAME}
         </Typography>
@@ -57,17 +73,14 @@ const Login = observer(() => {
           Get started for free in just a minutes, no credit card required.
         </Typography>
 
-        <FormControl>
-          <TextField
+        <FormControl fullWidth>
+          <StyledTextField
             {...register('email')}
-            fullWidth
             type="email"
             label="Account Email"
             placeholder="Enter your email"
             variant="outlined"
             error={!!errors?.['email']?.message}
-            sx={{ width: 600, mb: 3 }}
-            InputProps={{ style: { borderRadius: 12 } }}
           />
         </FormControl>
         <LoadingButton
@@ -93,7 +106,7 @@ const Login = observer(() => {
             Privacy Policy
           </a>
         </Terms>
-      </Stack>
+      </StyledStack>
     </OnboardingLayout>
   );
 });
