@@ -277,7 +277,7 @@ const ContentStorage = () => {
         marginBottom="20px"
       >
         <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
-          <Typography>Content Storage</Typography>
+          <Typography variant="h3">Content Storage</Typography>
         </Box>
         <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
           <FileManager

@@ -1,15 +1,14 @@
 import { observer } from 'mobx-react-lite';
 import { PropsWithChildren, ReactNode } from 'react';
-import { Button, DiscordIcon, Paper, Stack, styled } from '@developer-console/ui';
-import { AnalyticsId } from '@developer-console/analytics';
+import { Paper, Stack, styled } from '@developer-console/ui';
 
 import { Layout } from '../Layout';
-import { DISCORD_LINK } from '~/constants.ts';
 import { AccountDropdown } from '../AccountDropdown';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
   leftElement?: ReactNode;
+  buttonElement?: ReactNode;
 }>;
 
 const Content = styled(Paper)(({ theme }) => ({
@@ -33,23 +32,13 @@ const Right = styled(Stack)(() => ({
   width: 200,
 }));
 
-const HomeLayout = ({ children, rightElement, leftElement }: HomeLayoutProps) => (
+const HomeLayout = ({ children, rightElement, leftElement, buttonElement }: HomeLayoutProps) => (
   <Layout
     disablePaddings
     fullPage
     headerRight={
       <Stack direction="row" spacing={2}>
-        <Button
-          variant="outlined"
-          color="secondary"
-          href={DISCORD_LINK}
-          startIcon={<DiscordIcon />}
-          className={AnalyticsId.joinDiscordBtn}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Discord
-        </Button>
+        {buttonElement && buttonElement}
         <AccountDropdown />
       </Stack>
     }

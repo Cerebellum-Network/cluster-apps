@@ -81,7 +81,7 @@ export const Row = ({
   return (
     <>
       <StyledRow locked={firstBucketLocked} open={isOpen} onClick={onRowClick}>
-        <Typography variant="body2" flex={1}>
+        <Typography variant="subtitle1" flex={1}>
           {row.bucketId}
         </Typography>
         <Box display="flex" alignItems="center" flex={1} justifyContent="end">

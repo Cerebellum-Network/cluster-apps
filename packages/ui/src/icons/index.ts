@@ -40,3 +40,4 @@ export * from './BarTrackingIcon';
 export * from './DecentralizedServerIcon';
 export * from './GithubLogoIcon';
 export * from './ClockIcon';
+export * from './AvatarIcon';
