@@ -39,7 +39,7 @@ const Login = observer(() => {
     const shouldOnboard = await onboarding.shouldOnboard();
 
     if (shouldOnboard) {
-      emailCampaignService.addContact(data.email).catch(reportError);
+      emailCampaignService.addContactToBrevo(data.email).catch(reportError);
     }
 
     trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);

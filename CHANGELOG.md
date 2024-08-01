@@ -2,7 +2,12 @@
 
 ### vNext
 
--
+- Updated DDC SDK to fix file upload issues after re-login
+- Added configurable Cere Wallet app contact email
+
+### v0.4.0
+
+- Fixes and improvements
 
 ### v0.3.4
 

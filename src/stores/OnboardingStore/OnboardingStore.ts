@@ -64,7 +64,7 @@ export class OnboardingStore {
 
     this.reset();
 
-    await this.addStep('wallet', () => when(() => this.accountStore.status === 'connected'));
+    await this.addStep('wallet', () => when(() => !!this.accountStore.address));
     await this.addStep('reward', async () => {
       await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
 

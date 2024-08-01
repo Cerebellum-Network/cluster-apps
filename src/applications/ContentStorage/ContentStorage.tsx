@@ -98,10 +98,7 @@ const ContentStorage = () => {
           : `${filePath ? filePath : ''}${acceptedFile.name}`,
       );
 
-      const dagNode = new DagNode(dagNodeData, [
-        ...existingDagNode.links.filter((link) => link.name !== acceptedFile.name),
-        fileLink,
-      ]);
+      const dagNode = new DagNode(dagNodeData, [...existingDagNode.links, fileLink]);
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
