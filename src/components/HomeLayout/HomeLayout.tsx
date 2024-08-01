@@ -1,9 +1,12 @@
 import { observer } from 'mobx-react-lite';
 import { PropsWithChildren, ReactNode } from 'react';
 import { Paper, Stack, styled } from '@developer-console/ui';
+import { Button, DiscordIcon, MobileOverlay, Paper, Stack, styled } from '@developer-console/ui';
+import { AnalyticsId } from '@developer-console/analytics';
 
 import { Layout } from '../Layout';
 import { AccountDropdown } from '../AccountDropdown';
+import { isMobile } from 'react-device-detect';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
@@ -48,6 +51,7 @@ const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLa
       <Content elevation={3}>{children}</Content>
       {leftElement && <Right>{leftElement}</Right>}
     </Stack>
+    {isMobile && <MobileOverlay />}
   </Layout>
 );
 
