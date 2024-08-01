@@ -1,16 +1,15 @@
 import { observer } from 'mobx-react-lite';
 import { PropsWithChildren, ReactNode } from 'react';
-import { Button, DiscordIcon, MobileOverlay, Paper, Stack, styled } from '@developer-console/ui';
-import { AnalyticsId } from '@developer-console/analytics';
+import { Paper, Stack, styled, MobileOverlay } from '@developer-console/ui';
 
 import { Layout } from '../Layout';
-import { DISCORD_LINK } from '~/constants.ts';
 import { AccountDropdown } from '../AccountDropdown';
 import { isMobile } from 'react-device-detect';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
   leftElement?: ReactNode;
+  headerRight?: ReactNode;
 }>;
 
 const Content = styled(Paper)(({ theme }) => ({
@@ -34,23 +33,13 @@ const Right = styled(Stack)(() => ({
   width: 200,
 }));
 
-const HomeLayout = ({ children, rightElement, leftElement }: HomeLayoutProps) => (
+const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLayoutProps) => (
   <Layout
     disablePaddings
     fullPage
     headerRight={
       <Stack direction="row" spacing={2}>
-        <Button
-          variant="outlined"
-          color="secondary"
-          href={DISCORD_LINK}
-          startIcon={<DiscordIcon />}
-          className={AnalyticsId.joinDiscordBtn}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Discord
-        </Button>
+        {headerRight}
         <AccountDropdown />
       </Stack>
     }

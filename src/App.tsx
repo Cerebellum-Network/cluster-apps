@@ -6,6 +6,8 @@ import { AppStore } from './stores';
 import { AppStoreContext } from './hooks';
 import { ErrorBoundary } from '@developer-console/reporting';
 
+import './styles/fonts.css';
+
 const App = () => {
   const [store] = useState(() => new AppStore());
 

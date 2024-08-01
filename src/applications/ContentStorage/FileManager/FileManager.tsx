@@ -80,13 +80,13 @@ export const FileManager = ({
         alignItems="center"
         padding={(theme) => theme.spacing(1, 1.5)}
       >
-        <Typography variant="body1" flex={1}>
+        <Typography variant="body1" color="secondary" flex={1}>
           Bucket ID
         </Typography>
-        <Typography variant="body1" flex={1} textAlign="right">
+        <Typography variant="body1" color="secondary" flex={1} textAlign="right">
           Used Storage
         </Typography>
-        <Typography variant="body1" flex={1} textAlign="center">
+        <Typography variant="body1" color="secondary" flex={1} textAlign="center">
           ACL
         </Typography>
         <Box flex={1}></Box>

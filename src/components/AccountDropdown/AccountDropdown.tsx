@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom';
 import { AnalyticsId } from '@developer-console/analytics';
 import {
   Dropdown,
-  Avatar,
+  AvatarIcon,
   Stack,
   Truncate,
   Button,
@@ -29,12 +29,7 @@ const AccountDropdown = () => {
   }
 
   return (
-    <Dropdown
-      open={open}
-      onToggle={setOpen}
-      label={<Truncate text={account.userInfo.email} variant="email" maxLength={20} />}
-      leftElement={<Avatar />}
-    >
+    <Dropdown open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
       <Stack spacing={2} width={240}>
         <Card variant="outlined" size="small">
           <CardHeader

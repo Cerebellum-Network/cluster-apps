@@ -78,3 +78,4 @@ export * from './QRCode';
 export * from './RewardWidget';
 export * from './Hint';
 export * from './MobileOverlay';
+export * from './DiscordButton';

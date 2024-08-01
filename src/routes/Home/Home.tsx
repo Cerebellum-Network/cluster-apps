@@ -1,10 +1,12 @@
-import { Box, LoadingAnimation, styled } from '@developer-console/ui';
+import { Box, DiscordButton, LoadingAnimation, styled } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
 import { Application } from '~/applications';
 import { HomeLayout, Navigation, Sidebar } from '~/components';
 import { useAccountStore } from '~/hooks';
+import { DISCORD_LINK } from '~/constants.ts';
+import { AnalyticsId } from '@developer-console/analytics';
 
 export type HomeProps = {
   apps: Application[];
@@ -26,7 +28,16 @@ const Home = ({ apps }: HomeProps) => {
   }
 
   return (
-    <HomeLayout rightElement={<Navigation items={apps} />} leftElement={<Sidebar />}>
+    <HomeLayout
+      rightElement={
+        <Navigation
+          items={apps}
+          footer={<DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
+        />
+      }
+      leftElement={<Sidebar />}
+      headerRight={<DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
+    >
       {account.isReady() ? (
         <Outlet />
       ) : (

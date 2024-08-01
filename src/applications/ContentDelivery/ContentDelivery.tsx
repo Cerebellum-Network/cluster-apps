@@ -55,7 +55,7 @@ const ContentDelivery = () => {
       <Typography variant="h4">Content Delivery</Typography>
 
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
-        <Typography variant="subtitle1">Please select one of your buckets</Typography>
+        <Typography variant="h4">Please select one of your buckets</Typography>
         <BucketSelect
           value={currentBucket?.id}
           label="Bucket"
@@ -105,7 +105,7 @@ const ContentDelivery = () => {
         title="Start streaming now with Cere!"
         description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
       >
-        <DocsGroup title="Upload your content using DDC SDK">
+        <DocsGroup title="Upload your file step-by-step guide">
           <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your content using DDC CLI">
             <UploadWithCliDoc />
           </DocsSection>
