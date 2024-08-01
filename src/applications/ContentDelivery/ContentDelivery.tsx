@@ -50,7 +50,7 @@ const ContentDelivery = () => {
     showMessage({ message: 'Bucket access has been saved', appearance: 'success' });
   }, [account, currentBucket, currentBucketAccess, showMessage]);
 
-  console.log('VAL', bucketId);
+  console.log('bucketId', bucketId);
 
   return (
     <Stack spacing={2}>
