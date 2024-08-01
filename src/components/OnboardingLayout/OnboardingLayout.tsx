@@ -10,7 +10,7 @@ interface OnboardingLayoutProps extends React.PropsWithChildren {
 export const OnboardingLayout = ({ children, singleColumn = false }: OnboardingLayoutProps) => {
   return (
     <OnboardingContainer>
-      <OnboardingContent gap="40px">
+      <OnboardingContent>
         <LeftColumn>{children}</LeftColumn>
         {!singleColumn && (
           <RightColumn>

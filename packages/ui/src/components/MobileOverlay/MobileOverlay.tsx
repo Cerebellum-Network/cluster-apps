@@ -16,7 +16,7 @@ const Overlay = styled('div')<{ isVisible: boolean }>`
   position: fixed;
   inset: 0;
   background: linear-gradient(to bottom right, #4f46e5, #6d28d9, #db2777);
-  z-index: 50;
+  z-index: 1200;
   display: flex;
   flex-direction: column;
   align-items: center;
