@@ -47,7 +47,7 @@ export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: 
           <Typography>No buckets</Typography>
         </Item>
       )}
-
+      <Item value="Select Your Bucket">Select Your Bucket</Item>
       {options.map(({ id, isPublic, storedBytes }) => {
         const bucketId = id.toString();
 

@@ -50,6 +50,8 @@ const ContentDelivery = () => {
     showMessage({ message: 'Bucket access has been saved', appearance: 'success' });
   }, [account, currentBucket, currentBucketAccess, showMessage]);
 
+  console.log('VAL', bucketId);
+
   return (
     <Stack spacing={2}>
       <Typography variant="h4">Content Delivery</Typography>
@@ -57,16 +59,16 @@ const ContentDelivery = () => {
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
         <Typography variant="h4">Please select one of your buckets</Typography>
         <BucketSelect
-          value={currentBucket?.id}
+          value={bucketId}
           label="Bucket"
           options={account.buckets.map((bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
       </Paper>
 
-      {currentBucket && (
+      {!!bucketId && (
         <>
-          <Typography variant="h4">Bucket ID: {`${currentBucket.id}`} CDN Options</Typography>
+          <Typography variant="h4">Bucket ID: {`${bucketId}`} CDN Options</Typography>
 
           <Paper component={Stack} padding={2} spacing={2}>
             <Typography variant="subtitle1">File Access Control</Typography>
@@ -105,8 +107,8 @@ const ContentDelivery = () => {
         title="Start streaming now with Cere!"
         description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
       >
-        <DocsGroup title="Upload your file step-by-step guide">
-          <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your content using DDC CLI">
+        <DocsGroup title="Upload your content using DDC SDK">
+          <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your file step-by-step guide">
             <UploadWithCliDoc />
           </DocsSection>
 

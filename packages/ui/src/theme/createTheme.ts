@@ -209,7 +209,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       MuiCardHeader: {
         defaultProps: {
           titleTypographyProps: {
-            variant: 'body1',
+            variant: 'h2',
           },
 
           subheaderTypographyProps: {
@@ -220,6 +220,10 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         styleOverrides: {
           action: {
             alignSelf: 'center',
+          },
+          title: {
+            fontSize: '2.125rem',
+            lineHeight: '2.25rem',
           },
         },
       },
