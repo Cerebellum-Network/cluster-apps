@@ -19,6 +19,8 @@ export {
   CheckOutlined as CheckIcon,
   EmojiEventsOutlined as RewardIcon,
   CheckCircle as CheckCircleIcon,
+  KeyboardArrowDownOutlined as ArrowDownIcon,
+  KeyboardArrowUpOutlined as ArrowUpIcon,
 } from '@mui/icons-material';
 
 // Custom icons

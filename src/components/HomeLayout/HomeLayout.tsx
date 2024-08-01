@@ -8,7 +8,7 @@ import { AccountDropdown } from '../AccountDropdown';
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
   leftElement?: ReactNode;
-  buttonElement?: ReactNode;
+  headerRight?: ReactNode;
 }>;
 
 const Content = styled(Paper)(({ theme }) => ({
@@ -32,13 +32,13 @@ const Right = styled(Stack)(() => ({
   width: 200,
 }));
 
-const HomeLayout = ({ children, rightElement, leftElement, buttonElement }: HomeLayoutProps) => (
+const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLayoutProps) => (
   <Layout
     disablePaddings
     fullPage
     headerRight={
       <Stack direction="row" spacing={2}>
-        {buttonElement && buttonElement}
+        {headerRight}
         <AccountDropdown />
       </Stack>
     }

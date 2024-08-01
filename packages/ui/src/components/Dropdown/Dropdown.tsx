@@ -7,7 +7,6 @@ type RenderAnchorOptions = {
   ref: Ref<any>;
   open: boolean;
   onOpen: () => void;
-  withArrow?: boolean;
 };
 
 export type DropdownProps = Pick<PopoverProps, 'open' | 'children'> &
@@ -22,7 +21,6 @@ export type DropdownProps = Pick<PopoverProps, 'open' | 'children'> &
 
 export const Dropdown = ({
   open,
-  withArrow,
   label,
   leftElement,
   direction = 'left',
@@ -32,14 +30,7 @@ export const Dropdown = ({
   disableGutters = false,
   disablePaddings = false,
   renderAnchor = ({ ref, open, onOpen }) => (
-    <DropdownAnchor
-      ref={ref}
-      withArrow={withArrow}
-      open={open}
-      label={label}
-      leftElement={leftElement}
-      onOpen={onOpen}
-    />
+    <DropdownAnchor ref={ref} open={open} label={label} leftElement={leftElement} onOpen={onOpen} />
   ),
 }: DropdownProps) => {
   const anchorRef = useRef(null);

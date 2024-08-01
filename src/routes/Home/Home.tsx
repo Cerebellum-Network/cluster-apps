@@ -32,13 +32,11 @@ const Home = ({ apps }: HomeProps) => {
       rightElement={
         <Navigation
           items={apps}
-          buttonElement={
-            <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
-          }
+          footer={<DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
         />
       }
       leftElement={<Sidebar />}
-      buttonElement={<DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
+      headerRight={<DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
     >
       {account.isReady() ? (
         <Outlet />

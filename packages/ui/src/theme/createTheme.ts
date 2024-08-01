@@ -103,7 +103,6 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       },
 
       caption: {
-        color: '#818083',
         fontWeight: 400,
         fontSize: '0.75rem', // 12px,
         lineHeight: '1rem', // 16px,

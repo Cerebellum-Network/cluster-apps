@@ -1,23 +1,22 @@
 import { observer } from 'mobx-react-lite';
-import { Stack } from '@developer-console/ui';
+import { Stack, Box } from '@developer-console/ui';
 
 import NavigationItem, { NavigationItemProps } from './NavigationItem';
 import { ReactNode } from 'react';
-import { Box } from '@mui/material';
 
 export type NavigationProps = {
   items: NavigationItemProps[];
-  buttonElement?: ReactNode;
+  footer?: ReactNode;
 };
 
-const Navigation = ({ items, buttonElement }: NavigationProps) => (
+const Navigation = ({ items, footer }: NavigationProps) => (
   <Stack spacing={2}>
     {items.map((props) => (
       <NavigationItem key={props.rootPath} {...props} />
     ))}
-    {buttonElement && (
+    {footer && (
       <Box display="flex" justifyContent="center">
-        {buttonElement}
+        {footer}
       </Box>
     )}
   </Stack>
