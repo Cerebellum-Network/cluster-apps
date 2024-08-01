@@ -86,10 +86,3 @@
   src: url('./HumanSans-BoldOblique.otf') format('opentype');
 }
 
-@font-face {
-  font-family: 'HumanSans';
-  font-weight: 900;
-  font-style: oblique;
-  font-display: swap;
-  src: url('./HumanSans-BlackOblique.otf') format('opentype');
-}
