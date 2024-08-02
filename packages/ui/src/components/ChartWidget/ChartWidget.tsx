@@ -1,11 +1,8 @@
 import { ReactNode } from 'react';
-import { Box, Stack, Typography, styled } from '@mui/material';
-
-import { ClockIcon } from '../../icons';
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - TODO: remove this tmp image when real graph is implemented
-import graphImage from './graph.png';
+import { Box, Stack, Typography, styled, useTheme } from '@mui/material';
+import { LineChart } from '@mui/x-charts';
+import size from 'byte-size';
+import { format } from 'date-fns';
 
 type ChartWidgetHistoryRecord = {
   date: Date;
@@ -19,20 +16,11 @@ export type ChartWidgetProps = {
 };
 
 const Chart = styled(Box)(() => ({
-  backgroundImage: `url(${graphImage})`,
-  backgroundSize: 'cover',
-  backgroundPositionX: -20,
-}));
-
-const ComingSoon = styled(Stack)(() => ({
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: 150,
-  backgroundColor: '#F5F7FADD',
+  height: 200,
 }));
 
 export const ChartWidget = ({ title, value, history }: ChartWidgetProps) => {
-  console.log('History', history);
+  const theme = useTheme();
 
   return (
     <Stack spacing={1}>
@@ -40,12 +28,54 @@ export const ChartWidget = ({ title, value, history }: ChartWidgetProps) => {
         {title}
       </Typography>
       <Typography fontWeight="bold">{value}</Typography>
-      <Chart>
-        <ComingSoon spacing={1}>
-          <ClockIcon fontSize="small" />
-          <Typography variant="caption">Coming Soon: Graphs</Typography>
-        </ComingSoon>
-      </Chart>
+
+      {!!history?.length && (
+        <Chart>
+          <LineChart
+            dataset={history || []}
+            axisHighlight={{ x: 'none', y: 'none' }}
+            grid={{ horizontal: true, vertical: false }}
+            margin={{ top: 10, right: 20, bottom: 40, left: 40 }}
+            colors={[theme.palette.primary.main]}
+            yAxis={[
+              {
+                dataKey: 'value',
+                disableLine: true,
+                disableTicks: true,
+                valueFormatter: (value) => size(value).toString(),
+                tickLabelStyle: {
+                  fontSize: 10,
+                },
+              },
+            ]}
+            xAxis={[
+              {
+                dataKey: 'date',
+                min: Math.min(...history.map((record) => +record.date)),
+                max: Math.max(...history.map((record) => +record.date)),
+                disableLine: true,
+                disableTicks: true,
+                valueFormatter: (date) => format(date, 'do MMM'),
+                tickPlacement: 'end',
+                tickNumber: 1,
+
+                tickLabelStyle: {
+                  fontSize: 10,
+                  transform: 'translate(-16px, 16px) rotate(-30deg)',
+                },
+              },
+            ]}
+            series={[
+              {
+                curve: 'linear',
+                dataKey: 'value',
+                showMark: false,
+                valueFormatter: (value) => size(value || 0).toString(),
+              },
+            ]}
+          />
+        </Chart>
+      )}
     </Stack>
   );
 };
