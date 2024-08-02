@@ -50,8 +50,6 @@ const ContentDelivery = () => {
     showMessage({ message: 'Bucket access has been saved', appearance: 'success' });
   }, [account, currentBucket, currentBucketAccess, showMessage]);
 
-  console.log('bucketId', bucketId);
-
   return (
     <Stack spacing={2}>
       <Typography variant="h4">Content Delivery</Typography>

@@ -221,10 +221,6 @@ export const createTheme = (_options: ThemeOptions = {}) =>
           action: {
             alignSelf: 'center',
           },
-          title: {
-            fontSize: '2.125rem',
-            lineHeight: '2.25rem',
-          },
         },
       },
 
