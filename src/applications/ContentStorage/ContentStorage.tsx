@@ -41,12 +41,6 @@ const ContentStorage = () => {
   }, [uploadStatus]);
 
   useEffect(() => {
-    if (buckets.length > 1 && dirs.length > 0) {
-      questsStore.markCompleted('uploadFile');
-    }
-  }, [buckets.length, dirs.length, questsStore]);
-
-  useEffect(() => {
     const firstBucketLocked = localStorage.getItem('firstBucketLocked');
     if (firstBucketLocked === 'false') {
       setFirstBucketLocked(false);
