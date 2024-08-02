@@ -1,5 +1,5 @@
 import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { ArrowRightIcon } from '@developer-console/ui';
+import { ArrowRightIcon, Truncate } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
@@ -173,7 +173,7 @@ export const Row = ({
                       {isBranch ? <FilledFolderIcon /> : <FolderIcon />}
                     </Box>
                     <Typography variant="body2" flex={1}>
-                      {element.name}
+                      <Truncate text={element.name} variant="text" maxLength={15} endingLength={4} />
                     </Typography>
                   </Box>
                   {element.metadata?.usedStorage && (
