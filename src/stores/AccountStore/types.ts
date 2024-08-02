@@ -14,7 +14,8 @@ export type Bucket = IndexedBucket & {
 };
 
 export interface Account {
-  readonly ddc?: DdcClient;
+  readonly ddc: DdcClient;
+
   readonly userInfo?: UserInfo;
   readonly address?: string;
   readonly balance?: number;
@@ -29,10 +30,6 @@ export interface Account {
   createBucket(params: BucketParams): Promise<bigint>;
   saveBucket(bucketId: bigint, params: BucketParams): Promise<void>;
   topUp(amount: number): Promise<void>;
-  refreshBuckets(): Promise<void>;
 }
 
-export type ReadyAccount = Required<Omit<Account, 'deposit' | 'balance'>> & {
-  readonly balance?: number;
-  readonly deposit?: number;
-};
+export type ReadyAccount = Required<Account>;
