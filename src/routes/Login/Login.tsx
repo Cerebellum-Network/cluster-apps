@@ -96,7 +96,7 @@ const Login = observer(() => {
             Get Started
           </LoadingButton>
 
-          <Terms textAlign="center" variant="body2">
+          <Terms textAlign="center" variant="caption" color="secondary">
             By using your Cere wallet you automatically agree to our
             <br />{' '}
             <a href={TERMS_AND_CONDITIONS_LINK} target="_blank" rel="noopener noreferrer">
