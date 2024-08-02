@@ -24,7 +24,7 @@ const AccountDropdown = () => {
   const account = useAccountStore();
   const [open, setOpen] = useState(false);
 
-  if (!account.userInfo || !account.address) {
+  if (!account.address) {
     return null;
   }
 
