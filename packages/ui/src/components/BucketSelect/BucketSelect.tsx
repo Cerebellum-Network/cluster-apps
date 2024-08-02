@@ -1,5 +1,5 @@
 import { forwardRef, useCallback } from 'react';
-import { MenuItem, Stack, Select, SelectProps, Typography, styled, FormControl, InputLabel } from '@mui/material';
+import { MenuItem, Stack, Typography, styled, TextFieldProps, TextField } from '@mui/material';
 import { BytesSize } from '../BytesSize';
 
 type BucketSelectOption = {
@@ -8,10 +8,10 @@ type BucketSelectOption = {
   storedBytes?: number;
 };
 
-export type BucketSelectProps = Omit<SelectProps, 'value' | 'onChange'> & {
+export type BucketSelectProps = Omit<TextFieldProps, 'value' | 'onChange'> & {
   value?: bigint;
   options: BucketSelectOption[];
-  onChange?: (value: bigint, option: BucketSelectOption) => void;
+  onChange?: (value: bigint, options: BucketSelectOption) => void;
 };
 
 const Item = styled(MenuItem)(({ theme }) => ({
@@ -20,12 +20,12 @@ const Item = styled(MenuItem)(({ theme }) => ({
   borderRadius: 4,
 }));
 
-const StyledFormControl = styled(FormControl)({
+const Select = styled(TextField)({
   minWidth: 300,
 });
 
-export const BucketSelect = forwardRef(({ value, options, onChange, label, ...props }: BucketSelectProps, ref) => {
-  const handleChange: NonNullable<SelectProps['onChange']> = useCallback(
+export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: BucketSelectProps, ref) => {
+  const handleChange: NonNullable<TextFieldProps['onChange']> = useCallback(
     (event) => {
       const selectedId = BigInt(event.target.value as string);
       const selectedOption = options.find((option) => option.id === selectedId);
@@ -41,40 +41,38 @@ export const BucketSelect = forwardRef(({ value, options, onChange, label, ...pr
   const finalValue = value ? value.toString() : '';
 
   return (
-    <StyledFormControl variant="outlined">
-      <InputLabel shrink>{label}</InputLabel>
-      <Select
-        {...props}
-        native={false}
-        disabled={noOptions}
-        value={finalValue}
-        label={label}
-        inputRef={ref}
-        onChange={handleChange}
-        displayEmpty
-      >
-        <Item value="" disabled>
-          Select Your Bucket
+    <Select
+      {...props}
+      disabled={noOptions}
+      value={finalValue}
+      select
+      inputRef={ref}
+      onChange={handleChange}
+      SelectProps={{ displayEmpty: true }}
+      InputLabelProps={{ shrink: true }} // Ensure the label shrinks
+      label="Select Your Bucket"
+    >
+      <Item value="" disabled>
+        Select Your Bucket
+      </Item>
+      {noOptions && (
+        <Item value="-">
+          <Typography>No buckets</Typography>
         </Item>
-        {noOptions && (
-          <Item value="-">
-            <Typography>No buckets</Typography>
-          </Item>
-        )}
-        {options.map(({ id, isPublic, storedBytes }) => {
-          const bucketId = id.toString();
+      )}
+      {options.map(({ id, isPublic, storedBytes }) => {
+        const bucketId = id.toString();
 
-          return (
-            <Item key={bucketId} value={bucketId}>
-              <Stack direction="row" spacing={1} divider={<Typography color="text.secondary">|</Typography>}>
-                <Typography variant="subtitle1">ID: {bucketId}</Typography>
-                {storedBytes && <Typography variant="subtitle1">{<BytesSize bytes={storedBytes} />}</Typography>}
-                <Typography variant="subtitle1">{isPublic ? 'Public' : 'Private'}</Typography>
-              </Stack>
-            </Item>
-          );
-        })}
-      </Select>
-    </StyledFormControl>
+        return (
+          <Item key={bucketId} value={bucketId}>
+            <Stack direction="row" spacing={1} divider={<Typography color="text.secondary">|</Typography>}>
+              <Typography variant="subtitle1">ID: {bucketId}</Typography>
+              {storedBytes && <Typography variant="subtitle1">{<BytesSize bytes={storedBytes} />}</Typography>}
+              <Typography variant="subtitle1">{isPublic ? 'Public' : 'Private'}</Typography>
+            </Stack>
+          </Item>
+        );
+      })}
+    </Select>
   );
 });
