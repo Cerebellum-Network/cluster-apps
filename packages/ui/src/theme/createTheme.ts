@@ -209,7 +209,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       MuiCardHeader: {
         defaultProps: {
           titleTypographyProps: {
-            variant: 'h2',
+            variant: 'subtitle1',
           },
 
           subheaderTypographyProps: {
