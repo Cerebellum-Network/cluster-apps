@@ -55,7 +55,11 @@ export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: 
           <Item key={bucketId} value={bucketId}>
             <Stack direction="row" spacing={1} divider={<Typography color="text.secondary">|</Typography>}>
               <Typography variant="subtitle1">ID: {bucketId}</Typography>
-              {storedBytes && <Typography variant="subtitle1">{<BytesSize bytes={storedBytes} />}</Typography>}
+
+              {storedBytes === undefined ? null : (
+                <Typography variant="subtitle1">{<BytesSize bytes={storedBytes} />}</Typography>
+              )}
+
               <Typography variant="subtitle1">{isPublic ? 'Public' : 'Private'}</Typography>
             </Stack>
           </Item>

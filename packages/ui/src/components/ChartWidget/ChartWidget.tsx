@@ -7,9 +7,15 @@ import { ClockIcon } from '../../icons';
 // @ts-ignore - TODO: remove this tmp image when real graph is implemented
 import graphImage from './graph.png';
 
+type ChartWidgetHistoryRecord = {
+  date: Date;
+  value: number;
+};
+
 export type ChartWidgetProps = {
   title: string;
   value?: ReactNode;
+  history?: ChartWidgetHistoryRecord[];
 };
 
 const Chart = styled(Box)(() => ({
@@ -25,17 +31,21 @@ const ComingSoon = styled(Stack)(() => ({
   backgroundColor: '#F5F7FADD',
 }));
 
-export const ChartWidget = ({ title, value }: ChartWidgetProps) => (
-  <Stack spacing={1}>
-    <Typography variant="caption" color="text.secondary">
-      {title}
-    </Typography>
-    <Typography fontWeight="bold">{value}</Typography>
-    <Chart>
-      <ComingSoon spacing={1}>
-        <ClockIcon fontSize="small" />
-        <Typography variant="caption">Coming Soon: Graphs</Typography>
-      </ComingSoon>
-    </Chart>
-  </Stack>
-);
+export const ChartWidget = ({ title, value, history }: ChartWidgetProps) => {
+  console.log('History', history);
+
+  return (
+    <Stack spacing={1}>
+      <Typography variant="caption" color="text.secondary">
+        {title}
+      </Typography>
+      <Typography fontWeight="bold">{value}</Typography>
+      <Chart>
+        <ComingSoon spacing={1}>
+          <ClockIcon fontSize="small" />
+          <Typography variant="caption">Coming Soon: Graphs</Typography>
+        </ComingSoon>
+      </Chart>
+    </Stack>
+  );
+};
