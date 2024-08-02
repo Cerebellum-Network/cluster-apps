@@ -4,7 +4,7 @@ import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typo
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
-import { DagNode, DagNodeUri, Link, File as DdcFile, FileUri, Tag } from '@cere-ddc-sdk/ddc-client';
+import { DagNode, DagNodeUri, Link, File as DdcFile, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
@@ -39,6 +39,12 @@ const ContentStorage = () => {
     }
     return () => clearTimeout(timer);
   }, [uploadStatus]);
+
+  useEffect(() => {
+    if (buckets.length > 1 && dirs.length > 0) {
+      questsStore.markCompleted('uploadFile');
+    }
+  }, [buckets.length, dirs.length, questsStore]);
 
   useEffect(() => {
     const firstBucketLocked = localStorage.getItem('firstBucketLocked');
@@ -204,48 +210,6 @@ const ContentStorage = () => {
     setUploadStatus('idle');
   };
 
-  const handleFileDownload = async (bucketId: string, source: string, name: string) => {
-    const fileUri = new FileUri(BigInt(bucketId), source, { name });
-    const fileResponse = await ddcClient.read(fileUri, {
-      cacheControl: 'no-cache',
-    });
-
-    const reader = fileResponse.body?.getReader();
-    if (!reader) {
-      throw new Error('Failed to get reader from response body.');
-    }
-
-    const chunks: Uint8Array[] = [];
-    let done = false;
-    while (!done) {
-      const { value, done: doneReading } = await reader.read();
-      done = doneReading;
-      if (value) {
-        chunks.push(value);
-      }
-    }
-
-    const length = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const arrayBuffer = new ArrayBuffer(length);
-    const view = new Uint8Array(arrayBuffer);
-    let position = 0;
-
-    for (const chunk of chunks) {
-      view.set(chunk, position);
-      position += chunk.length;
-    }
-
-    const blob = new Blob([arrayBuffer]);
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-
-    URL.revokeObjectURL(url);
-  };
-
   const handleFirstBucketUnlock = useCallback(async () => {
     questsStore.markStepDone('uploadFile', 'createBucket');
 
@@ -289,7 +253,6 @@ const ContentStorage = () => {
             uploadType={uploadType}
             uploadStatus={uploadStatus}
             setUploadStatus={handleCloseStatus}
-            onFileDownload={handleFileDownload}
             isBucketCreating={isBucketCreating}
             firstBucketLocked={firstBucketLocked}
             onUnlockFirstBucket={handleFirstBucketUnlock}

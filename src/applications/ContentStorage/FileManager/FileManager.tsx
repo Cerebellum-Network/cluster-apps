@@ -38,7 +38,6 @@ export const FileManager = ({
   uploadType,
   uploadStatus,
   setUploadStatus,
-  onFileDownload,
   isBucketCreating,
   firstBucketLocked,
   onUnlockFirstBucket,
@@ -58,7 +57,6 @@ export const FileManager = ({
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder';
   setUploadStatus: (status: 'idle' | 'uploading' | 'success' | 'error') => void;
-  onFileDownload: (bucketId: string, source: string, name: string) => void;
   userHasBuckets: boolean;
   isBucketCreating: boolean;
   firstBucketLocked: boolean;
@@ -110,7 +108,6 @@ export const FileManager = ({
               isOpen={selectedBucket === row.bucketId}
               onRowClick={() => onRowClick(row.bucketId)}
               onCloseUpload={handleCloseStatus}
-              onFileDownload={onFileDownload}
             />
           ))
         )}
