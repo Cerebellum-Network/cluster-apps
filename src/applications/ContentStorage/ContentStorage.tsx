@@ -225,6 +225,15 @@ const ContentStorage = () => {
     [buckets.length, firstBucketLocked],
   );
 
+  const handleCreateEmptyFolder = useCallback(
+    async (bucketId: string) => {
+      const dagNode = new DagNode(JSON.stringify({ createTime: Date.now() }), [], []);
+      await ddcClient!.store(BigInt(bucketId), dagNode, { name: 'fs' });
+      await refetchBucket(BigInt(bucketId));
+    },
+    [ddcClient, refetchBucket],
+  );
+
   return (
     <>
       <Box
@@ -252,6 +261,7 @@ const ContentStorage = () => {
             onUnlockFirstBucket={handleFirstBucketUnlock}
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
+            onFolderCreate={handleCreateEmptyFolder}
           />
         </Container>
       </Box>

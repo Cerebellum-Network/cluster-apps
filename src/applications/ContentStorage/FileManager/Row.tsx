@@ -1,5 +1,16 @@
-import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { ArrowRightIcon, Truncate } from '@developer-console/ui';
+import {
+  Box,
+  BoxProps,
+  Button,
+  ButtonGroup,
+  IconButton,
+  styled,
+  Typography,
+  AddCircleOutlinedIcon,
+  ArrowRightIcon,
+  Truncate,
+  useIsDesktop,
+} from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
@@ -56,6 +67,7 @@ export const Row = ({
   isOpen,
   onCloseUpload,
   firstBucketLocked,
+  onFolderCreate,
 }: {
   row: RowData;
   onUpload: (values: {
@@ -71,8 +83,11 @@ export const Row = ({
   onRowClick: () => void;
   onCloseUpload: () => void;
   firstBucketLocked: boolean;
+  onFolderCreate: (bucketId: string) => void;
 }) => {
   const { showMessage } = useMessages();
+
+  const isDesktop = useIsDesktop();
 
   const treeData = flattenTree(row.files);
 
@@ -100,29 +115,31 @@ export const Row = ({
         <Typography variant="subtitle1" flex={1}>
           {row.bucketId}
         </Typography>
-        <Box display="flex" alignItems="center" flex={1} justifyContent="end">
-          {/*{isOpen && (*/}
-          {/*  <>*/}
-          {/*    <IconButton*/}
-          {/*      sx={{ marginRight: '8px' }}*/}
-          {/*      onClick={(event) => {*/}
-          {/*        event.stopPropagation();*/}
-          {/*      }}*/}
-          {/*    >*/}
-          {/*      <DeleteIcon />*/}
-          {/*    </IconButton>*/}
-          {/*    <Button*/}
-          {/*      size="small"*/}
-          {/*      sx={{ marginRight: '8px' }}*/}
-          {/*      onClick={(event) => {*/}
-          {/*        event.stopPropagation();*/}
-          {/*      }}*/}
-          {/*    >*/}
-          {/*      <AddCircleOutlinedIcon />*/}
-          {/*      Create Folder*/}
-          {/*    </Button>*/}
-          {/*  </>*/}
-          {/*)}*/}
+        <Box display="flex" alignItems="center" flex={1.5} justifyContent="end">
+          {isOpen && (
+            <>
+              {/*    <IconButton*/}
+              {/*      sx={{ marginRight: '8px' }}*/}
+              {/*      onClick={(event) => {*/}
+              {/*        event.stopPropagation();*/}
+              {/*      }}*/}
+              {/*    >*/}
+              {/*      <DeleteIcon />*/}
+              {/*    </IconButton>*/}
+              <Button
+                color="secondary"
+                variant="outlined"
+                startIcon={isDesktop && <AddCircleOutlinedIcon />}
+                sx={{ marginRight: '8px' }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onFolderCreate(row.bucketId);
+                }}
+              >
+                Create Folder
+              </Button>
+            </>
+          )}
           <Typography variant="body2">{row.usedStorage}</Typography>
         </Box>
         <Typography variant="body2" flex={1} textAlign="center">
