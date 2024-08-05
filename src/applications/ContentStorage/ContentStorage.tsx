@@ -41,11 +41,9 @@ const ContentStorage = () => {
   }, [uploadStatus]);
 
   useEffect(() => {
-    const firstBucketLocked = localStorage.getItem('firstBucketLocked');
-    if (firstBucketLocked === 'false') {
-      setFirstBucketLocked(false);
-    }
-  }, []);
+    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
+    setFirstBucketLocked(firstBucketLocked);
+  }, [buckets.length, dirs, dirs.length, questsStore]);
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
