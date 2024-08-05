@@ -194,7 +194,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
               },
 
               ['& .MuiCardHeader-title']: {
-                ...theme.typography.h3,
+                ...theme.typography.h2,
               },
 
               ['& .MuiCardHeader-subheader']: {
@@ -209,7 +209,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       MuiCardHeader: {
         defaultProps: {
           titleTypographyProps: {
-            variant: 'body1',
+            variant: 'subtitle1',
           },
 
           subheaderTypographyProps: {

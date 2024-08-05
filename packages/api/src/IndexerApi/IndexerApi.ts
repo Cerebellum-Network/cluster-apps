@@ -14,27 +14,28 @@ export type IndexedAccount = {
 
 type AccountResult = {
   data: {
-    account: IndexedAccount;
+    account: IndexedAccount | null;
   };
 };
 
-type DdcBucketsResult = {
-  data: {
-    ddcBuckets: IndexedBucket[];
-  };
-};
-
-const marshallBucket = (bucket: IndexedBucket): IndexedBucket => ({
+const mapBucket = (bucket: IndexedBucket): IndexedBucket => ({
   ...bucket,
   id: BigInt(bucket.id),
 });
 
-const marshallAccount = (account: IndexedAccount): IndexedAccount => ({
-  ...account,
-  balance: BigInt(account.balance),
-  deposit: BigInt(account.deposit),
-  buckets: account.buckets.map(marshallBucket),
-});
+const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccount =>
+  account
+    ? {
+        ...account,
+        balance: BigInt(account.balance),
+        deposit: BigInt(account.deposit),
+        buckets: account.buckets.map(mapBucket),
+      }
+    : {
+        balance: 0n,
+        deposit: 0n,
+        buckets: [],
+      };
 
 export class IndexerApi {
   private readonly endpoint = INDEXER_ENDPOINT;
@@ -62,32 +63,6 @@ export class IndexerApi {
       },
     });
 
-    const { data }: AccountResult = await response.json();
-
-    return marshallAccount(data.account);
-  }
-
-  async getBuckets(accountId: string) {
-    const response = await fetch(this.endpoint, {
-      method: 'POST',
-      body: JSON.stringify({
-        query: `
-          query {
-            ddcBuckets(where: {ownerId:{id_eq :"${accountId}"}}) {
-              id
-              isPublic
-              isRemoved
-            }
-          }
-        `,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const { data }: DdcBucketsResult = await response.json();
-
-    return data.ddcBuckets.map(marshallBucket);
+    return response.json().then(mapResultToAccount);
   }
 }

@@ -124,13 +124,13 @@ export class AccountStore implements Account {
   get balance() {
     const balance = this.accountResource?.current()?.balance;
 
-    return !balance ? undefined : Number(balance / BigInt(10 ** CERE_DECIMALS));
+    return balance === undefined ? undefined : Number(balance / BigInt(10 ** CERE_DECIMALS));
   }
 
   get deposit() {
     const deposit = this.accountResource?.current()?.deposit;
 
-    return !deposit ? undefined : Number(deposit / BigInt(10 ** CERE_DECIMALS));
+    return deposit === undefined ? undefined : Number(deposit / BigInt(10 ** CERE_DECIMALS));
   }
 
   get buckets() {

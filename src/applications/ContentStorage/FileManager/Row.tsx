@@ -1,5 +1,5 @@
 import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { ArrowRightIcon } from '@developer-console/ui';
+import { ArrowRightIcon, Truncate } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
@@ -55,7 +55,6 @@ export const Row = ({
   onRowClick,
   isOpen,
   onCloseUpload,
-  onFileDownload,
   firstBucketLocked,
 }: {
   row: RowData;
@@ -71,12 +70,29 @@ export const Row = ({
   isOpen: boolean;
   onRowClick: () => void;
   onCloseUpload: () => void;
-  onFileDownload: (bucketId: string, source: string, name: string) => void;
   firstBucketLocked: boolean;
 }) => {
   const { showMessage } = useMessages();
 
   const treeData = flattenTree(row.files);
+
+  const handleDownload = async (downloadUrl: string, elName: string) => {
+    try {
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = elName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+    }
+  };
 
   return (
     <>
@@ -157,7 +173,7 @@ export const Row = ({
                       {isBranch ? <FilledFolderIcon /> : <FolderIcon />}
                     </Box>
                     <Typography variant="body2" flex={1}>
-                      {element.name}
+                      <Truncate text={element.name} variant="text" maxLength={15} endingLength={4} />
                     </Typography>
                   </Box>
                   {element.metadata?.usedStorage && (
@@ -186,7 +202,7 @@ export const Row = ({
                           sx={{ marginRight: '8px' }}
                           onClick={async () => {
                             await navigator.clipboard.writeText(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}/${element.metadata?.fullPath}`,
                             );
                             showMessage({
                               appearance: 'info',
@@ -201,8 +217,12 @@ export const Row = ({
                           <ShareIcon />
                         </IconButton>
                         <IconButton
-                          onClick={() => {
-                            onFileDownload(row.bucketId, element.metadata?.cid as unknown as string, element.name);
+                          onClick={async (event) => {
+                            event.preventDefault();
+                            await handleDownload(
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}/${element.metadata?.fullPath}`,
+                              element.name,
+                            );
                           }}
                         >
                           <DownloadIcon />
