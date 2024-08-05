@@ -15,7 +15,7 @@ import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } fr
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
-import { DDC_STORAGE_NODE_URL } from '~/constants.ts';
+import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
 
@@ -162,13 +162,14 @@ export const Row = ({
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
               const leftMargin = 40 * (level - 1);
+              const isFileForEmptyFolder = element.name === `${EMPTY_FILE_NAME}.txt`;
               return (
                 <div
                   {...getNodeProps({ onClick: handleExpand })}
                   style={{
                     marginLeft: leftMargin,
                     padding: '12px',
-                    display: 'flex',
+                    display: isFileForEmptyFolder ? 'none' : 'flex',
                     alignItems: 'center',
                     width: 'calc(100% - ' + leftMargin + 'px)',
                   }}

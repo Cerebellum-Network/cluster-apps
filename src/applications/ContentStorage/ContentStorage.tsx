@@ -9,6 +9,7 @@ import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
+import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -227,11 +228,19 @@ const ContentStorage = () => {
 
   const handleCreateEmptyFolder = useCallback(
     async (bucketId: string) => {
-      const dagNode = new DagNode(JSON.stringify({ createTime: Date.now() }), [], []);
-      await ddcClient!.store(BigInt(bucketId), dagNode, { name: 'fs' });
-      await refetchBucket(BigInt(bucketId));
+      const text = 'emptyFile';
+      const blob = new Blob([text], { type: 'text/plain' });
+      const file = new File([blob], `${EMPTY_FILE_NAME}.txt`, { type: 'text/plain' });
+
+      const dataTransfer = new DataTransfer();
+      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}/${file.name}`, { type: 'text/plain' });
+      dataTransfer.items.add(fileWithPath);
+
+      const files = dataTransfer.files;
+
+      await handleUpload({ acceptedFiles: Array.from(files), bucketId, cnsName: 'fs', isFolder: true });
     },
-    [ddcClient, refetchBucket],
+    [handleUpload],
   );
 
   return (

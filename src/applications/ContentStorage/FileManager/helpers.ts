@@ -1,6 +1,7 @@
 import { FileNode, RealData, RowData } from './types.ts';
 import { KB } from '@cere-ddc-sdk/ddc-client';
 import { randomBytes } from 'crypto';
+import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 
 export const calculateSize = (node: FileNode): number => {
   if (node.metadata && node.metadata.type === 'file') {
@@ -47,7 +48,9 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
   const addFolderSizes = (node: FileNode) => {
     if (node.children) {
       node.children.forEach(addFolderSizes);
-      const totalSize = node.children.reduce((sum, child) => sum + calculateSize(child), 0);
+      const totalSize = node.children
+        .filter((s) => s.name !== `${EMPTY_FILE_NAME}.txt`)
+        .reduce((sum, child) => sum + calculateSize(child), 0);
       const child = node.children[0];
       const fullPath = child?.fullPath?.replace(`${child.name}`, '').replace('//', '/');
       node.metadata = {
@@ -89,7 +92,12 @@ export const transformData = (data: RealData[]): RowData[] => {
     const rootNode = buildTree(files, isPublic);
     return {
       bucketId,
-      usedStorage: bytesToSize(files.reduce((acc, file) => acc + (file?.size || 0), 0)),
+      usedStorage: bytesToSize(
+        files.reduce(
+          (acc, file) => acc + ((file?.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}.txt` ? file?.size : 0) || 0),
+          0,
+        ),
+      ),
       acl: rootNode.isPublic,
       files: rootNode,
     };
