@@ -8,7 +8,7 @@ import Reporting from '@developer-console/reporting';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
-import { Account, ReadyAccount, ConnectOptions, Bucket } from './types';
+import { Account, Bucket, ConnectOptions, ReadyAccount } from './types';
 import { createAccountResource, createAddressResource, createStatusResource } from './resources';
 
 export class AccountStore implements Account {
@@ -132,7 +132,7 @@ export class AccountStore implements Account {
   get balance() {
     const balance = this.accountResource?.current()?.balance;
 
-    return balance === undefined ? undefined : Number(balance / BigInt(10 ** CERE_DECIMALS));
+    return balance === undefined ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get deposit() {
