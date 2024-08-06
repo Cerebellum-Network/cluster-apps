@@ -13,7 +13,7 @@ export {
   InfoOutlined as InfoOutlinedIcon,
   ArrowRight as ArrowRightIcon,
   Delete as DeleteIcon,
-  AddCircleOutlined as AddCircleOutlinedIcon,
+  AddCircleOutlineOutlined as AddCircleOutlinedIcon,
   Close as CloseIcon,
   GppMaybeOutlined as WarningIcon,
   CheckOutlined as CheckIcon,

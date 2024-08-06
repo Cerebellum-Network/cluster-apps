@@ -43,6 +43,7 @@ export const FileManager = ({
   onUnlockFirstBucket,
   onRowClick,
   selectedBucket,
+  onFolderCreate,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -63,6 +64,7 @@ export const FileManager = ({
   onUnlockFirstBucket: () => void;
   onRowClick: (bucketId: string) => void;
   selectedBucket: string | null;
+  onFolderCreate: (bucketId: string) => void;
 }) => {
   const rows = transformData(data);
 
@@ -81,7 +83,7 @@ export const FileManager = ({
         <Typography variant="body1" color="secondary" flex={1}>
           Bucket ID
         </Typography>
-        <Typography variant="body1" color="secondary" flex={1} textAlign="right">
+        <Typography variant="body1" color="secondary" flex={1.5} textAlign="right">
           Used Storage
         </Typography>
         <Typography variant="body1" color="secondary" flex={1} textAlign="center">
@@ -108,6 +110,7 @@ export const FileManager = ({
               isOpen={selectedBucket === row.bucketId}
               onRowClick={() => onRowClick(row.bucketId)}
               onCloseUpload={handleCloseStatus}
+              onFolderCreate={onFolderCreate}
             />
           ))
         )}

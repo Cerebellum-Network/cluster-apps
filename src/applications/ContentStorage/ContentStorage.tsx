@@ -19,6 +19,7 @@ import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
+import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -98,6 +99,10 @@ const ContentStorage = () => {
         })
         .catch(() => new DagNode(dagNodeData));
 
+      const existingDagNodeLinks = existingDagNode.links.filter(
+        (link) => link.name === `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+      );
+
       const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
       const uri = await ddcClient!.store(BigInt(bucketId!), file);
       const fileLink = new Link(
@@ -108,7 +113,7 @@ const ContentStorage = () => {
           : `${filePath ? filePath : ''}${acceptedFile.name}`,
       );
 
-      const dagNode = new DagNode(dagNodeData, [...existingDagNode.links, fileLink]);
+      const dagNode = new DagNode(dagNodeData, [...existingDagNodeLinks, fileLink]);
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
@@ -182,9 +187,13 @@ const ContentStorage = () => {
           })
           .catch(() => new DagNode(dagNodeData));
 
+        const existingDagNodeLinks = existingDagNode.links.filter(
+          (link) => link.name === `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+        );
+
         const appDagNode = new DagNode(
           JSON.stringify({ createTime: Date.now() }),
-          [...existingDagNode.links, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
+          [...existingDagNodeLinks, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
           validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
         );
 
@@ -235,6 +244,23 @@ const ContentStorage = () => {
     [buckets.length, firstBucketLocked],
   );
 
+  const handleCreateEmptyFolder = useCallback(
+    async (bucketId: string) => {
+      const text = ' ';
+      const blob = new Blob([text], { type: 'text/plain' });
+      const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
+
+      const dataTransfer = new DataTransfer();
+      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}/${file.name}`, { type: 'text/plain' });
+      dataTransfer.items.add(fileWithPath);
+
+      const files = dataTransfer.files;
+
+      await handleUpload({ acceptedFiles: Array.from(files), bucketId, cnsName: 'fs', isFolder: true });
+    },
+    [handleUpload],
+  );
+
   return (
     <>
       <Box
@@ -262,6 +288,7 @@ const ContentStorage = () => {
             onUnlockFirstBucket={handleFirstBucketUnlock}
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
+            onFolderCreate={handleCreateEmptyFolder}
           />
         </Container>
       </Box>
