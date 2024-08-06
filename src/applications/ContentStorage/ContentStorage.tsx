@@ -1,6 +1,16 @@
 import { AnalyticsId } from '@developer-console/analytics';
 import { reportError } from '@developer-console/reporting';
-import { Docs, DocsGroup, DocsSection, GithubLogoIcon, Box, Button, styled, Typography } from '@developer-console/ui';
+import {
+  Docs,
+  DocsGroup,
+  DocsSection,
+  GithubLogoIcon,
+  Box,
+  Button,
+  styled,
+  Typography,
+  MetricsChart,
+} from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
@@ -274,6 +284,11 @@ const ContentStorage = () => {
           />
         </Container>
       </Box>
+
+      <Box marginBottom={2}>
+        <MetricsChart history={account.metrics?.history} />
+      </Box>
+
       <Docs
         icon={<DataStorageDocsIcon />}
         title="Get started with Decentralised cloud storage "

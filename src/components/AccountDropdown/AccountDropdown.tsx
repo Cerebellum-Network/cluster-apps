@@ -28,6 +28,8 @@ const AccountDropdown = () => {
     return null;
   }
 
+  const handleClose = () => setOpen(false);
+
   return (
     <Dropdown open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
       <Stack spacing={2} width={240}>
@@ -51,7 +53,7 @@ const AccountDropdown = () => {
             <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
           </CardContent>
           <CardActions>
-            <Button component={NavLink} fullWidth variant="outlined" to="/top-up">
+            <Button component={NavLink} fullWidth variant="outlined" to="/top-up" onClick={handleClose}>
               Top Up
             </Button>
           </CardActions>
@@ -73,7 +75,10 @@ const AccountDropdown = () => {
           className={AnalyticsId.signOut}
           variant="outlined"
           color="secondary"
-          onClick={() => account.disconnect()}
+          onClick={() => {
+            account.disconnect();
+            handleClose();
+          }}
         >
           Log Out
         </Button>
