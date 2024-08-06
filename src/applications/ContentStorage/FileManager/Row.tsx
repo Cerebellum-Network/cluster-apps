@@ -162,7 +162,7 @@ export const Row = ({
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
               const leftMargin = 40 * (level - 1);
-              const isFileForEmptyFolder = element.name === `${EMPTY_FILE_NAME}.txt`;
+              const isFileForEmptyFolder = element.name === `${EMPTY_FILE_NAME}`;
               return (
                 <div
                   {...getNodeProps({ onClick: handleExpand })}
@@ -197,7 +197,7 @@ export const Row = ({
                   {element.metadata?.usedStorage && (
                     <Typography
                       variant="body2"
-                      flex={1}
+                      flex={1.5}
                       textAlign="right"
                       marginRight={isBranch ? `${leftMargin}px` : 0}
                     >

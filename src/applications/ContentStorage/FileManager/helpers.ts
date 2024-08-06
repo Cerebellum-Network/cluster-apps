@@ -1,6 +1,4 @@
 import { FileNode, RealData, RowData } from './types.ts';
-import { KB } from '@cere-ddc-sdk/ddc-client';
-import { randomBytes } from 'crypto';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 
 export const calculateSize = (node: FileNode): number => {
@@ -49,7 +47,7 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
     if (node.children) {
       node.children.forEach(addFolderSizes);
       const totalSize = node.children
-        .filter((s) => s.name !== `${EMPTY_FILE_NAME}.txt`)
+        .filter((s) => s.name !== `${EMPTY_FILE_NAME}`)
         .reduce((sum, child) => sum + calculateSize(child), 0);
       const child = node.children[0];
       const fullPath = child?.fullPath?.replace(`${child.name}`, '').replace('//', '/');
@@ -94,38 +92,12 @@ export const transformData = (data: RealData[]): RowData[] => {
       bucketId,
       usedStorage: bytesToSize(
         files.reduce(
-          (acc, file) => acc + ((file?.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}.txt` ? file?.size : 0) || 0),
+          (acc, file) => acc + ((file?.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}` ? file?.size : 0) || 0),
           0,
         ),
       ),
       acl: rootNode.isPublic,
       files: rootNode,
     };
-  });
-};
-
-type DataStreamOptions = {
-  chunkSize?: number;
-  chunkDelay?: number;
-};
-
-export const createDataStream = (contentSize: number, options?: DataStreamOptions) => {
-  const chunkSize = options?.chunkSize || 64 * KB;
-  const chunkDelay = options?.chunkDelay || 10;
-
-  let remainingDataSize = contentSize;
-
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      await new Promise((resolve) => setTimeout(resolve, chunkDelay));
-
-      if (remainingDataSize > 0) {
-        controller.enqueue(new Uint8Array(randomBytes(Math.min(chunkSize, remainingDataSize))));
-      } else {
-        controller.close();
-      }
-
-      remainingDataSize -= chunkSize;
-    },
   });
 };

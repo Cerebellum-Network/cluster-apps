@@ -99,6 +99,10 @@ const ContentStorage = () => {
         })
         .catch(() => new DagNode(dagNodeData));
 
+      const existingDagNodeLinks = existingDagNode.links.filter(
+        (link) => link.name === `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+      );
+
       const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
       const uri = await ddcClient!.store(BigInt(bucketId!), file);
       const fileLink = new Link(
@@ -109,7 +113,7 @@ const ContentStorage = () => {
           : `${filePath ? filePath : ''}${acceptedFile.name}`,
       );
 
-      const dagNode = new DagNode(dagNodeData, [...existingDagNode.links, fileLink]);
+      const dagNode = new DagNode(dagNodeData, [...existingDagNodeLinks, fileLink]);
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
@@ -183,9 +187,13 @@ const ContentStorage = () => {
           })
           .catch(() => new DagNode(dagNodeData));
 
+        const existingDagNodeLinks = existingDagNode.links.filter(
+          (link) => link.name === `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+        );
+
         const appDagNode = new DagNode(
           JSON.stringify({ createTime: Date.now() }),
-          [...existingDagNode.links, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
+          [...existingDagNodeLinks, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
           validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
         );
 
@@ -238,9 +246,9 @@ const ContentStorage = () => {
 
   const handleCreateEmptyFolder = useCallback(
     async (bucketId: string) => {
-      const text = 'emptyFile';
+      const text = ' ';
       const blob = new Blob([text], { type: 'text/plain' });
-      const file = new File([blob], `${EMPTY_FILE_NAME}.txt`, { type: 'text/plain' });
+      const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
 
       const dataTransfer = new DataTransfer();
       const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}/${file.name}`, { type: 'text/plain' });

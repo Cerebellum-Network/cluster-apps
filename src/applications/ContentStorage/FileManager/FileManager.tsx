@@ -83,7 +83,7 @@ export const FileManager = ({
         <Typography variant="body1" color="secondary" flex={1}>
           Bucket ID
         </Typography>
-        <Typography variant="body1" color="secondary" flex={1} textAlign="right">
+        <Typography variant="body1" color="secondary" flex={1.5} textAlign="right">
           Used Storage
         </Typography>
         <Typography variant="body1" color="secondary" flex={1} textAlign="center">

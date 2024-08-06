@@ -52,5 +52,5 @@ export const PRIVACY_POLICY = 'https://www.notion.so/cere/Privacy-policy-520cc63
  * Additional constants
  */
 
-export const EMPTY_FILE_NAME = '3829da39-5ba1-46a6-bb5f-33705695abf9';
+export const EMPTY_FILE_NAME = '.ddc-empty';
 export const DEFAULT_FOLDER_NAME = 'default';
