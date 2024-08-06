@@ -3,13 +3,19 @@ import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
-import { BucketStats, IndexedAccount, StatsApi } from '@developer-console/api';
+import { BucketStats, IndexedAccount } from '@developer-console/api';
 import Reporting from '@developer-console/reporting';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
-import { Account, Bucket, ConnectOptions, ReadyAccount } from './types';
-import { createAccountResource, createAddressResource, createStatusResource } from './resources';
+import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
+import {
+  createAccountResource,
+  createAccountMetricsResource,
+  createAddressResource,
+  createStatusResource,
+  createBucketStatsResource,
+} from './resources';
 
 export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
@@ -22,9 +28,8 @@ export class AccountStore implements Account {
   private addressResource = createAddressResource(this);
   private accountResource?: IResource<IndexedAccount | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-  private bucketStatsPromise?: IPromiseBasedObservable<BucketStats[]>;
-
-  private statsApi = new StatsApi();
+  private accountMetricsResource?: IResource<AccountMetrics | undefined>;
+  private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
 
   constructor() {
     makeAutoObservable(this, {
@@ -43,9 +48,7 @@ export class AccountStore implements Account {
     reaction(
       () => this.buckets?.length,
       () => {
-        const ids = this.buckets?.map(({ id }) => id);
-
-        this.bucketStatsPromise = ids ? fromPromise(this.statsApi.getBucketsStats(ids)) : undefined;
+        this.bucketsStatsResource = createBucketStatsResource(this);
       },
     );
 
@@ -77,18 +80,29 @@ export class AccountStore implements Account {
 
   private async bootstrap() {
     this.accountResource = createAccountResource(this);
+    this.accountMetricsResource = createAccountMetricsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
   }
 
   private async cleanup() {
     this.userInfoPromise = undefined;
     this.accountResource = undefined;
+    this.accountMetricsResource = undefined;
   }
 
   private getBucketStats(bucketId: bigint) {
-    return this.bucketStatsPromise?.case({
-      fulfilled: (stats) => stats.find((stat) => stat.bucketId === bucketId),
-    });
+    const stats = this.bucketsStatsResource?.current();
+
+    return (
+      stats &&
+      (stats.find((stats) => stats.bucketId === bucketId) || {
+        bucketId,
+        gets: 0,
+        puts: 0,
+        storedBytes: 0,
+        transferredBytes: 0,
+      })
+    );
   }
 
   isReady(): this is ReadyAccount {
@@ -99,30 +113,8 @@ export class AccountStore implements Account {
     return this.statusResource.current();
   }
 
-  /**
-   * TODO: Figure out how to get the aggregated stats
-   */
   get metrics() {
-    const defaultStats: Omit<BucketStats, 'bucketId'> = {
-      gets: 0,
-      puts: 0,
-      storedBytes: 0,
-      transferredBytes: 0,
-    };
-
-    return (
-      this.bucketStatsPromise?.case({
-        fulfilled: (stats) =>
-          stats.reduce((acc, { storedBytes, transferredBytes, gets, puts }) => {
-            acc.storedBytes += storedBytes;
-            acc.transferredBytes += transferredBytes;
-            acc.gets += gets;
-            acc.puts += puts;
-
-            return acc;
-          }, defaultStats),
-      }) || defaultStats
-    );
+    return this.accountMetricsResource?.current();
   }
 
   get address() {

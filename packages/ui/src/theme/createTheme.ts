@@ -220,6 +220,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         styleOverrides: {
           action: {
             alignSelf: 'center',
+            margin: 0,
           },
         },
       },

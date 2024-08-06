@@ -1,7 +1,7 @@
 import { DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { BucketParams } from '@cere-ddc-sdk/blockchain';
 import { UserInfo, WalletStatus } from '@cere/embed-wallet';
-import { BucketStats, IndexedBucket } from '@developer-console/api';
+import { AccountStats, AccountStatsHistoryRecord, BucketStats, IndexedBucket } from '@developer-console/api';
 
 export type AccountStatus = WalletStatus;
 
@@ -13,6 +13,11 @@ export type Bucket = IndexedBucket & {
   stats?: BucketStats;
 };
 
+export type AccountMetrics = {
+  total: AccountStats;
+  history: AccountStatsHistoryRecord[];
+};
+
 export interface Account {
   readonly ddc: DdcClient;
 
@@ -21,6 +26,7 @@ export interface Account {
   readonly balance?: number;
   readonly deposit?: number;
   readonly buckets?: Bucket[];
+  readonly metrics?: AccountMetrics;
 
   isReady(): this is ReadyAccount;
   init(): Promise<AccountStatus>;
@@ -32,4 +38,6 @@ export interface Account {
   topUp(amount: number): Promise<void>;
 }
 
-export type ReadyAccount = Required<Account>;
+export type ReadyAccount = Required<Omit<Account, 'stats'>> & {
+  readonly metrics?: AccountMetrics;
+};
