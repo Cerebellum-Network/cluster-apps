@@ -139,8 +139,7 @@ export const FileManager = ({
               step="createBucket"
               title="Let’s get started!"
               content="Create your first bucket to store your data"
-              skip={!firstBucketLocked}
-              loading={isLoading}
+              skip={isLoading || !firstBucketLocked}
             >
               <Button
                 onClick={onUnlockFirstBucket}
