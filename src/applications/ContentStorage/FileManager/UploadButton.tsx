@@ -15,10 +15,11 @@ interface UploadComponentProps {
   }) => void;
   bucketId: string;
   cnsName: string;
+  firstBucketLocked?: boolean;
   filePath?: string;
 }
 
-export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProps) => {
+export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: UploadComponentProps) => {
   const [openDropdown, setOpen] = useState(false);
 
   const handleUploadFile = () => {
@@ -58,6 +59,7 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
           position="left"
           title="Ready to Upload?"
           content="Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens"
+          skip={!firstBucketLocked}
         >
           <DropdownAnchor label="Upload" {...props} />
         </QuestHint>

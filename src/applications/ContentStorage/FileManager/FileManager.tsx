@@ -142,10 +142,11 @@ export const FileManager = ({
               step="createBucket"
               title="Let’s get started!"
               content="Create your first bucket to store your data"
+              skip={isLoading || !firstBucketLocked}
             >
               <Button
                 onClick={onUnlockFirstBucket}
-                disabled={isBucketCreating}
+                disabled={isLoading || isBucketCreating}
                 className={AnalyticsId.createFirstBucketBtn}
               >
                 {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
