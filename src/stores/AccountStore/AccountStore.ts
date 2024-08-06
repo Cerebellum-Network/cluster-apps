@@ -138,7 +138,7 @@ export class AccountStore implements Account {
   get deposit() {
     const deposit = this.accountResource?.current()?.deposit;
 
-    return deposit === undefined ? undefined : Number(deposit / BigInt(10 ** CERE_DECIMALS));
+    return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get buckets() {
