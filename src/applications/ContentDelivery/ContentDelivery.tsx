@@ -15,6 +15,7 @@ import {
   useMessages,
   Button,
   GithubLogoIcon,
+  MetricsChart,
 } from '@developer-console/ui';
 
 import { CdnDocsIcon } from './icons';
@@ -99,6 +100,8 @@ const ContentDelivery = () => {
           </Paper>
         </>
       )}
+
+      <MetricsChart history={account.metrics?.history} />
 
       <Docs
         icon={<CdnDocsIcon />}

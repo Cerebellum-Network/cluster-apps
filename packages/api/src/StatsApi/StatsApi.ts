@@ -28,7 +28,7 @@ export class StatsApi {
   private baseUrl = STATS_ENDPOINT;
 
   getAccountStats = async (accountId: string) => {
-    const url = new URL(`/statistics/accounts/6U3SBwxqtcY2WtrNRi39CqHoGGM1QZZJiybhSz9tRS54T4ox`, this.baseUrl);
+    const url = new URL(`/statistics/accounts/${accountId}`, this.baseUrl);
     const response = await fetch(url);
     const data = await response.json();
 
@@ -36,7 +36,7 @@ export class StatsApi {
   };
 
   getAccountStatsHistory = async (accountId: string, { from, to }: StatsHistoryFilter) => {
-    const url = new URL(`/statistics/accounts/6U3SBwxqtcY2WtrNRi39CqHoGGM1QZZJiybhSz9tRS54T4ox/history`, this.baseUrl);
+    const url = new URL(`/statistics/accounts/${accountId}/history`, this.baseUrl);
 
     url.searchParams.append('from', from.toISOString());
 

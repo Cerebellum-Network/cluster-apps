@@ -24,6 +24,9 @@ const Check = styled(CheckCircleIcon)(({ theme }) => ({
   color: `${theme.palette.primary.main} !important`,
 }));
 
+/**
+ * TODO: Refactor this component to use shared graphs configuration
+ */
 export const RewardWidget = ({ title, amount, done = false }: RewardWidgetProps) => (
   <Stack component={Widget} direction="row" alignItems="center" justifyContent="center" spacing={0.5}>
     {done && <Check />}

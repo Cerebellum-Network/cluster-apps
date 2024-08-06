@@ -21,7 +21,7 @@ const Sidebar = () => {
         }))}
       />
 
-      <ChartWidget title="Total CERE Consumption" value={`${titleCere} CERE`} />
+      <ChartWidget title="Total CERE Consumption" value={`${titleCere} CERE`} formatValue={(value) => `${value}`} />
 
       <ChartWidget
         title="Network Traffic"

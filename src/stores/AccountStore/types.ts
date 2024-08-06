@@ -39,5 +39,5 @@ export interface Account {
 }
 
 export type ReadyAccount = Required<Omit<Account, 'stats'>> & {
-  readonly stats?: AccountMetrics;
+  readonly metrics?: AccountMetrics;
 };
