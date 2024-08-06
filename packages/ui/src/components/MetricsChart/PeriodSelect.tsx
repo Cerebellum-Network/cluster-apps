@@ -13,8 +13,11 @@ type Option = {
 };
 
 const options: Option[] = [
-  { value: 'hour', label: 'Last hour' },
-  { value: 'day', label: '24 hours' },
+  /**
+   * TODO: Enable the options below when the backend supports them
+   */
+  // { value: 'hour', label: 'Last hour' },
+  // { value: 'day', label: '24 hours' },
   { value: 'week', label: '1 week' },
   { value: 'month', label: '1 month' },
 ];

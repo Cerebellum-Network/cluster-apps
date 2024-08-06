@@ -46,7 +46,7 @@ const Chart = styled(LineChart)({
  */
 export const MetricsChart = ({ history = [] }: MetricsChartProps) => {
   const theme = useTheme();
-  const [period, setPeriod] = useState<MetricsPeriod>('day');
+  const [period, setPeriod] = useState<MetricsPeriod>('week');
   const periodFrom = useMemo(() => mapPeriodToFromDate(period), [period]);
   const periodHistory = useMemo(
     () => history.filter((record) => record.recordTime > periodFrom),
