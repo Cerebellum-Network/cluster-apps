@@ -1,9 +1,9 @@
 import { fromResource } from 'mobx-utils';
 import { WalletAccount } from '@cere/embed-wallet';
-import { IndexerApi } from '@developer-console/api';
+import { IndexerApi, StatsApi } from '@developer-console/api';
 
 import type { AccountStore } from './AccountStore';
-import type { AccountStatus } from './types';
+import type { AccountStatus, AccountMetrics } from './types';
 import { createPullResource } from './createPullResource';
 
 export const createStatusResource = ({ wallet }: AccountStore) => {
@@ -32,6 +32,44 @@ export const createAddressResource = ({ wallet }: AccountStore) => {
 
     unsubscribe = wallet.subscribe('accounts-update', handler);
   }, unsubscribe);
+};
+
+export const createBucketStatsResource = (account: AccountStore) => {
+  const api = new StatsApi();
+  const bucketIds = account.buckets?.map(({ id }) => id) ?? [];
+
+  return createPullResource(() => api.getBucketsStats(bucketIds), {
+    pullTimeout: 60_000, // 1 minute
+  });
+};
+
+export const createAccountMetricsResource = (account: AccountStore) => {
+  const api = new StatsApi();
+
+  return createPullResource(
+    async () => {
+      if (!account.address) {
+        return undefined;
+      }
+
+      const from = new Date();
+
+      /**
+       * Get stats for the last month
+       */
+      from.setMonth(from.getMonth() - 1);
+
+      const [total, history] = await Promise.all([
+        api.getAccountStats(account.address),
+        api.getAccountStatsHistory(account.address, { from }),
+      ]);
+
+      return { total, history } as AccountMetrics;
+    },
+    {
+      pullTimeout: 60_000, // 1 minute
+    },
+  );
 };
 
 export const createAccountResource = (account: AccountStore) => {
