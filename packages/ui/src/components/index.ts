@@ -57,6 +57,8 @@ export {
   type AccordionDetailsProps,
   Divider,
   type DividerProps,
+  ButtonGroup,
+  type ButtonGroupProps,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
