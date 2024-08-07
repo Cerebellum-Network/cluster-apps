@@ -23,11 +23,8 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
     }
 
     parts.forEach((part, index) => {
-      let node = (currentNode.children || [])?.find((child) => child.name === part);
-      if (!node) {
-        node = { name: part, isPublic: currentNode.isPublic, children: [], fullPath: file.name };
-        currentNode.children!.push(node);
-      }
+      const node = { name: part, isPublic: currentNode.isPublic, children: [], fullPath: file.name };
+      currentNode.children!.push(node);
       currentNode = node;
 
       if (index === parts.length - 1) {
