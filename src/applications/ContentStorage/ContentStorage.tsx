@@ -98,7 +98,7 @@ const ContentStorage = () => {
         .catch(() => new DagNode(dagNodeData));
 
       const existingDagNodeLinks = existingDagNode.links.filter(
-        (link) => link.name === `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+        (link) => link.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
       );
 
       const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
@@ -132,12 +132,14 @@ const ContentStorage = () => {
       cnsName,
       isFolder,
       filePath,
+      skipQuests = false,
     }: {
       acceptedFiles: File[];
       bucketId: string;
       cnsName: string;
       isFolder: boolean;
       filePath?: string;
+      skipQuests?: boolean;
     }) => {
       setUploadType(isFolder ? 'folder' : 'file');
       questsStore.markStepDone('uploadFile', 'startUploading');
@@ -150,11 +152,13 @@ const ContentStorage = () => {
           await new Promise((resolve) => setTimeout(resolve, 5000));
           await refetchBucket(BigInt(bucketId));
 
-          /**
-           * Mark the file upload quest as completed
-           */
-          questsStore.markCompleted('uploadFile');
-          setUploadStatus('success');
+          if (!skipQuests) {
+            /**
+             * Mark the file upload quest as completed
+             */
+            questsStore.markCompleted('uploadFile');
+            setUploadStatus('success');
+          }
 
           return;
         } catch (err) {
@@ -185,13 +189,9 @@ const ContentStorage = () => {
           })
           .catch(() => new DagNode(dagNodeData));
 
-        const existingDagNodeLinks = existingDagNode.links.filter(
-          (link) => link.name === `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
-        );
-
         const appDagNode = new DagNode(
           JSON.stringify({ createTime: Date.now() }),
-          [...existingDagNodeLinks, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
+          [...existingDagNode.links, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
           validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
         );
 
@@ -201,10 +201,12 @@ const ContentStorage = () => {
 
         await refetchBucket(BigInt(bucketId));
 
-        /**
-         * Mark the file upload quest as completed
-         */
-        questsStore.markCompleted('uploadFile');
+        if (!skipQuests) {
+          /**
+           * Mark the file upload quest as completed
+           */
+          questsStore.markCompleted('uploadFile');
+        }
         setUploadStatus('success');
 
         return appDagNodeUri.cid;
@@ -254,7 +256,13 @@ const ContentStorage = () => {
 
       const files = dataTransfer.files;
 
-      await handleUpload({ acceptedFiles: Array.from(files), bucketId, cnsName: 'fs', isFolder: true });
+      await handleUpload({
+        acceptedFiles: Array.from(files),
+        bucketId,
+        cnsName: 'fs',
+        isFolder: true,
+        skipQuests: true,
+      });
     },
     [handleUpload],
   );

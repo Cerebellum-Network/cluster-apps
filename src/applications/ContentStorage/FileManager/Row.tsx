@@ -33,7 +33,7 @@ const StyledRow = styled(Box, {
     cursor: !locked ? 'pointer' : 'not-allowed',
     backgroundColor: '#7A9FFF0A',
   },
-  '&:nth-child(odd)': {
+  '&:nth-of-type(odd)': {
     backgroundColor: open ? theme.palette.common.white : '#7A9FFF0A',
   },
   backgroundColor: open ? theme.palette.common.white : 'transparent',
