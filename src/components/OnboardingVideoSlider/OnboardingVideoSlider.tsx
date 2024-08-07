@@ -101,14 +101,14 @@ export const OnboardingVideoSlider = () => {
             textAlign="center"
             dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }}
           />
-          <Typography textAlign="center" variant="subtitle1" sx={{ marginTop: '20px' }}>
+          <Typography textAlign="center" variant="subtitle1" sx={{ marginTop: 'auto' }}>
             {SLIDES[currentSlide].description}
           </Typography>
           <Stack
             direction="row"
             justifyContent="space-between"
             alignItems="center"
-            sx={{ width: '100%', marginTop: 'auto', padding: '20px' }}
+            sx={{ width: '100%', padding: '20px' }}
           >
             <IconButton onClick={prevSlide} color="inherit">
               <LeftArrowIcon />
