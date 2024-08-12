@@ -23,7 +23,13 @@ const options: Option[] = [
 ];
 
 export const PeriodSelect = ({ value, onChange }: PeriodSelectProps) => (
-  <TextField select size="small" value={value} onChange={(e) => onChange?.(e.target.value as MetricsPeriod)}>
+  <TextField
+    select
+    size="small"
+    value={value}
+    defaultValue={options[0].value}
+    onChange={(e) => onChange?.(e.target.value as MetricsPeriod)}
+  >
     {options.map(({ value, label }) => (
       <MenuItem key={value} value={value}>
         {label}

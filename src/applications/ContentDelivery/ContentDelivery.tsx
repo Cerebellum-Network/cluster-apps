@@ -98,11 +98,9 @@ const ContentDelivery = () => {
               Save
             </LoadingButton>
           </Paper>
+          <MetricsChart history={account.metrics?.history} />
         </>
       )}
-
-      <MetricsChart history={account.metrics?.history} />
-
       <Docs
         icon={<CdnDocsIcon />}
         title="Start streaming now with Cere!"
