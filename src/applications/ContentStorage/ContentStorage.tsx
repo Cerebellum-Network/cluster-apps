@@ -170,6 +170,15 @@ const ContentStorage = () => {
       }
       try {
         setUploadStatus('uploading');
+
+        const dagNodeData = JSON.stringify({ createTime: Date.now() });
+
+        const existingDagNode = await ddcClient!
+          .read(new DagNodeUri(BigInt(bucketId), cnsName), {
+            cacheControl: 'no-cache',
+          })
+          .catch(() => new DagNode(dagNodeData));
+
         const uploadedFiles = await Promise.all(
           acceptedFiles.map(
             async (acceptedFile) =>
@@ -181,13 +190,6 @@ const ContentStorage = () => {
           (file): file is { path: string; cid: string; size: number; contentType: string } =>
             file !== null && file !== undefined,
         );
-
-        const dagNodeData = JSON.stringify({ createTime: Date.now() });
-        const existingDagNode = await ddcClient!
-          .read(new DagNodeUri(BigInt(bucketId), cnsName), {
-            cacheControl: 'no-cache',
-          })
-          .catch(() => new DagNode(dagNodeData));
 
         const appDagNode = new DagNode(
           JSON.stringify({ createTime: Date.now() }),
@@ -252,6 +254,12 @@ const ContentStorage = () => {
 
       const dataTransfer = new DataTransfer();
       const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}/${file.name}`, { type: 'text/plain' });
+
+      Object.defineProperty(fileWithPath, 'webkitRelativePath', {
+        value: `${DEFAULT_FOLDER_NAME}/${file.name}`,
+        writable: false,
+      });
+
       dataTransfer.items.add(fileWithPath);
 
       const files = dataTransfer.files;
