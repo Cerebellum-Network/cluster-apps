@@ -5,7 +5,7 @@ type Status = 'uploading' | 'success' | 'error';
 
 interface UploadStatusProps {
   status: Status;
-  type: 'file' | 'folder';
+  type: 'file' | 'folder' | 'emptyFolder';
   onClose: () => void;
 }
 
@@ -20,7 +20,7 @@ export const UploadStatus = ({ status, type, onClose }: UploadStatusProps) => {
   const getMessage = () => {
     switch (status) {
       case 'uploading':
-        return `Please wait while we upload your ${type}...`;
+        return `Please wait while we ${type !== 'emptyFolder' ? 'upload' : 'create'} your ${type}...`;
       case 'success':
         return `Your ${type} has been uploaded successfully!`;
       case 'error':
