@@ -12,13 +12,12 @@ import {
   MetricsChart,
 } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
+import { useAccount, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, Tag } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
-import { Bucket } from '~/stores';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 
 const Container = styled(Box)(({ theme }) => ({
@@ -28,18 +27,12 @@ const Container = styled(Box)(({ theme }) => ({
 const ContentStorage = () => {
   const questsStore = useQuestsStore();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
-  const [firstBucketLocked, setFirstBucketLocked] = useState(true);
 
   const account = useAccount();
 
   const ddcClient = account.ddc;
-
-  const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
-
-  const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -50,31 +43,6 @@ const ContentStorage = () => {
     }
     return () => clearTimeout(timer);
   }, [uploadStatus]);
-
-  useEffect(() => {
-    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
-    setFirstBucketLocked(firstBucketLocked);
-  }, [buckets.length, dirs, dirs.length, questsStore]);
-
-  const onBucketCreation = useCallback(async () => {
-    if (!ddcClient) return;
-
-    questsStore.markStepDone('uploadFile', 'createBucket');
-    setIsBucketCreating(true);
-    const createdBucketId = await account.createBucket({ isPublic: true });
-    const bucketInfo = await ddcClient.getBucket(createdBucketId);
-    if (bucketInfo) {
-      setBuckets((prevState) => {
-        return [
-          ...prevState,
-          { id: bucketInfo.bucketId, isPublic: bucketInfo.isPublic, isRemoved: bucketInfo.isRemoved, stats: undefined },
-        ];
-      });
-      await refetchBucket(createdBucketId);
-      setSelectedBucket(createdBucketId.toString());
-    }
-    setIsBucketCreating(false);
-  }, [account, ddcClient, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -150,7 +118,7 @@ const ContentStorage = () => {
           const acceptedFile = acceptedFiles[0];
           await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
           await new Promise((resolve) => setTimeout(resolve, 5000));
-          await refetchBucket(BigInt(bucketId));
+          // await refetchBucket(BigInt(bucketId));
 
           if (!skipQuests) {
             /**
@@ -199,8 +167,6 @@ const ContentStorage = () => {
 
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        await refetchBucket(BigInt(bucketId));
-
         if (!skipQuests) {
           /**
            * Mark the file upload quest as completed
@@ -216,33 +182,33 @@ const ContentStorage = () => {
         return null;
       }
     },
-    [ddcClient, questsStore, refetchBucket, singleFileUpload],
+    [ddcClient, questsStore, singleFileUpload],
   );
 
   const handleCloseStatus = () => {
     setUploadStatus('idle');
   };
 
-  const handleFirstBucketUnlock = useCallback(async () => {
-    questsStore.markStepDone('uploadFile', 'createBucket');
+  // const handleFirstBucketUnlock = useCallback(async () => {
+  //   questsStore.markStepDone('uploadFile', 'createBucket');
+  //
+  //   setIsBucketCreating(true);
+  //   await new Promise((resolve) => setTimeout(resolve, 3000));
+  //   setSelectedBucket(buckets[0].id.toString());
+  //
+  //   setIsBucketCreating(false);
+  //   setFirstBucketLocked(false);
+  //   localStorage.setItem('firstBucketLocked', 'false');
+  // }, [buckets, questsStore]);
 
-    setIsBucketCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    setSelectedBucket(buckets[0].id.toString());
-
-    setIsBucketCreating(false);
-    setFirstBucketLocked(false);
-    localStorage.setItem('firstBucketLocked', 'false');
-  }, [buckets, questsStore]);
-
-  const handleRowClick = useCallback(
-    (bucketId: string) => {
-      if (!(firstBucketLocked && buckets.length > 0)) {
-        setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
-      }
-    },
-    [buckets.length, firstBucketLocked],
-  );
+  // const handleRowClick = useCallback(
+  //   (bucketId: string) => {
+  //     if (!(firstBucketLocked && buckets.length > 0)) {
+  //       setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
+  //     }
+  //   },
+  //   [buckets.length, firstBucketLocked],
+  // );
 
   const handleCreateEmptyFolder = useCallback(
     async (bucketId: string) => {
@@ -281,19 +247,11 @@ const ContentStorage = () => {
         </Box>
         <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
           <FileManager
-            data={dirs || []}
-            userHasBuckets={buckets.length > 0 || false}
-            isLoading={loading}
-            onCreateBucket={onBucketCreation}
             onUpload={handleUpload}
             uploadType={uploadType}
             uploadStatus={uploadStatus}
             setUploadStatus={handleCloseStatus}
             isBucketCreating={isBucketCreating}
-            firstBucketLocked={firstBucketLocked}
-            onUnlockFirstBucket={handleFirstBucketUnlock}
-            onRowClick={handleRowClick}
-            selectedBucket={selectedBucket}
             onFolderCreate={handleCreateEmptyFolder}
           />
         </Container>

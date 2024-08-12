@@ -3,9 +3,10 @@ import { AddCircleOutlinedIcon, LoadingAnimation } from '@developer-console/ui';
 import { AnalyticsId } from '@developer-console/analytics';
 
 import { Row } from './Row.tsx';
-import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
 import { QuestHint } from '~/components';
+import { useContentStorageStore } from '~/hooks/useContentStorageStore.ts';
+import { useCallback } from 'react';
 
 /**
  * This component resets default CSS styles.
@@ -30,23 +31,12 @@ const StyledBox = styled(Box, {
 }));
 
 export const FileManager = ({
-  data,
-  userHasBuckets,
-  isLoading,
-  onCreateBucket,
   onUpload,
   uploadType,
   uploadStatus,
   setUploadStatus,
-  isBucketCreating,
-  firstBucketLocked,
-  onUnlockFirstBucket,
-  onRowClick,
-  selectedBucket,
   onFolderCreate,
 }: {
-  data: RealData[];
-  onCreateBucket: () => void;
   onUpload: (values: {
     acceptedFiles: File[];
     bucketId: string;
@@ -54,28 +44,50 @@ export const FileManager = ({
     isFolder: boolean;
     filePath?: string;
   }) => void;
-  isLoading: boolean;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder';
   setUploadStatus: (status: 'idle' | 'uploading' | 'success' | 'error') => void;
-  userHasBuckets: boolean;
   isBucketCreating: boolean;
-  firstBucketLocked: boolean;
-  onUnlockFirstBucket: () => void;
-  onRowClick: (bucketId: string) => void;
-  selectedBucket: string | null;
   onFolderCreate: (bucketId: string) => void;
 }) => {
-  const rows = transformData(data);
+  // const [firstBucketLocked, setFirstBucketLocked] = useState(true);
+  const {
+    dirs,
+    buckets,
+    setSelectedBucket,
+    loading,
+    selectedBucket,
+    isBucketCreating,
+    firstBucketLocked,
+    createBucket,
+    handleFirstBucketUnlock,
+  } = useContentStorageStore();
+  const rows = transformData(dirs);
+
+  // useEffect(() => {
+  //   const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
+  //   setFirstBucketLocked(firstBucketLocked);
+  // }, [buckets.length, dirs]);
 
   const handleCloseStatus = () => {
     setUploadStatus('idle');
   };
 
+  const handleRowClick = useCallback(
+    (bucketId: string) => {
+      if (!(firstBucketLocked && buckets.length > 0)) {
+        setSelectedBucket(bucketId);
+      }
+    },
+    [buckets.length, firstBucketLocked, setSelectedBucket],
+  );
+
+  console.log('firstBucketLocked', firstBucketLocked);
+
   return (
     <CssReset>
       <StyledBox
-        locked={firstBucketLocked && userHasBuckets}
+        locked={firstBucketLocked && (buckets.length > 0 || false)}
         display="flex"
         alignItems="center"
         padding={(theme) => theme.spacing(1, 1.5)}
@@ -92,7 +104,7 @@ export const FileManager = ({
         <Box flex={1}></Box>
       </StyledBox>
       <Box>
-        {isLoading ? (
+        {loading ? (
           <Box display="flex" alignItems="center" justifyContent="center">
             <Box width="96px" height="55px">
               <LoadingAnimation />
@@ -108,7 +120,7 @@ export const FileManager = ({
               row={row}
               onUpload={onUpload}
               isOpen={selectedBucket === row.bucketId}
-              onRowClick={() => onRowClick(row.bucketId)}
+              onRowClick={() => handleRowClick(row.bucketId)}
               onCloseUpload={handleCloseStatus}
               onFolderCreate={onFolderCreate}
             />
@@ -127,12 +139,12 @@ export const FileManager = ({
               </Box>
             </Box>
           )}
-          {userHasBuckets && !firstBucketLocked ? (
+          {buckets.length > 0 && !firstBucketLocked ? (
             <Button
               startIcon={<AddCircleOutlinedIcon />}
               className={AnalyticsId.createBucketBtn}
-              onClick={onCreateBucket}
-              disabled={isLoading}
+              onClick={() => createBucket()}
+              disabled={loading}
             >
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
             </Button>
@@ -142,11 +154,11 @@ export const FileManager = ({
               step="createBucket"
               title="Let’s get started!"
               content="Create your first bucket to store your data"
-              skip={isLoading || !firstBucketLocked}
+              skip={loading || !firstBucketLocked}
             >
               <Button
-                onClick={onUnlockFirstBucket}
-                disabled={isLoading || isBucketCreating}
+                onClick={() => handleFirstBucketUnlock()}
+                disabled={loading || isBucketCreating}
                 className={AnalyticsId.createFirstBucketBtn}
               >
                 {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
