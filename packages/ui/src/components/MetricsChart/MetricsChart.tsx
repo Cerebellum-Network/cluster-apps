@@ -181,7 +181,7 @@ export const MetricsChart = ({ history = [] }: MetricsChartProps) => {
           <Stack direction="row" spacing={2} marginY={3} justifyContent="center">
             <Stack direction="row" spacing={1} alignItems="center">
               <Box sx={{ width: 14, height: 14, borderRadius: '4px', backgroundColor: theme.palette.primary.main }} />
-              <Typography variant="body2">Gets</Typography>
+              <Typography variant="body2">Get</Typography>
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">

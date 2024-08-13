@@ -1,6 +1,6 @@
 import { RewardWidget } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
-import { useQuestsStore } from '~/hooks';
+import { useAccountStore, useQuestsStore } from '~/hooks';
 
 export type QuestStatusProps = {
   name: 'uploadFile';
@@ -8,8 +8,15 @@ export type QuestStatusProps = {
 
 const QuestStatus = ({ name }: QuestStatusProps) => {
   const store = useQuestsStore();
+  const account = useAccountStore();
 
-  return <RewardWidget title="Upload your first file" amount={50} done={store.isCompleted(name)} />;
+  return (
+    <RewardWidget
+      title="Upload your first file"
+      amount={50}
+      done={store.isCompleted(name) || (account.buckets || []).length > 1}
+    />
+  );
 };
 
 export default observer(QuestStatus);
