@@ -25,6 +25,8 @@ export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: 
 
   const [openDropdown, setOpen] = useState(false);
 
+  console.log('firstBucketLocked', firstBucketLocked);
+
   const handleUploadFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -65,7 +67,7 @@ export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: 
           position="left"
           title="Ready to Upload?"
           content="Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens"
-          skip={!firstBucketLocked && isCompleted}
+          skip={!firstBucketLocked || isCompleted}
         >
           <DropdownAnchor label="Upload" {...props} />
         </QuestHint>

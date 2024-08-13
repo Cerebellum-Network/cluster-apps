@@ -2,8 +2,15 @@
 
 ### vNext
 
+### v0.5.0
+
 - Updated DDC SDK to fix file upload issues after re-login
 - Added configurable Cere Wallet app contact email
+- Track utm params
+- Updated UI
+- Added empty folder creation
+- File upload quest is reset for the second logged in user
+- Use real history data in metrics on UI
 
 ### v0.4.1
 
