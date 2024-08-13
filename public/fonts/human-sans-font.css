@@ -1,0 +1,88 @@
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+  src: url('./HumanSans-ExtraLight.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+  src: url('./HumanSans-Light.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('./HumanSans-Regular.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('./HumanSans-Medium.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('./HumanSans-Bold.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+  src: url('./HumanSans-Black.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 200;
+  font-style: oblique;
+  font-display: swap;
+  src: url('./HumanSans-ExtraLightOblique.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 300;
+  font-style: oblique;
+  font-display: swap;
+  src: url('./HumanSans-LightOblique.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 400;
+  font-style: oblique;
+  font-display: swap;
+  src: url('./HumanSans-RegularOblique.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 500;
+  font-style: oblique;
+  font-display: swap;
+  src: url('./HumanSans-MediumOblique.otf') format('opentype');
+}
+
+@font-face {
+  font-family: 'HumanSans';
+  font-weight: 700;
+  font-style: oblique;
+  font-display: swap;
+  src: url('./HumanSans-BoldOblique.otf') format('opentype');
+}
+

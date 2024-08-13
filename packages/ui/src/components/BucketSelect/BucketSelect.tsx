@@ -1,5 +1,5 @@
 import { forwardRef, useCallback } from 'react';
-import { MenuItem, Stack, styled, TextField, TextFieldProps, Typography } from '@mui/material';
+import { MenuItem, Stack, Typography, styled, TextFieldProps, TextField } from '@mui/material';
 import { BytesSize } from '../BytesSize';
 
 type BucketSelectOption = {
@@ -27,7 +27,7 @@ const Select = styled(TextField)({
 export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: BucketSelectProps, ref) => {
   const handleChange: NonNullable<TextFieldProps['onChange']> = useCallback(
     (event) => {
-      const selectedId = BigInt(event.target.value);
+      const selectedId = BigInt(event.target.value as string);
       const selectedOption = options.find((option) => option.id === selectedId);
 
       if (selectedOption) {
@@ -38,25 +38,41 @@ export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: 
   );
 
   const noOptions = options.length === 0;
-  const finalValue = noOptions ? '-' : value?.toString() || '';
+  const finalValue = value ? value.toString() : '';
 
   return (
-    <Select {...props} disabled={noOptions} value={finalValue} select inputRef={ref} onChange={handleChange}>
+    <Select
+      {...props}
+      disabled={noOptions}
+      value={finalValue}
+      select
+      inputRef={ref}
+      onChange={handleChange}
+      SelectProps={{ displayEmpty: true }}
+      InputLabelProps={{ shrink: true }} // Ensure the label shrinks
+      label="Select Your Bucket"
+    >
+      <Item value="" disabled>
+        Select Your Bucket
+      </Item>
       {noOptions && (
         <Item value="-">
           <Typography>No buckets</Typography>
         </Item>
       )}
-
       {options.map(({ id, isPublic, storedBytes }) => {
         const bucketId = id.toString();
 
         return (
           <Item key={bucketId} value={bucketId}>
             <Stack direction="row" spacing={1} divider={<Typography color="text.secondary">|</Typography>}>
-              <Typography variant="body2">ID: {bucketId}</Typography>
-              {storedBytes && <Typography variant="body2">{<BytesSize bytes={storedBytes} />}</Typography>}
-              <Typography variant="body2">{isPublic ? 'Public' : 'Private'}</Typography>
+              <Typography variant="subtitle1">ID: {bucketId}</Typography>
+
+              {storedBytes === undefined ? null : (
+                <Typography variant="subtitle1">{<BytesSize bytes={storedBytes} />}</Typography>
+              )}
+
+              <Typography variant="subtitle1">{isPublic ? 'Public' : 'Private'}</Typography>
             </Stack>
           </Item>
         );

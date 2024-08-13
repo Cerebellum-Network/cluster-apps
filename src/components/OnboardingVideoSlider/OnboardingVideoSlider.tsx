@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconButton, Stack } from '@mui/material';
-import { LeftArrowIcon, RightArrowIcon, Typography } from '@developer-console/ui';
-
+import { IconButton, Stack, Typography, LeftArrowIcon, RightArrowIcon } from '@developer-console/ui';
+import { styled } from '@mui/system';
 import { DDC_CLUSTER_NAME } from '~/constants';
 import { SliderDot } from './OnboardingVideoSlider.styled';
 import video from '../../assets/videos/slider-video.mp4';
@@ -14,7 +13,7 @@ const SLIDES = [
   },
   {
     title: 'Decentralized Storage ',
-    description: `Store your data on the world's most secure and accessible network with Cere DDC, ensuring scalability, cost-efficiency, and encrypted with  actionable insights.`,
+    description: `Store your data on the world's most secure and accessible network with Cere DDC, ensuring scalability, cost-efficiency, and encrypted with actionable insights.`,
   },
   {
     title: 'Content Delivery Networks',
@@ -22,6 +21,33 @@ const SLIDES = [
       'Stream the data you stored on Cere’s edge node infrastructure with unprecedented speed and cost efficiency, unlocking next-gen use cases such as permissioned media streaming to NFT holders. Fully censorship-resistant.',
   },
 ];
+
+const VideoBackgroundContainer = styled(Stack)({
+  position: 'relative',
+  height: '100vh',
+  width: '100%',
+  overflow: 'hidden',
+  bgcolor: 'transparent',
+});
+
+const VideoBackground = styled('video')({
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  transform: 'translate(-50%, -50%)',
+  zIndex: -1,
+});
+
+const ContentContainer = styled(Stack)({
+  position: 'relative',
+  zIndex: 1,
+  width: '100%',
+  height: '100%',
+  padding: '40px',
+});
 
 export const OnboardingVideoSlider = () => {
   const vidRef = useRef<HTMLVideoElement | null>(null);
@@ -58,69 +84,46 @@ export const OnboardingVideoSlider = () => {
   };
 
   return (
-    <Stack
-      position="relative"
-      height="100%"
-      width="500px"
-      bgcolor="transparent"
-      sx={{ filter: `hue-rotate(${getHueRotateValue(currentSlide)})` }}
-    >
-      <Stack
-        width="440px"
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-        position="absolute"
-        top="40px"
-        left="40px"
-        zIndex="1"
-      >
-        <Typography
-          variant="h4"
-          color="white"
-          textAlign="center"
-          dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }}
-        />
-      </Stack>
-      <Stack
-        width="440px"
-        direction="column"
-        justifyContent="center"
-        alignItems="center"
-        position="absolute"
-        bottom="100px"
-        left="40px"
-        zIndex="1"
-      >
-        <Typography textAlign="center" color="white">
-          {SLIDES[currentSlide].description}
-        </Typography>
-      </Stack>
-      <Stack
-        width="440px"
-        direction="row"
-        justifyContent="space-between"
-        position="absolute"
-        bottom="40px"
-        left="40px"
-        zIndex="1"
-        color="white"
-      >
-        <IconButton onClick={prevSlide} color="inherit">
-          <LeftArrowIcon />
-        </IconButton>
-        <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
-          <SliderDot className={currentSlide === 0 ? 'active' : ''} />
-          <SliderDot className={currentSlide === 1 ? 'active' : ''} />
-          <SliderDot className={currentSlide === 2 ? 'active' : ''} />
-        </Stack>
-        <IconButton onClick={nextSlide} color="inherit">
-          <RightArrowIcon />
-        </IconButton>
-      </Stack>
-      <video ref={vidRef} className="videoTag" style={{ width: '100%' }} muted>
+    <VideoBackgroundContainer sx={{ filter: `hue-rotate(${getHueRotateValue(currentSlide)})` }}>
+      <VideoBackground ref={vidRef} autoPlay muted loop>
         <source src={video} type="video/mp4" />
-      </video>
-    </Stack>
+        Your browser does not support the video tag.
+      </VideoBackground>
+      <ContentContainer>
+        <Stack
+          direction="column"
+          justifyContent="center"
+          alignItems="center"
+          sx={{ width: '100%', height: '100%', color: 'white' }}
+        >
+          <Typography
+            variant="h2"
+            textAlign="center"
+            dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }}
+          />
+          <Typography textAlign="center" variant="subtitle1" sx={{ marginTop: 'auto' }}>
+            {SLIDES[currentSlide].description}
+          </Typography>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            sx={{ width: '100%', padding: '20px' }}
+          >
+            <IconButton onClick={prevSlide} color="inherit">
+              <LeftArrowIcon />
+            </IconButton>
+            <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
+              <SliderDot className={currentSlide === 0 ? 'active' : ''} />
+              <SliderDot className={currentSlide === 1 ? 'active' : ''} />
+              <SliderDot className={currentSlide === 2 ? 'active' : ''} />
+            </Stack>
+            <IconButton onClick={nextSlide} color="inherit">
+              <RightArrowIcon />
+            </IconButton>
+          </Stack>
+        </Stack>
+      </ContentContainer>
+    </VideoBackgroundContainer>
   );
 };

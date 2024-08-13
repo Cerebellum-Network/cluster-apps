@@ -7,18 +7,19 @@ export type DropdownAnchorProps = {
   label?: ReactNode;
   leftElement?: ReactNode;
   onOpen?: () => void;
+  variant?: 'header' | 'button';
 };
 
 const Clickable = styled(Button)({
   padding: 0,
 });
 
-const Anchor = styled(Stack)(({ theme }) => ({
+const Anchor = styled(Stack)<{ variant?: DropdownAnchorProps['variant'] }>(({ theme, variant }) => ({
   height: 40,
   borderRadius: 25,
   padding: theme.spacing(1),
   color: theme.palette.text.secondary,
-  backgroundColor: theme.palette.grey[200],
+  backgroundColor: variant !== 'header' ? theme.palette.grey[200] : 'transparent',
   cursor: 'pointer',
 }));
 
@@ -38,12 +39,12 @@ const Center = styled(Typography)(({ theme }) => ({
 }));
 
 export const DropdownAnchor = forwardRef(
-  ({ open, label, leftElement, onOpen, ...props }: DropdownAnchorProps, ref: Ref<HTMLButtonElement>) => (
+  ({ open, label, leftElement, onOpen, variant, ...props }: DropdownAnchorProps, ref: Ref<HTMLButtonElement>) => (
     <Clickable ref={ref} {...props} color="inherit" variant="text" onClick={onOpen}>
-      <Anchor spacing={1} direction="row" alignItems="center">
+      <Anchor variant={variant} spacing={1} direction="row" alignItems="stretch">
         <Left>{leftElement}</Left>
         <Center variant="body1">{label}</Center>
-        {open ? <ArrowDropUp /> : <ArrowDropDown />}
+        {variant !== 'header' && (open ? <ArrowDropUp /> : <ArrowDropDown />)}
       </Anchor>
     </Clickable>
   ),

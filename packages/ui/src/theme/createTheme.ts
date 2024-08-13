@@ -53,16 +53,17 @@ export const createTheme = (_options: ThemeOptions = {}) =>
     },
 
     typography: {
+      fontFamily: 'HumanSans, sans-serif',
       fontWeightMedium: 500,
 
       h1: {
-        fontSize: '2rem', // 32px
+        fontSize: '3rem', // 48px
         lineHeight: '2.5rem', // 40px
         fontWeight: 700,
       },
 
       h2: {
-        fontSize: '1.75rem', // 28px
+        fontSize: '2.125rem', // 34px
         lineHeight: '2.25rem', // 36px
         fontWeight: 700,
       },
@@ -70,19 +71,19 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       h3: {
         fontSize: '1.5rem', // 24px,
         lineHeight: '2rem', // 32px,
-        fontWeight: 600,
+        fontWeight: 500,
       },
 
       h4: {
         fontSize: '1.25rem', // 20px,
         lineHeight: '1.625rem', // 26px,
-        fontWeight: 600,
+        fontWeight: 500,
       },
 
       subtitle1: {
         fontSize: '1rem', // 16px,
         lineHeight: '1.5rem', // 24px,
-        fontWeight: 600,
+        fontWeight: 500,
       },
 
       subtitle2: {
@@ -102,6 +103,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       },
 
       caption: {
+        fontWeight: 400,
         fontSize: '0.75rem', // 12px,
         lineHeight: '1rem', // 16px,
       },
@@ -192,7 +194,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
               },
 
               ['& .MuiCardHeader-title']: {
-                ...theme.typography.h3,
+                ...theme.typography.h2,
               },
 
               ['& .MuiCardHeader-subheader']: {
@@ -207,7 +209,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       MuiCardHeader: {
         defaultProps: {
           titleTypographyProps: {
-            variant: 'body1',
+            variant: 'subtitle1',
           },
 
           subheaderTypographyProps: {
@@ -216,8 +218,20 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         },
 
         styleOverrides: {
+          root: {
+            alignItems: 'flex-start',
+            padding: '1.5rem 2rem',
+          },
           action: {
             alignSelf: 'center',
+            margin: 0,
+          },
+        },
+      },
+      MuiCardContent: {
+        styleOverrides: {
+          root: {
+            padding: '1.25rem 2rem 0',
           },
         },
       },

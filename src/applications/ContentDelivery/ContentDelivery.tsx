@@ -15,6 +15,7 @@ import {
   useMessages,
   Button,
   GithubLogoIcon,
+  MetricsChart,
 } from '@developer-console/ui';
 
 import { CdnDocsIcon } from './icons';
@@ -55,18 +56,18 @@ const ContentDelivery = () => {
       <Typography variant="h4">Content Delivery</Typography>
 
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
-        <Typography variant="subtitle1">Please select one of your buckets</Typography>
+        <Typography variant="h4">Please select one of your buckets</Typography>
         <BucketSelect
-          value={currentBucket?.id}
+          value={bucketId}
           label="Bucket"
           options={account.buckets.map((bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
       </Paper>
 
-      {currentBucket && (
+      {!!bucketId && (
         <>
-          <Typography variant="h4">Bucket ID: {`${currentBucket.id}`} CDN Options</Typography>
+          <Typography variant="h4">Bucket ID: {`${bucketId}`} CDN Options</Typography>
 
           <Paper component={Stack} padding={2} spacing={2}>
             <Typography variant="subtitle1">File Access Control</Typography>
@@ -97,16 +98,16 @@ const ContentDelivery = () => {
               Save
             </LoadingButton>
           </Paper>
+          <MetricsChart history={account.metrics?.history} />
         </>
       )}
-
       <Docs
         icon={<CdnDocsIcon />}
         title="Start streaming now with Cere!"
         description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
       >
         <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your content using DDC CLI">
+          <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your file step-by-step guide">
             <UploadWithCliDoc />
           </DocsSection>
 

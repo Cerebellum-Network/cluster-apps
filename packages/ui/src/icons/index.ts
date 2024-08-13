@@ -13,12 +13,14 @@ export {
   InfoOutlined as InfoOutlinedIcon,
   ArrowRight as ArrowRightIcon,
   Delete as DeleteIcon,
-  AddCircleOutlined as AddCircleOutlinedIcon,
+  AddCircleOutlineOutlined as AddCircleOutlinedIcon,
   Close as CloseIcon,
   GppMaybeOutlined as WarningIcon,
   CheckOutlined as CheckIcon,
   EmojiEventsOutlined as RewardIcon,
   CheckCircle as CheckCircleIcon,
+  KeyboardArrowDownOutlined as ArrowDownIcon,
+  KeyboardArrowUpOutlined as ArrowUpIcon,
 } from '@mui/icons-material';
 
 // Custom icons
@@ -40,3 +42,4 @@ export * from './BarTrackingIcon';
 export * from './DecentralizedServerIcon';
 export * from './GithubLogoIcon';
 export * from './ClockIcon';
+export * from './AvatarIcon';

@@ -1,42 +1,35 @@
-import { makeAutoObservable, reaction, runInAction, when } from 'mobx';
+import { makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
-import { BucketStats, IndexedBucket, StatsApi } from '@developer-console/api';
+import { BucketStats, IndexedAccount } from '@developer-console/api';
 import Reporting from '@developer-console/reporting';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
-import { Account, ReadyAccount, ConnectOptions, Bucket } from './types';
+import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
 import {
+  createAccountResource,
+  createAccountMetricsResource,
   createAddressResource,
-  createBalanceResource,
-  createBucketsResource,
-  createDepositResource,
   createStatusResource,
+  createBucketStatsResource,
 } from './resources';
 
 export class AccountStore implements Account {
-  private isBootstrapped = false;
-
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
   readonly ddc = new DdcClient(this.signer, { blockchain: this.blockchain });
 
-  private bcReadyPromise = fromPromise(this.blockchain.isReady());
+  private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
-
-  private balanceResource?: IResource<number | undefined>;
-  private depositResource?: IResource<number | undefined>;
-  private bucketsResource?: IResource<IndexedBucket[] | undefined>;
-
+  private accountResource?: IResource<IndexedAccount | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-  private bucketStatsPromise?: IPromiseBasedObservable<BucketStats[]>;
-
-  private statsApi = new StatsApi();
+  private accountMetricsResource?: IResource<AccountMetrics | undefined>;
+  private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
 
   constructor() {
     makeAutoObservable(this, {
@@ -55,9 +48,7 @@ export class AccountStore implements Account {
     reaction(
       () => this.buckets?.length,
       () => {
-        const ids = this.buckets?.map(({ id }) => id);
-
-        this.bucketStatsPromise = ids ? fromPromise(this.statsApi.getBucketsStats(ids)) : undefined;
+        this.bucketsStatsResource = createBucketStatsResource(this);
       },
     );
 
@@ -88,64 +79,42 @@ export class AccountStore implements Account {
   }
 
   private async bootstrap() {
-    this.bucketsResource = createBucketsResource(this);
+    this.accountResource = createAccountResource(this);
+    this.accountMetricsResource = createAccountMetricsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
-
-    await Promise.all([this.blockchain.isReady(), this.signer.isReady()]);
-
-    runInAction(() => {
-      this.isBootstrapped = true;
-      this.balanceResource = createBalanceResource(this);
-      this.depositResource = createDepositResource(this);
-    });
   }
 
   private async cleanup() {
-    this.isBootstrapped = false;
     this.userInfoPromise = undefined;
-    this.balanceResource = undefined;
-    this.depositResource = undefined;
-    this.bucketsResource = undefined;
+    this.accountResource = undefined;
+    this.accountMetricsResource = undefined;
   }
 
   private getBucketStats(bucketId: bigint) {
-    return this.bucketStatsPromise?.case({
-      fulfilled: (stats) => stats.find((stat) => stat.bucketId === bucketId),
-    });
+    const stats = this.bucketsStatsResource?.current();
+
+    return (
+      stats &&
+      (stats.find((stats) => stats.bucketId === bucketId) || {
+        bucketId,
+        gets: 0,
+        puts: 0,
+        storedBytes: 0,
+        transferredBytes: 0,
+      })
+    );
   }
 
   isReady(): this is ReadyAccount {
-    return this.isBootstrapped && !!this.userInfo && !!this.buckets;
+    return !!this.userInfo && !!this.buckets;
   }
 
   get status() {
     return this.statusResource.current();
   }
 
-  /**
-   * TODO: Figure out how to get the aggregated stats
-   */
   get metrics() {
-    const defaultStats: Omit<BucketStats, 'bucketId'> = {
-      gets: 0,
-      puts: 0,
-      storedBytes: 0,
-      transferredBytes: 0,
-    };
-
-    return (
-      this.bucketStatsPromise?.case({
-        fulfilled: (stats) =>
-          stats.reduce((acc, { storedBytes, transferredBytes, gets, puts }) => {
-            acc.storedBytes += storedBytes;
-            acc.transferredBytes += transferredBytes;
-            acc.gets += gets;
-            acc.puts += puts;
-
-            return acc;
-          }, defaultStats),
-      }) || defaultStats
-    );
+    return this.accountMetricsResource?.current();
   }
 
   get address() {
@@ -153,15 +122,19 @@ export class AccountStore implements Account {
   }
 
   get balance() {
-    return this.balanceResource?.current();
+    const balance = this.accountResource?.current()?.balance;
+
+    return balance === undefined ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get deposit() {
-    return this.depositResource?.current();
+    const deposit = this.accountResource?.current()?.deposit;
+
+    return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get buckets() {
-    return this.bucketsResource?.current()?.map<Bucket>((bucket) => ({
+    return this.accountResource?.current()?.buckets.map<Bucket>((bucket) => ({
       ...bucket,
       stats: this.getBucketStats(bucket.id),
     }));
@@ -221,7 +194,7 @@ export class AccountStore implements Account {
   }
 
   async createBucket(params: BucketParams) {
-    await this.blockchain.isReady();
+    await this.bcReadyPromise;
 
     return this.ddc.createBucket(DDC_CLUSTER_ID, params).then((bucketId) => {
       Reporting.bucketCreated(bucketId);
@@ -231,7 +204,7 @@ export class AccountStore implements Account {
   }
 
   async saveBucket(bucketId: bigint, params: BucketParams) {
-    await this.blockchain.isReady();
+    await this.bcReadyPromise;
 
     await this.blockchain.send(this.blockchain.ddcCustomers.setBucketParams(bucketId, params), {
       account: this.signer,
@@ -239,15 +212,8 @@ export class AccountStore implements Account {
   }
 
   async topUp(amount: number) {
-    await this.blockchain.isReady();
+    await this.bcReadyPromise;
 
     await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
-  }
-
-  /**
-   * TODO: Figure out a genreic way of updating resources
-   */
-  async refreshBuckets() {
-    this.bucketsResource = createBucketsResource(this);
   }
 }

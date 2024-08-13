@@ -17,6 +17,7 @@ export type DropdownProps = Pick<PopoverProps, 'open' | 'children'> &
     disablePaddings?: boolean;
     onToggle?: (open: boolean) => void;
     renderAnchor?: (options: RenderAnchorOptions) => ReactNode;
+    variant: 'header' | 'button';
   };
 
 export const Dropdown = ({
@@ -29,8 +30,9 @@ export const Dropdown = ({
   dense = false,
   disableGutters = false,
   disablePaddings = false,
+  variant,
   renderAnchor = ({ ref, open, onOpen }) => (
-    <DropdownAnchor ref={ref} open={open} label={label} leftElement={leftElement} onOpen={onOpen} />
+    <DropdownAnchor ref={ref} open={open} label={label} leftElement={leftElement} onOpen={onOpen} variant={variant} />
   ),
 }: DropdownProps) => {
   const anchorRef = useRef(null);

@@ -9,7 +9,7 @@ export const DocsGroup = ({ title, children }: DocsGroupProps) => {
   return (
     <CardContent>
       <Stack spacing={2}>
-        <Typography variant="h4">{title}</Typography>
+        <Typography variant="h3">{title}</Typography>
         <Stack spacing={1}>{children}</Stack>
       </Stack>
     </CardContent>

@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom';
 import { AnalyticsId } from '@developer-console/analytics';
 import {
   Dropdown,
-  Avatar,
+  AvatarIcon,
   Stack,
   Truncate,
   Button,
@@ -24,17 +24,14 @@ const AccountDropdown = () => {
   const account = useAccountStore();
   const [open, setOpen] = useState(false);
 
-  if (!account.userInfo || !account.address) {
+  if (!account.address) {
     return null;
   }
 
+  const handleClose = () => setOpen(false);
+
   return (
-    <Dropdown
-      open={open}
-      onToggle={setOpen}
-      label={<Truncate text={account.userInfo.email} variant="email" maxLength={20} />}
-      leftElement={<Avatar />}
-    >
+    <Dropdown variant="header" open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
       <Stack spacing={2} width={240}>
         <Card variant="outlined" size="small">
           <CardHeader
@@ -56,7 +53,7 @@ const AccountDropdown = () => {
             <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
           </CardContent>
           <CardActions>
-            <Button component={NavLink} fullWidth variant="outlined" to="/top-up">
+            <Button component={NavLink} fullWidth variant="outlined" to="/top-up" onClick={handleClose}>
               Top Up
             </Button>
           </CardActions>
@@ -78,7 +75,10 @@ const AccountDropdown = () => {
           className={AnalyticsId.signOut}
           variant="outlined"
           color="secondary"
-          onClick={() => account.disconnect()}
+          onClick={() => {
+            account.disconnect();
+            handleClose();
+          }}
         >
           Log Out
         </Button>

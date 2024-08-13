@@ -1,10 +1,21 @@
-import { Box, BoxProps, ButtonGroup, IconButton, styled, Typography } from '@mui/material';
-import { ArrowRightIcon } from '@developer-console/ui';
+import {
+  Box,
+  BoxProps,
+  Button,
+  ButtonGroup,
+  IconButton,
+  styled,
+  Typography,
+  AddCircleOutlinedIcon,
+  ArrowRightIcon,
+  Truncate,
+  useIsDesktop,
+} from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
 import TreeView, { flattenTree } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
-import { DDC_STORAGE_NODE_URL } from '~/constants.ts';
+import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
 
@@ -22,7 +33,7 @@ const StyledRow = styled(Box, {
     cursor: !locked ? 'pointer' : 'not-allowed',
     backgroundColor: '#7A9FFF0A',
   },
-  '&:nth-child(odd)': {
+  '&:nth-of-type(odd)': {
     backgroundColor: open ? theme.palette.common.white : '#7A9FFF0A',
   },
   backgroundColor: open ? theme.palette.common.white : 'transparent',
@@ -55,8 +66,8 @@ export const Row = ({
   onRowClick,
   isOpen,
   onCloseUpload,
-  onFileDownload,
   firstBucketLocked,
+  onFolderCreate,
 }: {
   row: RowData;
   onUpload: (values: {
@@ -67,46 +78,68 @@ export const Row = ({
     filePath?: string;
   }) => void;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
-  uploadType: 'file' | 'folder';
+  uploadType: 'file' | 'folder' | 'emptyFolder';
   isOpen: boolean;
   onRowClick: () => void;
   onCloseUpload: () => void;
-  onFileDownload: (bucketId: string, source: string, name: string) => void;
   firstBucketLocked: boolean;
+  onFolderCreate: (bucketId: string) => void;
 }) => {
   const { showMessage } = useMessages();
 
+  const isDesktop = useIsDesktop();
+
   const treeData = flattenTree(row.files);
+
+  const handleDownload = async (downloadUrl: string, elName: string) => {
+    try {
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = elName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+    }
+  };
 
   return (
     <>
       <StyledRow locked={firstBucketLocked} open={isOpen} onClick={onRowClick}>
-        <Typography variant="body2" flex={1}>
+        <Typography variant="subtitle1" flex={1}>
           {row.bucketId}
         </Typography>
-        <Box display="flex" alignItems="center" flex={1} justifyContent="end">
-          {/*{isOpen && (*/}
-          {/*  <>*/}
-          {/*    <IconButton*/}
-          {/*      sx={{ marginRight: '8px' }}*/}
-          {/*      onClick={(event) => {*/}
-          {/*        event.stopPropagation();*/}
-          {/*      }}*/}
-          {/*    >*/}
-          {/*      <DeleteIcon />*/}
-          {/*    </IconButton>*/}
-          {/*    <Button*/}
-          {/*      size="small"*/}
-          {/*      sx={{ marginRight: '8px' }}*/}
-          {/*      onClick={(event) => {*/}
-          {/*        event.stopPropagation();*/}
-          {/*      }}*/}
-          {/*    >*/}
-          {/*      <AddCircleOutlinedIcon />*/}
-          {/*      Create Folder*/}
-          {/*    </Button>*/}
-          {/*  </>*/}
-          {/*)}*/}
+        <Box display="flex" alignItems="center" flex={1.5} justifyContent="end">
+          {isOpen && (
+            <>
+              {/*    <IconButton*/}
+              {/*      sx={{ marginRight: '8px' }}*/}
+              {/*      onClick={(event) => {*/}
+              {/*        event.stopPropagation();*/}
+              {/*      }}*/}
+              {/*    >*/}
+              {/*      <DeleteIcon />*/}
+              {/*    </IconButton>*/}
+              <Button
+                color="secondary"
+                variant="outlined"
+                startIcon={isDesktop && <AddCircleOutlinedIcon />}
+                sx={{ marginRight: '8px' }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onFolderCreate(row.bucketId);
+                }}
+              >
+                Create Folder
+              </Button>
+            </>
+          )}
           <Typography variant="body2">{row.usedStorage}</Typography>
         </Box>
         <Typography variant="body2" flex={1} textAlign="center">
@@ -119,7 +152,14 @@ export const Row = ({
             event.stopPropagation();
           }}
         >
-          {isOpen && <UploadButton onDrop={onUpload} bucketId={row.bucketId} cnsName="fs" />}
+          {isOpen && (
+            <UploadButton
+              firstBucketLocked={firstBucketLocked}
+              onDrop={onUpload}
+              bucketId={row.bucketId}
+              cnsName="fs"
+            />
+          )}
         </Box>
       </StyledRow>
       {isOpen && (
@@ -129,13 +169,14 @@ export const Row = ({
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
               const leftMargin = 40 * (level - 1);
+              const isFileForEmptyFolder = element.name === `${EMPTY_FILE_NAME}`;
               return (
                 <div
                   {...getNodeProps({ onClick: handleExpand })}
                   style={{
                     marginLeft: leftMargin,
                     padding: '12px',
-                    display: 'flex',
+                    display: isFileForEmptyFolder ? 'none' : 'flex',
                     alignItems: 'center',
                     width: 'calc(100% - ' + leftMargin + 'px)',
                   }}
@@ -157,13 +198,13 @@ export const Row = ({
                       {isBranch ? <FilledFolderIcon /> : <FolderIcon />}
                     </Box>
                     <Typography variant="body2" flex={1}>
-                      {element.name}
+                      <Truncate text={element.name} variant="text" maxLength={15} endingLength={4} />
                     </Typography>
                   </Box>
                   {element.metadata?.usedStorage && (
                     <Typography
                       variant="body2"
-                      flex={1}
+                      flex={1.5}
                       textAlign="right"
                       marginRight={isBranch ? `${leftMargin}px` : 0}
                     >
@@ -186,7 +227,7 @@ export const Row = ({
                           sx={{ marginRight: '8px' }}
                           onClick={async () => {
                             await navigator.clipboard.writeText(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}/${element.metadata?.fullPath}`,
                             );
                             showMessage({
                               appearance: 'info',
@@ -201,8 +242,12 @@ export const Row = ({
                           <ShareIcon />
                         </IconButton>
                         <IconButton
-                          onClick={() => {
-                            onFileDownload(row.bucketId, element.metadata?.cid as unknown as string, element.name);
+                          onClick={async (event) => {
+                            event.preventDefault();
+                            await handleDownload(
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}/${element.metadata?.fullPath}`,
+                              element.name,
+                            );
                           }}
                         >
                           <DownloadIcon />

@@ -7,6 +7,7 @@ import {
   setUser,
   EventHint,
 } from '@sentry/react';
+import { getUTMParameters } from './helpers';
 
 export type ReportingOptions = Pick<BrowserOptions, 'environment'> & {
   appVersion: string;
@@ -23,11 +24,18 @@ export class Reporting {
   constructor(private options: BrowserOptions) {}
 
   init({ appVersion, tags, environment }: ReportingOptions) {
+    const utmParams = getUTMParameters();
+
+    const combinedTags = {
+      ...tags,
+      ...utmParams,
+    };
+
     init({
       ...this.options,
       environment,
       release: `developer-console-client@${appVersion}`,
-      initialScope: { tags },
+      initialScope: { tags: combinedTags },
     });
   }
 

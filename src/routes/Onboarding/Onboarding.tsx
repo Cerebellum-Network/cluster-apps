@@ -35,7 +35,7 @@ const Onboarding = () => {
           <br />
           You're almost set to use Developer Console
         </Typography>
-        <Typography variant="h3" fontWeight="bold" textAlign="center">
+        <Typography variant="h1" fontWeight="bold" textAlign="center">
           Setting up your environment
         </Typography>
         <Typography variant="subtitle1" fontWeight="medium" sx={{ my: 3 }}>

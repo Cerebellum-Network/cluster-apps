@@ -57,6 +57,8 @@ export {
   type AccordionDetailsProps,
   Divider,
   type DividerProps,
+  ButtonGroup,
+  type ButtonGroupProps,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
@@ -78,3 +80,5 @@ export * from './QRCode';
 export * from './RewardWidget';
 export * from './Hint';
 export * from './MobileOverlay';
+export * from './DiscordButton';
+export * from './MetricsChart';

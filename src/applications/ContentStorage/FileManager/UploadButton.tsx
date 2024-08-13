@@ -4,6 +4,7 @@ import { Dropdown, UploadFileIcon, UploadFolderIcon, DropdownAnchor } from '@dev
 import { AnalyticsId, trackEvent } from '@developer-console/analytics';
 
 import { QuestHint } from '~/components';
+import { useQuestsStore } from '~/hooks';
 
 interface UploadComponentProps {
   onDrop: (values: {
@@ -15,11 +16,16 @@ interface UploadComponentProps {
   }) => void;
   bucketId: string;
   cnsName: string;
+  firstBucketLocked?: boolean;
   filePath?: string;
 }
 
-export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProps) => {
+export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: UploadComponentProps) => {
+  const store = useQuestsStore();
+
   const [openDropdown, setOpen] = useState(false);
+
+  console.log('firstBucketLocked', firstBucketLocked);
 
   const handleUploadFile = () => {
     const input = document.createElement('input');
@@ -47,8 +53,11 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
     setOpen((prevState) => !prevState);
   };
 
+  const isCompleted = store.isCompleted('uploadFile');
+
   return (
     <Dropdown
+      variant="button"
       open={openDropdown}
       onToggle={setOpen}
       renderAnchor={(props) => (
@@ -58,6 +67,7 @@ export const UploadButton = ({ bucketId, filePath, onDrop }: UploadComponentProp
           position="left"
           title="Ready to Upload?"
           content="Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens"
+          skip={!firstBucketLocked || isCompleted}
         >
           <DropdownAnchor label="Upload" {...props} />
         </QuestHint>

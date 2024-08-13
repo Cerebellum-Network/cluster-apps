@@ -24,7 +24,7 @@ export const RightColumn = styled(Stack)({
   flex: 1,
   overflow: 'hidden',
   boxSizing: 'border-box',
-  minWidth: '500px',
+  minWidth: '560px',
   height: '100%',
   borderRadius: '20px',
 });
