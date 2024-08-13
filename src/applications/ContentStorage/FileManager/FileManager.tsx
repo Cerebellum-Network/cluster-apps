@@ -40,6 +40,7 @@ export const FileManager = ({
   setUploadStatus,
   isBucketCreating,
   firstBucketLocked,
+  lockUi,
   onUnlockFirstBucket,
   onRowClick,
   selectedBucket,
@@ -61,6 +62,7 @@ export const FileManager = ({
   userHasBuckets: boolean;
   isBucketCreating: boolean;
   firstBucketLocked: boolean;
+  lockUi: boolean;
   onUnlockFirstBucket: () => void;
   onRowClick: (bucketId: string) => void;
   selectedBucket: string | null;
@@ -75,7 +77,7 @@ export const FileManager = ({
   return (
     <CssReset>
       <StyledBox
-        locked={firstBucketLocked && userHasBuckets}
+        locked={lockUi && userHasBuckets}
         display="flex"
         alignItems="center"
         padding={(theme) => theme.spacing(1, 1.5)}
@@ -111,6 +113,7 @@ export const FileManager = ({
               onRowClick={() => onRowClick(row.bucketId)}
               onCloseUpload={handleCloseStatus}
               onFolderCreate={onFolderCreate}
+              lockUi={lockUi}
             />
           ))
         )}
