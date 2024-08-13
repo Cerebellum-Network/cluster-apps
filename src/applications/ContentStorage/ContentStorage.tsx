@@ -29,7 +29,7 @@ const ContentStorage = () => {
   const questsStore = useQuestsStore();
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
-  const [uploadType, setUploadType] = useState<'file' | 'folder'>('file');
+  const [uploadType, setUploadType] = useState<'file' | 'folder' | 'emptyFolder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
 
@@ -133,6 +133,7 @@ const ContentStorage = () => {
       isFolder,
       filePath,
       skipQuests = false,
+      emptyFolder = false,
     }: {
       acceptedFiles: File[];
       bucketId: string;
@@ -140,8 +141,9 @@ const ContentStorage = () => {
       isFolder: boolean;
       filePath?: string;
       skipQuests?: boolean;
+      emptyFolder?: boolean;
     }) => {
-      setUploadType(isFolder ? 'folder' : 'file');
+      setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
       questsStore.markStepDone('uploadFile', 'startUploading');
 
       if (!isFolder) {
@@ -270,6 +272,7 @@ const ContentStorage = () => {
         cnsName: 'fs',
         isFolder: true,
         skipQuests: true,
+        emptyFolder: true,
       });
     },
     [handleUpload],
