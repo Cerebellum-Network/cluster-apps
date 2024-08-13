@@ -25,8 +25,6 @@ export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: 
 
   const [openDropdown, setOpen] = useState(false);
 
-  console.log('firstBucketLocked', firstBucketLocked);
-
   const handleUploadFile = () => {
     const input = document.createElement('input');
     input.type = 'file';
