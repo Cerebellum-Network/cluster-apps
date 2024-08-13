@@ -32,6 +32,7 @@ const ContentStorage = () => {
   const [uploadType, setUploadType] = useState<'file' | 'folder' | 'emptyFolder'>('file');
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
+  const [lockUi, setLockUi] = useState<boolean>(true);
 
   const account = useAccount();
 
@@ -54,6 +55,7 @@ const ContentStorage = () => {
   useEffect(() => {
     const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
     setFirstBucketLocked(firstBucketLocked);
+    setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
 
   const onBucketCreation = useCallback(async () => {
@@ -235,8 +237,7 @@ const ContentStorage = () => {
     setSelectedBucket(buckets[0].id.toString());
 
     setIsBucketCreating(false);
-    setFirstBucketLocked(false);
-    localStorage.setItem('firstBucketLocked', 'false');
+    setLockUi(false);
   }, [buckets, questsStore]);
 
   const handleRowClick = useCallback(
@@ -302,6 +303,7 @@ const ContentStorage = () => {
             setUploadStatus={handleCloseStatus}
             isBucketCreating={isBucketCreating}
             firstBucketLocked={firstBucketLocked}
+            lockUi={lockUi}
             onUnlockFirstBucket={handleFirstBucketUnlock}
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}

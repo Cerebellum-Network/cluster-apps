@@ -67,6 +67,7 @@ export const Row = ({
   isOpen,
   onCloseUpload,
   firstBucketLocked,
+  lockUi,
   onFolderCreate,
 }: {
   row: RowData;
@@ -83,6 +84,7 @@ export const Row = ({
   onRowClick: () => void;
   onCloseUpload: () => void;
   firstBucketLocked: boolean;
+  lockUi: boolean;
   onFolderCreate: (bucketId: string) => void;
 }) => {
   const { showMessage } = useMessages();
@@ -111,7 +113,7 @@ export const Row = ({
 
   return (
     <>
-      <StyledRow locked={firstBucketLocked} open={isOpen} onClick={onRowClick}>
+      <StyledRow locked={lockUi} open={isOpen} onClick={onRowClick}>
         <Typography variant="subtitle1" flex={1}>
           {row.bucketId}
         </Typography>

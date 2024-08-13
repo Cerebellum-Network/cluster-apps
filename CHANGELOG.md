@@ -2,6 +2,10 @@
 
 ### vNext
 
+### v0.5.1
+
+- Fixed tour visibility
+
 ### v0.5.0
 
 - Updated DDC SDK to fix file upload issues after re-login
