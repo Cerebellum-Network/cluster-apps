@@ -31,7 +31,7 @@ const AccountDropdown = () => {
   const handleClose = () => setOpen(false);
 
   return (
-    <Dropdown open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
+    <Dropdown variant="header" open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
       <Stack spacing={2} width={240}>
         <Card variant="outlined" size="small">
           <CardHeader

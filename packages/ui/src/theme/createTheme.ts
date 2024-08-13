@@ -81,7 +81,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       },
 
       subtitle1: {
-        fontSize: '0.938rem', // 16px,
+        fontSize: '1rem', // 16px,
         lineHeight: '1.5rem', // 24px,
         fontWeight: 500,
       },
@@ -218,9 +218,20 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         },
 
         styleOverrides: {
+          root: {
+            alignItems: 'flex-start',
+            padding: '2rem',
+          },
           action: {
             alignSelf: 'center',
             margin: 0,
+          },
+        },
+      },
+      MuiCardContent: {
+        styleOverrides: {
+          root: {
+            padding: '2rem',
           },
         },
       },

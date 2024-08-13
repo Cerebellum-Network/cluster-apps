@@ -55,6 +55,7 @@ export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: 
 
   return (
     <Dropdown
+      variant="button"
       open={openDropdown}
       onToggle={setOpen}
       renderAnchor={(props) => (
