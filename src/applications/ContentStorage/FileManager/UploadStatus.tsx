@@ -1,5 +1,6 @@
 import { CircularProgress, IconButton, Typography, Alert, AlertProps, styled } from '@mui/material';
 import { Close as CloseIcon, Warning as WarningIcon, Check as CheckIcon } from '@mui/icons-material';
+import { useMemo } from 'react';
 
 type Status = 'uploading' | 'success' | 'error';
 
@@ -17,14 +18,21 @@ const StyledAlert = styled(Alert)<AlertProps>(({ theme }) => ({
 }));
 
 export const UploadStatus = ({ status, type, onClose }: UploadStatusProps) => {
+  const entity = useMemo(() => {
+    if (type === 'emptyFolder') {
+      return 'folder';
+    }
+    return type;
+  }, [type]);
+
   const getMessage = () => {
     switch (status) {
       case 'uploading':
-        return `Please wait while we ${type !== 'emptyFolder' ? 'upload' : 'create'} your ${type}...`;
+        return `Please wait while we ${type !== 'emptyFolder' ? 'upload' : 'create'} your ${entity}...`;
       case 'success':
-        return `Your ${type} has been uploaded successfully!`;
+        return `Your ${entity} has been ${type !== 'emptyFolder' ? 'uploaded' : 'created'} successfully!`;
       case 'error':
-        return `An error occurred while uploading your ${type}. Please try again.`;
+        return `An error occurred while ${type !== 'emptyFolder' ? 'uploading' : 'creating'} your ${entity}. Please try again.`;
       default:
         return '';
     }
