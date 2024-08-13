@@ -78,7 +78,7 @@ export const Row = ({
     filePath?: string;
   }) => void;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
-  uploadType: 'file' | 'folder';
+  uploadType: 'file' | 'folder' | 'emptyFolder';
   isOpen: boolean;
   onRowClick: () => void;
   onCloseUpload: () => void;

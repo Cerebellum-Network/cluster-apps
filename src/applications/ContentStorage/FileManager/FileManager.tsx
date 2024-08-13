@@ -56,7 +56,7 @@ export const FileManager = ({
   }) => void;
   isLoading: boolean;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
-  uploadType: 'file' | 'folder';
+  uploadType: 'file' | 'folder' | 'emptyFolder';
   setUploadStatus: (status: 'idle' | 'uploading' | 'success' | 'error') => void;
   userHasBuckets: boolean;
   isBucketCreating: boolean;
