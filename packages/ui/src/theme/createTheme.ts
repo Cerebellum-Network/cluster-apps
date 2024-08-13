@@ -220,7 +220,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         styleOverrides: {
           root: {
             alignItems: 'flex-start',
-            padding: '2rem',
+            padding: '1.5rem 2rem',
           },
           action: {
             alignSelf: 'center',
@@ -231,7 +231,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       MuiCardContent: {
         styleOverrides: {
           root: {
-            padding: '2rem',
+            padding: '1.25rem 2rem 0',
           },
         },
       },
