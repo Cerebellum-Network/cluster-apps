@@ -2,6 +2,10 @@
 
 ### vNext
 
+### v0.5.2
+
+- Fixed login page layout
+
 ### v0.5.1
 
 - Fixed tour visibility

@@ -1,7 +1,7 @@
 import { Stack, styled } from '@developer-console/ui';
 
 export const OnboardingContainer = styled(Stack)({
-  height: 'calc(100vh - 256px)',
+  height: 'calc(100vh - 128px)',
   boxSizing: 'border-box',
   flexGrow: 1,
   background: '#F5F7FA',
