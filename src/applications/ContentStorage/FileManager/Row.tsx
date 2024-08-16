@@ -229,7 +229,7 @@ export const Row = ({
                           sx={{ marginRight: '8px' }}
                           onClick={async () => {
                             await navigator.clipboard.writeText(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}/${element.metadata?.fullPath}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/fs/${element.metadata?.fullPath}`,
                             );
                             showMessage({
                               appearance: 'info',
@@ -247,7 +247,7 @@ export const Row = ({
                           onClick={async (event) => {
                             event.preventDefault();
                             await handleDownload(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${element.metadata?.cid}/${element.metadata?.fullPath}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/fs/${element.metadata?.fullPath}`,
                               element.name,
                             );
                           }}
