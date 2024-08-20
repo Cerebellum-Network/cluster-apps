@@ -2,6 +2,10 @@
 
 ### vNext
 
+### v0.6.0
+
+- Fix links for share and download file
+
 ### v0.5.2
 
 - Fixed login page layout
