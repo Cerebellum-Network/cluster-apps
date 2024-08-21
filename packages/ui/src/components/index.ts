@@ -41,6 +41,7 @@ export {
   type CollapseProps,
   Snackbar,
   type SnackbarOrigin,
+  type AlertProps,
   Alert,
   type AlertColor,
   FormControl,

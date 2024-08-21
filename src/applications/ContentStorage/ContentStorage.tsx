@@ -10,6 +10,9 @@ import {
   styled,
   Typography,
   MetricsChart,
+  Alert,
+  AlertProps,
+  AddCircleOutlinedIcon,
 } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
@@ -20,9 +23,15 @@ import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentSt
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
+import { NavLink } from 'react-router-dom';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
+}));
+
+const StyledAlert = styled(Alert)<AlertProps>(() => ({
+  display: 'flex',
+  alignItems: 'center',
 }));
 
 const ContentStorage = () => {
@@ -33,6 +42,7 @@ const ContentStorage = () => {
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
   const [lockUi, setLockUi] = useState<boolean>(true);
+  const [isAccountReady, setIsAccountReady] = useState<boolean>(false);
 
   const account = useAccount();
 
@@ -41,6 +51,14 @@ const ContentStorage = () => {
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
 
   const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
+
+  useEffect(() => {
+    if (buckets.length <= 1 && dirs.filter((s) => !!s.cid).length === 0 && account.deposit === 0) {
+      setIsAccountReady(false);
+    } else {
+      setIsAccountReady(true);
+    }
+  }, [account.deposit, buckets.length, dirs]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -58,8 +76,24 @@ const ContentStorage = () => {
     setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
 
+  const handleFirstBucketUnlock = useCallback(async () => {
+    questsStore.markStepDone('uploadFile', 'createBucket');
+
+    setIsBucketCreating(true);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    if (buckets.length > 0) {
+      setSelectedBucket(buckets[0].id.toString());
+    }
+
+    setIsBucketCreating(false);
+    setLockUi(false);
+  }, [buckets, questsStore]);
+
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
+    if (buckets.length === 0) {
+      await handleFirstBucketUnlock();
+    }
 
     questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
@@ -76,7 +110,8 @@ const ContentStorage = () => {
       setSelectedBucket(createdBucketId.toString());
     }
     setIsBucketCreating(false);
-  }, [account, ddcClient, questsStore, refetchBucket]);
+    setLockUi(false);
+  }, [account, buckets.length, ddcClient, handleFirstBucketUnlock, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -229,17 +264,6 @@ const ContentStorage = () => {
     setUploadStatus('idle');
   };
 
-  const handleFirstBucketUnlock = useCallback(async () => {
-    questsStore.markStepDone('uploadFile', 'createBucket');
-
-    setIsBucketCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    setSelectedBucket(buckets[0].id.toString());
-
-    setIsBucketCreating(false);
-    setLockUi(false);
-  }, [buckets, questsStore]);
-
   const handleRowClick = useCallback(
     (bucketId: string) => {
       if (!(firstBucketLocked && buckets.length > 0)) {
@@ -292,6 +316,18 @@ const ContentStorage = () => {
           <Typography variant="h3">Content Storage</Typography>
         </Box>
         <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
+          {!isAccountReady && (
+            <StyledAlert
+              severity="info"
+              action={
+                <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
+                  Top Up
+                </Button>
+              }
+            >
+              Your DDC Wallet balance is 0. Please top it up.
+            </StyledAlert>
+          )}
           <FileManager
             data={dirs || []}
             userHasBuckets={buckets.length > 0 || false}
@@ -308,6 +344,7 @@ const ContentStorage = () => {
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
             onFolderCreate={handleCreateEmptyFolder}
+            isAccountReady={isAccountReady}
           />
         </Container>
       </Box>
