@@ -91,9 +91,6 @@ const ContentStorage = () => {
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
-    if (buckets.length === 0) {
-      await handleFirstBucketUnlock();
-    }
 
     questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
@@ -111,7 +108,7 @@ const ContentStorage = () => {
     }
     setIsBucketCreating(false);
     setLockUi(false);
-  }, [account, buckets.length, ddcClient, handleFirstBucketUnlock, questsStore, refetchBucket]);
+  }, [account, ddcClient, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({

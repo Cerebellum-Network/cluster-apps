@@ -215,5 +215,7 @@ export class AccountStore implements Account {
     await this.bcReadyPromise;
 
     await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
+    this.accountResource = undefined;
+    this.accountResource = createAccountResource(this);
   }
 }
