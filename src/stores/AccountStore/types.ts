@@ -36,6 +36,7 @@ export interface Account {
   createBucket(params: BucketParams): Promise<bigint>;
   saveBucket(bucketId: bigint, params: BucketParams): Promise<void>;
   topUp(amount: number): Promise<void>;
+  reloadStore(): Promise<void>;
 }
 
 export type ReadyAccount = Required<Omit<Account, 'stats'>> & {

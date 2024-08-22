@@ -93,6 +93,7 @@ const ContentStorage = () => {
     if (!ddcClient) return;
     if (buckets.length === 0) {
       await handleFirstBucketUnlock();
+      await account.reloadStore();
     }
 
     questsStore.markStepDone('uploadFile', 'createBucket');

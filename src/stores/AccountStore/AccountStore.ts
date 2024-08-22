@@ -216,4 +216,10 @@ export class AccountStore implements Account {
 
     await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
   }
+
+  async reloadStore() {
+    await this.cleanup();
+
+    await this.bootstrap();
+  }
 }
