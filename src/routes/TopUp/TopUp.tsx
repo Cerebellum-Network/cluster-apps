@@ -24,12 +24,22 @@ const TopUp = () => {
   });
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    await account.topUp(Number(data.amount));
+    try {
+      await account.topUp(Number(data.amount));
+    } catch (err) {
+      showMessage({
+        appearance: 'error',
+        message: 'Not enough tokens',
+        placement: { vertical: 'top', horizontal: 'right' },
+      });
+      return;
+    }
 
     form.reset();
     showMessage({
       appearance: 'success',
       message: `Congrats! You topped up your DDC Account with ${data.amount} tokens`,
+      placement: { vertical: 'top', horizontal: 'right' },
     });
   });
 
