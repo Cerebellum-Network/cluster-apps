@@ -39,6 +39,7 @@ const TopUp = () => {
     showMessage({
       appearance: 'success',
       message: `Congrats! You topped up your DDC Account with ${data.amount} tokens`,
+      placement: { vertical: 'top', horizontal: 'right' },
     });
   });
 
