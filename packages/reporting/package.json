@@ -8,7 +8,8 @@
     "import": "./src"
   },
   "dependencies": {
-    "@sentry/react": "^8.20.0"
+    "@sentry/react": "^8.20.0",
+    "byte-size": "^9.0.0"
   },
   "scripts": {}
 }
