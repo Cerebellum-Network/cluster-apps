@@ -1,5 +1,5 @@
 import { AnalyticsId } from '@developer-console/analytics';
-import { reportError } from '@developer-console/reporting';
+import Reporting from '@developer-console/reporting';
 import {
   Docs,
   DocsGroup,
@@ -13,11 +13,12 @@ import {
   Alert,
   AlertProps,
   AddCircleOutlinedIcon,
+  getByteSize,
 } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
-import { DagNode, DagNodeUri, Link, File as DdcFile, Tag } from '@cere-ddc-sdk/ddc-client';
+import { DagNode, DagNodeUri, Link, File as DdcFile, Tag, FileContent } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
@@ -135,8 +136,17 @@ const ContentStorage = () => {
         (link) => link.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
       );
 
-      const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
+      const file = new DdcFile(acceptedFile.stream() as FileContent, { size: acceptedFile.size });
       const uri = await ddcClient!.store(BigInt(bucketId!), file);
+
+      Reporting.fileUploaded({
+        bucketId: BigInt(bucketId),
+        cid: uri.cid,
+        name: acceptedFile.name,
+        type: acceptedFile.type,
+        size: getByteSize(acceptedFile.size).toString(),
+      });
+
       const fileLink = new Link(
         uri.cid,
         acceptedFile.size,
@@ -198,9 +208,9 @@ const ContentStorage = () => {
 
           return;
         } catch (err) {
-          reportError(err);
+          Reporting.error(err);
           setUploadStatus('error');
-          console.error(err);
+
           return null;
         }
       }

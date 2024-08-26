@@ -20,6 +20,14 @@ export type ReportingUser = {
   email?: string;
 };
 
+export type ReportingFile = {
+  bucketId: bigint;
+  cid: string;
+  name: string;
+  size: string;
+  type: string;
+};
+
 export class Reporting {
   constructor(private options: BrowserOptions) {}
 
@@ -63,5 +71,16 @@ export class Reporting {
 
   userSignedUp = (walletId: string) => {
     this.message(`User signed up: ${walletId}`, 'info', { event: 'userSignedUp', walletId });
+  };
+
+  fileUploaded = (file: ReportingFile) => {
+    this.message(`User uploaded a file of type ${file.type} and size ${file.size}`, 'info', {
+      event: 'fileUploaded',
+      bucketId: file.bucketId.toString(),
+      fileCid: file.cid,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+    });
   };
 }
