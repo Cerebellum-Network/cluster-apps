@@ -24,7 +24,7 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
 
     parts.forEach((part, index) => {
       let node = (currentNode.children || [])?.find((child) => child.name === part);
-      if (!node || part === 'default') {
+      if (!node) {
         node = { name: part, isPublic: currentNode.isPublic, children: [], fullPath: file.name };
         currentNode.children!.push(node);
       }
@@ -47,7 +47,7 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
     if (node.children) {
       node.children.forEach(addFolderSizes);
       const totalSize = node.children
-        .filter((s) => s.name !== `${EMPTY_FILE_NAME}`)
+        .filter((s) => !s.name.includes(EMPTY_FILE_NAME))
         .reduce((sum, child) => sum + calculateSize(child), 0);
       const child = node.children[0];
       const fullPath = child?.fullPath?.replace(`${child.name}`, '').replace('//', '/');

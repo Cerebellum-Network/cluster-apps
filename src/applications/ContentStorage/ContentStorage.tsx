@@ -50,7 +50,7 @@ const ContentStorage = () => {
 
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
 
-  const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
+  const { dirs, loading, defaultDirIndices, setDefaultFolderIndex, refetchBucket } = useFetchDirs(buckets, ddcClient);
 
   useEffect(() => {
     if (buckets.length <= 1 && dirs.filter((s) => !!s.cid).length === 0 && account.deposit === 0) {
@@ -131,8 +131,17 @@ const ContentStorage = () => {
         })
         .catch(() => new DagNode(dagNodeData));
 
+      let defaultDirIndex = 0;
+      if (filePath) {
+        const match = filePath.match(/default(\d*)/);
+        if (match) {
+          defaultDirIndex = match[1] ? parseInt(match[1], 10) : 0;
+        }
+      }
+
       const existingDagNodeLinks = existingDagNode.links.filter(
-        (link) => link.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+        (link) =>
+          link.name !== `${DEFAULT_FOLDER_NAME}${defaultDirIndex === 0 ? '' : defaultDirIndex}/${EMPTY_FILE_NAME}`,
       );
 
       const file = new DdcFile(acceptedFile.stream() as FileContent, { size: acceptedFile.size });
@@ -286,10 +295,12 @@ const ContentStorage = () => {
       const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
 
       const dataTransfer = new DataTransfer();
-      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}/${file.name}`, { type: 'text/plain' });
-
+      const currentDefaultFolderIdx = defaultDirIndices[bucketId];
+      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}/${file.name}`, {
+        type: 'text/plain',
+      });
       Object.defineProperty(fileWithPath, 'webkitRelativePath', {
-        value: `${DEFAULT_FOLDER_NAME}/${file.name}`,
+        value: `${DEFAULT_FOLDER_NAME}${(currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1}/${file.name}`,
         writable: false,
       });
 
@@ -305,8 +316,10 @@ const ContentStorage = () => {
         skipQuests: true,
         emptyFolder: true,
       });
+
+      setDefaultFolderIndex(bucketId.toString(), (currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1);
     },
-    [handleUpload],
+    [defaultDirIndices, handleUpload, setDefaultFolderIndex],
   );
 
   return (
