@@ -2,6 +2,13 @@
 
 ### vNext
 
+### v0.7.0
+
+- Add file upload sentry event
+- Show error on UI side if user tries to transfer more tokens than they has
+- Fix default folder creation logic
+- Fix user flow if something went wrong during onboarding
+
 ### v0.6.0
 
 - Fix links for share and download file

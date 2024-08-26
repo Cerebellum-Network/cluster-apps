@@ -45,6 +45,7 @@ export const FileManager = ({
   onRowClick,
   selectedBucket,
   onFolderCreate,
+  isAccountReady,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -67,6 +68,7 @@ export const FileManager = ({
   onRowClick: (bucketId: string) => void;
   selectedBucket: string | null;
   onFolderCreate: (bucketId: string) => void;
+  isAccountReady: boolean;
 }) => {
   const rows = transformData(data);
 
@@ -145,11 +147,11 @@ export const FileManager = ({
               step="createBucket"
               title="Let’s get started!"
               content="Create your first bucket to store your data"
-              skip={isLoading || !firstBucketLocked}
+              skip={isLoading || !firstBucketLocked || !isAccountReady}
             >
               <Button
-                onClick={onUnlockFirstBucket}
-                disabled={isLoading || isBucketCreating}
+                onClick={!userHasBuckets ? onCreateBucket : onUnlockFirstBucket}
+                disabled={isLoading || isBucketCreating || !isAccountReady}
                 className={AnalyticsId.createFirstBucketBtn}
               >
                 {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}

@@ -1,5 +1,5 @@
 import { AnalyticsId } from '@developer-console/analytics';
-import { reportError } from '@developer-console/reporting';
+import Reporting from '@developer-console/reporting';
 import {
   Docs,
   DocsGroup,
@@ -10,19 +10,28 @@ import {
   styled,
   Typography,
   MetricsChart,
+  Alert,
+  AlertProps,
+  AddCircleOutlinedIcon,
 } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
-import { DagNode, DagNodeUri, Link, File as DdcFile, Tag } from '@cere-ddc-sdk/ddc-client';
+import { DagNode, DagNodeUri, Link, File as DdcFile, Tag, FileContent } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
+import { NavLink } from 'react-router-dom';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
+}));
+
+const StyledAlert = styled(Alert)<AlertProps>(() => ({
+  display: 'flex',
+  alignItems: 'center',
 }));
 
 const ContentStorage = () => {
@@ -33,6 +42,7 @@ const ContentStorage = () => {
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
   const [lockUi, setLockUi] = useState<boolean>(true);
+  const [isAccountReady, setIsAccountReady] = useState<boolean>(false);
 
   const account = useAccount();
 
@@ -40,7 +50,15 @@ const ContentStorage = () => {
 
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
 
-  const { dirs, loading, refetchBucket } = useFetchDirs(buckets, ddcClient);
+  const { dirs, loading, defaultDirIndices, setDefaultFolderIndex, refetchBucket } = useFetchDirs(buckets, ddcClient);
+
+  useEffect(() => {
+    if (buckets.length <= 1 && dirs.filter((s) => !!s.cid).length === 0 && account.deposit === 0) {
+      setIsAccountReady(false);
+    } else {
+      setIsAccountReady(true);
+    }
+  }, [account.deposit, buckets.length, dirs]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -57,6 +75,19 @@ const ContentStorage = () => {
     setFirstBucketLocked(firstBucketLocked);
     setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
+
+  const handleFirstBucketUnlock = useCallback(async () => {
+    questsStore.markStepDone('uploadFile', 'createBucket');
+
+    setIsBucketCreating(true);
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    if (buckets.length > 0) {
+      setSelectedBucket(buckets[0].id.toString());
+    }
+
+    setIsBucketCreating(false);
+    setLockUi(false);
+  }, [buckets, questsStore]);
 
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
@@ -76,6 +107,7 @@ const ContentStorage = () => {
       setSelectedBucket(createdBucketId.toString());
     }
     setIsBucketCreating(false);
+    setLockUi(false);
   }, [account, ddcClient, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
@@ -99,12 +131,30 @@ const ContentStorage = () => {
         })
         .catch(() => new DagNode(dagNodeData));
 
+      let defaultDirIndex = 0;
+      if (filePath) {
+        const match = filePath.match(/default(\d*)/);
+        if (match) {
+          defaultDirIndex = match[1] ? parseInt(match[1], 10) : 0;
+        }
+      }
+
       const existingDagNodeLinks = existingDagNode.links.filter(
-        (link) => link.name !== `${DEFAULT_FOLDER_NAME}/${EMPTY_FILE_NAME}`,
+        (link) =>
+          link.name !== `${DEFAULT_FOLDER_NAME}${defaultDirIndex === 0 ? '' : defaultDirIndex}/${EMPTY_FILE_NAME}`,
       );
 
-      const file = new DdcFile(acceptedFile.stream() as unknown as Uint8Array, { size: acceptedFile.size });
+      const file = new DdcFile(acceptedFile.stream() as FileContent, { size: acceptedFile.size });
       const uri = await ddcClient!.store(BigInt(bucketId!), file);
+
+      Reporting.fileUploaded({
+        bucketId: BigInt(bucketId),
+        cid: uri.cid,
+        name: acceptedFile.name,
+        type: acceptedFile.type,
+        size: acceptedFile.size,
+      });
+
       const fileLink = new Link(
         uri.cid,
         acceptedFile.size,
@@ -166,9 +216,9 @@ const ContentStorage = () => {
 
           return;
         } catch (err) {
-          reportError(err);
+          Reporting.error(err);
           setUploadStatus('error');
-          console.error(err);
+
           return null;
         }
       }
@@ -229,17 +279,6 @@ const ContentStorage = () => {
     setUploadStatus('idle');
   };
 
-  const handleFirstBucketUnlock = useCallback(async () => {
-    questsStore.markStepDone('uploadFile', 'createBucket');
-
-    setIsBucketCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    setSelectedBucket(buckets[0].id.toString());
-
-    setIsBucketCreating(false);
-    setLockUi(false);
-  }, [buckets, questsStore]);
-
   const handleRowClick = useCallback(
     (bucketId: string) => {
       if (!(firstBucketLocked && buckets.length > 0)) {
@@ -256,10 +295,12 @@ const ContentStorage = () => {
       const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
 
       const dataTransfer = new DataTransfer();
-      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}/${file.name}`, { type: 'text/plain' });
-
+      const currentDefaultFolderIdx = defaultDirIndices[bucketId];
+      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}/${file.name}`, {
+        type: 'text/plain',
+      });
       Object.defineProperty(fileWithPath, 'webkitRelativePath', {
-        value: `${DEFAULT_FOLDER_NAME}/${file.name}`,
+        value: `${DEFAULT_FOLDER_NAME}${(currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1}/${file.name}`,
         writable: false,
       });
 
@@ -275,8 +316,10 @@ const ContentStorage = () => {
         skipQuests: true,
         emptyFolder: true,
       });
+
+      setDefaultFolderIndex(bucketId.toString(), (currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1);
     },
-    [handleUpload],
+    [defaultDirIndices, handleUpload, setDefaultFolderIndex],
   );
 
   return (
@@ -292,6 +335,18 @@ const ContentStorage = () => {
           <Typography variant="h3">Content Storage</Typography>
         </Box>
         <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
+          {!isAccountReady && (
+            <StyledAlert
+              severity="info"
+              action={
+                <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
+                  Top Up
+                </Button>
+              }
+            >
+              Your DDC Wallet balance is 0. Please top it up.
+            </StyledAlert>
+          )}
           <FileManager
             data={dirs || []}
             userHasBuckets={buckets.length > 0 || false}
@@ -308,6 +363,7 @@ const ContentStorage = () => {
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
             onFolderCreate={handleCreateEmptyFolder}
+            isAccountReady={isAccountReady}
           />
         </Container>
       </Box>
