@@ -13,7 +13,6 @@ import {
   Alert,
   AlertProps,
   AddCircleOutlinedIcon,
-  getByteSize,
 } from '@developer-console/ui';
 import { observer } from 'mobx-react-lite';
 import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
@@ -144,7 +143,7 @@ const ContentStorage = () => {
         cid: uri.cid,
         name: acceptedFile.name,
         type: acceptedFile.type,
-        size: getByteSize(acceptedFile.size).toString(),
+        size: acceptedFile.size,
       });
 
       const fileLink = new Link(

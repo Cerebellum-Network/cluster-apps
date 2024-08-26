@@ -1,3 +1,4 @@
+import byteSize from 'byte-size';
 import {
   init,
   captureException,
@@ -7,6 +8,7 @@ import {
   setUser,
   EventHint,
 } from '@sentry/react';
+
 import { getUTMParameters } from './helpers';
 
 export type ReportingOptions = Pick<BrowserOptions, 'environment'> & {
@@ -24,7 +26,7 @@ export type ReportingFile = {
   bucketId: bigint;
   cid: string;
   name: string;
-  size: string;
+  size: number;
   type: string;
 };
 
@@ -79,8 +81,9 @@ export class Reporting {
       bucketId: file.bucketId.toString(),
       fileCid: file.cid,
       fileName: file.name,
-      fileSize: file.size,
       fileType: file.type,
+      fileSizeInBytes: file.size,
+      fileSize: byteSize(file.size).toString(),
     });
   };
 }
