@@ -76,14 +76,16 @@ export class Reporting {
   };
 
   fileUploaded = (file: ReportingFile) => {
-    this.message(`User uploaded a file of type ${file.type} and size ${file.size}`, 'info', {
+    const fileSize = byteSize(file.size).toString();
+
+    this.message(`User uploaded a file of type ${file.type} and size ${fileSize}`, 'info', {
       event: 'fileUploaded',
       bucketId: file.bucketId.toString(),
       fileCid: file.cid,
       fileName: file.name,
       fileType: file.type,
       fileSizeInBytes: file.size,
-      fileSize: byteSize(file.size).toString(),
+      fileSize,
     });
   };
 }
