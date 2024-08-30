@@ -66,7 +66,6 @@ export const Row = ({
   onRowClick,
   isOpen,
   onCloseUpload,
-  firstBucketLocked,
   lockUi,
   onFolderCreate,
 }: {
@@ -154,14 +153,7 @@ export const Row = ({
             event.stopPropagation();
           }}
         >
-          {isOpen && (
-            <UploadButton
-              firstBucketLocked={firstBucketLocked}
-              onDrop={onUpload}
-              bucketId={row.bucketId}
-              cnsName="fs"
-            />
-          )}
+          {isOpen && <UploadButton onDrop={onUpload} bucketId={row.bucketId} cnsName="fs" />}
         </Box>
       </StyledRow>
       {isOpen && (

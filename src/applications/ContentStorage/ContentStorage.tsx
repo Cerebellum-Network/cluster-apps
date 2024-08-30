@@ -71,10 +71,15 @@ const ContentStorage = () => {
   }, [uploadStatus]);
 
   useEffect(() => {
-    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
+    const isBucketCreatedStepDone = questsStore.isStepDone('uploadFile', 'createBucket');
+    const firstBucketLocked =
+      !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0) && !isBucketCreatedStepDone;
+    if (!firstBucketLocked) {
+      setSelectedBucket(buckets[0].id.toString());
+    }
     setFirstBucketLocked(firstBucketLocked);
     setLockUi(firstBucketLocked);
-  }, [buckets.length, dirs, dirs.length, questsStore]);
+  }, [buckets, buckets.length, dirs, dirs.length, questsStore]);
 
   const handleFirstBucketUnlock = useCallback(async () => {
     questsStore.markStepDone('uploadFile', 'createBucket');
@@ -196,7 +201,6 @@ const ContentStorage = () => {
       emptyFolder?: boolean;
     }) => {
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
-      questsStore.markStepDone('uploadFile', 'startUploading');
 
       if (!isFolder) {
         setUploadStatus('uploading');
@@ -210,6 +214,7 @@ const ContentStorage = () => {
             /**
              * Mark the file upload quest as completed
              */
+            questsStore.markStepDone('uploadFile', 'fileUploaded');
             questsStore.markCompleted('uploadFile');
             setUploadStatus('success');
           }
@@ -261,6 +266,8 @@ const ContentStorage = () => {
           /**
            * Mark the file upload quest as completed
            */
+          questsStore.markStepDone('uploadFile', 'fileUploaded');
+
           questsStore.markCompleted('uploadFile');
         }
         setUploadStatus('success');

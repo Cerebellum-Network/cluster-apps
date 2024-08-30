@@ -5,11 +5,11 @@ import { AccountStore } from '../AccountStore';
 import { Quest } from './Quest';
 
 export type QuestName = 'uploadFile';
-export type QuestStep = 'createBucket' | 'startUploading';
+export type QuestStep = 'createBucket' | 'fileUploaded';
 
 export class QuestsStore {
   private questsMap = {
-    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading']),
+    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'fileUploaded']),
   };
 
   constructor(private accountStore: AccountStore) {
@@ -33,6 +33,13 @@ export class QuestsStore {
 
         if (parsedQuests.uploadFile) {
           this.questsMap.uploadFile.fromJson(parsedQuests.uploadFile);
+          const uploadFileSteps = parsedQuests.uploadFileSteps || {};
+          Object.keys(uploadFileSteps).forEach((step) => {
+            const stepObj = this.questsMap.uploadFile.steps.find(({ name }) => name === step);
+            if (stepObj) {
+              stepObj.isDone = uploadFileSteps[step];
+            }
+          });
         } else {
           this.questsMap.uploadFile.reset();
         }
@@ -49,10 +56,19 @@ export class QuestsStore {
       return;
     }
 
+    const uploadFileSteps = this.questsMap.uploadFile.steps.reduce(
+      (steps, step) => {
+        steps[step.name] = step.isDone;
+        return steps;
+      },
+      {} as Record<QuestStep, boolean>,
+    );
+
     localStorage.setItem(
       `dc:quests:${this.accountStore.address}`,
       JSON.stringify({
         uploadFile: this.questsMap.uploadFile.toJson(),
+        uploadFileSteps,
       }),
     );
   }
@@ -70,6 +86,8 @@ export class QuestsStore {
 
     if (stepObj) {
       stepObj.isDone = true;
+
+      this.storeQuests();
 
       Reporting.message(`Quest step ${quest}:${step} is done`, 'info', { event: 'questStepDone' });
     }
