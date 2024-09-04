@@ -1,7 +1,7 @@
 import { makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
-import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient, Signer } from '@cere-ddc-sdk/ddc-client';
+import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@developer-console/api';
 import Reporting from '@developer-console/reporting';
@@ -147,10 +147,6 @@ export class AccountStore implements Account {
     });
   }
 
-  async getSigner(): Promise<Signer> {
-    return this.signer;
-  }
-
   async connect({ email }: ConnectOptions) {
     /**
      * If the user is already connected - disconnect first
@@ -224,9 +220,9 @@ export class AccountStore implements Account {
     this.accountResource = createAccountResource(this);
   }
 
-  async getAuthToken(cid: string) {
+  async createAuthToken(pieceCid: string) {
     const params: Omit<AuthTokenParams, 'subject'> = {
-      pieceCid: cid,
+      pieceCid,
       operations: [AuthTokenOperation.GET],
     };
 

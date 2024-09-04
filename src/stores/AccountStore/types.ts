@@ -36,7 +36,7 @@ export interface Account {
   createBucket(params: BucketParams): Promise<bigint>;
   saveBucket(bucketId: bigint, params: BucketParams): Promise<void>;
   topUp(amount: number): Promise<void>;
-  getAuthToken(cid: string): Promise<AuthToken>;
+  createAuthToken(cid: string): Promise<AuthToken>;
 }
 
 export type ReadyAccount = Required<Omit<Account, 'stats'>> & {

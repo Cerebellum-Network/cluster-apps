@@ -117,13 +117,13 @@ export const Row = ({
 
   const handleCopyLink = async ({ row, element }: { row: RowData; element: INode }) => {
     try {
-      const cid = await resolveCid(row.bucketId);
+      const cid = (await resolveCid(row.bucketId))?.toString();
 
-      const token = element.metadata?.isPublic ? undefined : await account.getAuthToken(cid.toString());
+      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
 
       await copyToClipboard({
         bucketId: row.bucketId,
-        cid: cid.toString(),
+        cid,
         element,
         token: token?.toString(),
       });
