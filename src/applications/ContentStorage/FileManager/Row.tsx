@@ -159,7 +159,7 @@ export const Row = ({
     element: INode;
     token?: string;
   }) => {
-    const url = `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}${token ? `?token=${token.toString()}` : ''}`;
+    const url = `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}${token ? `?token=${token}` : ''}`;
     await navigator.clipboard.writeText(url);
   };
 
