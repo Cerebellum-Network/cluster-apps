@@ -1,7 +1,7 @@
 import { makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
-import { CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
+import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient, Signer } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@developer-console/api';
 import Reporting from '@developer-console/reporting';
@@ -16,6 +16,7 @@ import {
   createStatusResource,
   createBucketStatsResource,
 } from './resources';
+import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
 
 export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
@@ -146,6 +147,10 @@ export class AccountStore implements Account {
     });
   }
 
+  async getSigner(): Promise<Signer> {
+    return this.signer;
+  }
+
   async connect({ email }: ConnectOptions) {
     /**
      * If the user is already connected - disconnect first
@@ -217,5 +222,14 @@ export class AccountStore implements Account {
     await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
     this.accountResource = undefined;
     this.accountResource = createAccountResource(this);
+  }
+
+  async getAuthToken(cid: string) {
+    const params: Omit<AuthTokenParams, 'subject'> = {
+      pieceCid: cid.toString(),
+      operations: [AuthTokenOperation.GET],
+    };
+
+    return new AuthToken(params).sign(this.signer);
   }
 }
