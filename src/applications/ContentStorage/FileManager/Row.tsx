@@ -18,6 +18,7 @@ import { bytesToSize } from './helpers.ts';
 import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
+import { useAccount } from '~/hooks';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -87,6 +88,9 @@ export const Row = ({
   lockUi: boolean;
   onFolderCreate: (bucketId: string) => void;
 }) => {
+  const account = useAccount();
+
+  const ddcClient = account.ddc;
   const { showMessage } = useMessages();
 
   const isDesktop = useIsDesktop();
@@ -228,8 +232,11 @@ export const Row = ({
                         <IconButton
                           sx={{ marginRight: '8px' }}
                           onClick={async () => {
+                            const cid = await ddcClient.resolveName(BigInt(row.bucketId), 'fs', {
+                              cacheControl: 'no-cache',
+                            });
                             await navigator.clipboard.writeText(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/fs/${element.metadata?.fullPath}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${cid}/${element.metadata?.fullPath}`,
                             );
                             showMessage({
                               appearance: 'info',
@@ -246,8 +253,11 @@ export const Row = ({
                         <IconButton
                           onClick={async (event) => {
                             event.preventDefault();
+                            const cid = await ddcClient.resolveName(BigInt(row.bucketId), 'fs', {
+                              cacheControl: 'no-cache',
+                            });
                             await handleDownload(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/fs/${element.metadata?.fullPath}`,
+                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${cid}/${element.metadata?.fullPath}`,
                               element.name,
                             );
                           }}
