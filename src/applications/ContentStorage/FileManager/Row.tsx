@@ -97,15 +97,19 @@ export const Row = ({
 
   const treeData = flattenTree(row.files);
 
-  const handleDownload = async (downloadUrl: string, elName: string) => {
+  const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
+      const cid = (await resolveCid(bucketId))?.toString();
+
+      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+      const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
       const response = await fetch(downloadUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');
       link.href = url;
-      link.download = elName;
+      link.download = element.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -148,7 +152,12 @@ export const Row = ({
     });
   };
 
-  const copyToClipboard = async ({
+  const copyToClipboard = async (params: { bucketId: string; cid: string; element: INode; token?: string }) => {
+    const url = getUrl(params);
+    await navigator.clipboard.writeText(url);
+  };
+
+  const getUrl = ({
     bucketId,
     cid,
     element,
@@ -158,10 +167,7 @@ export const Row = ({
     cid: string;
     element: INode;
     token?: string;
-  }) => {
-    const url = `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}${token ? `?token=${token}` : ''}`;
-    await navigator.clipboard.writeText(url);
-  };
+  }) => `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}${token ? `?token=${token}` : ''}`;
 
   const showLinkCopiedMessage = () => {
     showMessage({
@@ -294,13 +300,7 @@ export const Row = ({
                         <IconButton
                           onClick={async (event) => {
                             event.preventDefault();
-                            const cid = await ddcClient.resolveName(BigInt(row.bucketId), 'fs', {
-                              cacheControl: 'no-cache',
-                            });
-                            await handleDownload(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${cid}/${element.metadata?.fullPath}`,
-                              element.name,
-                            );
+                            await handleDownload({ bucketId: row.bucketId, element });
                           }}
                         >
                           <DownloadIcon />
