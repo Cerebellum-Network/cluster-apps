@@ -226,7 +226,7 @@ export class AccountStore implements Account {
 
   async getAuthToken(cid: string) {
     const params: Omit<AuthTokenParams, 'subject'> = {
-      pieceCid: cid.toString(),
+      pieceCid: cid,
       operations: [AuthTokenOperation.GET],
     };
 
