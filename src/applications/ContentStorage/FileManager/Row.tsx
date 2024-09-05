@@ -100,10 +100,15 @@ export const Row = ({
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
       const cid = (await resolveCid(bucketId))?.toString();
-
       const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+
       const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
       const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        console.error(`Failed to fetch file: ${response.statusText}`);
+      }
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
@@ -112,8 +117,11 @@ export const Row = ({
       link.download = element.name;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Download error:', error);
     }
