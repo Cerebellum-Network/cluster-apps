@@ -1,4 +1,4 @@
-import { DdcClient } from '@cere-ddc-sdk/ddc-client';
+import { AuthToken, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { BucketParams } from '@cere-ddc-sdk/blockchain';
 import { UserInfo, WalletStatus } from '@cere/embed-wallet';
 import { AccountStats, AccountStatsHistoryRecord, BucketStats, IndexedBucket } from '@developer-console/api';
@@ -36,6 +36,7 @@ export interface Account {
   createBucket(params: BucketParams): Promise<bigint>;
   saveBucket(bucketId: bigint, params: BucketParams): Promise<void>;
   topUp(amount: number): Promise<void>;
+  createAuthToken(cid: string): Promise<AuthToken>;
 }
 
 export type ReadyAccount = Required<Omit<Account, 'stats'>> & {

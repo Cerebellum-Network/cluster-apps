@@ -12,7 +12,7 @@ import {
   useIsDesktop,
 } from '@developer-console/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@developer-console/ui';
-import TreeView, { flattenTree } from 'react-accessible-treeview';
+import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
 import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
@@ -97,22 +97,95 @@ export const Row = ({
 
   const treeData = flattenTree(row.files);
 
-  const handleDownload = async (downloadUrl: string, elName: string) => {
+  const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
+      const cid = (await resolveCid(bucketId))?.toString();
+      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+
+      const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
       const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        console.error(`Failed to fetch file: ${response.statusText}`);
+      }
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');
       link.href = url;
-      link.download = elName;
+      link.download = element.name;
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
     } catch (error) {
       console.error('Download error:', error);
     }
+  };
+
+  const handleCopyLink = async ({ row, element }: { row: RowData; element: INode }) => {
+    try {
+      const cid = (await resolveCid(row.bucketId))?.toString();
+
+      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+
+      await copyToClipboard({
+        bucketId: row.bucketId,
+        cid,
+        element,
+        token: token?.toString(),
+      });
+
+      showLinkCopiedMessage();
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      showMessage({
+        appearance: 'error',
+        message: 'Failed to copy link. Please try again.',
+        placement: {
+          vertical: 'top',
+          horizontal: 'right',
+        },
+      });
+    }
+  };
+
+  const resolveCid = async (bucketId: string) => {
+    return await ddcClient.resolveName(BigInt(bucketId), 'fs', {
+      cacheControl: 'no-cache',
+    });
+  };
+
+  const copyToClipboard = async (params: { bucketId: string; cid: string; element: INode; token?: string }) => {
+    const url = getUrl(params);
+    await navigator.clipboard.writeText(url);
+  };
+
+  const getUrl = ({
+    bucketId,
+    cid,
+    element,
+    token,
+  }: {
+    bucketId: string;
+    cid: string;
+    element: INode;
+    token?: string;
+  }) => `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}${token ? `?token=${token}` : ''}`;
+
+  const showLinkCopiedMessage = () => {
+    showMessage({
+      appearance: 'info',
+      message: 'Link copied to clipboard. Share it with anyone you like!',
+      placement: {
+        vertical: 'top',
+        horizontal: 'right',
+      },
+    });
   };
 
   return (
@@ -229,37 +302,13 @@ export const Row = ({
                   >
                     {!isBranch ? (
                       <ButtonGroup>
-                        <IconButton
-                          sx={{ marginRight: '8px' }}
-                          onClick={async () => {
-                            const cid = await ddcClient.resolveName(BigInt(row.bucketId), 'fs', {
-                              cacheControl: 'no-cache',
-                            });
-                            await navigator.clipboard.writeText(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${cid}/${element.metadata?.fullPath}`,
-                            );
-                            showMessage({
-                              appearance: 'info',
-                              message: 'Link copied to clipboard. Share it with anyone you like!',
-                              placement: {
-                                vertical: 'top',
-                                horizontal: 'right',
-                              },
-                            });
-                          }}
-                        >
+                        <IconButton sx={{ marginRight: '8px' }} onClick={async () => handleCopyLink({ row, element })}>
                           <ShareIcon />
                         </IconButton>
                         <IconButton
                           onClick={async (event) => {
                             event.preventDefault();
-                            const cid = await ddcClient.resolveName(BigInt(row.bucketId), 'fs', {
-                              cacheControl: 'no-cache',
-                            });
-                            await handleDownload(
-                              `${DDC_STORAGE_NODE_URL}/${row.bucketId}/${cid}/${element.metadata?.fullPath}`,
-                              element.name,
-                            );
+                            await handleDownload({ bucketId: row.bucketId, element });
                           }}
                         >
                           <DownloadIcon />
