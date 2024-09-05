@@ -70,6 +70,7 @@ export const Row = ({
   firstBucketLocked,
   lockUi,
   onFolderCreate,
+  bucketInProgress,
 }: {
   row: RowData;
   onUpload: (values: {
@@ -87,6 +88,7 @@ export const Row = ({
   firstBucketLocked: boolean;
   lockUi: boolean;
   onFolderCreate: (bucketId: string) => void;
+  bucketInProgress?: string;
 }) => {
   const account = useAccount();
 
@@ -243,7 +245,9 @@ export const Row = ({
       </StyledRow>
       {isOpen && (
         <ExpandedRow open={isOpen}>
-          {uploadStatus !== 'idle' && <UploadStatus status={uploadStatus} type={uploadType} onClose={onCloseUpload} />}
+          {uploadStatus !== 'idle' && bucketInProgress === row.bucketId && (
+            <UploadStatus status={uploadStatus} type={uploadType} onClose={onCloseUpload} />
+          )}
           <TreeView
             data={treeData}
             nodeRenderer={({ element, isBranch, isExpanded, getNodeProps, level, handleExpand }) => {
