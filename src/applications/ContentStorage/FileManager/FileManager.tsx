@@ -46,6 +46,7 @@ export const FileManager = ({
   selectedBucket,
   onFolderCreate,
   isAccountReady,
+  bucketInProgress,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -69,6 +70,7 @@ export const FileManager = ({
   selectedBucket: string | null;
   onFolderCreate: (bucketId: string) => void;
   isAccountReady: boolean;
+  bucketInProgress?: string;
 }) => {
   const rows = transformData(data);
 
@@ -116,6 +118,7 @@ export const FileManager = ({
               onCloseUpload={handleCloseStatus}
               onFolderCreate={onFolderCreate}
               lockUi={lockUi}
+              bucketInProgress={bucketInProgress}
             />
           ))
         )}

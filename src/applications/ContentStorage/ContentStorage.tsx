@@ -39,6 +39,7 @@ const ContentStorage = () => {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'file' | 'folder' | 'emptyFolder'>('file');
+  const [bucketInProgress, setBucketInProgress] = useState<string>();
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [firstBucketLocked, setFirstBucketLocked] = useState(true);
   const [lockUi, setLockUi] = useState<boolean>(true);
@@ -65,6 +66,7 @@ const ContentStorage = () => {
     if (uploadStatus === 'success' || uploadStatus === 'error') {
       timer = setTimeout(() => {
         setUploadStatus('idle');
+        setBucketInProgress(undefined);
       }, 5000);
     }
     return () => clearTimeout(timer);
@@ -197,6 +199,7 @@ const ContentStorage = () => {
     }) => {
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
       questsStore.markStepDone('uploadFile', 'startUploading');
+      setBucketInProgress(bucketId);
 
       if (!isFolder) {
         setUploadStatus('uploading');
@@ -364,6 +367,7 @@ const ContentStorage = () => {
             selectedBucket={selectedBucket}
             onFolderCreate={handleCreateEmptyFolder}
             isAccountReady={isAccountReady}
+            bucketInProgress={bucketInProgress}
           />
         </Container>
       </Box>
