@@ -220,9 +220,10 @@ export class AccountStore implements Account {
     this.accountResource = createAccountResource(this);
   }
 
-  async createAuthToken(pieceCid: string) {
+  async createAuthToken(bucketId: string, pieceCid: string) {
     const params: Omit<AuthTokenParams, 'subject'> = {
       pieceCid,
+      bucketId: BigInt(bucketId),
       operations: [AuthTokenOperation.GET],
     };
 

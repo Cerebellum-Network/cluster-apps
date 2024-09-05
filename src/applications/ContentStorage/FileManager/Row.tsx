@@ -100,7 +100,9 @@ export const Row = ({
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
       const cid = (await resolveCid(bucketId))?.toString();
-      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+      const token = element.metadata?.isPublic
+        ? undefined
+        : await account.createAuthToken(bucketId, element.metadata?.cid as string);
 
       const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
       const response = await fetch(downloadUrl);
@@ -131,7 +133,9 @@ export const Row = ({
     try {
       const cid = (await resolveCid(row.bucketId))?.toString();
 
-      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+      const token = element.metadata?.isPublic
+        ? undefined
+        : await account.createAuthToken(row.bucketId, element.metadata?.cid as string);
 
       await copyToClipboard({
         bucketId: row.bucketId,
