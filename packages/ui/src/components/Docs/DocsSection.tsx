@@ -1,6 +1,6 @@
 import { Accordion, AccordionProps, AccordionSummary, AccordionDetails, styled, Typography, Box } from '@mui/material';
 import { ChangeEvent, ReactNode, useState } from 'react';
-import { trackEvent } from '@developer-console/analytics';
+import { trackEvent } from '@cluster-apps/analytics';
 import { ToggleIconButton } from './ToggleIconButon.tsx';
 
 export type DocsSectionProps = Omit<AccordionProps, 'children'> & {

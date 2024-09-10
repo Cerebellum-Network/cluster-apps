@@ -1,5 +1,5 @@
 import { useState, useCallback, createContext, useContext, useEffect } from 'react';
-import { Snackbar, SnackbarOrigin, Alert, AlertColor } from '@developer-console/ui';
+import { Snackbar, SnackbarOrigin, Alert, AlertColor } from '@cluster-apps/ui';
 
 interface MessageOptions {
   message: string;

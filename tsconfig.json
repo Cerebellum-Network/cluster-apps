@@ -22,10 +22,8 @@
 
     /* Paths */
     "paths": {
-      "~/*": ["./src/*"],
-      "@developer-console/*": ["./packages/*/src"] // Local packages
+      "~/*": ["${configDir}/src/*"],
+      "@cluster-apps/*": ["./packages/*/src"] // Local packages
     }
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
 }
