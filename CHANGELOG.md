@@ -2,6 +2,8 @@
 
 ### vNext
 
+-  Restructure the project to support multiple applications
+
 ### v0.7.0
 
 - Add file upload sentry event

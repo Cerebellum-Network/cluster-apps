@@ -1,7 +1,7 @@
 {
   "name": "@cluster-apps/global-registry",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.0.0",
   "scripts": {
     "start": "vite --open",
     "build": "tsc && vite build",

@@ -1,7 +1,16 @@
-# Developer Console
+# Cluster Apps
+
+A collection Web Applications to manage a DDC Cluster
+
+## Apps
+
+- [Developer Console](apps/developer-console)
+- [Node Provider Console](apps/node-provider)
+- [Global Registry](apps/global-registry)
+
+## Releases
 
 - [Release Notes](./CHANGELOG.md)
-- [Project structure](./STRUCTURE.md)
 
 ## Quick start
 
@@ -17,8 +26,14 @@ nvm exec npm i
 cp .env.dev .env
 ```
 
-3. Run the app:
+3. Run an application:
 
 ```bash
-nvm exec npm start
+nvm exec npm run start -w apps/developer-console
+```
+
+4. Build an application for production
+
+```bash
+nvm exec npm run build -w apps/developer-console
 ```
