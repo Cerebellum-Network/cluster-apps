@@ -2,6 +2,10 @@
 
 ### vNext
 
+### v0.7.1
+
+- Added block with error message
+
 ### v0.7.0
 
 - Add file upload sentry event
