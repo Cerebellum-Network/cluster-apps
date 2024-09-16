@@ -5,7 +5,6 @@ import { Box, LoadingAnimation, Paper, styled } from '@cluster-apps/ui';
 
 import { useAppStore } from '~/hooks';
 import { Layout } from '~/components';
-
 /**
  * TODO: Figure out how to properly size such animation components
  */

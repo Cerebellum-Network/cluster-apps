@@ -2,7 +2,15 @@
 
 ### vNext
 
--  Restructure the project to support multiple applications
+- Restructure the project to support multiple applications
+
+### v0.7.2
+
+- Removed block with error message
+
+### v0.7.1
+
+- Added block with error message
 
 ### v0.7.0
 
