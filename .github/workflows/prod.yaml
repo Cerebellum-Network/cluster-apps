@@ -15,8 +15,8 @@ jobs:
     with:
       build_container: 'node:18-buster'
       install_packages_command: 'cp .env.prod .env; npm ci'
-      build_command: 'npm run build'
-      path_to_static_files_to_upload: 'dist'
+      build_command: 'npm run build -w apps/developer-console'
+      path_to_static_files_to_upload: 'dist/developer-console'
       aws_account_id: ${{ vars.PRD_CORE_AWS_ACCOUNT_ID }}
       s3_bucket_name: 'developer-console.core.aws.cere.io'
     secrets:

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { SvgIconProps } from '@developer-console/ui';
+import { SvgIconProps } from '@cluster-apps/ui';
 import { SvgIcon } from '@mui/material';
 
 export const GithubLogoIcon = memo((props: SvgIconProps) => (

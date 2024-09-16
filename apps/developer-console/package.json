@@ -1,0 +1,11 @@
+{
+  "name": "@cluster-apps/developer-console",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "vite --open",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "check-types": "tsc --noEmit"
+  }
+}
