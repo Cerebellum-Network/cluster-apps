@@ -2,6 +2,10 @@
 
 ### vNext
 
+### v0.7.2
+
+- Removed block with error message
+
 ### v0.7.1
 
 - Added block with error message
