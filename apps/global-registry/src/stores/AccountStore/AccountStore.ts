@@ -6,7 +6,7 @@ import { CereWalletSigner } from '@cere-ddc-sdk/ddc-client';
 import { APP_ENV, APP_ID } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ConnectOptions, ReadyAccount } from './types';
-import { createAddressResource, createStatusResource } from './resources';
+import { createAccountResource, createAddressResource, createStatusResource } from './resources';
 
 export class AccountStore implements Account {
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
@@ -14,6 +14,7 @@ export class AccountStore implements Account {
 
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
+  private accountResource = createAccountResource(this);
 
   constructor() {
     makeAutoObservable(this, {
@@ -33,8 +34,16 @@ export class AccountStore implements Account {
     return this.addressResource.current();
   }
 
+  get account() {
+    return this.accountResource.current();
+  }
+
+  get buckets() {
+    return this.account?.buckets || [];
+  }
+
   isReady(): this is ReadyAccount {
-    return !!this.address;
+    return !!this.account;
   }
 
   async connect({ email }: ConnectOptions) {

@@ -60,6 +60,18 @@ export {
   type DividerProps,
   ButtonGroup,
   type ButtonGroupProps,
+  Dialog,
+  type DialogProps,
+  DialogTitle,
+  type DialogTitleProps,
+  DialogContent,
+  type DialogContentProps,
+  DialogActions,
+  type DialogActionsProps,
+  Checkbox,
+  type CheckboxProps,
+  FormControlLabel,
+  type FormControlLabelProps,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';

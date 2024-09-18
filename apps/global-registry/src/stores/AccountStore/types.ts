@@ -1,4 +1,5 @@
 import { WalletStatus } from '@cere/embed-wallet';
+import { IndexedBucket } from '@cluster-apps/api';
 
 export type AccountStatus = WalletStatus;
 
@@ -7,7 +8,9 @@ export type ConnectOptions = {
 };
 
 export interface Account {
+  readonly status: AccountStatus;
   readonly address?: string;
+  readonly buckets?: IndexedBucket[];
 
   isReady(): this is ReadyAccount;
   init(): Promise<AccountStatus>;

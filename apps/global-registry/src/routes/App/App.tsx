@@ -34,7 +34,7 @@ const App = () => {
 
   return (
     <Layout>
-      <Paper component={Box} minHeight="80vh" display="flex" flexDirection="column" padding={2}>
+      <Paper component={Box} minHeight="80vh" display="flex" flexDirection="column" padding={4}>
         {appStore.isReady ? <Outlet /> : <Loading />}
       </Paper>
     </Layout>
