@@ -21,6 +21,7 @@ import {
 } from '@cluster-apps/ui';
 
 import { useAccountStore } from '../../hooks';
+import { useRegistryStore } from '../../hooks/useRegistryStore';
 
 export type ShareDialogProps = Pick<DialogProps, 'open' | 'onClose'>;
 
@@ -28,6 +29,8 @@ const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
 
 const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
   const accountStore = useAccountStore();
+  const registryStore = useRegistryStore();
+
   const form = useForm({
     defaultValues: {
       account: '',
@@ -59,8 +62,7 @@ const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
     });
 
     await token.sign(accountStore.signer);
-
-    console.log(token.toString());
+    await registryStore.saveAccess({ accessToken: token.toString() });
   });
 
   return (
@@ -130,7 +132,7 @@ const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
           </Button>
 
           <LoadingButton
-            loading={form.formState.isLoading}
+            loading={form.formState.isSubmitting}
             variant="contained"
             size="large"
             startIcon={<ShareIcon />}

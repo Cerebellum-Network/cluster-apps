@@ -25,7 +25,7 @@ export class AppStore {
       return false;
     }
 
-    return this.accountStore.isReady();
+    return this.accountStore.isReady() && !!this.registryStore.list;
   }
 
   async init() {
