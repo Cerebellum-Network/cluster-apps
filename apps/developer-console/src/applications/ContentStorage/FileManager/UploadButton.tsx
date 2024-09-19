@@ -3,8 +3,8 @@ import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
 import { Dropdown, UploadFileIcon, UploadFolderIcon, DropdownAnchor } from '@cluster-apps/ui';
 import { AnalyticsId, trackEvent } from '@cluster-apps/analytics';
 
-import { QuestHint } from '~/components';
-import { useQuestsStore } from '~/hooks';
+import { QuestHint } from '../../../components';
+import { useQuestsStore } from '../../../hooks';
 
 interface UploadComponentProps {
   onDrop: (values: {
@@ -18,9 +18,16 @@ interface UploadComponentProps {
   cnsName: string;
   firstBucketLocked?: boolean;
   filePath?: string;
+  handleCreateEmptyFolder: (bucketId: string, name?: string) => Promise<void>;
 }
 
-export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: UploadComponentProps) => {
+export const UploadButton = ({
+  bucketId,
+  filePath,
+  firstBucketLocked,
+  onDrop,
+  handleCreateEmptyFolder,
+}: UploadComponentProps) => {
   const store = useQuestsStore();
 
   const [openDropdown, setOpen] = useState(false);
@@ -37,16 +44,44 @@ export const UploadButton = ({ bucketId, filePath, firstBucketLocked, onDrop }: 
     setOpen((prevState) => !prevState);
   };
 
-  const handleUploadFolder = () => {
+  const handleUploadFolder = async () => {
+    if ('showDirectoryPicker' in window) {
+      try {
+        const directoryHandle = await (window as any)?.showDirectoryPicker();
+
+        let hasFiles = false;
+
+        for await (const entry of directoryHandle.values()) {
+          if (entry.kind === 'file') {
+            hasFiles = true;
+          }
+        }
+
+        if (!hasFiles) {
+          await handleCreateEmptyFolder(bucketId, directoryHandle.name);
+        } else {
+          uploadFolderWithInput();
+        }
+      } catch (error) {
+        console.error('Error selecting directory:', error);
+      }
+    } else {
+      uploadFolderWithInput();
+    }
+  };
+
+  const uploadFolderWithInput = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.webkitdirectory = true;
     input.multiple = true;
+
     input.onchange = (e: Event) => {
       const target = e.target as HTMLInputElement;
       const files = Array.from(target.files || []);
       onDrop({ acceptedFiles: files, bucketId, cnsName: 'fs', isFolder: true, filePath });
     };
+
     input.click();
     setOpen((prevState) => !prevState);
   };

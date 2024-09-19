@@ -15,10 +15,10 @@ import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } fr
 import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
-import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
+import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '../../../constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
-import { useAccount } from '~/hooks';
+import { useAccount } from '../../../hooks';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -87,7 +87,7 @@ export const Row = ({
   onCloseUpload: () => void;
   firstBucketLocked: boolean;
   lockUi: boolean;
-  onFolderCreate: (bucketId: string) => void;
+  onFolderCreate: (bucketId: string, name?: string) => Promise<void>;
   bucketInProgress?: string;
 }) => {
   const account = useAccount();
@@ -239,6 +239,7 @@ export const Row = ({
               onDrop={onUpload}
               bucketId={row.bucketId}
               cnsName="fs"
+              handleCreateEmptyFolder={onFolderCreate}
             />
           )}
         </Box>
@@ -326,6 +327,7 @@ export const Row = ({
                           element.metadata!.type === 'folder' ? (element?.metadata?.fullPath as string) : element.name
                         }
                         onDrop={onUpload}
+                        handleCreateEmptyFolder={onFolderCreate}
                       />
                     )}
                   </Box>

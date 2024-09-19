@@ -19,7 +19,7 @@ import {
 } from '@cluster-apps/ui';
 
 import { CdnDocsIcon } from './icons';
-import { DDC_CLUSTER_NAME } from '~/constants';
+import { DDC_CLUSTER_NAME } from '../../constants.ts';
 import {
   UploadWithCliDoc,
   StreamDoc,
@@ -28,7 +28,8 @@ import {
   GITHUB_TOKEN_BASED_CONTROL_GUIDE_LINK,
 } from './docs';
 
-import { useAccount } from '~/hooks';
+import { useAccount } from '../../hooks';
+import { Bucket } from '../../stores';
 
 const ContentDelivery = () => {
   const account = useAccount();
@@ -36,7 +37,7 @@ const ContentDelivery = () => {
   const [isSaving, setSaving] = useState(false);
   const [bucketId, setBucketId] = useState<bigint>();
   const [access, setAccess] = useState<BucketAccessProps['value']>();
-  const currentBucket = account.buckets.find((bucket) => bucket.id === bucketId) || account.buckets.at(0);
+  const currentBucket = account.buckets.find((bucket: Bucket) => bucket.id === bucketId) || account.buckets.at(0);
   const currentBucketAccess = access || (currentBucket?.isPublic ? 'public' : 'private');
 
   const handleSaveAccess = useCallback(async () => {
@@ -60,7 +61,7 @@ const ContentDelivery = () => {
         <BucketSelect
           value={bucketId}
           label="Bucket"
-          options={account.buckets.map((bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
+          options={account.buckets.map((bucket: Bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
       </Paper>

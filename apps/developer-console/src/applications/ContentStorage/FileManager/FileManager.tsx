@@ -5,7 +5,7 @@ import { AnalyticsId } from '@cluster-apps/analytics';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
-import { QuestHint } from '~/components';
+import { QuestHint } from '../../../components';
 
 /**
  * This component resets default CSS styles.
@@ -68,7 +68,7 @@ export const FileManager = ({
   onUnlockFirstBucket: () => void;
   onRowClick: (bucketId: string) => void;
   selectedBucket: string | null;
-  onFolderCreate: (bucketId: string) => void;
+  onFolderCreate: (bucketId: string, name?: string) => Promise<void>;
   isAccountReady: boolean;
   bucketInProgress?: string;
 }) => {

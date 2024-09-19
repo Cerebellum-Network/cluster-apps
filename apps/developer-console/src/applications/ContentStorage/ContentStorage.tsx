@@ -15,14 +15,14 @@ import {
   AddCircleOutlinedIcon,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
+import { useAccount, useFetchDirs, useQuestsStore } from '../../hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, Tag, FileContent } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
-import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from './docs';
 import { FileManager } from './FileManager/FileManager';
-import { Bucket } from '~/stores';
-import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
+import { Bucket } from '../../stores';
+import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '../../constants.ts';
 import { NavLink } from 'react-router-dom';
 
 const Container = styled(Box)(({ theme }) => ({
@@ -149,7 +149,7 @@ const ContentStorage = () => {
       }
 
       const existingDagNodeLinks = existingDagNode.links.filter(
-        (link) =>
+        (link: Link) =>
           link.name !== `${DEFAULT_FOLDER_NAME}${defaultDirIndex === 0 ? '' : defaultDirIndex}/${EMPTY_FILE_NAME}`,
       );
 
@@ -299,18 +299,20 @@ const ContentStorage = () => {
   );
 
   const handleCreateEmptyFolder = useCallback(
-    async (bucketId: string) => {
-      const text = ' ';
+    async (bucketId: string, name: string = '') => {
+      const text = ' '; // Создаём пустое содержимое
       const blob = new Blob([text], { type: 'text/plain' });
       const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
 
       const dataTransfer = new DataTransfer();
-      const currentDefaultFolderIdx = defaultDirIndices[bucketId];
-      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}/${file.name}`, {
-        type: 'text/plain',
-      });
+      const currentDefaultFolderIdx = defaultDirIndices[bucketId] || 0;
+
+      const folderName = name !== '' ? name : `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}`;
+
+      const fileWithPath = new File([blob], `${folderName}/${file.name}`, { type: 'text/plain' });
+
       Object.defineProperty(fileWithPath, 'webkitRelativePath', {
-        value: `${DEFAULT_FOLDER_NAME}${(currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1}/${file.name}`,
+        value: `${folderName}/${file.name}`,
         writable: false,
       });
 
@@ -327,7 +329,7 @@ const ContentStorage = () => {
         emptyFolder: true,
       });
 
-      setDefaultFolderIndex(bucketId.toString(), (currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1);
+      setDefaultFolderIndex(bucketId.toString(), currentDefaultFolderIdx + 1);
     },
     [defaultDirIndices, handleUpload, setDefaultFolderIndex],
   );

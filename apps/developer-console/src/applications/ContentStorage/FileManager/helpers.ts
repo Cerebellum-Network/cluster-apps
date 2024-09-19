@@ -1,5 +1,5 @@
 import { FileNode, RealData, RowData } from './types.ts';
-import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
+import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '../../../constants.ts';
 
 export const calculateSize = (node: FileNode): number => {
   if (node.metadata && node.metadata.type === 'file') {
@@ -26,6 +26,9 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
       let node = (currentNode.children || [])?.find((child) => child.name === part);
       if (!node) {
         node = { name: part, isPublic: currentNode.isPublic, children: [], fullPath: file.name };
+        if (!currentNode.children) {
+          currentNode.children = [];
+        }
         currentNode.children!.push(node);
       }
       currentNode = node;

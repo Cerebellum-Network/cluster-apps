@@ -6,7 +6,7 @@ import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
-import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
+import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '../../constants.ts';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
 import {

@@ -2,10 +2,10 @@ import { Box, DiscordButton, LoadingAnimation, styled } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
-import { Application } from '~/applications';
-import { HomeLayout, Navigation, Sidebar } from '~/components';
-import { useAccountStore } from '~/hooks';
-import { DISCORD_LINK } from '~/constants.ts';
+import { Application } from '../../applications';
+import { HomeLayout, Navigation, Sidebar } from '../../components';
+import { useAccountStore } from '../../hooks';
+import { DISCORD_LINK } from '../../constants.ts';
 import { AnalyticsId } from '@cluster-apps/analytics';
 
 export type HomeProps = {
