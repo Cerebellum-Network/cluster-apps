@@ -83,7 +83,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
       subtitle1: {
         fontSize: '1rem', // 16px,
         lineHeight: '1.5rem', // 24px,
-        fontWeight: 500,
+        fontWeight: 600,
       },
 
       subtitle2: {

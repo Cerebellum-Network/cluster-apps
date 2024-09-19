@@ -17,15 +17,11 @@ export class AppStore {
   }
 
   get isReady() {
-    if (!this.isInited) {
-      return false;
+    if (this.accountStore.status === 'connected') {
+      return this.accountStore.isReady();
     }
 
-    if (this.accountStore.status !== 'connected') {
-      return false;
-    }
-
-    return this.accountStore.isReady() && !!this.registryStore.list;
+    return this.isInited;
   }
 
   async init() {

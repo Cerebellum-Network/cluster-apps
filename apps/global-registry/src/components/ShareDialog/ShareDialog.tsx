@@ -22,12 +22,15 @@ import {
 
 import { useAccountStore } from '../../hooks';
 import { useRegistryStore } from '../../hooks/useRegistryStore';
+import { AccessRegistryEntity } from '@cluster-apps/api';
 
-export type ShareDialogProps = Pick<DialogProps, 'open' | 'onClose'>;
+export type ShareDialogProps = Pick<DialogProps, 'open' | 'onClose'> & {
+  onSave?: (access: AccessRegistryEntity) => void;
+};
 
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
 
-const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
+const ShareDialog = ({ open, onClose, onSave }: ShareDialogProps) => {
   const accountStore = useAccountStore();
   const registryStore = useRegistryStore();
 
@@ -62,7 +65,10 @@ const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
     });
 
     await token.sign(accountStore.signer);
-    await registryStore.saveAccess({ accessToken: token.toString() });
+    const access = await registryStore.saveAccess({ accessToken: token.toString() });
+
+    onSave?.(access);
+    form.reset();
   });
 
   return (
@@ -96,7 +102,11 @@ const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
                 <Typography>Can delegate</Typography>
               </Box>
               <Box flex={1}>
-                <Checkbox {...form.register('canDelegate')} />
+                <Controller
+                  control={form.control}
+                  name="canDelegate"
+                  render={({ field }) => <Checkbox {...field} checked={field.value} />}
+                />
               </Box>
             </Stack>
 
@@ -105,8 +115,27 @@ const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
                 <Typography>Operations</Typography>
               </Box>
               <Stack flex={1} direction="row" spacing={1}>
-                <FormControlLabel label="Read" control={<Checkbox {...form.register('opRead')} />} />
-                <FormControlLabel label="Write" control={<Checkbox {...form.register('opWrite')} />} />
+                <FormControlLabel
+                  label="Read"
+                  control={
+                    <Controller
+                      control={form.control}
+                      name="opRead"
+                      render={({ field }) => <Checkbox {...field} checked={field.value} />}
+                    />
+                  }
+                />
+
+                <FormControlLabel
+                  label="Write"
+                  control={
+                    <Controller
+                      control={form.control}
+                      name="opWrite"
+                      render={({ field }) => <Checkbox {...field} checked={field.value} />}
+                    />
+                  }
+                />
               </Stack>
             </Stack>
 
@@ -125,6 +154,7 @@ const ShareDialog = ({ open, onClose }: ShareDialogProps) => {
           </Stack>
         </Stack>
       </DialogContent>
+
       <DialogActions>
         <Stack padding={1} flex={1} direction="row" justifyContent="space-between">
           <Button variant="text" size="large" onClick={(event) => onClose?.(event, 'escapeKeyDown')}>

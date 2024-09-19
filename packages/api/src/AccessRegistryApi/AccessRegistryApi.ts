@@ -1,4 +1,5 @@
 import { CLUSTER_MANAGEMENT_ENDPOINT } from '../constants';
+import { AccessRegistryEntity, ApiResponse } from './types';
 
 export type AccessRegistryQueryOptions = {
   signerId: string;
@@ -7,6 +8,14 @@ export type AccessRegistryQueryOptions = {
 export type AccessRegistrySaveOptions = {
   accessToken: string;
 };
+
+const mapRecord = (record: AccessRegistryEntity): AccessRegistryEntity => ({
+  ...record,
+  bucketId: BigInt(record.bucketId),
+  expiresAt: new Date(record.expiresAt),
+  createdAt: new Date(record.createdAt),
+  updatedAt: new Date(record.updatedAt),
+});
 
 export class AccessRegistryApi {
   private baseUrl = new URL('/access-registry', CLUSTER_MANAGEMENT_ENDPOINT);
@@ -20,9 +29,9 @@ export class AccessRegistryApi {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    const { data } = await response.json();
+    const { data }: ApiResponse<AccessRegistryEntity[]> = await response.json();
 
-    return data;
+    return data.map(mapRecord);
   };
 
   saveAccess = async (access: AccessRegistrySaveOptions) => {
@@ -32,8 +41,8 @@ export class AccessRegistryApi {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    const { data } = await response.json();
+    const { data }: ApiResponse<AccessRegistryEntity> = await response.json();
 
-    return data;
+    return mapRecord(data);
   };
 }
