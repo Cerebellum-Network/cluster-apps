@@ -1,5 +1,5 @@
-import { makeAutoObservable } from 'mobx';
-import { keepAlive } from 'mobx-utils';
+import { makeAutoObservable, reaction } from 'mobx';
+import { keepAlive, IResource } from 'mobx-utils';
 import { EmbedWallet } from '@cere/embed-wallet';
 import { CereWalletSigner } from '@cere-ddc-sdk/ddc-client';
 
@@ -7,6 +7,7 @@ import { APP_ENV, APP_ID } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ConnectOptions, ReadyAccount } from './types';
 import { createAccountResource, createAddressResource, createStatusResource } from './resources';
+import { IndexedAccount } from '@cluster-apps/api';
 
 export class AccountStore implements Account {
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
@@ -14,7 +15,7 @@ export class AccountStore implements Account {
 
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
-  private accountResource = createAccountResource(this);
+  private accountResource?: IResource<IndexedAccount | undefined>;
 
   constructor() {
     makeAutoObservable(this, {
@@ -24,6 +25,13 @@ export class AccountStore implements Account {
 
     keepAlive(this, 'status');
     keepAlive(this, 'address');
+
+    reaction(
+      () => this.address,
+      (address) => {
+        this.accountResource = address ? createAccountResource(this) : undefined;
+      },
+    );
   }
 
   get status() {
@@ -35,7 +43,7 @@ export class AccountStore implements Account {
   }
 
   get account() {
-    return this.accountResource.current();
+    return this.accountResource?.current();
   }
 
   get buckets() {

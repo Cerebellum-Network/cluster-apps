@@ -102,9 +102,16 @@ const ContentStorage = () => {
       setBuckets((prevState) => {
         return [
           ...prevState,
-          { id: bucketInfo.bucketId, isPublic: bucketInfo.isPublic, isRemoved: bucketInfo.isRemoved, stats: undefined },
+          {
+            id: bucketInfo.bucketId,
+            isPublic: bucketInfo.isPublic,
+            isRemoved: bucketInfo.isRemoved,
+            storedBytes: 0,
+            stats: undefined,
+          },
         ];
       });
+
       await refetchBucket(createdBucketId);
       setSelectedBucket(createdBucketId.toString());
     }

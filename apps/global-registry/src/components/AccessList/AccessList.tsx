@@ -6,6 +6,7 @@ import AccessListItem, { AccessListItemProps } from './AccessListItem';
 
 export type AccessListProps = Pick<AccessListItemProps, 'onRequestEdit'> & {
   list: AccessRegistryEntity[];
+  loading?: boolean;
   expanded?: number;
   onRequestExpand?: (access: AccessListItemProps['access'], expanded: boolean) => void;
 };

@@ -4,11 +4,13 @@ import { Button, Stack, Typography, AddCircleOutlinedIcon } from '@cluster-apps/
 
 import { useRegistryStore } from '~/hooks';
 import { ShareDialog, AccessList as List } from '~/components';
+import { AccessRegistryEntity } from '@cluster-apps/api';
 
 const AccessList = () => {
   const registry = useRegistryStore();
-  const [isDialogOpen, setDialogOpen] = useState(false);
-  const [expanded, setExpanded] = useState<number>();
+  const [open, setOpen] = useState(false);
+  const [edited, setEdited] = useState<AccessRegistryEntity>();
+  const [expanded, setExpanded] = useState<AccessRegistryEntity>();
 
   return (
     <>
@@ -18,10 +20,11 @@ const AccessList = () => {
         </Typography>
 
         <Button
+          size="large"
           variant="contained"
           color="primary"
           startIcon={<AddCircleOutlinedIcon />}
-          onClick={() => setDialogOpen(true)}
+          onClick={() => setOpen(true)}
         >
           Share Access
         </Button>
@@ -29,17 +32,25 @@ const AccessList = () => {
 
       <List
         list={registry.list}
-        expanded={expanded}
-        onRequestExpand={({ id }, expanded) => setExpanded(expanded ? id : undefined)}
-      />
-      <ShareDialog
-        open={isDialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
+        loading={registry.isListLoading}
+        expanded={expanded?.id}
+        onRequestExpand={(item, expanded) => setExpanded(expanded ? item : undefined)}
+        onRequestEdit={(item) => {
+          setEdited(item);
+          setOpen(true);
         }}
-        onSave={({ id }) => {
-          setExpanded(id);
-          setDialogOpen(false);
+      />
+
+      <ShareDialog
+        access={edited}
+        open={open}
+        onClose={() => setOpen(false)}
+        onExited={() => {
+          setEdited(undefined);
+        }}
+        onSave={(item) => {
+          setOpen(false);
+          setExpanded(item);
         }}
       />
     </>

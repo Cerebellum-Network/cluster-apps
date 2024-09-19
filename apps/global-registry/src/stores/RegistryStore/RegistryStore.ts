@@ -7,11 +7,13 @@ import { AccountStore } from '../AccountStore';
 export class RegistryStore {
   private registryApi = new AccessRegistryApi();
   private listObservable = lazyObservable<AccessRegistryEntity[]>(async (sink) => {
-    if (!this.accountStore.isReady()) {
+    const { address } = this.accountStore;
+
+    if (!address) {
       return sink([]);
     }
 
-    this.registryApi.getAccessList({ signerId: this.accountStore.address }).then(sink);
+    this.registryApi.getAccessList({ signerId: address }).then(sink);
   }, []);
 
   constructor(private accountStore: AccountStore) {

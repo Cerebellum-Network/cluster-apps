@@ -23,27 +23,46 @@ import {
 import { useAccountStore } from '../../hooks';
 import { useRegistryStore } from '../../hooks/useRegistryStore';
 import { AccessRegistryEntity } from '@cluster-apps/api';
+import { useEffect } from 'react';
 
 export type ShareDialogProps = Pick<DialogProps, 'open' | 'onClose'> & {
+  access?: AccessRegistryEntity;
   onSave?: (access: AccessRegistryEntity) => void;
+  onExited?: () => void;
 };
 
 const DATE_FORMAT = "yyyy-MM-dd'T'HH:mm";
 
-const ShareDialog = ({ open, onClose, onSave }: ShareDialogProps) => {
+const defaultValues = {
+  account: '',
+  bucketId: 0n,
+  canDelegate: false,
+  opRead: true,
+  opWrite: false,
+  expirationDate: format(addMonths(new Date(), 1), DATE_FORMAT),
+};
+
+const ShareDialog = ({ open, onClose, onSave, onExited, access }: ShareDialogProps) => {
   const accountStore = useAccountStore();
   const registryStore = useRegistryStore();
+  const form = useForm({ defaultValues });
 
-  const form = useForm({
-    defaultValues: {
-      account: '',
-      bucketId: 0n,
-      canDelegate: false,
-      opRead: true,
-      opWrite: false,
-      expirationDate: format(addMonths(new Date(), 1), DATE_FORMAT),
-    },
-  });
+  useEffect(() => {
+    if (!access) {
+      return form.reset(defaultValues);
+    }
+
+    const accessToken = AuthToken.maybeToken(access.accessToken)!;
+
+    form.reset({
+      account: access.accountId,
+      bucketId: access.bucketId,
+      canDelegate: accessToken.canDelegate,
+      opRead: accessToken.operations.includes(AuthTokenOperation.GET),
+      opWrite: accessToken.operations.includes(AuthTokenOperation.PUT),
+      expirationDate: format(accessToken.expiresAt, DATE_FORMAT),
+    });
+  }, [open, access, form]);
 
   const handleSubmit = form.handleSubmit(async (data) => {
     const operations: AuthTokenOperation[] = [];
@@ -68,11 +87,10 @@ const ShareDialog = ({ open, onClose, onSave }: ShareDialogProps) => {
     const access = await registryStore.saveAccess({ accessToken: token.toString() });
 
     onSave?.(access);
-    form.reset();
   });
 
   return (
-    <Dialog open={open} onClose={onClose}>
+    <Dialog open={open} onClose={onClose} TransitionProps={{ onExited }}>
       <DialogTitle>
         <Stack direction="row" justifyContent="space-between" alignItems="center" paddingTop={1}>
           <Typography variant="h4">Bucket access</Typography>
@@ -80,7 +98,7 @@ const ShareDialog = ({ open, onClose, onSave }: ShareDialogProps) => {
           <Controller
             control={form.control}
             name="bucketId"
-            render={({ field }) => <BucketSelect {...field} options={accountStore.buckets} />}
+            render={({ field }) => <BucketSelect disabled={!!access} {...field} options={accountStore.buckets} />}
           />
         </Stack>
       </DialogTitle>
@@ -89,6 +107,7 @@ const ShareDialog = ({ open, onClose, onSave }: ShareDialogProps) => {
           <TextField
             {...form.register('account', { required: true })}
             fullWidth
+            disabled={!!access}
             label="Account address or public key"
           />
 
@@ -168,7 +187,7 @@ const ShareDialog = ({ open, onClose, onSave }: ShareDialogProps) => {
             startIcon={<ShareIcon />}
             onClick={handleSubmit}
           >
-            Share access
+            {access ? 'Update access' : 'Share access'}
           </LoadingButton>
         </Stack>
       </DialogActions>

@@ -72,6 +72,18 @@ export {
   type CheckboxProps,
   FormControlLabel,
   type FormControlLabelProps,
+  Menu,
+  type MenuProps,
+  MenuItem,
+  type MenuItemProps,
+  ListItem,
+  type ListItemProps,
+  ListItemText,
+  type ListItemTextProps,
+  ListItemIcon,
+  type ListItemIconProps,
+  List,
+  type ListProps,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
