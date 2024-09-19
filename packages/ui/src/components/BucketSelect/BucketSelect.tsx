@@ -43,12 +43,12 @@ export const BucketSelect = forwardRef(({ value, options, onChange, disabled, ..
   return (
     <Select
       {...props}
-      disabled={noOptions}
+      disabled={disabled || noOptions}
       value={finalValue}
       select
       inputRef={ref}
       onChange={handleChange}
-      SelectProps={{ displayEmpty: true, disabled }}
+      SelectProps={{ displayEmpty: true }}
       InputLabelProps={{ shrink: true }} // Ensure the label shrinks
       label="Select Your Bucket"
     >
