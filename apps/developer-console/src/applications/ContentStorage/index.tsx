@@ -2,7 +2,7 @@ import { StorageAppIcon } from '@cluster-apps/ui';
 import { Application } from '../types';
 
 import ContentStorage from './ContentStorage';
-import { QuestStatus } from '../../components/QuestStatus';
+import { QuestStatus } from '~/components/QuestStatus';
 
 const application: Application = {
   rootComponent: ContentStorage,

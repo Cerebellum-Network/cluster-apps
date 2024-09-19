@@ -15,14 +15,14 @@ import {
   AddCircleOutlinedIcon,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs, useQuestsStore } from '../../hooks';
+import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, Tag, FileContent } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
-import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from './docs';
+import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
-import { Bucket } from '../../stores';
-import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '../../constants.ts';
+import { Bucket } from '~/stores';
+import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 import { NavLink } from 'react-router-dom';
 
 const Container = styled(Box)(({ theme }) => ({
@@ -300,7 +300,7 @@ const ContentStorage = () => {
 
   const handleCreateEmptyFolder = useCallback(
     async (bucketId: string, name: string = '') => {
-      const text = ' '; // Создаём пустое содержимое
+      const text = ' ';
       const blob = new Blob([text], { type: 'text/plain' });
       const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
 

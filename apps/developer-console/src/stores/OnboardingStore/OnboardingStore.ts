@@ -3,7 +3,7 @@ import { fromPromise } from 'mobx-utils';
 import { FaucetApi } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
-import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '../../constants.ts';
+import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '~/constants';
 import { AccountStore } from '../AccountStore';
 
 export type OnboardingStep = {

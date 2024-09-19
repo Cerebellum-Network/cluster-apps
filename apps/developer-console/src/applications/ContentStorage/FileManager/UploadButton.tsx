@@ -3,8 +3,8 @@ import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
 import { Dropdown, UploadFileIcon, UploadFolderIcon, DropdownAnchor } from '@cluster-apps/ui';
 import { AnalyticsId, trackEvent } from '@cluster-apps/analytics';
 
-import { QuestHint } from '../../../components';
-import { useQuestsStore } from '../../../hooks';
+import { QuestHint } from '~/components';
+import { useQuestsStore } from '~/hooks';
 
 interface UploadComponentProps {
   onDrop: (values: {

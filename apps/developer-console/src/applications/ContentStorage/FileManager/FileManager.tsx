@@ -5,8 +5,7 @@ import { AnalyticsId } from '@cluster-apps/analytics';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
-import { QuestHint } from '../../../components';
-
+import { QuestHint } from '~/components';
 /**
  * This component resets default CSS styles.
  */

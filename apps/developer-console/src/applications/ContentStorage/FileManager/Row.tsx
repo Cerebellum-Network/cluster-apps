@@ -15,10 +15,10 @@ import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } fr
 import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
-import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '../../../constants.ts';
+import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
-import { useAccount } from '../../../hooks';
+import { useAccount } from '~/hooks';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;

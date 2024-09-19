@@ -1,5 +1,5 @@
 import { PermissionRequest, WalletInitOptions } from '@cere/embed-wallet';
-import { APP_EMAIL, APP_ID, APP_NAME } from '../../constants.ts';
+import { APP_EMAIL, APP_ID, APP_NAME } from '~/constants';
 
 export const WALLET_PERMISSIONS: PermissionRequest = {
   ed25519_signRaw: {
