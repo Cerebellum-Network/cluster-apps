@@ -24,7 +24,7 @@ const Select = styled(TextField)({
   minWidth: 300,
 });
 
-export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: BucketSelectProps, ref) => {
+export const BucketSelect = forwardRef(({ value, options, onChange, disabled, ...props }: BucketSelectProps, ref) => {
   const handleChange: NonNullable<TextFieldProps['onChange']> = useCallback(
     (event) => {
       const selectedId = BigInt(event.target.value as string);
@@ -43,7 +43,7 @@ export const BucketSelect = forwardRef(({ value, options, onChange, ...props }: 
   return (
     <Select
       {...props}
-      disabled={noOptions}
+      disabled={disabled || noOptions}
       value={finalValue}
       select
       inputRef={ref}

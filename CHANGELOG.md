@@ -3,6 +3,7 @@
 ### vNext
 
 - Restructure the project to support multiple applications
+- Add Global Access Management application
 
 ### v0.7.2
 

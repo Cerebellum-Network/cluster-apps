@@ -1,3 +1,23 @@
-import { Typography } from '@cluster-apps/ui';
+import { useState } from 'react';
+import { Provider as UIProvider } from '@cluster-apps/ui';
+import { ErrorBoundary } from '@cluster-apps/reporting';
 
-export const App = () => <Typography variant="h1">Global Registry app</Typography>;
+import { Router } from './routes';
+import { AppStore } from './stores';
+import { AppStoreContext } from './hooks';
+
+const App = () => {
+  const [store] = useState(() => new AppStore());
+
+  return (
+    <UIProvider>
+      <ErrorBoundary>
+        <AppStoreContext.Provider value={store}>
+          <Router />
+        </AppStoreContext.Provider>
+      </ErrorBoundary>
+    </UIProvider>
+  );
+};
+
+export default App;

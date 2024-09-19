@@ -4,6 +4,7 @@ export type IndexedBucket = {
   id: bigint;
   isPublic: boolean;
   isRemoved: boolean;
+  storedBytes: number;
 };
 
 export type IndexedAccount = {
@@ -53,6 +54,7 @@ export class IndexerApi {
                 id
                 isPublic
                 isRemoved
+                storedBytes
               }
             }
           }

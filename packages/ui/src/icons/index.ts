@@ -21,6 +21,9 @@ export {
   CheckCircle as CheckCircleIcon,
   KeyboardArrowDownOutlined as ArrowDownIcon,
   KeyboardArrowUpOutlined as ArrowUpIcon,
+  MoreVert as ContextMenuIcon,
+  Edit as EditIcon,
+  Clear as RevokeAccessIcon,
 } from '@mui/icons-material';
 
 // Custom icons
