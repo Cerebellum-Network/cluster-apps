@@ -31,11 +31,23 @@ export class Quest<T = string> {
       name: this.name,
       isCompleted: this.isCompleted,
       isNotified: this.isNotified,
+      steps: this.steps.map((step) => ({
+        name: step.name,
+        isDone: step.isDone,
+      })),
     };
   }
 
   fromJson(json: any) {
     this.isCompleted = !!json.isCompleted;
     this.isNotified = !!json.isNotified;
+    if (json.steps && Array.isArray(json.steps)) {
+      json.steps.forEach((savedStep: any) => {
+        const step = this.steps.find(({ name }) => name === savedStep.name);
+        if (step) {
+          step.isDone = savedStep.isDone;
+        }
+      });
+    }
   }
 }
