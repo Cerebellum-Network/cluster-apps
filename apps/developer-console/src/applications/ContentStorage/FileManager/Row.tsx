@@ -87,7 +87,7 @@ export const Row = ({
   onCloseUpload: () => void;
   firstBucketLocked: boolean;
   lockUi: boolean;
-  onFolderCreate: (bucketId: string) => void;
+  onFolderCreate: (bucketId: string, name?: string) => Promise<void>;
   bucketInProgress?: string;
 }) => {
   const account = useAccount();
@@ -239,6 +239,7 @@ export const Row = ({
               onDrop={onUpload}
               bucketId={row.bucketId}
               cnsName="fs"
+              handleCreateEmptyFolder={onFolderCreate}
             />
           )}
         </Box>
@@ -326,6 +327,7 @@ export const Row = ({
                           element.metadata!.type === 'folder' ? (element?.metadata?.fullPath as string) : element.name
                         }
                         onDrop={onUpload}
+                        handleCreateEmptyFolder={onFolderCreate}
                       />
                     )}
                   </Box>
