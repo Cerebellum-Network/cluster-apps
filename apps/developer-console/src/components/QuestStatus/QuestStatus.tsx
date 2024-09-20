@@ -1,15 +1,15 @@
 import { RewardWidget } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccountStore, useQuestsStore, useFetchDirs } from '~/hooks';
+import { useAccount, useQuestsStore, useFetchDirs } from '~/hooks';
 
 export type QuestStatusProps = {
-  name: 'uploadFile';
+  name: 'uploadFile' | 'createBucket';
 };
 
 const QuestStatus = ({ name }: QuestStatusProps) => {
   const store = useQuestsStore();
-  const account = useAccountStore();
-  const { dirs } = useFetchDirs(account.buckets, account.ddcClient);
+  const account = useAccount();
+  const { dirs } = useFetchDirs(account.buckets, account.ddc);
 
   return (
     <RewardWidget
