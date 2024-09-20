@@ -1,16 +1,15 @@
 import { RewardWidget } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useQuestsStore, useFetchDirs } from '~/hooks';
+import { useAccountStore, useQuestsStore, useFetchDirs } from '~/hooks';
 
 export type QuestStatusProps = {
-  name: 'uploadFile' | 'createBucket';
+  name: 'uploadFile';
 };
 
 const QuestStatus = ({ name }: QuestStatusProps) => {
   const store = useQuestsStore();
-  const account = useAccount();
-  const { dirs } = useFetchDirs(account.buckets, account.ddc);
-
+  const account = useAccountStore();
+  const { dirs } = useFetchDirs(account?.buckets, account?.ddc);
   return (
     <RewardWidget
       title="Upload your first file"
