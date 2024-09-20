@@ -73,7 +73,7 @@ const ContentStorage = () => {
   }, [uploadStatus]);
 
   useEffect(() => {
-    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s: { cid: string }) => !!s.cid).length > 0);
+    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
     setFirstBucketLocked(firstBucketLocked);
     setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
@@ -81,7 +81,7 @@ const ContentStorage = () => {
   useEffect(() => {
     if (
       buckets.length === 1 &&
-      dirs.filter((s: { cid: string }) => !!s.cid).length === 0 &&
+      dirs.filter((s) => !!s.cid).length === 0 &&
       questsStore.isStepDone('uploadFile', 'createBucket')
     ) {
       setSelectedBucket(buckets[0].id.toString());
