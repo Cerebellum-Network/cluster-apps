@@ -1,7 +1,12 @@
 import { PermissionRequest, WalletInitOptions } from '@cere/embed-wallet';
 import { APP_EMAIL, APP_ID, APP_NAME } from '~/constants';
 
-export const WALLET_PERMISSIONS: PermissionRequest = {};
+export const WALLET_PERMISSIONS: PermissionRequest = {
+  ed25519_signRaw: {
+    title: 'Manage content access',
+    description: 'Allow the app to manage access to your content.',
+  },
+};
 export const WALLET_INIT_OPTIONS: WalletInitOptions = {
   appId: APP_ID,
   popupMode: 'modal',
