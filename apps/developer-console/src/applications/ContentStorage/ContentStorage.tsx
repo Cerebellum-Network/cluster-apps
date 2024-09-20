@@ -73,10 +73,21 @@ const ContentStorage = () => {
   }, [uploadStatus]);
 
   useEffect(() => {
-    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
+    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s: { cid: string }) => !!s.cid).length > 0);
     setFirstBucketLocked(firstBucketLocked);
     setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
+
+  useEffect(() => {
+    if (
+      buckets.length === 1 &&
+      dirs.filter((s: { cid: string }) => !!s.cid).length === 0 &&
+      questsStore.isStepDone('uploadFile', 'createBucket')
+    ) {
+      setSelectedBucket(buckets[0].id.toString());
+      setLockUi(false);
+    }
+  }, [buckets, dirs, questsStore]);
 
   const handleFirstBucketUnlock = useCallback(async () => {
     questsStore.markStepDone('uploadFile', 'createBucket');

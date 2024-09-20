@@ -70,6 +70,7 @@ export class QuestsStore {
 
     if (stepObj) {
       stepObj.isDone = true;
+      this.storeQuests();
 
       Reporting.message(`Quest step ${quest}:${step} is done`, 'info', { event: 'questStepDone' });
     }
