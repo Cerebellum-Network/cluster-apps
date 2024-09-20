@@ -9,7 +9,7 @@ export type QuestStatusProps = {
 const QuestStatus = ({ name }: QuestStatusProps) => {
   const store = useQuestsStore();
   const account = useAccountStore();
-  const { dirs } = useFetchDirs(account?.buckets, account?.ddc);
+  const { dirs } = useFetchDirs(account?.buckets ?? [], account?.ddc);
   return (
     <RewardWidget
       title="Upload your first file"
