@@ -15,7 +15,10 @@ const QuestStatus = ({ name }: QuestStatusProps) => {
     <RewardWidget
       title="Upload your first file"
       amount={50}
-      done={store.isCompleted(name) || ((account.buckets || []).length >= 1 && dirs.filter((s) => !!s.cid).length > 0)}
+      done={
+        store.isCompleted(name) ||
+        ((account.buckets || []).length >= 1 && dirs.filter((s: { cid: string }) => !!s.cid).length > 0)
+      }
     />
   );
 };
