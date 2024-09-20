@@ -1,6 +1,6 @@
 import { RewardWidget } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccountStore, useQuestsStore } from '~/hooks';
+import { useAccountStore, useQuestsStore, useFetchDirs } from '~/hooks';
 
 export type QuestStatusProps = {
   name: 'uploadFile';
@@ -9,12 +9,12 @@ export type QuestStatusProps = {
 const QuestStatus = ({ name }: QuestStatusProps) => {
   const store = useQuestsStore();
   const account = useAccountStore();
-
+  const { dirs } = useFetchDirs(account?.buckets ?? [], account?.ddc);
   return (
     <RewardWidget
       title="Upload your first file"
       amount={50}
-      done={store.isCompleted(name) || (account.buckets || []).length > 1}
+      done={store.isCompleted(name) || ((account.buckets || []).length >= 1 && dirs.filter((s) => !!s.cid).length > 0)}
     />
   );
 };
