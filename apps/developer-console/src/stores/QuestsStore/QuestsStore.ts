@@ -4,12 +4,13 @@ import Reporting from '@cluster-apps/reporting';
 import { AccountStore } from '../AccountStore';
 import { Quest } from './Quest';
 
-export type QuestName = 'uploadFile';
-export type QuestStep = 'createBucket' | 'startUploading';
+export type QuestName = 'uploadFile' | 'createBucket';
+export type QuestStep = 'createBucket' | 'startUploading' | 'startCreating' | 'bucketCreated';
 
 export class QuestsStore {
   private questsMap = {
     uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading']),
+    createBucket: new Quest<QuestStep>('createBucket', ['bucketCreated', 'startCreating']),
   };
 
   constructor(private accountStore: AccountStore) {
@@ -19,6 +20,7 @@ export class QuestsStore {
       () => accountStore.address,
       (address) => {
         if (!address) {
+          this.questsMap.createBucket.reset();
           return this.questsMap.uploadFile.reset();
         }
 
@@ -53,6 +55,7 @@ export class QuestsStore {
       `dc:quests:${this.accountStore.address}`,
       JSON.stringify({
         uploadFile: this.questsMap.uploadFile.toJson(),
+        createBucket: this.questsMap.createBucket.toJson(),
       }),
     );
   }
@@ -70,6 +73,7 @@ export class QuestsStore {
 
     if (stepObj) {
       stepObj.isDone = true;
+      this.storeQuests();
 
       Reporting.message(`Quest step ${quest}:${step} is done`, 'info', { event: 'questStepDone' });
     }

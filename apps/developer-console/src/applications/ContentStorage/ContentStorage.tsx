@@ -78,6 +78,17 @@ const ContentStorage = () => {
     setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
 
+  useEffect(() => {
+    if (
+      buckets.length === 1 &&
+      dirs.filter((s) => !!s.cid).length === 0 &&
+      questsStore.isStepDone('uploadFile', 'createBucket')
+    ) {
+      setSelectedBucket(buckets[0].id.toString());
+      setLockUi(false);
+    }
+  }, [buckets, dirs, questsStore]);
+
   const handleFirstBucketUnlock = useCallback(async () => {
     questsStore.markStepDone('uploadFile', 'createBucket');
 
@@ -149,7 +160,7 @@ const ContentStorage = () => {
       }
 
       const existingDagNodeLinks = existingDagNode.links.filter(
-        (link) =>
+        (link: Link) =>
           link.name !== `${DEFAULT_FOLDER_NAME}${defaultDirIndex === 0 ? '' : defaultDirIndex}/${EMPTY_FILE_NAME}`,
       );
 
@@ -299,18 +310,20 @@ const ContentStorage = () => {
   );
 
   const handleCreateEmptyFolder = useCallback(
-    async (bucketId: string) => {
+    async (bucketId: string, name: string = '') => {
       const text = ' ';
       const blob = new Blob([text], { type: 'text/plain' });
       const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
 
       const dataTransfer = new DataTransfer();
-      const currentDefaultFolderIdx = defaultDirIndices[bucketId];
-      const fileWithPath = new File([blob], `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}/${file.name}`, {
-        type: 'text/plain',
-      });
+      const currentDefaultFolderIdx = defaultDirIndices[bucketId] || 0;
+
+      const folderName = name !== '' ? name : `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}`;
+
+      const fileWithPath = new File([blob], `${folderName}/${file.name}`, { type: 'text/plain' });
+
       Object.defineProperty(fileWithPath, 'webkitRelativePath', {
-        value: `${DEFAULT_FOLDER_NAME}${(currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1}/${file.name}`,
+        value: `${folderName}/${file.name}`,
         writable: false,
       });
 
@@ -327,7 +340,7 @@ const ContentStorage = () => {
         emptyFolder: true,
       });
 
-      setDefaultFolderIndex(bucketId.toString(), (currentDefaultFolderIdx ? currentDefaultFolderIdx : 0) + 1);
+      setDefaultFolderIndex(bucketId.toString(), currentDefaultFolderIdx + 1);
     },
     [defaultDirIndices, handleUpload, setDefaultFolderIndex],
   );

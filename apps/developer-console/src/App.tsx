@@ -1,12 +1,10 @@
 import { useState } from 'react';
+import { ErrorBoundary } from '@cluster-apps/reporting';
 import { Provider as UIProvider } from '@cluster-apps/ui';
 
 import { Router } from './routes';
 import { AppStore } from './stores';
 import { AppStoreContext } from './hooks';
-import { ErrorBoundary } from '@cluster-apps/reporting';
-
-import './styles/fonts.css';
 
 const App = () => {
   const [store] = useState(() => new AppStore());
