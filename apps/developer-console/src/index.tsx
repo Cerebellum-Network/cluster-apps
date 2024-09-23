@@ -11,4 +11,6 @@ Reporting.init({
   environment: APP_ENV,
 });
 
+console.log('App version:', APP_VERSION);
+
 ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
