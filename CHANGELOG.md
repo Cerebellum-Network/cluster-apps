@@ -2,6 +2,13 @@
 
 ### vNext
 
+-
+
+### v0.8.0
+
+- Restructure the project to support multiple applications
+- Add Global Access Management application
+
 ### v0.7.2
 
 - Removed block with error message

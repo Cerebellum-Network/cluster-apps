@@ -1,5 +1,5 @@
 {
-  "name": "@developer-console/reporting",
+  "name": "@cluster-apps/reporting",
   "version": "0.0.0",
   "private": true,
   "sideEffects": false,

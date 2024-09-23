@@ -1,4 +1,4 @@
 {
-  "extends": "@developer-console/eslint-config",
+  "extends": "@cluster-apps/eslint-config",
   "root": true
 }

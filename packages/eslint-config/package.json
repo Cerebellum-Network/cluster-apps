@@ -1,5 +1,5 @@
 {
-  "name": "@developer-console/eslint-config",
+  "name": "@cluster-apps/eslint-config",
   "version": "0.0.0",
   "main": ".eslintrc.json",
   "private": true,
