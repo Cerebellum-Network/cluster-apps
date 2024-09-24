@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createHashRouter, RouterProvider } from 'react-router-dom';
 
 import { App } from './App';
 import { AccessList } from './AccessList';
@@ -7,7 +7,9 @@ import { Login } from './Login';
 /**
  * The router configuration for the app.
  */
-const router = createBrowserRouter([
+// TODO: Use createBrowserRouter instead of createHashRouter when the app is hosted on a server that supports client-side routing.
+// const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/',
     Component: App,
