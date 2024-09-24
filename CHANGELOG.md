@@ -4,6 +4,10 @@
 
 -
 
+### v0.8.1
+
+- Make it possible to run an app from subfolder
+
 ### v0.8.0
 
 - Restructure the project to support multiple applications
