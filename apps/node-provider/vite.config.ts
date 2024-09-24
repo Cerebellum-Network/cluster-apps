@@ -10,6 +10,7 @@ const outDir = path.join(rootDir, 'dist', path.basename(__dirname));
  * For more information, visit: https://vitejs.dev/config
  */
 export default defineConfig({
+  base: './',
   envDir: rootDir,
   build: { outDir, emptyOutDir: true },
   plugins: [tsconfigPaths({ root: __dirname }), react()],
