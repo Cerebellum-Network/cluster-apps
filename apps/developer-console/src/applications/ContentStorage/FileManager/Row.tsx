@@ -102,7 +102,8 @@ export const Row = ({
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
       const cid = (await resolveCid(bucketId))?.toString();
-      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+      const tokenCid = cid; // TODO: use file seed instead when DDC supports it: element.metadata?.cid as string;
+      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(BigInt(bucketId), tokenCid);
 
       const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
       const response = await fetch(downloadUrl);
@@ -132,8 +133,10 @@ export const Row = ({
   const handleCopyLink = async ({ row, element }: { row: RowData; element: INode }) => {
     try {
       const cid = (await resolveCid(row.bucketId))?.toString();
-
-      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(cid);
+      const tokenCid = cid; // TODO: use file seed instead when DDC supports it: element.metadata?.cid as string;
+      const token = element.metadata?.isPublic
+        ? undefined
+        : await account.createAuthToken(BigInt(row.bucketId), tokenCid);
 
       await copyToClipboard({
         bucketId: row.bucketId,

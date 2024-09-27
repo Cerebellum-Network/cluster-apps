@@ -168,6 +168,10 @@ export class AccountStore implements Account {
   }
 
   async init() {
+    if (this.wallet.status !== 'not-ready') {
+      return this.status;
+    }
+
     await this.wallet.init(WALLET_INIT_OPTIONS);
 
     return this.status;
@@ -220,8 +224,9 @@ export class AccountStore implements Account {
     this.accountResource = createAccountResource(this);
   }
 
-  async createAuthToken(pieceCid: string) {
+  async createAuthToken(bucketId: bigint, pieceCid: string) {
     const params: Omit<AuthTokenParams, 'subject'> = {
+      bucketId,
       pieceCid,
       operations: [AuthTokenOperation.GET],
     };
