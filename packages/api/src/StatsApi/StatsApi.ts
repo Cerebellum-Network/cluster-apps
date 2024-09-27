@@ -30,6 +30,11 @@ export class StatsApi {
   getAccountStats = async (accountId: string) => {
     const url = new URL(`/statistics/accounts/${accountId}`, this.baseUrl);
     const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stats for account ${accountId}`);
+    }
+
     const data = await response.json();
 
     return data as AccountStats;
@@ -45,6 +50,11 @@ export class StatsApi {
     }
 
     const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stats history for account ${accountId}`);
+    }
+
     const history: AccountStatsHistoryRecord[] = await response.json();
 
     return history.map((record: AccountStatsHistoryRecord) => ({
@@ -65,6 +75,11 @@ export class StatsApi {
     }
 
     const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stats for buckets: ${bucketIds.join(', ')}`);
+    }
+
     const stats: BucketStats[] = await response.json();
 
     return stats.map((stat) => ({

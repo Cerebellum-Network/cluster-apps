@@ -168,6 +168,10 @@ export class AccountStore implements Account {
   }
 
   async init() {
+    if (this.wallet.status !== 'not-ready') {
+      return this.status;
+    }
+
     await this.wallet.init(WALLET_INIT_OPTIONS);
 
     return this.status;
