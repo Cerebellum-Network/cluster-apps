@@ -1,4 +1,5 @@
 import { fromResource } from 'mobx-utils';
+import Reporting from '@cluster-apps/reporting';
 
 export type PullResourceOptions = {
   pullTimeout?: number;
@@ -8,7 +9,7 @@ export const createPullResource = <T>(pull: () => T | Promise<T>, { pullTimeout 
   let timeout: NodeJS.Timeout;
 
   const start = async (run: () => Promise<void>) => {
-    await run();
+    await run().catch(Reporting.error);
 
     timeout = setTimeout(() => start(run), pullTimeout);
   };

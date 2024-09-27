@@ -1,6 +1,5 @@
-import { CLUSTER_MANAGEMENT_ENDPOINT } from '../constants.ts';
 import axios from 'axios';
-import { parseResponse } from './helpers';
+import { CLUSTER_MANAGEMENT_ENDPOINT } from '../constants.ts';
 
 export class ClusterManagementApi {
   constructor(protected readonly baseUrl = `${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/`) {}
@@ -10,7 +9,6 @@ export class ClusterManagementApi {
   });
 
   async addContactToBrevo(email: string) {
-    const response = await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-brevo-contact`, { email });
-    return parseResponse(response.data);
+    await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-brevo-contact`, { email });
   }
 }

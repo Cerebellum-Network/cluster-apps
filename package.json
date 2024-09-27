@@ -1,7 +1,7 @@
 {
   "name": "developer-console",
   "private": true,
-  "version": "0.8.1",
+  "version": "0.8.2",
   "type": "module",
   "scripts": {
     "lint": "eslint . --ext ts,tsx",
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@cere-ddc-sdk/blockchain": "^2.12.4",
-    "@cere-ddc-sdk/ddc-client": "^2.12.4",
+    "@cere-ddc-sdk/ddc-client": "^2.12.7",
     "@cere/embed-wallet": "^0.21.0",
     "@hookform/resolvers": "^3.9.0",
     "mobx": "^6.13.1",
