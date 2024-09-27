@@ -4,6 +4,10 @@
 
 -
 
+### v0.8.2
+
+- Fix issues from Sentry report
+
 ### v0.8.1
 
 - Make it possible to run an app from subfolder
