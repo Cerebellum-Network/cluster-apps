@@ -226,7 +226,7 @@ const ContentStorage = () => {
           const acceptedFile = acceptedFiles[0];
           await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
           await new Promise((resolve) => setTimeout(resolve, 5000));
-          await refetchBucket(BigInt(bucketId), currentBucket.isPublic);
+          await refetchBucket(BigInt(bucketId), currentBucket?.isPublic);
 
           if (!skipQuests) {
             /**
@@ -277,7 +277,7 @@ const ContentStorage = () => {
 
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        await refetchBucket(BigInt(bucketId), currentBucket.isPublic);
+        await refetchBucket(BigInt(bucketId), currentBucket?.isPublic);
 
         if (!skipQuests) {
           /**

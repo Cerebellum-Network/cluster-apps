@@ -9,7 +9,7 @@ interface UseFetchDirsResult {
   dirs: DirectoryType[];
   loading: boolean;
   error: string | null;
-  refetchBucket: (bucketId: bigint) => void;
+  refetchBucket: (bucketId: bigint, isPublic?: boolean) => void;
   defaultDirIndices: Record<string, number>;
   setDefaultFolderIndex: (bucketId: string, index: number) => void;
 }
@@ -71,7 +71,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
   }, [fetchDirs]);
 
   const refetchBucket = useCallback(
-    async (bucketId: bigint, isPublic: boolean) => {
+    async (bucketId: bigint, isPublic: boolean = true) => {
       if (!ddcClient) {
         return;
       }
