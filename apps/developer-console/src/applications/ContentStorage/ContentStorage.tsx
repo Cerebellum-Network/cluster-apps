@@ -123,7 +123,7 @@ const ContentStorage = () => {
         ];
       });
 
-      await refetchBucket(createdBucketId);
+      await refetchBucket(createdBucketId, bucketInfo.isPublic);
       setSelectedBucket(createdBucketId.toString());
     }
     setIsBucketCreating(false);
@@ -215,6 +215,7 @@ const ContentStorage = () => {
       skipQuests?: boolean;
       emptyFolder?: boolean;
     }) => {
+      const currentBucket = account.buckets.find((bucket) => bucket.id.toString() === bucketId.toString());
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
       questsStore.markStepDone('uploadFile', 'startUploading');
       setBucketInProgress(bucketId);
@@ -225,7 +226,7 @@ const ContentStorage = () => {
           const acceptedFile = acceptedFiles[0];
           await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
           await new Promise((resolve) => setTimeout(resolve, 5000));
-          await refetchBucket(BigInt(bucketId));
+          await refetchBucket(BigInt(bucketId), currentBucket.isPublic);
 
           if (!skipQuests) {
             /**
@@ -276,7 +277,7 @@ const ContentStorage = () => {
 
         await new Promise((resolve) => setTimeout(resolve, 5000));
 
-        await refetchBucket(BigInt(bucketId));
+        await refetchBucket(BigInt(bucketId), currentBucket.isPublic);
 
         if (!skipQuests) {
           /**
