@@ -4,6 +4,10 @@
 
 -
 
+### [Developer Console] v0.9.0
+
+- Fixed bucket refetching
+
 ### v0.8.2
 
 - Fix issues from Sentry report

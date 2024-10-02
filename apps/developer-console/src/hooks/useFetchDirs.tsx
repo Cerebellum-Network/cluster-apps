@@ -9,7 +9,7 @@ interface UseFetchDirsResult {
   dirs: DirectoryType[];
   loading: boolean;
   error: string | null;
-  refetchBucket: (bucketId: bigint) => void;
+  refetchBucket: (bucketId: bigint, isPublic?: boolean) => void;
   defaultDirIndices: Record<string, number>;
   setDefaultFolderIndex: (bucketId: string, index: number) => void;
 }
@@ -71,7 +71,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
   }, [fetchDirs]);
 
   const refetchBucket = useCallback(
-    async (bucketId: bigint) => {
+    async (bucketId: bigint, isPublic: boolean = true) => {
       if (!ddcClient) {
         return;
       }
@@ -87,7 +87,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {
-              newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...link });
+              newDirs.push({ bucketId: bucketId.toString(), isPublic, ...link });
 
               const match = link.name.match(/^default(\d*)/);
               if (match) {
@@ -98,7 +98,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           }
         } catch (dirError) {
           console.error(`Error reading directory for bucket ${bucketId}:`, dirError);
-          newDirs.push({ bucketId: bucketId.toString(), isPublic: true, ...({} as Link) });
+          newDirs.push({ bucketId: bucketId.toString(), isPublic, ...({} as Link) });
         }
 
         setDirs((prevDirs) => [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs]);
