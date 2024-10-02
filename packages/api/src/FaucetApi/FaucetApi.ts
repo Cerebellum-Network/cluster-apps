@@ -5,8 +5,6 @@ export class FaucetApi {
 
   sendTokens = async (address: string, amount: number) => {
     const body = {
-      scope: 'CLUSTER_MANAGEMENT',
-      walletType: 'CERE',
       address,
       amount,
     };
