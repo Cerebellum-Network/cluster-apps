@@ -4,6 +4,10 @@
 
 -
 
+### [Developer Console] v0.10.0
+
+- Improve faucet security
+
 ### [Developer Console] v0.9.0
 
 - Fixed bucket refetching
