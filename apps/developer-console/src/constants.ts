@@ -52,6 +52,10 @@ export const PRIVACY_POLICY = 'https://www.notion.so/cere/Privacy-policy-520cc63
 /**
  * Additional constants
  */
-
 export const EMPTY_FILE_NAME = '.ddc-empty';
 export const DEFAULT_FOLDER_NAME = 'default';
+
+/**
+ * Feature flags
+ */
+export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARDING !== 'false';

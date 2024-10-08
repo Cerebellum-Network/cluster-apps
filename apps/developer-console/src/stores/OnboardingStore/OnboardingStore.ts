@@ -3,8 +3,13 @@ import { fromPromise } from 'mobx-utils';
 import { FaucetApi } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
-import { ONBOARDIN_DEPOSIT_AMOUNT, ONBOARDIN_PUBLIC_BUCKET, ONBOARDIN_REWARD_AMOUNT } from '~/constants';
 import { AccountStore } from '../AccountStore';
+import {
+  FEATURE_USER_ONBOARDING,
+  ONBOARDIN_DEPOSIT_AMOUNT,
+  ONBOARDIN_PUBLIC_BUCKET,
+  ONBOARDIN_REWARD_AMOUNT,
+} from '~/constants';
 
 export type OnboardingStep = {
   key: 'wallet' | 'reward' | 'deposit' | 'bucket';
@@ -52,6 +57,10 @@ export class OnboardingStore {
   }
 
   async shouldOnboard() {
+    if (!FEATURE_USER_ONBOARDING) {
+      return false;
+    }
+
     await when(() => this.isDone !== undefined, { timeout: 30000 }).catch(() => {
       Reporting.message('Onboarding status is not properly detected after 30s', 'warning');
     });
