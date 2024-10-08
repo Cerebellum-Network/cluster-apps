@@ -25,6 +25,7 @@ export const DDC_PRESET = ddcPresets[ddcPreset];
 export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || '';
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
 export const DDC_STORAGE_NODE_URL = import.meta.env.VITE_DDC_STORAGE_NODE_URL || '';
+export const DDC_SDK_LOG_LEVEL = import.meta.env.VITE_DDC_SDK_LOG_LEVEL || 'info';
 
 /**
  * Cere blockchain configuration
@@ -51,6 +52,10 @@ export const PRIVACY_POLICY = 'https://www.notion.so/cere/Privacy-policy-520cc63
 /**
  * Additional constants
  */
-
 export const EMPTY_FILE_NAME = '.ddc-empty';
 export const DEFAULT_FOLDER_NAME = 'default';
+
+/**
+ * Feature flags
+ */
+export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARDING !== 'false';

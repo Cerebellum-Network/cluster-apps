@@ -288,13 +288,14 @@ const ContentStorage = () => {
         setUploadStatus('success');
 
         return appDagNodeUri.cid;
-      } catch (e) {
+      } catch (error) {
+        Reporting.error(error);
         setUploadStatus('error');
-        console.error(e);
+
         return null;
       }
     },
-    [ddcClient, questsStore, refetchBucket, singleFileUpload],
+    [account.buckets, ddcClient, questsStore, refetchBucket, singleFileUpload],
   );
 
   const handleCloseStatus = () => {

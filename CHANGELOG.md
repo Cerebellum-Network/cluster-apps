@@ -2,7 +2,12 @@
 
 ### vNext
 
--
+- 
+
+### [Developer Console] v0.11.0
+
+- Add onboarding feature flag and disable it on all envs
+- Extend DDC errors in Sentry with extra information
 
 ### [Developer Console] v0.10.0
 

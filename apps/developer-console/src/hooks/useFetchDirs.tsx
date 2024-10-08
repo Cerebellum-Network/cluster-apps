@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
 import { IndexedBucket } from '@cluster-apps/api';
-import { reportError } from '@cluster-apps/reporting';
+import Reporting from '@cluster-apps/reporting';
 
 import { DirectoryType } from '~/applications/ContentStorage/FileManager';
 
@@ -51,7 +51,8 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
             }
           }
         } catch (dirError) {
-          reportError(dirError);
+          Reporting.error(dirError);
+
           newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...({} as Link) });
           console.error(`Error reading directory for bucket ${bucket.id}:`, dirError);
         }
@@ -97,14 +98,18 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
             }
           }
         } catch (dirError) {
+          Reporting.error(dirError);
+
           console.error(`Error reading directory for bucket ${bucketId}:`, dirError);
           newDirs.push({ bucketId: bucketId.toString(), isPublic, ...({} as Link) });
         }
 
         setDirs((prevDirs) => [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs]);
         setDefaultDirIndices((prevIndices) => ({ ...prevIndices, ...indices }));
-      } catch (e) {
-        setError((e as Error).message);
+      } catch (error) {
+        Reporting.error(error);
+
+        setError((error as Error).message);
       } finally {
         setLoading(false);
       }
