@@ -6,7 +6,7 @@ import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
-import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET } from '~/constants';
+import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET, DDC_SDK_LOG_LEVEL } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
 import {
@@ -22,7 +22,7 @@ export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
-  readonly ddc = new DdcClient(this.signer, { blockchain: this.blockchain });
+  readonly ddc = new DdcClient(this.signer, { blockchain: this.blockchain, logLevel: DDC_SDK_LOG_LEVEL });
 
   private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);

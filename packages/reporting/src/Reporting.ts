@@ -1,13 +1,5 @@
 import byteSize from 'byte-size';
-import {
-  init,
-  captureException,
-  captureMessage,
-  BrowserOptions,
-  SeverityLevel,
-  setUser,
-  EventHint,
-} from '@sentry/react';
+import { init, captureException, captureMessage, BrowserOptions, SeverityLevel, setUser } from '@sentry/react';
 
 import { getUTMParameters } from './helpers';
 
@@ -49,10 +41,19 @@ export class Reporting {
     });
   }
 
-  error = (error: any, hint?: EventHint) => {
+  error = (error: any, errorTags?: Record<string, any>) => {
     console.error('Reporting:', error);
 
-    captureException(error, hint);
+    const tags = {
+      ...errorTags,
+      /**
+       * In case of an error from the DDC, we want to capture the correlationId and nodeId
+       */
+      ...('correlationId' in error ? { correlationId: error.correlationId } : {}),
+      ...('nodeId' in error ? { ddcNode: error.nodeId } : {}),
+    };
+
+    captureException(error, { captureContext: { tags } });
   };
 
   message = (message: string, level: Exclude<SeverityLevel, 'fatal'> = 'log', tags?: Record<string, any>) => {

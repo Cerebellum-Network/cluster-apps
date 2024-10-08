@@ -25,6 +25,7 @@ export const DDC_PRESET = ddcPresets[ddcPreset];
 export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || '';
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
 export const DDC_STORAGE_NODE_URL = import.meta.env.VITE_DDC_STORAGE_NODE_URL || '';
+export const DDC_SDK_LOG_LEVEL = import.meta.env.VITE_DDC_SDK_LOG_LEVEL || 'info';
 
 /**
  * Cere blockchain configuration
