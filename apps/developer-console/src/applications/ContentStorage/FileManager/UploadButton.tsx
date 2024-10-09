@@ -5,6 +5,7 @@ import { AnalyticsId, trackEvent } from '@cluster-apps/analytics';
 
 import { QuestHint } from '~/components';
 import { useQuestsStore } from '~/hooks';
+import { FEATURE_USER_ONBOARDING } from '../../../constants';
 
 interface UploadComponentProps {
   onDrop: (values: {
@@ -99,7 +100,11 @@ export const UploadButton = ({
           step="startUploading"
           position="left"
           title="Ready to Upload?"
-          content="Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens"
+          content={
+            FEATURE_USER_ONBOARDING
+              ? 'Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens'
+              : 'Your bucket is ready. Upload your first file/folder'
+          }
           skip={!firstBucketLocked || isCompleted}
         >
           <DropdownAnchor label="Upload" {...props} />
