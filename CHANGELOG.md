@@ -2,6 +2,10 @@
 
 ### vNext
 
+-
+
+### [Developer Console] v0.12.0
+
 - Enable manual onboarding flow when auto-onboarding is turned off
 
 ### [Developer Console] v0.11.0
