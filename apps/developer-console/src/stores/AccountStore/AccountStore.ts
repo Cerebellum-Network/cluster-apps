@@ -222,6 +222,10 @@ export class AccountStore implements Account {
     await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
     this.accountResource = undefined;
     this.accountResource = createAccountResource(this);
+
+    if (this.address) {
+      Reporting.topUp(this.address, amount);
+    }
   }
 
   async createAuthToken(bucketId: bigint, pieceCid: string) {
