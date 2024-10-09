@@ -89,4 +89,8 @@ export class Reporting {
       fileSize,
     });
   };
+
+  topUp = (walletId: string, amount: number) => {
+    this.message(`User topped up his DDC account`, 'info', { event: 'topUp', walletId, amount });
+  };
 }

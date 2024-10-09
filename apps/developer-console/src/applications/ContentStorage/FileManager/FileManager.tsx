@@ -1,11 +1,22 @@
-import { Box, Button, Typography, styled, BoxProps } from '@mui/material';
-import { AddCircleOutlinedIcon, LoadingAnimation } from '@cluster-apps/ui';
 import { AnalyticsId } from '@cluster-apps/analytics';
+import {
+  AddCircleOutlinedIcon,
+  LoadingAnimation,
+  Stack,
+  Box,
+  Button,
+  Typography,
+  styled,
+  BoxProps,
+  DiscordButton,
+} from '@cluster-apps/ui';
 
+import { QuestHint } from '~/components';
+import { DISCORD_LINK, FEATURE_USER_ONBOARDING } from '~/constants.ts';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
-import { QuestHint } from '~/components';
+
 /**
  * This component resets default CSS styles.
  */
@@ -76,6 +87,10 @@ export const FileManager = ({
   const handleCloseStatus = () => {
     setUploadStatus('idle');
   };
+
+  const skipCreateBucketHint = FEATURE_USER_ONBOARDING
+    ? isLoading || !firstBucketLocked || !isAccountReady
+    : userHasBuckets;
 
   return (
     <CssReset>
@@ -148,8 +163,25 @@ export const FileManager = ({
               quest="uploadFile"
               step="createBucket"
               title="Let’s get started!"
-              content="Create your first bucket to store your data"
-              skip={isLoading || !firstBucketLocked || !isAccountReady}
+              content={
+                FEATURE_USER_ONBOARDING ? (
+                  'Create your first bucket to store your data'
+                ) : (
+                  <Stack spacing={2}>
+                    <Typography variant="body2">
+                      Create your first bucket to store your data!
+                      <br />
+                      To get free CERE tokens, please request them in our Discord channel.
+                    </Typography>
+                    <DiscordButton
+                      text="Join Cere Discord"
+                      link={DISCORD_LINK}
+                      className={AnalyticsId.joinDiscordBtn}
+                    />
+                  </Stack>
+                )
+              }
+              skip={skipCreateBucketHint}
             >
               <Button
                 onClick={!userHasBuckets ? onCreateBucket : onUnlockFirstBucket}
