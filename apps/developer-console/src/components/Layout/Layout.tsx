@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Layout as UiLayout, LayoutProps as UiLayoutProps, useMessages } from '@cluster-apps/ui';
 import ReactConfetti from 'react-confetti';
 
-import { DDC_CLUSTER_NAME } from '~/constants';
+import { DDC_CLUSTER_NAME, FEATURE_USER_ONBOARDING } from '~/constants';
 import { useQuestsStore } from '~/hooks';
 
 export type LayoutProps = UiLayoutProps;
@@ -25,16 +25,14 @@ const Layout = (props: LayoutProps) => {
 
       showConfetti(true);
       showMessage({
-        message: 'Congrats! You just earned 50 CERE tokens',
+        message: FEATURE_USER_ONBOARDING
+          ? 'Congrats! You just earned 50 CERE tokens'
+          : 'Congrats! You just uploaded your first file(s) to DDC',
         appearance: 'success',
         autoDismiss: true,
       });
 
-      const to = setTimeout(() => {
-        showConfetti(false);
-
-        return () => clearTimeout(to);
-      }, 6000);
+      setTimeout(() => showConfetti(false), 6000);
     }
   }, [isCompleted, store, isNotified, showMessage]);
 

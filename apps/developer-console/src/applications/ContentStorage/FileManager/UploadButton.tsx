@@ -5,7 +5,7 @@ import { AnalyticsId, trackEvent } from '@cluster-apps/analytics';
 
 import { QuestHint } from '~/components';
 import { useQuestsStore } from '~/hooks';
-import { FEATURE_USER_ONBOARDING } from '../../../constants';
+import { FEATURE_USER_ONBOARDING } from '~/constants';
 
 interface UploadComponentProps {
   onDrop: (values: {
