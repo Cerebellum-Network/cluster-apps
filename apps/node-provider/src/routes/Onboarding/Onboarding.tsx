@@ -7,6 +7,7 @@ import Card from './Card';
 import { OnboardingLayout } from '~/components';
 import { useAccountStore, useOnboardingStore } from '~/hooks';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { APP_NAME } from '~/constants.ts';
 
 const Onboarding = () => {
   const store = useOnboardingStore();
@@ -33,7 +34,7 @@ const Onboarding = () => {
         <Typography variant="subtitle1" fontWeight="medium" textAlign="center" sx={{ mb: 2 }}>
           🎉 Welcome aboard!
           <br />
-          You're almost set to use Developer Console
+          You're almost set to use ${APP_NAME}
         </Typography>
         <Typography variant="h1" fontWeight="bold" textAlign="center">
           Setting up your environment
