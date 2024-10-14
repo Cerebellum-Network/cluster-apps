@@ -1,13 +1,13 @@
 import { Application } from '../types';
 
 import { NetworkTopologyIcon } from './icons';
-import NetworkTopology from "./NetworkTopology.tsx";
+import NetworkTopology from './NetworkTopology.tsx';
 
 const application: Application = {
   rootComponent: NetworkTopology,
-  rootPath: 'content-delivery',
+  rootPath: 'network-topology',
   title: 'Network Topology',
-  description: "See how your nodes are connected and interact within the decentralized network.",
+  description: `See how your nodes are connected and interact within the decentralized network.`,
   icon: <NetworkTopologyIcon />,
 };
 
