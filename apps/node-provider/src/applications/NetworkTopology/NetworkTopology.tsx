@@ -13,7 +13,7 @@ const NetworkTopology = () => {
     <Stack spacing={2}>
       <Typography variant="h4">Network Topology</Typography>
       <Button variant="contained" onClick={handleConfigureNode}>
-        Сконфигурировать первую ноду
+        Configure your first node
       </Button>
     </Stack>
   );
