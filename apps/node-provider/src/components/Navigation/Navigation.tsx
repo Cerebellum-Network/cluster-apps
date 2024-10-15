@@ -11,9 +11,9 @@ export type NavigationProps = {
 
 const Navigation = ({ items, footer }: NavigationProps) => (
   <Stack spacing={2}>
-    {items.map((props) => (
-      <NavigationItem key={props.rootPath} {...props} />
-    ))}
+    {items.map(({ hideFromMenu = false, ...props }) =>
+      !hideFromMenu ? <NavigationItem key={props.rootPath} {...props} /> : null,
+    )}
     {footer && (
       <Box display="flex" justifyContent="center">
         {footer}

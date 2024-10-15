@@ -14,6 +14,7 @@ export type NavigationItemProps = {
   description: string;
   icon: ReactNode;
   widget?: ReactNode;
+  hideFromMenu?: boolean;
 };
 
 const NavButton = (props: ButtonProps & LinkProps) => <Button component={Link} {...props} />;

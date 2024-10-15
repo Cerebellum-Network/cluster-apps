@@ -7,4 +7,5 @@ export type Application = {
   description: string;
   icon: ReactNode;
   widget?: ReactNode;
+  hideFromMenu?: boolean;
 };
