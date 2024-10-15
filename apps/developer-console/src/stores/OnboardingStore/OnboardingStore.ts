@@ -56,16 +56,24 @@ export class OnboardingStore {
     return isOldUser || hasBuckets;
   }
 
-  async shouldOnboard() {
-    if (!FEATURE_USER_ONBOARDING) {
-      return false;
-    }
-
+  async processStatus() {
     await when(() => this.isDone !== undefined, { timeout: 30000 }).catch(() => {
       Reporting.message('Onboarding status is not properly detected after 30s', 'warning');
     });
 
     return !this.isDone;
+  }
+
+  async shouldSendToMarketingTool() {
+    return this.processStatus();
+  }
+
+  async shouldOnboard() {
+    if (!FEATURE_USER_ONBOARDING) {
+      return false;
+    }
+
+    return this.processStatus();
   }
 
   async startOnboarding() {

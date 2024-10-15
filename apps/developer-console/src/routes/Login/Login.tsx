@@ -53,8 +53,9 @@ const Login = observer(() => {
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
     const shouldOnboard = await onboarding.shouldOnboard();
+    const shouldSendToMarketingTool = await onboarding.shouldSendToMarketingTool();
 
-    if (shouldOnboard) {
+    if (shouldSendToMarketingTool) {
       emailCampaignService.addContactToMailjet(data.email).catch(reportError);
     }
 
