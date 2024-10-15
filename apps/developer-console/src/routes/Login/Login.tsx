@@ -53,9 +53,10 @@ const Login = observer(() => {
   const onSubmit = handleSubmit(async (data) => {
     await account.connect(data);
     const shouldOnboard = await onboarding.shouldOnboard();
+    const shouldSendToMarketingTool = await onboarding.shouldSendToMarketingTool();
 
-    if (shouldOnboard) {
-      emailCampaignService.addContactToBrevo(data.email).catch(reportError);
+    if (shouldSendToMarketingTool) {
+      emailCampaignService.addContactToMailjet(data.email).catch(reportError);
     }
 
     trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);

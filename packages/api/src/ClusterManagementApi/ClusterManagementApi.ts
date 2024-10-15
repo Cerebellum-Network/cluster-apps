@@ -11,4 +11,8 @@ export class ClusterManagementApi {
   async addContactToBrevo(email: string) {
     await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-brevo-contact`, { email });
   }
+
+  async addContactToMailjet(email: string) {
+    await axios.post(`${CLUSTER_MANAGEMENT_ENDPOINT}/email-campaigns/add-mailjet-contact`, { email });
+  }
 }

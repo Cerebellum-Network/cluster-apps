@@ -4,6 +4,11 @@
 
 -
 
+### [Developer Console] v0.13.0
+
+- Added mailjet
+- Fix user sign ups tracking
+
 ### [Developer Console] v0.12.0
 
 - Enable manual onboarding flow when auto-onboarding is turned off
