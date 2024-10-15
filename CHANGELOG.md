@@ -2,7 +2,12 @@
 
 ### vNext
 
+-
+
+### [Developer Console] v0.13.0
+
 - Fix user sign ups tracking
+- Added mailjet 
 
 ### [Developer Console] v0.12.0
 
