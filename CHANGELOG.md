@@ -2,7 +2,7 @@
 
 ### vNext
 
--
+- Fix user sign ups tracking
 
 ### [Developer Console] v0.12.0
 

@@ -58,17 +58,10 @@ export class AccountStore implements Account {
      */
     reaction(
       () => this.userInfo,
-      (userInfo) => {
-        if (!userInfo) {
-          return Reporting.clearUser();
-        }
-
-        Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name });
-
-        if (userInfo.isNewUser) {
-          Reporting.userSignedUp(this.address!);
-        }
-      },
+      (userInfo) =>
+        !userInfo
+          ? Reporting.clearUser()
+          : Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name }),
     );
 
     /**
@@ -165,6 +158,12 @@ export class AccountStore implements Account {
       email,
       permissions: WALLET_PERMISSIONS,
     });
+
+    const { isNewUser } = await this.wallet.getUserInfo();
+
+    if (isNewUser && this.address) {
+      Reporting.userSignedUp(this.address);
+    }
   }
 
   async init() {
