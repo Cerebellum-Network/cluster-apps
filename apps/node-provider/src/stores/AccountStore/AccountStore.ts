@@ -3,7 +3,7 @@ import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
-import { BucketStats, IndexedAccount } from '@cluster-apps/api';
+import { BucketStats, IndexedAccount, IndexedDdcNode } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
 import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET, DDC_SDK_LOG_LEVEL } from '~/constants';
@@ -15,6 +15,7 @@ import {
   createAddressResource,
   createStatusResource,
   createBucketStatsResource,
+  createDdcNodesResource,
 } from './resources';
 import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
 
@@ -28,6 +29,7 @@ export class AccountStore implements Account {
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
   private accountResource?: IResource<IndexedAccount | undefined>;
+  private ddcNodesResource?: IResource<IndexedDdcNode[] | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
   private accountMetricsResource?: IResource<AccountMetrics | undefined>;
   private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
@@ -81,6 +83,7 @@ export class AccountStore implements Account {
 
   private async bootstrap() {
     this.accountResource = createAccountResource(this);
+    this.ddcNodesResource = createDdcNodesResource(this);
     this.accountMetricsResource = createAccountMetricsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
   }
@@ -88,6 +91,7 @@ export class AccountStore implements Account {
   private async cleanup() {
     this.userInfoPromise = undefined;
     this.accountResource = undefined;
+    this.ddcNodesResource = undefined;
     this.accountMetricsResource = undefined;
   }
 
@@ -145,6 +149,10 @@ export class AccountStore implements Account {
     return this.userInfoPromise?.case({
       fulfilled: (userInfo) => userInfo,
     });
+  }
+
+  get ddcNodes() {
+    return this.ddcNodesResource?.current();
   }
 
   async connect({ email }: ConnectOptions) {

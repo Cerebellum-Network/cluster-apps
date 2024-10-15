@@ -19,6 +19,14 @@ type AccountResult = {
   };
 };
 
+export type IndexedDdcNode = unknown;
+
+type DdcNodesResult = {
+  data: {
+    ddcNodes: IndexedDdcNode[]; // @TODO
+  };
+};
+
 const mapBucket = (bucket: IndexedBucket): IndexedBucket => ({
   ...bucket,
   id: BigInt(bucket.id),
@@ -37,6 +45,8 @@ const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccoun
         deposit: 0n,
         buckets: [],
       };
+
+const mapResultToDdcNodes = ({ data: { ddcNodes } }: DdcNodesResult) => (ddcNodes?.length > 0 ? ddcNodes : []);
 
 export class IndexerApi {
   private readonly endpoint = INDEXER_ENDPOINT;
@@ -66,5 +76,25 @@ export class IndexerApi {
     });
 
     return response.json().then(mapResultToAccount);
+  }
+
+  async getDdcNodes(accountId: string) {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        query: `
+          query {
+            ddcNodes(where: {providerId: {id_eq: "${accountId}"}}) {
+              id
+            }
+          }
+        `,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.json().then(mapResultToDdcNodes);
   }
 }
