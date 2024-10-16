@@ -19,6 +19,8 @@ import { useState } from 'react';
 import { useAccount } from '~/hooks';
 import { PreFormattedBox } from '../../components/PreformattedBox/PreformattedBox.tsx';
 import { useNodeRunCommand } from '../../hooks';
+import { ClusterManagementApi } from '@cluster-apps/api';
+import { NodeAccessParams } from '@cluster-apps/api/src/ClusterManagementApi/types.ts';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -45,13 +47,27 @@ const ConfigureNode = () => {
   const handleValidation = async () => {
     setStatus('Validation in progress...');
     try {
-      setChecks({
-        openPortChecked: true,
-        nodeVersionChecked: true,
-        nodeKeyChecked: true,
-      });
+      const clusterManagementApi = new ClusterManagementApi();
+      const nodeParams: NodeAccessParams = {
+        host: hostName,
+        httpPort: port,
+        grpcPort,
+        p2pPort,
+      };
+      if (domain.length > 0) {
+        nodeParams.domain = domain;
+      }
+      const response = await clusterManagementApi.validateNodeConfiguration(nodeParams);
 
-      setStatus('Validation successful!');
+      if (response.data.unreachable.length === 0) {
+        setChecks({
+          openPortChecked: true,
+          nodeVersionChecked: true,
+          nodeKeyChecked: true,
+        });
+
+        setStatus('Validation successful!');
+      }
     } catch (error) {
       setStatus('Validation failed!');
     }
@@ -62,12 +78,13 @@ const ConfigureNode = () => {
     nodePublicKey: account.address as string,
     port: +port,
     nodeType: nodeType as 'storage' | 'cdn',
+    mnemonic: '',
+    grpcPort: +grpcPort,
+    p2pPort: +p2pPort,
   });
 
   const handleCopyCommand = () => {
-    const command = `docker run -d --name ddc-storage-node -p ${port}:${port} -v /home/user/ddc/data:/data:rw -v /home/user/ddc/config:/ddc-storage-node/config:rw cerebellumnetwork/ddc-storage-node:dev-latestf587f74880f9b6f17ce68734d6c393e63f7ffd38289b55b0ee828f81434270 "your seed phrase here"`;
-    navigator.clipboard.writeText(command);
-    alert('Command copied to clipboard!');
+    navigator.clipboard.writeText(runCommand);
   };
 
   const handleNext = () => {
