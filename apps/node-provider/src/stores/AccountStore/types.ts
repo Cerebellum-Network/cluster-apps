@@ -1,13 +1,7 @@
 import { AuthToken, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { BucketParams } from '@cere-ddc-sdk/blockchain';
 import { UserInfo, WalletStatus } from '@cere/embed-wallet';
-import {
-  AccountStats,
-  AccountStatsHistoryRecord,
-  BucketStats,
-  IndexedBucket,
-  IndexedDdcNodes,
-} from '@cluster-apps/api';
+import { AccountStats, AccountStatsHistoryRecord, BucketStats, IndexedBucket, IndexedDdcNode } from '@cluster-apps/api';
 
 export type AccountStatus = WalletStatus;
 
@@ -19,7 +13,7 @@ export type Bucket = IndexedBucket & {
   stats?: BucketStats;
 };
 
-export type DdcNode = IndexedDdcNodes[];
+export type DdcNode = IndexedDdcNode[];
 
 export type AccountMetrics = {
   total: AccountStats;

@@ -19,11 +19,11 @@ type AccountResult = {
   };
 };
 
-export type IndexedDdcNode = unknown;
+export type IndexedDdcNode = any; // @TODO
 
 type DdcNodesResult = {
   data: {
-    ddcNodes: IndexedDdcNode[]; // @TODO
+    ddcNodes: IndexedDdcNode[];
   };
 };
 

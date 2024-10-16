@@ -19,8 +19,7 @@ import { useState } from 'react';
 import { useAccount } from '~/hooks';
 import { PreFormattedBox } from '../../components/PreformattedBox/PreformattedBox.tsx';
 import { useNodeRunCommand } from '../../hooks';
-import { ClusterManagementApi } from '@cluster-apps/api';
-import { NodeAccessParams } from '@cluster-apps/api/src/ClusterManagementApi/types.ts';
+import { ClusterManagementApi, NodeAccessParams } from '@cluster-apps/api';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -74,7 +73,7 @@ const ConfigureNode = () => {
     setActiveStep((prevState) => prevState + 1);
   };
 
-  const { runCommand, runCommandPrefix, secretPhraseEnvVariable, dockerImage } = useNodeRunCommand({
+  const { runCommand, runCommandPrefix, dockerImage } = useNodeRunCommand({
     nodePublicKey: account.address as string,
     port: +port,
     nodeType: nodeType as 'storage' | 'cdn',
@@ -108,7 +107,7 @@ const ConfigureNode = () => {
             <StepLabel>Configure Node</StepLabel>
             <StepContent>
               <Box sx={{ maxWidth: 600, mx: 'auto' }}>
-                <Typography variant="h6">Step 1: Node Configuration</Typography>
+                <Typography variant="h4">Step 1: Node Configuration</Typography>
 
                 <TextField
                   label="Node Account Address"
@@ -181,14 +180,10 @@ const ConfigureNode = () => {
 
                 <Box marginTop="20px">
                   <Typography variant="body1">Open your CLI on the node and enter this command:</Typography>
-                  <PreFormattedBox sx={{ my: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 2 }}>
+                  <PreFormattedBox>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-line', my: 1 }}>
-                      {/*docker run -d --name ddc-storage-node -p {port}:{port} -v /home/user/ddc/data:/data:rw -v*/}
-                      {/*/home/user/ddc/config:/ddc-storage-node/config:rw*/}
-                      {/*cerebellumnetwork/ddc-storage-node:dev-latestf587f74880f9b6f17ce68734d6c393e63f7ffd38289b55b0ee828f81434270{' '}*/}
-                      {/*<span style={{ color: 'red' }}>{'your secret phrase here'}</span>*/}
-                      {runCommandPrefix} {secretPhraseEnvVariable}="
-                      <span style={{ color: 'red' }}>{'your secret phrase here'}</span>" {dockerImage}
+                      {runCommandPrefix}"<span style={{ color: 'red' }}>{'your secret phrase here'}</span>"{' '}
+                      {dockerImage}
                     </Typography>
                   </PreFormattedBox>
                   <Typography variant="body2">* Your seed phrase should replace the red text</Typography>
@@ -207,7 +202,7 @@ const ConfigureNode = () => {
           <Step key={2}>
             <StepLabel>Step 2 - Node configuration validation</StepLabel>
             <StepContent>
-              <Typography variant="h6">Current status: {status}</Typography>
+              <Typography variant="h4">Current status: {status}</Typography>
 
               <Box display="flex" flexDirection="column">
                 <FormControlLabel control={<Checkbox checked={checks.openPortChecked} />} label="Open port checked" />
