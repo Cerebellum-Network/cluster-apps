@@ -77,3 +77,9 @@ export const createAccountResource = (account: AccountStore) => {
 
   return createPullResource(() => (!account.address ? undefined : api.getAccount(account.address)));
 };
+
+export const createDdcNodesResource = (account: AccountStore) => {
+  const api = new IndexerApi();
+
+  return createPullResource(() => (!account.address ? undefined : api.getDdcNodes(account.address)));
+};
