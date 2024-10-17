@@ -64,7 +64,6 @@ export class IndexerApi {
                 id
                 isPublic
                 isRemoved
-                storedBytes
               }
             }
           }
