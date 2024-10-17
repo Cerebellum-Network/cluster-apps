@@ -30,6 +30,7 @@ type DdcNodesResult = {
 const mapBucket = (bucket: IndexedBucket): IndexedBucket => ({
   ...bucket,
   id: BigInt(bucket.id),
+  storedBytes: 0, // TODO: get storedBytes from `usage`.
 });
 
 const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccount =>
