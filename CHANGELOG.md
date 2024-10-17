@@ -4,6 +4,10 @@
 
 -
 
+### [Developer Console] v0.14.0
+
+- Fix indexed bucket stored bytes
+
 ### [Developer Console] v0.13.0
 
 - Added mailjet
