@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconButton, Stack, Typography, LeftArrowIcon, RightArrowIcon } from '@cluster-apps/ui';
+import { Stack, Typography } from '@cluster-apps/ui';
 import { styled } from '@mui/system';
-import { DDC_CLUSTER_NAME, APP_NAME } from '~/constants';
-import { SliderDot } from './OnboardingVideoSlider.styled';
 import backgroundImage from '../../assets/acaaf3c5a2e393c1ee12ee107a75ec1b.png';
+import { Box } from '@mui/material';
 
 const SLIDES = [
   {
-    title: `${DDC_CLUSTER_NAME} <br/> ${APP_NAME}`,
+    title: `How to start <br/>`,
+    subtitle:
+      "Earn $CERE tokens for storing and delivering data there where it's needed the most. The more data requests you serve, the more you earn",
     description:
       'Unlock the power of the first web3 Data Cloud for real-world applications and get started in just a minute with Cere Wallet',
   },
@@ -50,6 +51,27 @@ const ContentContainer = styled(Stack)({
   padding: '40px',
 });
 
+const steps = [
+  {
+    title: '1. Create an Account',
+    description:
+      'Visit our Developer Console and create an account. First-time users receive 50 CERE tokens as a sign-up reward!',
+  },
+  {
+    title: '2. Create your first node',
+    description: 'Set up your infrastructure to host a node by configuring your machine to run our node software',
+  },
+  {
+    title: '3. Stake and select a cluster',
+    description: "Stake your CERE tokens and select a cluster to contribute to the network's performance",
+  },
+  {
+    title: '4. All set!',
+    description:
+      "After joining a cluster, you’re all set! In just a few seconds, you're ready to harness the power of decentralized data stores",
+  },
+];
+
 export const OnboardingVideoSlider = () => {
   const vidRef = useRef<HTMLVideoElement | null>(null);
   const [currentSlide, setCurrentSlide] = useState<number>(0);
@@ -75,11 +97,6 @@ export const OnboardingVideoSlider = () => {
     return hueRotateValues[slideIndex] || '0deg';
   };
 
-  const prevSlide = () => {
-    setCurrentSlide(currentSlide === 0 ? SLIDES.length - 1 : currentSlide - 1);
-    handlePlayVideo();
-  };
-
   const handlePlayVideo = () => {
     vidRef.current?.play();
   };
@@ -89,32 +106,31 @@ export const OnboardingVideoSlider = () => {
       <ImageBackground src={backgroundImage}></ImageBackground>
       <ContentContainer>
         <Stack direction="column" justifyContent="center" alignItems="center" sx={{ width: '100%', height: '100%' }}>
-          <Typography
-            variant="h2"
-            textAlign="center"
-            dangerouslySetInnerHTML={{ __html: SLIDES[currentSlide].title }}
-          />
-          <Typography textAlign="center" variant="subtitle1" sx={{ marginTop: 'auto' }}>
-            {SLIDES[currentSlide].description}
+          <Typography variant="h2" textAlign="center">
+            How To Start
           </Typography>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="center"
-            sx={{ width: '100%', padding: '20px' }}
-          >
-            <IconButton onClick={prevSlide} color="inherit">
-              <LeftArrowIcon />
-            </IconButton>
-            <Stack direction="row" gap="4px" alignItems="center" justifyContent="center">
-              <SliderDot className={currentSlide === 0 ? 'active' : ''} />
-              <SliderDot className={currentSlide === 1 ? 'active' : ''} />
-              <SliderDot className={currentSlide === 2 ? 'active' : ''} />
-            </Stack>
-            <IconButton onClick={nextSlide} color="inherit">
-              <RightArrowIcon />
-            </IconButton>
-          </Stack>
+          <Typography textAlign="center" variant="subtitle2" sx={{ marginTop: '10px' }}>
+            Earn $CERE tokens for storing and delivering data there where it's needed the most. The more data requests
+            you serve, the more you earn
+          </Typography>
+          {steps.map((step, index) => (
+            <Box
+              key={index}
+              sx={{
+                padding: '16px',
+                background: '#fff',
+                border: '2px solid #B2B8F9',
+                borderRadius: '10px',
+                marginBottom: '20px',
+                textAlign: 'center',
+              }}
+            >
+              <Typography textAlign="center" sx={{ fontSize: '24px', fontWeight: '500', marginBottom: '8px' }}>
+                {step.title}
+              </Typography>
+              <Typography>{step.description}</Typography>
+            </Box>
+          ))}
         </Stack>
       </ContentContainer>
     </VideoBackgroundContainer>
