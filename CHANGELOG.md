@@ -2,7 +2,7 @@
 
 ### vNext
 
--
+- Fix analytics events about new user sign ups
 
 ### [Developer Console] v0.14.0
 
