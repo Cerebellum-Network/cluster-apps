@@ -1,47 +1,50 @@
 import {
-  Typography,
-  Button,
   Box,
-  styled,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  TextField,
-  FormControl,
-  RadioGroup,
-  Radio,
-  FormControlLabel,
+  Button,
   Checkbox,
+  FormControl,
+  FormControlLabel,
   Grid,
+  Radio,
+  RadioGroup,
+  Step,
+  StepContent,
+  StepLabel,
+  Stepper,
+  styled,
+  TextField,
+  Typography,
+  CircularProgress,
 } from '@cluster-apps/ui';
-import { useState } from 'react';
-import { useAccount } from '~/hooks';
+import { useCallback, useState } from 'react';
 import { PreFormattedBox } from '../../components/PreformattedBox/PreformattedBox.tsx';
-import { useNodeRunCommand } from '../../hooks';
 import { ClusterManagementApi, NodeAccessParams } from '@cluster-apps/api';
+import { DdcBlockchainStore } from '../../stores';
+import { observer } from 'mobx-react-lite';
+import { StorageNodeMode, StorageNodeProps } from '@cere-ddc-sdk/blockchain';
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
-const ConfigureNode = () => {
-  const account = useAccount();
-
+const ConfigureNode = observer(() => {
+  const ddcBlockchainStore = new DdcBlockchainStore();
+  const [nodePublicKey, setNodePublicKey] = useState<string>('');
   const [activeStep, setActiveStep] = useState(0);
   const [nodeType, setNodeType] = useState('cdn');
-  const [domain, setDomain] = useState('');
-  const [sslEnabled, setSslEnabled] = useState(false);
-  const [hostName, setHostName] = useState('');
-  const [port, setPort] = useState('');
-  const [grpcPort, setGrpcPort] = useState('');
-  const [p2pPort, setP2pPort] = useState('');
+  const [hostName, setHostName] = useState('127.0.0.1');
+  const [port, setPort] = useState('8081');
+  const [grpcPort, setGrpcPort] = useState('9091');
+  const [p2pPort, setP2pPort] = useState('9071');
   const [status, setStatus] = useState("validation hasn't started yet");
   const [checks, setChecks] = useState({
     openPortChecked: false,
     nodeVersionChecked: false,
     nodeKeyChecked: false,
   });
+  const [isLoading, setLoading] = useState(false);
 
   const handleValidation = async () => {
     setStatus('Validation in progress...');
@@ -52,18 +55,13 @@ const ConfigureNode = () => {
         httpPort: port,
         grpcPort,
         p2pPort,
+        domain: 'www.example.com',
       };
-      if (domain.length > 0) {
-        nodeParams.domain = domain;
-      }
+
       const response = await clusterManagementApi.validateNodeConfiguration(nodeParams);
 
       if (response.data.unreachable.length === 0) {
-        setChecks({
-          openPortChecked: true,
-          nodeVersionChecked: true,
-          nodeKeyChecked: true,
-        });
+        await activateCheckboxesWithDelay();
 
         setStatus('Validation successful!');
       }
@@ -73,22 +71,53 @@ const ConfigureNode = () => {
     setActiveStep((prevState) => prevState + 1);
   };
 
-  const { runCommand, runCommandPrefix, dockerImage } = useNodeRunCommand({
-    nodePublicKey: account.address as string,
-    port: +port,
-    nodeType: nodeType as 'storage' | 'cdn',
-    mnemonic: '',
-    grpcPort: +grpcPort,
-    p2pPort: +p2pPort,
-  });
+  const activateCheckboxesWithDelay = async () => {
+    setChecks((prevChecks) => ({ ...prevChecks, openPortChecked: true }));
+    await delay(2000);
+
+    setChecks((prevChecks) => ({ ...prevChecks, nodeVersionChecked: true }));
+    await delay(2000);
+
+    setChecks((prevChecks) => ({ ...prevChecks, nodeKeyChecked: true }));
+  };
 
   const handleCopyCommand = () => {
-    navigator.clipboard.writeText(runCommand);
+    const storageRoot = '/Users/antonmazhuto/Documents/Work/storage_node';
+    // const storageRoot = '/home/user/ddc/data';
+    const mode = nodeType === 'cdn' ? 'cache' : 'storage';
+    const command = `./bootstrap.sh "/Users/antonmazhuto/Documents/Work/storage_node" "wss://rpc.testnet.cere.network/ws" "storage" "storage" "8081" "9091" "9071"`;
+    // const command = `./bootstrap.sh "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}" --node-type="${nodeType}" --domain="${hostName}"`;
+    // const command = `curl -s https://getmyscript.io --node-type="${nodeType}" --domain="${hostName}" | sh -s -- "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}"`;
+
+    navigator.clipboard.writeText(command).then(() => {
+      console.log('Команда скопирована в буфер обмена');
+    });
   };
 
   const handleNext = () => {
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
+
+  const addNodeToTheCluster = useCallback(async () => {
+    const nodeParams: StorageNodeProps = {
+      host: hostName,
+      httpPort: +port,
+      grpcPort: +grpcPort,
+      p2pPort: +p2pPort,
+      mode: nodeType === 'cdn' ? StorageNodeMode.Cache : StorageNodeMode.Storage,
+    };
+    setLoading(true);
+    try {
+      await ddcBlockchainStore.addStorageNodeToCluster({ nodePublicKey, nodeParams });
+      console.log('Your node was added to the cluster successfully!');
+    } catch (error) {
+      console.error('Error adding node to cluster:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [ddcBlockchainStore, grpcPort, hostName, nodePublicKey, nodeType, p2pPort, port]);
+
+  console.log(ddcBlockchainStore.status);
 
   return (
     <Box
@@ -107,19 +136,7 @@ const ConfigureNode = () => {
             <StepLabel>Configure Node</StepLabel>
             <StepContent>
               <Box sx={{ maxWidth: 600, mx: 'auto' }}>
-                <Typography variant="h4">Step 1: Node Configuration</Typography>
-
-                <TextField
-                  label="Node Account Address"
-                  value={account.address}
-                  disabled
-                  fullWidth
-                  InputProps={{
-                    readOnly: true,
-                  }}
-                  sx={{ my: 2 }}
-                />
-
+                <Typography variant="h4">Step 1: Configure your node</Typography>
                 <FormControl component="fieldset" sx={{ my: 2 }}>
                   <Typography variant="subtitle1">Node Type</Typography>
                   <RadioGroup value={nodeType} onChange={(e) => setNodeType(e.target.value)}>
@@ -127,23 +144,6 @@ const ConfigureNode = () => {
                     <FormControlLabel value="storage" control={<Radio />} label="Storage" />
                   </RadioGroup>
                 </FormControl>
-
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={8}>
-                    <TextField
-                      label="Enter Domain (optional)"
-                      value={domain}
-                      onChange={(e) => setDomain(e.target.value)}
-                      fullWidth
-                    />
-                  </Grid>
-                  <Grid item xs={4}>
-                    <FormControlLabel
-                      control={<Checkbox checked={sslEnabled} onChange={(e) => setSslEnabled(e.target.checked)} />}
-                      label="SSL"
-                    />
-                  </Grid>
-                </Grid>
 
                 <Grid container spacing={2} sx={{ my: 2 }}>
                   <Grid item xs={6}>
@@ -178,19 +178,28 @@ const ConfigureNode = () => {
                   </Grid>
                 </Grid>
 
-                <Box marginTop="20px">
-                  <Typography variant="body1">Open your CLI on the node and enter this command:</Typography>
+                <Box marginTop="20px" marginBottom="20px">
+                  <Typography variant="body1">
+                    Open your CLI and use this command to create a public node key and run the node:
+                  </Typography>
                   <PreFormattedBox>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-line', my: 1 }}>
-                      {runCommandPrefix}"<span style={{ color: 'red' }}>{'your secret phrase here'}</span>"{' '}
-                      {dockerImage}
+                      curl https://www.cere.network/bootstrap.sh | sh
                     </Typography>
                   </PreFormattedBox>
-                  <Typography variant="body2">* Your seed phrase should replace the red text</Typography>
-                  <Button variant="outlined" onClick={handleCopyCommand}>
-                    Copy command
-                  </Button>
+                  <Box marginTop="10px">
+                    <Button variant="outlined" onClick={handleCopyCommand}>
+                      Copy command
+                    </Button>
+                  </Box>
                 </Box>
+                <TextField
+                  label="Node Account Address"
+                  value={nodePublicKey}
+                  fullWidth
+                  sx={{ my: 2 }}
+                  onChange={(e) => setNodePublicKey(e.target.value)}
+                />
               </Box>
               <Box sx={{ mb: 2 }} textAlign="end">
                 <Button variant="contained" onClick={handleNext} sx={{ mt: 1, mr: 1 }}>
@@ -223,7 +232,18 @@ const ConfigureNode = () => {
             <StepContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
                 <Typography variant="h4">Join cluster with security deposit</Typography>
-                <Button>Join cluster</Button>
+                <Box display="flex" justifyContent="space-between">
+                  <Button onClick={addNodeToTheCluster} disabled={isLoading}>
+                    {isLoading ? (
+                      <Box display="flex" alignItems="center">
+                        <CircularProgress size={20} color="inherit" sx={{ marginRight: '8px' }} />
+                        Joining...
+                      </Box>
+                    ) : (
+                      'Join cluster'
+                    )}
+                  </Button>
+                </Box>
               </Box>
             </StepContent>
           </Step>
@@ -231,6 +251,6 @@ const ConfigureNode = () => {
       </Container>
     </Box>
   );
-};
+});
 
 export default ConfigureNode;
