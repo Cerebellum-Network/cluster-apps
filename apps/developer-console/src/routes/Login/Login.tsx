@@ -51,7 +51,7 @@ const Login = observer(() => {
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    await account.connect(data);
+    const { isNewUser } = await account.connect(data);
     const shouldOnboard = await onboarding.shouldOnboard();
     const shouldSendToMarketingTool = await onboarding.shouldSendToMarketingTool();
 
@@ -59,7 +59,7 @@ const Login = observer(() => {
       emailCampaignService.addContactToMailjet(data.email).catch(reportError);
     }
 
-    trackEvent(shouldOnboard ? AnalyticsId.signUp : AnalyticsId.signIn);
+    trackEvent(isNewUser ? AnalyticsId.signUp : AnalyticsId.signIn);
     navigate(shouldOnboard ? '/login/onboarding' : '/');
   });
 

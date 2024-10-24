@@ -159,11 +159,13 @@ export class AccountStore implements Account {
       permissions: WALLET_PERMISSIONS,
     });
 
-    const { isNewUser } = await this.wallet.getUserInfo();
+    const userInfo = await this.wallet.getUserInfo();
 
-    if (isNewUser && this.address) {
+    if (userInfo.isNewUser && this.address) {
       Reporting.userSignedUp(this.address);
     }
+
+    return userInfo;
   }
 
   async init() {
