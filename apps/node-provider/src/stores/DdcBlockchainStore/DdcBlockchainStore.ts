@@ -1,7 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { Blockchain, ClusterId, ClusterNodeKind, StorageNodeProps } from '@cere-ddc-sdk/blockchain';
 import { APP_ENV, APP_ID, DDC_PRESET } from '../../constants.ts';
-import { AccountStore } from '../AccountStore';
 import { DDC_CLUSTER_ID } from '@cluster-apps/developer-console/src/constants.ts';
 import { EmbedWallet } from '@cere/embed-wallet';
 import { CereWalletSigner } from '@cere-ddc-sdk/ddc-client';
@@ -13,10 +12,7 @@ export class DdcBlockchainStore {
   status: string | null = null;
   blockchainPromise: Promise<Blockchain> | undefined;
 
-  constructor(
-    protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain,
-    private accountStore: AccountStore,
-  ) {
+  constructor(protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain) {
     makeAutoObservable(this, {
       blockchainPromise: false,
     });
@@ -80,7 +76,7 @@ export class DdcBlockchainStore {
 
       const bondAmount = await this.getBondAmount(DDC_CLUSTER_ID);
 
-      if (bondAmount === null) {
+      if (bondAmount == null) {
         throw new Error(`Failed to get government params for cluster ${DDC_CLUSTER_ID}`);
       }
 
@@ -107,7 +103,7 @@ export class DdcBlockchainStore {
         });
       });
     } catch (error) {
-      this.setStatus(`Error: ${error.message}`);
+      this.setStatus(`Error: ${(error as Error).message}`);
     }
   }
 }

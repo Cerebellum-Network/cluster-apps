@@ -105,9 +105,11 @@ const ValidationAndStaking = observer(() => {
                   'Join cluster'
                 )}
               </Button>
-              {ddcBlockchainStore.status && (
+              {/* @ts-ignore */}
+              {ddcBlockchainStore?.status && (
                 <Typography marginBottom="20px" sx={{ wordBreak: 'break-all' }}>
-                  <b>Status</b>: {ddcBlockchainStore.status}
+                  {/* @ts-ignore */}
+                  <b>Status</b>: {ddcBlockchainStore?.status || ''}
                 </Typography>
               )}
             </Grid>

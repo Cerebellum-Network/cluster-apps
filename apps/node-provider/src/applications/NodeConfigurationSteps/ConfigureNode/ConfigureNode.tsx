@@ -91,7 +91,7 @@ const ConfigureNode = observer(() => {
             </Typography>
             <PreFormattedBox>
               <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-line', my: 1 }}>
-                {`bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "${nodeConfigurationStore.storageRoot ?? './'}" "${DDC_PRESET.blockchain}" "${nodeConfigurationStore.nodeType === 'cdn' ? 'cache' : 'storage'}" "${nodeConfigurationStore.nodeType}" "${nodeConfigurationStore.port || '8081'}" "${nodeConfigurationStore.grpcPort || '9091'}" "${nodeConfigurationStore.p2pPort || '9071'}"`}
+                {`bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "./" "${DDC_PRESET.blockchain}" "${nodeConfigurationStore.nodeType === 'cdn' ? 'cache' : 'storage'}" "${nodeConfigurationStore.nodeType}" "${nodeConfigurationStore.port || '8081'}" "${nodeConfigurationStore.grpcPort || '9091'}" "${nodeConfigurationStore.p2pPort || '9071'}"`}
               </Typography>
             </PreFormattedBox>
             <Box marginTop="10px">
