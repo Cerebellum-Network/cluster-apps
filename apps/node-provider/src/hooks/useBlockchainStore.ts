@@ -4,6 +4,6 @@ import { useAppStore } from './useAppStore.ts';
 export const useDdcBlockchainStore = (): ReadyAccount => {
   const appStore = useAppStore();
 
-  // @ts-ignore
+  // @ts-expect-error: ddcBlockchainStore ReadyAccount
   return appStore.ddcBlockchainStore;
 };
