@@ -54,8 +54,7 @@ const ContentContainer = styled(Stack)({
 const steps = [
   {
     title: '1. Create an Account',
-    description:
-      'Visit our Developer Console and create an account. First-time users receive 50 CERE tokens as a sign-up reward!',
+    description: 'Use Cere Wallet to sign up for seamless interactions with Cere’s DDC and Mainnet Blockchain',
   },
   {
     title: '2. Create your first node',

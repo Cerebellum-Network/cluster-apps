@@ -73,16 +73,13 @@ export class NodeConfigurationStore {
   };
 
   handleCopyCommand = async () => {
-    const storageRoot = '/Users/antonmazhuto/Documents/Work/storage_node';
-    // const storageRoot = '/home/user/ddc/data';
+    const storageRoot = './';
     const mode = this.nodeType === 'cdn' ? 'cache' : 'storage';
     const command = `./bootstrap.sh "/Users/antonmazhuto/Documents/Work/storage_node" "wss://rpc.testnet.cere.network/ws" "storage" "storage" "8081" "9091" "9071"`;
     // const command = `./bootstrap.sh "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}" --node-type="${nodeType}" --domain="${hostName}"`;
-    // const command = `curl -s https://getmyscript.io --node-type="${nodeType}" --domain="${hostName}" | sh -s -- "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}"`;
+    // const command = `curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${this.nodeType}" "${this.port}" "${this.grpcPort}" "${this.p2pPort}"`;
 
-    navigator.clipboard.writeText(command).then(() => {
-      console.log('Команда скопирована в буфер обмена');
-    });
+    navigator.clipboard.writeText(command).then(() => {});
   };
 
   activateCheckboxesWithDelay = async () => {
@@ -106,6 +103,7 @@ export class NodeConfigurationStore {
     try {
       await this.ddcBlockchainStore.addStorageNodeToCluster({ nodePublicKey: this.nodePublicKey, nodeParams });
       console.log('Your node was added to the cluster successfully!');
+      return 'OK';
     } catch (error) {
       console.error('Error adding node to cluster:', error);
     } finally {

@@ -1,6 +1,8 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import { Amount, Blockchain, ClusterNodeKind, StorageNodeProps } from '@cere-ddc-sdk/blockchain';
+import { Blockchain, ClusterId, ClusterNodeKind, StorageNodeProps } from '@cere-ddc-sdk/blockchain';
 import { APP_ENV, APP_ID, DDC_PRESET } from '../../constants.ts';
+import { AccountStore } from '../AccountStore';
+import { DDC_CLUSTER_ID } from '@cluster-apps/developer-console/src/constants.ts';
 import { EmbedWallet } from '@cere/embed-wallet';
 import { CereWalletSigner } from '@cere-ddc-sdk/ddc-client';
 
@@ -11,7 +13,10 @@ export class DdcBlockchainStore {
   status: string | null = null;
   blockchainPromise: Promise<Blockchain> | undefined;
 
-  constructor(protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain) {
+  constructor(
+    protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain,
+    private accountStore: AccountStore,
+  ) {
     makeAutoObservable(this, {
       blockchainPromise: false,
     });
@@ -43,6 +48,13 @@ export class DdcBlockchainStore {
     });
   }
 
+  async getBondAmount(clusterId: ClusterId) {
+    const blockchain = await this.getOrCreateBlockchain();
+    const governmentParams = await blockchain.ddcClusters.getClusterGovernmentParams(clusterId);
+
+    return governmentParams == null ? undefined : governmentParams.storageBondSize;
+  }
+
   async addStorageNodeToCluster({
     nodePublicKey,
     nodeParams,
@@ -66,14 +78,18 @@ export class DdcBlockchainStore {
       const signer = await this.signer.getSigner();
       blockchain.api.setSigner(signer);
 
-      const amount: Amount = BigInt(500);
+      const bondAmount = await this.getBondAmount(DDC_CLUSTER_ID);
+
+      if (bondAmount === null) {
+        throw new Error(`Failed to get government params for cluster ${DDC_CLUSTER_ID}`);
+      }
 
       const tx1 = blockchain.ddcNodes.createStorageNode(nodePublicKey, nodeParams);
-      const tx2 = blockchain.ddcStaking.bondStorageNode(senderAddress, nodePublicKey, amount);
-      const tx3 = blockchain.ddcStaking.store('0x0000000000000000000000000000000000000001');
+      const tx2 = blockchain.ddcStaking.bondStorageNode(senderAddress, nodePublicKey, bondAmount);
+      const tx3 = blockchain.ddcStaking.store(DDC_CLUSTER_ID);
       const tx4 = blockchain.ddcStaking.setController(nodePublicKey);
       const tx5 = blockchain.ddcClusters.addStorageNodeToCluster(
-        '0x0000000000000000000000000000000000000001',
+        DDC_CLUSTER_ID,
         nodePublicKey,
         ClusterNodeKind.Genesis,
       );

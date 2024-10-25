@@ -2,6 +2,7 @@ import { Box, Button, Checkbox, FormControlLabel, Typography, CircularProgress, 
 import { observer } from 'mobx-react-lite';
 import { useNodeConfigurationStore, useDdcBlockchainStore, useAccount } from '~/hooks';
 import { Link, useNavigate } from 'react-router-dom';
+import { useCallback } from 'react';
 
 const ValidationAndStaking = observer(() => {
   const nodeConfigurationStore = useNodeConfigurationStore();
@@ -11,6 +12,13 @@ const ValidationAndStaking = observer(() => {
   const navigate = useNavigate();
 
   const areAllChecksComplete = Object.values(nodeConfigurationStore.checks).every((checked) => checked === true);
+
+  const joinCluster = useCallback(async () => {
+    const response = await nodeConfigurationStore.addNodeToTheCluster();
+    if (response === 'OK') {
+      navigate('/congratulation');
+    }
+  }, [navigate, nodeConfigurationStore]);
 
   return (
     <Box>
@@ -87,10 +95,7 @@ const ValidationAndStaking = observer(() => {
               </Link>
             </Grid>
             <Grid item xs={6} textAlign="right">
-              <Button
-                onClick={() => nodeConfigurationStore.addNodeToTheCluster()}
-                disabled={nodeConfigurationStore.isLoading}
-              >
+              <Button onClick={joinCluster} disabled={nodeConfigurationStore.isLoading || account.balance === 0}>
                 {nodeConfigurationStore.isLoading ? (
                   <Box display="flex" alignItems="center">
                     <CircularProgress size={20} color="inherit" sx={{ marginRight: '8px' }} />
@@ -101,7 +106,7 @@ const ValidationAndStaking = observer(() => {
                 )}
               </Button>
               {ddcBlockchainStore.status && (
-                <Typography marginBottom="20px">
+                <Typography marginBottom="20px" sx={{ wordBreak: 'break-all' }}>
                   <b>Status</b>: {ddcBlockchainStore.status}
                 </Typography>
               )}

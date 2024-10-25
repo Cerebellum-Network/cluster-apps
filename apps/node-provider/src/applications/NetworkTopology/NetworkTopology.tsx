@@ -1,16 +1,22 @@
 import { observer } from 'mobx-react-lite';
-import { Box, Typography, Button, styled } from '@cluster-apps/ui';
+import {
+  Box,
+  Typography,
+  Button,
+  Table,
+  TableCell,
+  TableRow,
+  Paper,
+  TableBody,
+  TableHead,
+  TableContainer,
+} from '@cluster-apps/ui';
 import { useNavigate } from 'react-router-dom';
 import { useAccount } from '~/hooks';
-
-const Container = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-}));
+import { DDC_CLUSTER_ID } from '@cluster-apps/developer-console/src/constants.ts';
 
 const NetworkTopology = () => {
   const account = useAccount();
-
-  console.log(account.ddcNodes);
 
   const navigate = useNavigate();
 
@@ -29,9 +35,28 @@ const NetworkTopology = () => {
       <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
         <Typography variant="h3">Network Topology</Typography>
       </Box>
-      <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
+      <Box padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
         {account.ddcNodes?.length > 0 ? (
-          'Soon'
+          <TableContainer component={Paper}>
+            <Table sx={{ minWidth: 650 }} aria-label="simple table">
+              <TableHead>
+                <TableRow>
+                  <TableCell align="left">Node ID</TableCell>
+                  <TableCell align="left">Cluster ID</TableCell>
+                  <TableCell align="left">Status</TableCell>
+                  <TableCell align="right">Recourses consumed</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                <TableRow>
+                  {account.ddcNodes?.map(({ id }) => <TableCell>{id}</TableCell>)}
+                  <TableCell>{DDC_CLUSTER_ID}</TableCell>
+                  <TableCell>Approved</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
         ) : (
           <Box textAlign="center">
             <Typography variant="h4" marginBottom="20px">
@@ -42,7 +67,7 @@ const NetworkTopology = () => {
             </Button>
           </Box>
         )}
-      </Container>
+      </Box>
     </Box>
   );
 };
