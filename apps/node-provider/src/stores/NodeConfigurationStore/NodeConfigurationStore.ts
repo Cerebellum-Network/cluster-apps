@@ -1,0 +1,115 @@
+import { makeAutoObservable } from 'mobx';
+import { ClusterManagementApi, NodeAccessParams } from '@cluster-apps/api';
+import { StorageNodeProps, StorageNodeMode } from '@cere-ddc-sdk/blockchain';
+import { DdcBlockchainStore } from '../DdcBlockchainStore';
+
+export class NodeConfigurationStore {
+  private clusterManagementApi = new ClusterManagementApi();
+
+  nodePublicKey = '';
+  nodeType = 'cdn';
+  hostName = '127.0.0.1';
+  port = '8081';
+  grpcPort = '9091';
+  p2pPort = '9071';
+  status = "validation hasn't started yet";
+  checks = {
+    openPortChecked: false,
+    nodeVersionChecked: false,
+    nodeKeyChecked: false,
+  };
+  isLoading = false;
+
+  constructor(private ddcBlockchainStore: DdcBlockchainStore) {
+    makeAutoObservable(this);
+  }
+
+  setNodePublicKey(publicKey: string) {
+    this.nodePublicKey = publicKey;
+  }
+
+  setNodeType(type: string) {
+    this.nodeType = type;
+  }
+
+  setHostName(host: string) {
+    this.hostName = host;
+  }
+
+  setPort(port: string) {
+    this.port = port;
+  }
+
+  setGrpcPort(port: string) {
+    this.grpcPort = port;
+  }
+
+  setP2pPort(port: string) {
+    this.p2pPort = port;
+  }
+
+  handleValidation = async () => {
+    this.status = 'Validation in progress...';
+    try {
+      const nodeParams: NodeAccessParams = {
+        host: this.hostName,
+        httpPort: this.port,
+        grpcPort: this.grpcPort,
+        p2pPort: this.p2pPort,
+        domain: 'www.example.com',
+      };
+
+      const response = await this.clusterManagementApi.validateNodeConfiguration(nodeParams);
+
+      if (response.data.unreachable.length === 0) {
+        await this.activateCheckboxesWithDelay();
+        this.status = 'Validation successful!';
+      } else {
+        this.status = 'Validation failed!';
+      }
+    } catch (error) {
+      this.status = 'Validation failed!';
+    }
+  };
+
+  handleCopyCommand = async () => {
+    const storageRoot = '/Users/antonmazhuto/Documents/Work/storage_node';
+    // const storageRoot = '/home/user/ddc/data';
+    const mode = this.nodeType === 'cdn' ? 'cache' : 'storage';
+    const command = `./bootstrap.sh "/Users/antonmazhuto/Documents/Work/storage_node" "wss://rpc.testnet.cere.network/ws" "storage" "storage" "8081" "9091" "9071"`;
+    // const command = `./bootstrap.sh "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}" --node-type="${nodeType}" --domain="${hostName}"`;
+    // const command = `curl -s https://getmyscript.io --node-type="${nodeType}" --domain="${hostName}" | sh -s -- "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}"`;
+
+    navigator.clipboard.writeText(command).then(() => {
+      console.log('Команда скопирована в буфер обмена');
+    });
+  };
+
+  activateCheckboxesWithDelay = async () => {
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    this.checks.openPortChecked = true;
+    await delay(2000);
+    this.checks.nodeVersionChecked = true;
+    await delay(2000);
+    this.checks.nodeKeyChecked = true;
+  };
+
+  async addNodeToTheCluster() {
+    const nodeParams: StorageNodeProps = {
+      host: this.hostName,
+      httpPort: +this.port,
+      grpcPort: +this.grpcPort,
+      p2pPort: +this.p2pPort,
+      mode: this.nodeType === 'cdn' ? StorageNodeMode.Cache : StorageNodeMode.Storage,
+    };
+    this.isLoading = true;
+    try {
+      await this.ddcBlockchainStore.addStorageNodeToCluster({ nodePublicKey: this.nodePublicKey, nodeParams });
+      console.log('Your node was added to the cluster successfully!');
+    } catch (error) {
+      console.error('Error adding node to cluster:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+}

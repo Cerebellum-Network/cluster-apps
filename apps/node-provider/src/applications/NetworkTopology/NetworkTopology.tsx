@@ -15,7 +15,7 @@ const NetworkTopology = () => {
   const navigate = useNavigate();
 
   const handleConfigureNode = () => {
-    navigate('/configure-node'); // Переход на страницу конфигурации ноды
+    navigate('/configure-node');
   };
 
   return (

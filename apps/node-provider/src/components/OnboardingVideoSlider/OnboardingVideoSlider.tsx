@@ -48,7 +48,7 @@ const ContentContainer = styled(Stack)({
   zIndex: 1,
   width: '100%',
   height: '100%',
-  padding: '40px',
+  padding: '10px 20px',
 });
 
 const steps = [

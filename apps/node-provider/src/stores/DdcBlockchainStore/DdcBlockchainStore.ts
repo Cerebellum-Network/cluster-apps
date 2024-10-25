@@ -8,7 +8,7 @@ export class DdcBlockchainStore {
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
 
-  status: string = 'Ready';
+  status: string | null = null;
   blockchainPromise: Promise<Blockchain> | undefined;
 
   constructor(protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain) {
