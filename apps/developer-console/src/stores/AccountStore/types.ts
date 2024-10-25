@@ -30,7 +30,7 @@ export interface Account {
 
   isReady(): this is ReadyAccount;
   init(): Promise<AccountStatus>;
-  connect(options: ConnectOptions): Promise<void>;
+  connect(options: ConnectOptions): Promise<UserInfo>;
   disconnect(): void;
   signMessage(message: string): Promise<string>;
   createBucket(params: BucketParams): Promise<bigint>;

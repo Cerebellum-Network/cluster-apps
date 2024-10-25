@@ -59,12 +59,14 @@ const Login = observer(() => {
     <OnboardingLayout>
       <form onSubmit={onSubmit}>
         <StyledStack>
-          <Typography variant="h1" textAlign="center">
-            Welcome to {DDC_CLUSTER_NAME}
+          <Typography variant="h2" textAlign="center">
+            Welcome to {DDC_CLUSTER_NAME} Cluster Management Toolset
           </Typography>
-          <Typography variant="h4" textAlign="center" sx={{ mt: 4, mb: 3 }}>
-            Unlock the power of the first Web3 Data Cloud for real-world applications. Get started for free in just a
-            minutes, no credit card required.
+          <Typography variant="h4" textAlign="center" sx={{ mt: 4 }}>
+            Manage your nodes and see the usage.
+          </Typography>
+          <Typography variant="h4" textAlign="center" fontWeight="bold" sx={{ mb: 3 }}>
+            Get started in just a minutes.
           </Typography>
 
           <FormControl fullWidth>

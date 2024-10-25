@@ -4,6 +4,10 @@
 
 -
 
+### [Developer Console] v0.15.0
+
+- Fix analytics events about new user sign ups
+
 ### [Developer Console] v0.14.0
 
 - Fix indexed bucket stored bytes
