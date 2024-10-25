@@ -2,16 +2,17 @@ import { makeAutoObservable } from 'mobx';
 import { ClusterManagementApi, NodeAccessParams } from '@cluster-apps/api';
 import { StorageNodeProps, StorageNodeMode } from '@cere-ddc-sdk/blockchain';
 import { DdcBlockchainStore } from '../DdcBlockchainStore';
+import { DDC_PRESET } from '../../constants.ts';
 
 export class NodeConfigurationStore {
   private clusterManagementApi = new ClusterManagementApi();
 
   nodePublicKey = '';
-  nodeType = 'cdn';
-  hostName = '127.0.0.1';
-  port = '8081';
-  grpcPort = '9091';
-  p2pPort = '9071';
+  nodeType = 'storage';
+  hostName = '';
+  port = '';
+  grpcPort = '';
+  p2pPort = '';
   status = "validation hasn't started yet";
   checks = {
     openPortChecked: false,
@@ -75,10 +76,7 @@ export class NodeConfigurationStore {
   handleCopyCommand = async () => {
     const storageRoot = './';
     const mode = this.nodeType === 'cdn' ? 'cache' : 'storage';
-    const command = `./bootstrap.sh "/Users/antonmazhuto/Documents/Work/storage_node" "wss://rpc.testnet.cere.network/ws" "storage" "storage" "8081" "9091" "9071"`;
-    // const command = `./bootstrap.sh "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${nodeType}" "${port}" "${grpcPort}" "${p2pPort}" --node-type="${nodeType}" --domain="${hostName}"`;
-    // const command = `curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${this.nodeType}" "${this.port}" "${this.grpcPort}" "${this.p2pPort}"`;
-
+    const command = `bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${this.nodeType}" "${this.port}" "${this.grpcPort}" "${this.p2pPort}"`;
     navigator.clipboard.writeText(command).then(() => {});
   };
 

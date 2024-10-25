@@ -92,6 +92,7 @@ export {
   Radio,
   Grid,
   TableContainer,
+  Tooltip,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';

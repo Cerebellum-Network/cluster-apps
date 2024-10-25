@@ -6,7 +6,7 @@ import ReactConfetti from 'react-confetti';
 import { useEffect, useState } from 'react';
 
 const Congratulation = () => {
-  const [isConfetti, showConfetti] = useState(false);
+  const [isConfetti, showConfetti] = useState(true);
 
   useEffect(() => {
     setTimeout(() => showConfetti(false), 6000);

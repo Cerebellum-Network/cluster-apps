@@ -8,11 +8,13 @@ import {
   RadioGroup,
   TextField,
   Typography,
+  Tooltip,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { PreFormattedBox } from '../../../components/PreformattedBox/PreformattedBox.tsx';
 import { useNodeConfigurationStore } from '~/hooks';
 import { useNavigate } from 'react-router-dom';
+import { DDC_PRESET } from '../../../constants.ts';
 
 const ConfigureNode = observer(() => {
   const nodeConfigurationStore = useNodeConfigurationStore();
@@ -38,7 +40,9 @@ const ConfigureNode = observer(() => {
               value={nodeConfigurationStore.nodeType}
               onChange={(e) => nodeConfigurationStore.setNodeType(e.target.value)}
             >
-              <FormControlLabel value="cdn" control={<Radio />} label="CDN" />
+              <Tooltip title="Will be soon">
+                <FormControlLabel disabled value="cdn" control={<Radio />} label="CDN" />
+              </Tooltip>
               <FormControlLabel value="storage" control={<Radio />} label="Storage" />
             </RadioGroup>
           </FormControl>
@@ -87,7 +91,7 @@ const ConfigureNode = observer(() => {
             </Typography>
             <PreFormattedBox>
               <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-line', my: 1 }}>
-                curl https://www.cere.network/bootstrap.sh | sh
+                {`bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "${nodeConfigurationStore.storageRoot ?? './'}" "${DDC_PRESET.blockchain}" "${nodeConfigurationStore.nodeType === 'cdn' ? 'cache' : 'storage'}" "${nodeConfigurationStore.nodeType}" "${nodeConfigurationStore.port || '8081'}" "${nodeConfigurationStore.grpcPort || '9091'}" "${nodeConfigurationStore.p2pPort || '9071'}"`}
               </Typography>
             </PreFormattedBox>
             <Box marginTop="10px">
