@@ -23,7 +23,7 @@ export class AppStore {
     this.accountStore = new AccountStore();
     this.onboardingStore = new OnboardingStore(this.accountStore);
     this.questsStore = new QuestsStore(this.accountStore);
-    this.ddcBlockchainStore = new DdcBlockchainStore();
+    this.ddcBlockchainStore = new DdcBlockchainStore(this.accountStore);
     this.nodeConfigurationStore = new NodeConfigurationStore(this.ddcBlockchainStore);
   }
 

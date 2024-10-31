@@ -8,7 +8,6 @@ import {
   RadioGroup,
   TextField,
   Typography,
-  Tooltip,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { PreFormattedBox } from '../../../components/PreformattedBox/PreformattedBox.tsx';
@@ -40,9 +39,7 @@ const ConfigureNode = observer(() => {
               value={nodeConfigurationStore.nodeType}
               onChange={(e) => nodeConfigurationStore.setNodeType(e.target.value)}
             >
-              <Tooltip title="Will be soon">
-                <FormControlLabel disabled value="cdn" control={<Radio />} label="CDN" />
-              </Tooltip>
+              <FormControlLabel value="cdn" control={<Radio />} label="CDN" />
               <FormControlLabel value="storage" control={<Radio />} label="Storage" />
             </RadioGroup>
           </FormControl>

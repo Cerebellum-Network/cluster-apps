@@ -4,6 +4,14 @@ import { StorageNodeProps, StorageNodeMode } from '@cere-ddc-sdk/blockchain';
 import { DdcBlockchainStore } from '../DdcBlockchainStore';
 import { DDC_PRESET } from '../../constants.ts';
 
+interface TransactionResult {
+  status?: {
+    isInBlock?: boolean;
+    isError?: boolean;
+    asError?: string;
+  };
+}
+
 export class NodeConfigurationStore {
   private clusterManagementApi = new ClusterManagementApi();
 
@@ -75,7 +83,7 @@ export class NodeConfigurationStore {
   handleCopyCommand = async () => {
     const storageRoot = './';
     const mode = this.nodeType === 'cdn' ? 'cache' : 'storage';
-    const command = `bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "${this.nodeType}" "${this.port}" "${this.grpcPort}" "${this.p2pPort}"`;
+    const command = `bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "storage" "${this.port}" "${this.grpcPort}" "${this.p2pPort}"`;
     navigator.clipboard.writeText(command).then(() => {});
   };
 
@@ -98,11 +106,29 @@ export class NodeConfigurationStore {
     };
     this.isLoading = true;
     try {
-      await this.ddcBlockchainStore.addStorageNodeToCluster({ nodePublicKey: this.nodePublicKey, nodeParams });
-      console.log('Your node was added to the cluster successfully!');
-      return 'OK';
+      const result = (await this.ddcBlockchainStore.addStorageNodeToCluster({
+        nodePublicKey: this.nodePublicKey,
+        nodeParams,
+      })) as unknown as TransactionResult;
+
+      if (result && result.status?.isInBlock) {
+        console.log('Your node was added to the cluster successfully!');
+        return 'OK';
+      } else if (result && result.status?.isError) {
+        console.error('Transaction failed with error:', result.status.asError || 'Unknown error');
+        throw new Error('Transaction failed');
+      } else {
+        console.warn('Transaction completed, but the status is unclear.');
+        throw new Error('Transaction unclear status');
+      }
     } catch (error) {
-      console.error('Error adding node to cluster:', error);
+      if ((error as Error).message.includes('User denied transaction signature')) {
+        console.warn('Transaction signature was denied by the user.');
+        return 'SIGNATURE_DENIED';
+      } else {
+        console.error('Error adding node to cluster:', error);
+        throw error;
+      }
     } finally {
       this.isLoading = false;
     }

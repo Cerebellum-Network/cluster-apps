@@ -14,9 +14,18 @@ const ValidationAndStaking = observer(() => {
   const areAllChecksComplete = Object.values(nodeConfigurationStore.checks).every((checked) => checked === true);
 
   const joinCluster = useCallback(async () => {
-    const response = await nodeConfigurationStore.addNodeToTheCluster();
-    if (response === 'OK') {
-      navigate('/congratulation');
+    try {
+      const response = await nodeConfigurationStore.addNodeToTheCluster();
+
+      if (response === 'OK') {
+        navigate('/congratulation');
+      } else if (response === 'SIGNATURE_DENIED') {
+        console.log('User denied the transaction signature. No redirection will occur.');
+      } else {
+        console.error('Failed to join the cluster due to an unknown issue.');
+      }
+    } catch (error) {
+      console.error('Error during blockchain transaction:', error);
     }
   }, [navigate, nodeConfigurationStore]);
 

@@ -1,15 +1,10 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { Blockchain, ClusterId, ClusterNodeKind, StorageNodeProps } from '@cere-ddc-sdk/blockchain';
-import { APP_ENV, APP_ID, DDC_PRESET } from '../../constants.ts';
+import { DDC_PRESET } from '../../constants.ts';
 import { DDC_CLUSTER_ID } from '@cluster-apps/developer-console/src/constants.ts';
-import { EmbedWallet } from '@cere/embed-wallet';
-import { CereWalletSigner } from '@cere-ddc-sdk/ddc-client';
 import { AccountStore } from '../AccountStore';
 
 export class DdcBlockchainStore {
-  readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
-  readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
-
   status: string | null = null;
   blockchainPromise: Promise<Blockchain> | undefined;
 
@@ -19,7 +14,6 @@ export class DdcBlockchainStore {
   ) {
     makeAutoObservable(this, {
       blockchainPromise: false,
-      accountStore: true,
     });
   }
 
@@ -74,7 +68,7 @@ export class DdcBlockchainStore {
       if (!blockchain || !blockchain.api) {
         throw new Error('Blockchain is not initialized correctly');
       }
-      const signer = await this.accountStore.signer;
+      const signer = await this.accountStore.signer.getSigner();
       blockchain.api.setSigner(signer);
 
       const bondAmount = await this.getBondAmount(DDC_CLUSTER_ID);
