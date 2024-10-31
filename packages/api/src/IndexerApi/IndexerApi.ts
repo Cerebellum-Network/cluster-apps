@@ -19,7 +19,7 @@ type AccountResult = {
   };
 };
 
-export type IndexedDdcNode = any; // @TODO
+export type IndexedDdcNode = { id: number }; // @TODO
 
 type DdcNodesResult = {
   data: {
