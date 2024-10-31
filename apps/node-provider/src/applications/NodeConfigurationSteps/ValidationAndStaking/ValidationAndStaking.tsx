@@ -105,10 +105,8 @@ const ValidationAndStaking = observer(() => {
                   'Join cluster'
                 )}
               </Button>
-              {/* @ts-expect-error: todo */}
               {ddcBlockchainStore?.status && (
                 <Typography marginBottom="20px" sx={{ wordBreak: 'break-all' }}>
-                  {/* @ts-expect-error: todo */}
                   <b>Status</b>: {ddcBlockchainStore?.status || ''}
                 </Typography>
               )}

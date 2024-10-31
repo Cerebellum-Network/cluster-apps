@@ -1,7 +1,6 @@
-import { ReadyAccount } from '~/stores';
 import { useAppStore } from './useAppStore';
 
-export const useNodeConfigurationStore = (): ReadyAccount => {
+export const useNodeConfigurationStore = () => {
   const appStore = useAppStore();
 
   return appStore.nodeConfigurationStore;
