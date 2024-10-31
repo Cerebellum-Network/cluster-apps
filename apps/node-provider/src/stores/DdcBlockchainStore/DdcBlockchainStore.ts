@@ -4,6 +4,7 @@ import { APP_ENV, APP_ID, DDC_PRESET } from '../../constants.ts';
 import { DDC_CLUSTER_ID } from '@cluster-apps/developer-console/src/constants.ts';
 import { EmbedWallet } from '@cere/embed-wallet';
 import { CereWalletSigner } from '@cere-ddc-sdk/ddc-client';
+import { AccountStore } from '../AccountStore';
 
 export class DdcBlockchainStore {
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
@@ -12,9 +13,13 @@ export class DdcBlockchainStore {
   status: string | null = null;
   blockchainPromise: Promise<Blockchain> | undefined;
 
-  constructor(protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain) {
+  constructor(
+    private readonly accountStore: AccountStore,
+    protected readonly blockchainWsEndpoint = DDC_PRESET.blockchain,
+  ) {
     makeAutoObservable(this, {
       blockchainPromise: false,
+      accountStore: true,
     });
   }
 
@@ -59,9 +64,7 @@ export class DdcBlockchainStore {
     nodeParams: StorageNodeProps;
   }) {
     try {
-      await this.wallet.init();
-      await this.wallet.connect();
-      const senderAddress = this.signer.address;
+      const senderAddress = this.accountStore.address;
 
       if (!senderAddress) {
         throw new Error('Signer account is not available');
@@ -71,7 +74,7 @@ export class DdcBlockchainStore {
       if (!blockchain || !blockchain.api) {
         throw new Error('Blockchain is not initialized correctly');
       }
-      const signer = await this.signer.getSigner();
+      const signer = await this.accountStore.signer;
       blockchain.api.setSigner(signer);
 
       const bondAmount = await this.getBondAmount(DDC_CLUSTER_ID);

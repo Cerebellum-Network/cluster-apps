@@ -57,7 +57,6 @@ export class NodeConfigurationStore {
         httpPort: this.port,
         grpcPort: this.grpcPort,
         p2pPort: this.p2pPort,
-        domain: 'www.example.com',
       };
 
       const response = await this.clusterManagementApi.validateNodeConfiguration(nodeParams);
