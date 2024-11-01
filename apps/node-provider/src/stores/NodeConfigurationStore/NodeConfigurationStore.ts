@@ -2,7 +2,7 @@ import { makeAutoObservable } from 'mobx';
 import { ClusterManagementApi, NodeAccessParams } from '@cluster-apps/api';
 import { StorageNodeProps, StorageNodeMode } from '@cere-ddc-sdk/blockchain';
 import { DdcBlockchainStore } from '../DdcBlockchainStore';
-import { DDC_PRESET } from '../../constants.ts';
+import { DDC_CLUSTER_ID, DDC_NETWORK, DDC_PRESET } from '../../constants.ts';
 
 interface TransactionResult {
   status?: {
@@ -83,7 +83,7 @@ export class NodeConfigurationStore {
   handleCopyCommand = async () => {
     const storageRoot = './';
     const mode = this.nodeType === 'cdn' ? 'cache' : 'storage';
-    const command = `bash <(curl -s https://cdn.dragon.cere.network/961/baear4ifvgsrxc6y5rsmxlyyste4cyv35np6noedn4jb3bsyriqd2skre4i/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "storage" "${this.port}" "${this.grpcPort}" "${this.p2pPort}"`;
+    const command = `bash <(curl -s https://cdn.dragon.cere.network/1022/baear4iht6wsvrfu6ctgmeobot3y7g7zpmtxrgb6mkogywvg2du6pnaxlea/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "storage" "${this.port}" "${this.grpcPort}" "${this.p2pPort}" "${DDC_NETWORK}" "${DDC_CLUSTER_ID}"`;
     navigator.clipboard.writeText(command).then(() => {});
   };
 
