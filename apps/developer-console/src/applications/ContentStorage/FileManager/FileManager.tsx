@@ -1,21 +1,12 @@
 import { AnalyticsId } from '@cluster-apps/analytics';
-import {
-  AddCircleOutlinedIcon,
-  LoadingAnimation,
-  Stack,
-  Box,
-  Button,
-  Typography,
-  styled,
-  BoxProps,
-  DiscordButton,
-} from '@cluster-apps/ui';
+import { AddCircleOutlinedIcon, LoadingAnimation, Box, Button, Typography, styled, BoxProps } from '@cluster-apps/ui';
 
 import { QuestHint } from '~/components';
-import { DISCORD_LINK, FEATURE_USER_ONBOARDING } from '~/constants.ts';
+import { FEATURE_USER_ONBOARDING } from '~/constants.ts';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
+import { useAccountStore } from '~/hooks';
 
 /**
  * This component resets default CSS styles.
@@ -82,6 +73,9 @@ export const FileManager = ({
   isAccountReady: boolean;
   bucketInProgress?: string;
 }) => {
+  const account = useAccountStore();
+  const isAccount = account.isReady();
+  const balance = account?.balance ?? 0;
   const rows = transformData(data);
 
   const handleCloseStatus = () => {
@@ -90,7 +84,7 @@ export const FileManager = ({
 
   const skipCreateBucketHint = FEATURE_USER_ONBOARDING
     ? isLoading || !firstBucketLocked || !isAccountReady
-    : userHasBuckets;
+    : userHasBuckets || (isAccount && balance === 0);
 
   return (
     <CssReset>
@@ -162,23 +156,12 @@ export const FileManager = ({
             <QuestHint
               quest="uploadFile"
               step="createBucket"
-              title="Let’s get started!"
+              title="Start with creation of your first bucket"
               content={
                 FEATURE_USER_ONBOARDING ? (
                   'Create your first bucket to store your data'
                 ) : (
-                  <Stack spacing={2}>
-                    <Typography variant="body2">
-                      Create your first bucket to store your data!
-                      <br />
-                      To get free CERE tokens, please request them in our Discord channel.
-                    </Typography>
-                    <DiscordButton
-                      text="Join Cere Discord"
-                      link={DISCORD_LINK}
-                      className={AnalyticsId.joinDiscordBtn}
-                    />
-                  </Stack>
+                  <Typography variant="body2">Create the bucket to store your data</Typography>
                 )
               }
               skip={skipCreateBucketHint}

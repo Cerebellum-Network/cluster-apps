@@ -1,4 +1,4 @@
-import { Box, DiscordButton, LoadingAnimation, styled } from '@cluster-apps/ui';
+import { Box, Button, DiscordButton, LoadingAnimation, styled, useOnboarding, Stack } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
@@ -22,6 +22,7 @@ const Loading = styled(LoadingAnimation)({
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
+  const { restartOnboarding } = useOnboarding();
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
@@ -32,7 +33,12 @@ const Home = ({ apps }: HomeProps) => {
       rightElement={
         <Navigation
           items={apps}
-          footer={<DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
+          footer={
+            <Stack spacing={2}>
+              <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
+              <Button onClick={restartOnboarding}>Product tour</Button>
+            </Stack>
+          }
         />
       }
       leftElement={<Sidebar />}
