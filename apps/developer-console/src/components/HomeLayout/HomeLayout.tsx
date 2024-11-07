@@ -52,12 +52,13 @@ const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLa
         <QuestHint
           quest="addTokens"
           step="addTokens"
-          title=""
+          title="Let’s get started!"
           position="bottom"
           content={
             <Typography variant="body2" color="textSecondary">
-              Please top up your Cere Wallet and transfer tokens to your DDC account to create your first bucket and
-              keep your buckets running. To get free CERE tokens, please request them in our discord channel
+              Top up your Cere Wallet and transfer tokens to your DDC account to keep your buckets running.
+              <br />
+              To get <b>free CERE tokens</b>, please request them in our discord channel.
             </Typography>
           }
           skip={!isAccountReady || (balance > 0 && deposit > 0) || location.pathname === '/top-up'}
