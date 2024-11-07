@@ -47,9 +47,7 @@ const TopUp = () => {
     <Stack spacing={2} component="form" onSubmit={handleSubmit}>
       <Typography variant="h4">Top up your account</Typography>
       <Stack component={Paper} spacing={2} padding={3}>
-        <Typography variant="subtitle1">
-          Send CERE tokens to your wallet directly to keep your buckets running
-        </Typography>
+        <Typography variant="subtitle1">Send Cere tokens to your Cere wallet.</Typography>
 
         <Stack direction="row" spacing={3} alignItems="center" padding={1}>
           <QRCode value={account.address} size={100} />
@@ -63,8 +61,10 @@ const TopUp = () => {
 
         <Divider />
 
-        <Typography variant="subtitle1">Transfer funds from Cere Wallet to DDC Account</Typography>
-        <Typography variant="body1">Choose how much crypto you want to transfer to your DDC Account</Typography>
+        <Typography variant="subtitle1">
+          Transfer funds from Cere Wallet to DDC Account to keep your buckets running.
+        </Typography>
+        <Typography variant="body1">Funds will be charged from the DDC account directly.</Typography>
 
         <Stack direction="row" spacing={2}>
           <TextField

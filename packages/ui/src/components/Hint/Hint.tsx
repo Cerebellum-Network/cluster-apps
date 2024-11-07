@@ -1,5 +1,6 @@
 import { ReactElement, ReactNode, cloneElement, useLayoutEffect, useMemo, useState } from 'react';
-import { Popover, useTheme, alpha, PopoverProps, styled, Typography, Stack } from '@mui/material';
+import { Popover, useTheme, alpha, PopoverProps, styled, Typography, Stack, Link } from '@mui/material';
+import { useOnboarding } from '@cluster-apps/ui';
 
 type StyleProps = {
   position?: 'left' | 'right' | 'top' | 'bottom';
@@ -62,6 +63,8 @@ export const Hint = ({ open, title, content, position = 'right', children }: Hin
   const uniqueId = useMemo(() => Math.random().toString(36).substring(7), []);
   const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
+  const { isOnboardingActive, stopOnboarding } = useOnboarding();
+
   const clone = cloneElement(children, {
     ['data-hint-id']: uniqueId,
     style: open ? { zIndex: theme.zIndex.modal + 1 } : {},
@@ -79,7 +82,7 @@ export const Hint = ({ open, title, content, position = 'right', children }: Hin
       <div style={styles}>{clone}</div>
 
       <HintPopover
-        open={open && !!anchorEl}
+        open={isOnboardingActive && open && !!anchorEl}
         position={position}
         anchorEl={anchorEl}
         disableRestoreFocus
@@ -88,9 +91,14 @@ export const Hint = ({ open, title, content, position = 'right', children }: Hin
         <Stack padding={2}>
           {title && <Typography variant="subtitle1">{title}</Typography>}
           {content && (
-            <Typography component="div" variant="body2" color="text.secondary">
-              {content}
-            </Typography>
+            <>
+              <Typography component="div" variant="body2" color="text.secondary">
+                {content}
+              </Typography>
+              <Link variant="body2" underline="none" component="button" onClick={stopOnboarding} textAlign="right">
+                Skip
+              </Link>
+            </>
           )}
         </Stack>
       </HintPopover>
