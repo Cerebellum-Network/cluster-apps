@@ -25,7 +25,7 @@ const Home = ({ apps }: HomeProps) => {
   const questsStore = useQuestsStore();
   const { restartOnboarding } = useOnboarding();
 
-  const isFinalStepCompleted = questsStore.isStepDone('uploadFile', 'uploadFile');
+  const isFinalStepCompleted = questsStore.isStepDone('uploadFile', 'startUploading');
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
