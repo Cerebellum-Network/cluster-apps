@@ -1,4 +1,4 @@
-import { Application } from '../types';
+import { Application } from '../../types.ts';
 
 import ConfigureNode from './ConfigureNode.tsx';
 
