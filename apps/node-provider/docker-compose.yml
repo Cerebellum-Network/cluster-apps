@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  ddc-node:
+    image: cerebellumnetwork/ddc-${NODE_TYPE}-node:test
+    container_name: ddc-storage-node
+    volumes:
+      - ${STORAGE_ROOT}:/data
+    ports:
+      - "${PORT}:${PORT}"
+      - "${GRPC_PORT}:${GRPC_PORT}"
+      - "${P2P_PORT}:${P2P_PORT}"
+    environment:
+      - PEER_SECRET_PHRASE=${PEER_SECRET_PHRASE}
+      - PUBLIC_KEY=${PUBLIC_KEY}
+      - BLOCKCHAIN_URL=${BLOCKCHAIN_URL}
+      - MODE=${MODE}
+      - REDUNDANCY_ERASURE_CODING_REQUIRED=2
+      - REDUNDANCY_ERASURE_CODING_TOTAL=3
+      - REDUNDANCY_REPLICATION_TOTAL=3
+
+  agent:
+    container_name: 'agent'
+    image: 'krolol/grafana-agent-priviliged:1.0.0'
+    privileged: true
+    devices:
+      - '/dev/kmsg:/dev/kmsg'
+    volumes:
+      - './agent-config.yaml:/etc/agent/agent.yaml'
+      - '/tmp:/tmp:rw'
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:ro'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+      - '/dev/disk/:/dev/disk:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock'

@@ -13,7 +13,7 @@ export type Bucket = IndexedBucket & {
   stats?: BucketStats;
 };
 
-export type DdcNode = IndexedDdcNode[];
+export type DdcNode = IndexedDdcNode;
 
 export type AccountMetrics = {
   total: AccountStats;

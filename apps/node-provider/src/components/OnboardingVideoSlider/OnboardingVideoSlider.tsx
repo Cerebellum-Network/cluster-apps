@@ -48,14 +48,13 @@ const ContentContainer = styled(Stack)({
   zIndex: 1,
   width: '100%',
   height: '100%',
-  padding: '40px',
+  padding: '10px 20px',
 });
 
 const steps = [
   {
     title: '1. Create an Account',
-    description:
-      'Visit our Developer Console and create an account. First-time users receive 50 CERE tokens as a sign-up reward!',
+    description: 'Use Cere Wallet to sign up for seamless interactions with Cere’s DDC and Mainnet Blockchain',
   },
   {
     title: '2. Create your first node',

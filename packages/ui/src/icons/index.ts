@@ -24,6 +24,7 @@ export {
   MoreVert as ContextMenuIcon,
   Edit as EditIcon,
   Clear as RevokeAccessIcon,
+  CheckCircle,
 } from '@mui/icons-material';
 
 // Custom icons

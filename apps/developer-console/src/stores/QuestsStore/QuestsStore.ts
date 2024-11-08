@@ -4,12 +4,13 @@ import Reporting from '@cluster-apps/reporting';
 import { AccountStore } from '../AccountStore';
 import { Quest } from './Quest';
 
-export type QuestName = 'uploadFile' | 'createBucket';
-export type QuestStep = 'createBucket' | 'startUploading' | 'startCreating' | 'bucketCreated';
+export type QuestName = 'uploadFile' | 'createBucket' | 'addTokens';
+export type QuestStep = 'createBucket' | 'startUploading' | 'startCreating' | 'bucketCreated' | 'addTokens';
 
 export class QuestsStore {
   private questsMap = {
-    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading']),
+    addTokens: new Quest<QuestStep>('addTokens', ['addTokens']),
+    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading', 'addTokens']),
     createBucket: new Quest<QuestStep>('createBucket', ['bucketCreated', 'startCreating']),
   };
 
@@ -20,8 +21,10 @@ export class QuestsStore {
       () => accountStore.address,
       (address) => {
         if (!address) {
+          this.questsMap.addTokens.reset();
           this.questsMap.createBucket.reset();
-          return this.questsMap.uploadFile.reset();
+          this.questsMap.uploadFile.reset();
+          return;
         }
 
         let parsedQuests: any = {};
@@ -31,6 +34,11 @@ export class QuestsStore {
           parsedQuests = storedQuests ? JSON.parse(storedQuests) : {};
         } catch (e) {
           localStorage.removeItem(`dc:quests:${address}`);
+        }
+        if (parsedQuests.addTokens) {
+          this.questsMap.addTokens.fromJson(parsedQuests.addTokens);
+        } else {
+          this.questsMap.addTokens.reset();
         }
 
         if (parsedQuests.uploadFile) {
@@ -56,6 +64,7 @@ export class QuestsStore {
       JSON.stringify({
         uploadFile: this.questsMap.uploadFile.toJson(),
         createBucket: this.questsMap.createBucket.toJson(),
+        addTokens: this.questsMap.addTokens.toJson(),
       }),
     );
   }

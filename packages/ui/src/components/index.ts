@@ -91,6 +91,8 @@ export {
   RadioGroup,
   Radio,
   Grid,
+  TableContainer,
+  Tooltip,
 } from '@mui/material';
 
 export { LoadingButton, type LoadingButtonProps } from '@mui/lab';
@@ -114,3 +116,4 @@ export * from './Hint';
 export * from './MobileOverlay';
 export * from './DiscordButton';
 export * from './MetricsChart';
+export * from './OnboardingProvider';
