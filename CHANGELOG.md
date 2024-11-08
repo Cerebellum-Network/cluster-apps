@@ -4,6 +4,10 @@
 
 -
 
+### [Developer Console] v0.16.0
+
+- Onboarding adjustments 
+
 ### [Developer Console] v0.15.0
 
 - Fix analytics events about new user sign ups
