@@ -180,7 +180,8 @@ export const Row = ({
     cid: string;
     element: INode;
     token?: string;
-  }) => `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}?source=developer-console${token ? `&token=${token}` : ''}`;
+  }) =>
+    `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}?source=developer-console${token ? `&token=${token}` : ''}`;
 
   const showLinkCopiedMessage = () => {
     showMessage({
