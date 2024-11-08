@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ErrorBoundary } from '@cluster-apps/reporting';
-import { Provider as UIProvider } from '@cluster-apps/ui';
+import { Provider as UIProvider, OnboardingProvider } from '@cluster-apps/ui';
 
 import { Router } from './routes';
 import { AppStore } from './stores';
@@ -13,7 +13,9 @@ const App = () => {
     <UIProvider>
       <ErrorBoundary>
         <AppStoreContext.Provider value={store}>
-          <Router />
+          <OnboardingProvider>
+            <Router />
+          </OnboardingProvider>
         </AppStoreContext.Provider>
       </ErrorBoundary>
     </UIProvider>

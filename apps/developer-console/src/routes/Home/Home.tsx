@@ -1,10 +1,10 @@
-import { Box, DiscordButton, LoadingAnimation, styled } from '@cluster-apps/ui';
+import { Box, Button, DiscordButton, LoadingAnimation, styled, useOnboarding, Stack } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
 import { Application } from '~/applications';
 import { HomeLayout, Navigation, Sidebar } from '~/components';
-import { useAccountStore } from '~/hooks';
+import { useAccountStore, useQuestsStore } from '~/hooks';
 import { DISCORD_LINK } from '~/constants.ts';
 import { AnalyticsId } from '@cluster-apps/analytics';
 
@@ -22,6 +22,10 @@ const Loading = styled(LoadingAnimation)({
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
+  const questsStore = useQuestsStore();
+  const { restartOnboarding } = useOnboarding();
+
+  const isFinalStepCompleted = questsStore.isStepDone('uploadFile', 'startUploading');
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
@@ -32,7 +36,12 @@ const Home = ({ apps }: HomeProps) => {
       rightElement={
         <Navigation
           items={apps}
-          footer={<DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
+          footer={
+            <Stack spacing={2}>
+              <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
+              {!isFinalStepCompleted && <Button onClick={restartOnboarding}>Product tour</Button>}
+            </Stack>
+          }
         />
       }
       leftElement={<Sidebar />}
