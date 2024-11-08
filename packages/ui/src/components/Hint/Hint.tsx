@@ -20,7 +20,7 @@ const HintPopover = styled(({ position = 'right', ...props }: PopoverProps & Sty
     marginThreshold={10}
     anchorOrigin={{
       vertical: position === 'top' ? 'top' : position === 'bottom' ? 'bottom' : 'center',
-      horizontal: position === 'left' ? 'left' : position === 'right' ? 'right' : 'center',
+      horizontal: position === 'left' ? -16 : position === 'right' ? 'right' : 'center',
     }}
     transformOrigin={{
       vertical: position === 'top' ? 'bottom' : position === 'bottom' ? 'top' : 'center',
@@ -75,7 +75,8 @@ export const Hint = ({ open, title, content, position = 'right', children }: Hin
     setAnchorEl(element);
   }, [uniqueId]);
 
-  const styles = open ? { zIndex: 2000, backgroundColor: 'white', padding: '10px', borderRadius: '8px' } : {};
+  const styles =
+    open && isOnboardingActive ? { zIndex: 2000, backgroundColor: 'white', padding: '10px', borderRadius: '8px' } : {};
 
   return (
     <>

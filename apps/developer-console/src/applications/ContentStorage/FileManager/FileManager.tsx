@@ -76,6 +76,7 @@ export const FileManager = ({
   const account = useAccountStore();
   const isAccount = account.isReady();
   const balance = account?.balance ?? 0;
+  const deposit = account?.deposit ?? 0;
   const rows = transformData(data);
 
   const handleCloseStatus = () => {
@@ -84,7 +85,7 @@ export const FileManager = ({
 
   const skipCreateBucketHint = FEATURE_USER_ONBOARDING
     ? isLoading || !firstBucketLocked || !isAccountReady
-    : userHasBuckets || (isAccount && balance === 0);
+    : userHasBuckets || (isAccount && (balance === 0 || deposit === 0));
 
   return (
     <CssReset>

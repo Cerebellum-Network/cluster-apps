@@ -4,7 +4,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 
 import { Application } from '~/applications';
 import { HomeLayout, Navigation, Sidebar } from '~/components';
-import { useAccountStore } from '~/hooks';
+import { useAccountStore, useQuestsStore } from '~/hooks';
 import { DISCORD_LINK } from '~/constants.ts';
 import { AnalyticsId } from '@cluster-apps/analytics';
 
@@ -22,7 +22,10 @@ const Loading = styled(LoadingAnimation)({
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
+  const questsStore = useQuestsStore();
   const { restartOnboarding } = useOnboarding();
+
+  const isFinalStepCompleted = questsStore.isStepDone('uploadFile', 'uploadFile');
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
@@ -36,7 +39,7 @@ const Home = ({ apps }: HomeProps) => {
           footer={
             <Stack spacing={2}>
               <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
-              <Button onClick={restartOnboarding}>Product tour</Button>
+              {!isFinalStepCompleted && <Button onClick={restartOnboarding}>Product tour</Button>}
             </Stack>
           }
         />

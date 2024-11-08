@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react';
 
 interface OnboardingContextType {
   isOnboardingActive: boolean;
@@ -18,7 +18,14 @@ export const useOnboarding = () => {
 };
 
 export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
-  const [isOnboardingActive, setIsOnboardingActive] = useState(true);
+  const [isOnboardingActive, setIsOnboardingActive] = useState(() => {
+    const savedState = localStorage.getItem('isOnboardingActive');
+    return savedState !== null ? JSON.parse(savedState) : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('isOnboardingActive', JSON.stringify(isOnboardingActive));
+  }, [isOnboardingActive]);
 
   const startOnboarding = useCallback(() => setIsOnboardingActive(true), []);
   const stopOnboarding = useCallback(() => {
