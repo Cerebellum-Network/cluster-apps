@@ -1,12 +1,11 @@
+import { useEffect } from 'react';
+import { AddCircleOutlinedIcon, Box, Button, LoadingAnimation, styled, Typography, BoxProps } from '@cluster-apps/ui';
 import { AnalyticsId } from '@cluster-apps/analytics';
-import { AddCircleOutlinedIcon, LoadingAnimation, Box, Button, Typography, styled, BoxProps } from '@cluster-apps/ui';
 
-import { QuestHint } from '~/components';
-import { FEATURE_USER_ONBOARDING } from '~/constants.ts';
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
-import { useAccountStore } from '~/hooks';
+import { useApplicationTour, elementsRendered } from '~/components/ApplicationTour';
 
 /**
  * This component resets default CSS styles.
@@ -73,19 +72,33 @@ export const FileManager = ({
   isAccountReady: boolean;
   bucketInProgress?: string;
 }) => {
-  const account = useAccountStore();
-  const isAccount = account.isReady();
-  const balance = account?.balance ?? 0;
-  const deposit = account?.deposit ?? 0;
   const rows = transformData(data);
 
   const handleCloseStatus = () => {
     setUploadStatus('idle');
   };
 
-  const skipCreateBucketHint = FEATURE_USER_ONBOARDING
-    ? isLoading || !firstBucketLocked || !isAccountReady
-    : userHasBuckets || (isAccount && (balance === 0 || deposit === 0));
+  useEffect(() => {
+    elementsRendered.createBucketScreen = true;
+
+    return () => {
+      elementsRendered.createBucketScreen = false;
+    };
+  }, []);
+
+  const { hideTour } = useApplicationTour();
+
+  const onFirstBucketClick = () => {
+    const callback = !userHasBuckets ? onCreateBucket : onUnlockFirstBucket;
+
+    hideTour();
+    callback();
+  };
+
+  const onCreateNextBucket = () => {
+    hideTour();
+    onCreateBucket();
+  };
 
   return (
     <CssReset>
@@ -148,33 +161,21 @@ export const FileManager = ({
             <Button
               startIcon={<AddCircleOutlinedIcon />}
               className={AnalyticsId.createBucketBtn}
-              onClick={onCreateBucket}
+              onClick={onCreateNextBucket}
               disabled={isLoading}
+              data-tour="bucket"
             >
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
             </Button>
           ) : (
-            <QuestHint
-              quest="uploadFile"
-              step="createBucket"
-              title="Start with creation of your first bucket"
-              content={
-                FEATURE_USER_ONBOARDING ? (
-                  'Create your first bucket to store your data'
-                ) : (
-                  <Typography variant="body2">Create the bucket to store your data</Typography>
-                )
-              }
-              skip={skipCreateBucketHint}
+            <Button
+              onClick={onFirstBucketClick}
+              disabled={isLoading || isBucketCreating || !isAccountReady}
+              className={AnalyticsId.createFirstBucketBtn}
+              data-tour="bucket"
             >
-              <Button
-                onClick={!userHasBuckets ? onCreateBucket : onUnlockFirstBucket}
-                disabled={isLoading || isBucketCreating || !isAccountReady}
-                className={AnalyticsId.createFirstBucketBtn}
-              >
-                {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
-              </Button>
-            </QuestHint>
+              {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
+            </Button>
           )}
           <Typography marginTop={(theme) => theme.spacing(2.5)} variant="caption" fontSize="small">
             Buckets allow you to create discrete and decoupled storage bins for each of your applications
