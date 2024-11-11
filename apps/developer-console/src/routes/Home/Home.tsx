@@ -2,11 +2,12 @@ import { Box, Button, DiscordButton, LoadingAnimation, styled, useOnboarding, St
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
+import { AnalyticsId } from '@cluster-apps/analytics';
 import { Application } from '~/applications';
 import { HomeLayout, Navigation, Sidebar } from '~/components';
-import { useAccountStore, useQuestsStore } from '~/hooks';
+import { useAccountStore } from '~/hooks';
 import { DISCORD_LINK } from '~/constants.ts';
-import { AnalyticsId } from '@cluster-apps/analytics';
+import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeProps = {
   apps: Application[];
@@ -22,14 +23,18 @@ const Loading = styled(LoadingAnimation)({
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
-  const questsStore = useQuestsStore();
   const { restartOnboarding } = useOnboarding();
-
-  const isFinalStepCompleted = questsStore.isStepDone('uploadFile', 'startUploading');
+  const { showTour } = useApplicationTour();
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
   }
+
+  const onProductTourClick = () => {
+    restartOnboarding();
+    // use unknown step to start from the very beginning
+    showTour('fromTheVeryBeginning');
+  };
 
   return (
     <HomeLayout
@@ -39,7 +44,7 @@ const Home = ({ apps }: HomeProps) => {
           footer={
             <Stack spacing={2}>
               <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
-              {!isFinalStepCompleted && <Button onClick={restartOnboarding}>Product tour</Button>}
+              <Button onClick={onProductTourClick}>Product tour</Button>
             </Stack>
           }
         />
