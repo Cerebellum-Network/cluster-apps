@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   Box,
   BoxProps,
@@ -10,6 +11,7 @@ import {
   ArrowRightIcon,
   Truncate,
   useIsDesktop,
+  CircularProgress,
 } from '@cluster-apps/ui';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@cluster-apps/ui';
 import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
@@ -99,6 +101,8 @@ export const Row = ({
 
   const treeData = flattenTree(row.files);
 
+  const [downloadingNodeId, setDownloadingNodeId] = useState<INode['id'] | null>(null);
+
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
       const cid = (await resolveCid(bucketId))?.toString();
@@ -111,6 +115,8 @@ export const Row = ({
       if (!response.ok) {
         console.error(`Failed to fetch file: ${response.statusText}`);
       }
+
+      setDownloadingNodeId(element.id);
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -127,6 +133,8 @@ export const Row = ({
       }, 100);
     } catch (error) {
       console.error('Download error:', error);
+    } finally {
+      setDownloadingNodeId(null);
     }
   };
 
@@ -322,6 +330,19 @@ export const Row = ({
                         >
                           <DownloadIcon />
                         </IconButton>
+                        {downloadingNodeId === element.id ? (
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              marginLeft: '10px',
+                              marginRight: '10px',
+                            }}
+                          >
+                            <CircularProgress size={20} />
+                          </Box>
+                        ) : null}
                       </ButtonGroup>
                     ) : (
                       <UploadButton
