@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { NavLink } from 'react-router-dom';
 import { AnalyticsId } from '@cluster-apps/analytics';
@@ -17,12 +17,21 @@ import {
 } from '@cluster-apps/ui';
 
 import { useAccountStore } from '~/hooks';
+import { elementsRendered } from '../ApplicationTour';
 
 export type AccountDropdownProps = {};
 
 const AccountDropdown = () => {
   const account = useAccountStore();
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    elementsRendered.initialScreen = true;
+
+    return () => {
+      elementsRendered.initialScreen = false;
+    };
+  }, []);
 
   if (!account.address) {
     return null;

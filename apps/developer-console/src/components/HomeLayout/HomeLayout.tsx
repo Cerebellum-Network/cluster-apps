@@ -1,11 +1,11 @@
-import { PropsWithChildren, ReactNode, useEffect } from 'react';
+import { PropsWithChildren, ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
 import { isMobile } from 'react-device-detect';
 import { Paper, Stack, styled, MobileOverlay } from '@cluster-apps/ui';
 
 import { Layout } from '../Layout';
 import { AccountDropdown } from '../AccountDropdown';
-import { elementsRendered, useApplicationTour } from '~/components/ApplicationTour';
+import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
@@ -35,19 +35,7 @@ const Right = styled(Stack)(() => ({
 }));
 
 const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLayoutProps) => {
-  const { hideTour, showTour } = useApplicationTour();
-
-  useEffect(() => {
-    elementsRendered.initialScreen = true;
-
-    showTour();
-
-    return () => {
-      elementsRendered.initialScreen = false;
-
-      hideTour();
-    };
-  }, [hideTour, showTour]);
+  const { hideTour } = useApplicationTour();
 
   return (
     <Layout
