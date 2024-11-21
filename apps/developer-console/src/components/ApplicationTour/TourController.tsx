@@ -86,7 +86,7 @@ const tourDescriptors: TourDescriptor[] = [
     name: 'initialTourSteps',
     initialStep: 'account',
     condition: (account: Account) => account.isReady() && account.balance === 0 && account.deposit === 0,
-    renderCondition: () => elementsRendered.initialScreen,
+    renderCondition: () => elementsRendered.initialScreen && elementsRendered.createBucketScreen,
     firstTour: true,
   },
 ];
