@@ -34,11 +34,19 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
   const restartOnboarding = useCallback(() => {
     setIsOnboardingActive(false);
+
     setTimeout(() => setIsOnboardingActive(true), 0);
   }, []);
 
   return (
-    <OnboardingContext.Provider value={{ isOnboardingActive, startOnboarding, stopOnboarding, restartOnboarding }}>
+    <OnboardingContext.Provider
+      value={{
+        isOnboardingActive,
+        startOnboarding,
+        stopOnboarding,
+        restartOnboarding,
+      }}
+    >
       {children}
     </OnboardingContext.Provider>
   );

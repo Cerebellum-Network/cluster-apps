@@ -10,7 +10,7 @@ export type QuestStep = 'createBucket' | 'startUploading' | 'startCreating' | 'b
 export class QuestsStore {
   private questsMap = {
     addTokens: new Quest<QuestStep>('addTokens', ['addTokens']),
-    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading', 'addTokens']),
+    uploadFile: new Quest<QuestStep>('uploadFile', ['createBucket', 'startUploading']),
     createBucket: new Quest<QuestStep>('createBucket', ['bucketCreated', 'startCreating']),
   };
 

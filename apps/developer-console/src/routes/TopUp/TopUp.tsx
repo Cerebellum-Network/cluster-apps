@@ -43,6 +43,8 @@ const TopUp = () => {
     });
   });
 
+  const maxValue = Math.max(account.balance - 2, 0);
+
   return (
     <Stack spacing={2} component="form" onSubmit={handleSubmit}>
       <Typography variant="h4">Top up your account</Typography>
@@ -75,6 +77,9 @@ const TopUp = () => {
               ...form.register('amount', { required: true }),
 
               endAdornment: <Typography color="text.secondary">CERE</Typography>,
+            }}
+            inputProps={{
+              max: maxValue,
             }}
           />
           <LoadingButton

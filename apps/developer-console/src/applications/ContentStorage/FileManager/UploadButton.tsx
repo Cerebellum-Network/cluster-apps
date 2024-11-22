@@ -1,11 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ListItemIcon, MenuItem, MenuList, Typography } from '@mui/material';
 import { Dropdown, UploadFileIcon, UploadFolderIcon, DropdownAnchor } from '@cluster-apps/ui';
 import { AnalyticsId, trackEvent } from '@cluster-apps/analytics';
-
-import { QuestHint } from '~/components';
-import { useQuestsStore } from '~/hooks';
-import { FEATURE_USER_ONBOARDING } from '~/constants';
+import { useApplicationTour, elementsRendered } from '~/components/ApplicationTour';
 
 interface UploadComponentProps {
   onDrop: (values: {
@@ -22,15 +19,7 @@ interface UploadComponentProps {
   handleCreateEmptyFolder: (bucketId: string, name?: string) => Promise<void>;
 }
 
-export const UploadButton = ({
-  bucketId,
-  filePath,
-  firstBucketLocked,
-  onDrop,
-  handleCreateEmptyFolder,
-}: UploadComponentProps) => {
-  const store = useQuestsStore();
-
+export const UploadButton = ({ bucketId, filePath, onDrop, handleCreateEmptyFolder }: UploadComponentProps) => {
   const [openDropdown, setOpen] = useState(false);
 
   const handleUploadFile = () => {
@@ -87,28 +76,30 @@ export const UploadButton = ({
     setOpen((prevState) => !prevState);
   };
 
-  const isCompleted = store.isCompleted('uploadFile');
+  useEffect(() => {
+    elementsRendered.uploadButton = true;
+
+    return () => {
+      elementsRendered.uploadButton = false;
+    };
+  }, []);
+
+  const { hideTour } = useApplicationTour();
+
+  const toggleDropdown = () => {
+    setOpen((prevState) => !prevState);
+    hideTour();
+  };
 
   return (
     <Dropdown
       variant="button"
       open={openDropdown}
-      onToggle={setOpen}
+      onToggle={toggleDropdown}
       renderAnchor={(props) => (
-        <QuestHint
-          quest="uploadFile"
-          step="startUploading"
-          position="left"
-          title="Ready to Upload?"
-          content={
-            FEATURE_USER_ONBOARDING
-              ? 'Your bucket is ready. Add your first file/folder to get your first 50 CERE tokens'
-              : 'Your bucket is ready. Upload your first file/folder'
-          }
-          skip={!firstBucketLocked || isCompleted}
-        >
+        <div data-tour="upload">
           <DropdownAnchor label="Upload" {...props} />
-        </QuestHint>
+        </div>
       )}
     >
       <MenuList>
