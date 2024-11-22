@@ -4,6 +4,12 @@
 
 -
 
+### [Developer Console] v0.17.0
+
+- Replace hints with react-tour
+- Add download indicator
+- Add 'Max' button in top-up input, add validation and low balance handling
+
 ### [Developer Console] v0.16.0
 
 - Onboarding adjustments 
