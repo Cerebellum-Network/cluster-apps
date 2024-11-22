@@ -73,7 +73,8 @@ const ContentStorage = () => {
   }, [uploadStatus]);
 
   useEffect(() => {
-    const firstBucketLocked = !(buckets.length >= 1 && dirs.filter((s) => !!s.cid).length > 0);
+    // Previous condition: buckets.length === 0 || dirs.filter((s) => !!s.cid).length === 0;
+    const firstBucketLocked = buckets.length === 0;
     setFirstBucketLocked(firstBucketLocked);
     setLockUi(firstBucketLocked);
   }, [buckets.length, dirs, dirs.length, questsStore]);
@@ -304,9 +305,10 @@ const ContentStorage = () => {
 
   const handleRowClick = useCallback(
     (bucketId: string) => {
-      if (!(firstBucketLocked && buckets.length > 0)) {
-        setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
+      if (firstBucketLocked || buckets.length === 0) {
+        return;
       }
+      setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
     },
     [buckets.length, firstBucketLocked],
   );

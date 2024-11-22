@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import {
   CheckIcon,
   Divider,
+  Button,
   LoadingButton,
   Paper,
   QRCode,
@@ -43,6 +44,21 @@ const TopUp = () => {
     });
   });
 
+  const maxValue = Math.max(account.balance - 2, 0);
+
+  const endAdornment = (
+    <>
+      <Button
+        variant="contained"
+        sx={{ marginRight: '8px', marginLeft: '10px' }}
+        onClick={() => form.setValue('amount', `${maxValue}`, { shouldTouch: true, shouldValidate: true })}
+      >
+        Max
+      </Button>
+      <Typography color="text.secondary">CERE</Typography>
+    </>
+  );
+
   return (
     <Stack spacing={2} component="form" onSubmit={handleSubmit}>
       <Typography variant="h4">Top up your account</Typography>
@@ -71,11 +87,19 @@ const TopUp = () => {
             label="Amount"
             placeholder="0.00"
             type="number"
-            InputProps={{
-              ...form.register('amount', { required: true }),
-
-              endAdornment: <Typography color="text.secondary">CERE</Typography>,
-            }}
+            {...form.register('amount', {
+              required: 'Amount is required',
+              valueAsNumber: true,
+              validate: (value) => {
+                if (Number(value) <= 0) return 'Amount must be greater than 0';
+                if (Number(value) > maxValue) return `Amount must not exceed ${maxValue} CERE`;
+              },
+            })}
+            value={form.watch('amount')}
+            onChange={(e) => form.setValue('amount', e.target.value, { shouldTouch: true, shouldValidate: true })}
+            InputProps={{ endAdornment }}
+            error={!!form.formState.errors.amount}
+            helperText={form.formState.errors.amount?.message}
           />
           <LoadingButton
             type="submit"
@@ -83,11 +107,16 @@ const TopUp = () => {
             loading={form.formState.isSubmitting}
             endIcon={<CheckIcon />}
             sx={{ width: 150 }}
+            disabled={!form.formState.isValid}
           >
             Confirm
           </LoadingButton>
         </Stack>
-
+        {maxValue === 0 && (
+          <Typography variant="subtitle1" color="error">
+            You don't have enough funds in your Cere Wallet. Please top up your Cere Wallet first.
+          </Typography>
+        )}
         <Typography variant="body2" color="text.secondary">
           Funds sent to this account can't be withdrawn
         </Typography>
