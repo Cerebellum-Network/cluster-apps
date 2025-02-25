@@ -25,9 +25,8 @@ Thank you for your interest in contributing to Cluster applications! We apprecia
    ```sh
    git push origin feature/your-feature-name
    ```
-7. Open a pull request (PR) against the `dev` branch.
+7. Open a pull request (PR) against the `dev` branch in original repository.
     - Provide a detailed description of your changes.
-    - Ensure tests pass before submission.
 
 ## Coding Guidelines
 - Follow the existing coding style and conventions.
