@@ -56,7 +56,7 @@ export const FileManager = ({
     cnsName: string;
     isFolder: boolean;
     filePath?: string;
-  }) => void;
+  }) => Promise<string | null>; // cid or nothing
   isLoading: boolean;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder' | 'emptyFolder';

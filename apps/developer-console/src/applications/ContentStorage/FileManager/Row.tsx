@@ -1,3 +1,5 @@
+import path from 'path';
+import Resizer from 'react-image-file-resizer';
 import { useState } from 'react';
 import {
   Box,
@@ -21,6 +23,7 @@ import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
 import { useAccount } from '~/hooks';
+import { ResizeDialogButton, ResolutionEntry } from './ResizeDialogButton.tsx';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -81,7 +84,7 @@ export const Row = ({
     cnsName: string;
     isFolder: boolean;
     filePath?: string;
-  }) => void;
+  }) => Promise<string | null>;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder' | 'emptyFolder';
   isOpen: boolean;
@@ -103,14 +106,18 @@ export const Row = ({
 
   const [downloadingNodeId, setDownloadingNodeId] = useState<INode['id'] | null>(null);
 
+  const performDownload = async ({ bucketId, element }: { bucketId: string; element: INode }): Promise<Response> => {
+    const cid = (await resolveCid(bucketId))?.toString();
+    const tokenCid = cid; // TODO: use file seed instead when DDC supports it: element.metadata?.cid as string;
+    const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(BigInt(bucketId), tokenCid);
+
+    const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
+    return await fetch(downloadUrl);
+  };
+
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
-      const cid = (await resolveCid(bucketId))?.toString();
-      const tokenCid = cid; // TODO: use file seed instead when DDC supports it: element.metadata?.cid as string;
-      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(BigInt(bucketId), tokenCid);
-
-      const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
-      const response = await fetch(downloadUrl);
+      const response = await performDownload({ bucketId, element });
 
       if (!response.ok) {
         console.error(`Failed to fetch file: ${response.statusText}`);
@@ -166,6 +173,65 @@ export const Row = ({
       });
     }
   };
+
+  const onResizeSubmit = async (bucketId: string, element: INode, resolutions: ResolutionEntry[]) => {
+    const response = await performDownload({ bucketId, element });
+    if (!response.ok) {
+      console.error(`Failed to fetch file: ${response.statusText}`);
+    }
+    const blob = await response.blob(); // Convert to binary Blob
+
+    for (const resolution of resolutions) {
+      const finalFullPath = _add_postfix(element?.metadata?.fullPath as string, String(resolution.maxWidth));
+
+      const file = new File([blob], finalFullPath, { type: blob.type });
+      const baseName = path.basename(finalFullPath);
+      let compressFormat: 'JPEG' | 'PNG' | 'WEBP' = 'JPEG';
+      if (baseName.includes('.png')) {
+        compressFormat = 'PNG';
+      } else if (baseName.includes('.webp')) {
+        compressFormat = 'WEBP';
+      }
+      const resizedFile = await resizeFileWrapped(file, resolution.maxWidth, compressFormat);
+
+      const cid = await onUpload({
+        acceptedFiles: [resizedFile],
+        bucketId: row.bucketId,
+        cnsName: 'fs',
+        isFolder: false,
+        filePath: '',
+      });
+
+      console.log(`Uploaded file ${finalFullPath} with cid: ${cid}`);
+    }
+  };
+
+  const _add_postfix = (filename: string, postfix: string) => {
+    const nameParts = filename.split('.');
+    const extension = nameParts.pop(); // Get the file extension
+    const baseName = nameParts.join('.'); // Join the rest (handles multiple dots in name)
+    return `${baseName}_${postfix}.${extension}`;
+  };
+
+  const resizeFileWrapped = (
+    file: File,
+    minWidth: number,
+    compressFormat: 'JPEG' | 'PNG' | 'WEBP' = 'JPEG',
+  ): Promise<File> =>
+    new Promise((resolve) => {
+      Resizer.imageFileResizer(
+        file,
+        minWidth,
+        minWidth,
+        compressFormat,
+        100,
+        0,
+        (uri) => {
+          resolve(uri as File);
+        },
+        'file',
+      );
+    });
 
   const resolveCid = async (bucketId: string) => {
     return await ddcClient.resolveName(BigInt(bucketId), 'fs', {
@@ -330,6 +396,13 @@ export const Row = ({
                         >
                           <DownloadIcon />
                         </IconButton>
+                        {element.metadata?.isImage && (
+                          <ResizeDialogButton
+                            handleSubmit={async (resolutions: ResolutionEntry[]) => {
+                              await onResizeSubmit(row.bucketId, element, resolutions);
+                            }}
+                          ></ResizeDialogButton>
+                        )}
                         {downloadingNodeId === element.id ? (
                           <Box
                             sx={{

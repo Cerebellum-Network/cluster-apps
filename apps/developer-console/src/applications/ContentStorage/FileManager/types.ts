@@ -20,6 +20,7 @@ export type FileNode = {
     cid: string;
     isPublic: boolean;
     fullPath?: string;
+    isImage?: boolean;
   };
   children?: FileNode[];
 };
