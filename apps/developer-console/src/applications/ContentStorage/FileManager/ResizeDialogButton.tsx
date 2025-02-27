@@ -1,11 +1,12 @@
 import * as React from 'react';
 
-import { IconButton, Dialog, Box, FormControl, FormControlLabel, DialogContent, DialogActions } from '@cluster-apps/ui';
+import { Button, Dialog, Box, FormControl, FormControlLabel, DialogContent, DialogActions } from '@cluster-apps/ui';
 import AspectRatioIcon from '@mui/icons-material/AspectRatio';
 
 import FormLabel from '@mui/material/FormLabel';
 import FormGroup from '@mui/material/FormGroup';
 import Checkbox from '@mui/material/Checkbox';
+import { FormHelperText } from '@mui/material';
 
 export type ResolutionEntry = {
   label: string;
@@ -72,13 +73,12 @@ function ResizeDialog(props: SimpleDialogProps) {
   };
 
   const { res_640_480, res_1280x720, res_1920_1080 } = state;
-  // TODO add Error if nothing is selected
-
+  const error = [res_640_480, res_1280x720, res_1920_1080].filter(Boolean).length === 0;
   return (
     <Dialog onClose={handleClose} open={open}>
       <DialogContent>
         <Box sx={{ display: 'flex' }}>
-          <FormControl sx={{ m: 3 }} component="fieldset" variant="standard">
+          <FormControl sx={{ m: 3 }} component="fieldset" variant="standard" error={error}>
             <FormLabel component="legend">Select resolutions</FormLabel>
             <FormGroup>
               <FormControlLabel
@@ -94,12 +94,13 @@ function ResizeDialog(props: SimpleDialogProps) {
                 label={Resolutions.res_1920_1080.label}
               />
             </FormGroup>
+            <FormHelperText>Select one or more options</FormHelperText>
           </FormControl>
         </Box>
       </DialogContent>
       <DialogActions>
-        <IconButton onClick={handleClose}>Cancel</IconButton>
-        <IconButton onClick={handleSubmit}>Submit</IconButton>
+        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleSubmit}>Submit</Button>
       </DialogActions>
     </Dialog>
   );
@@ -124,9 +125,9 @@ export function ResizeDialogButton(props: { handleSubmit: (resArr: ResolutionEnt
 
   return (
     <div>
-      <IconButton onClick={handleClickOpen}>
+      <Button onClick={handleClickOpen}>
         <AspectRatioIcon />
-      </IconButton>
+      </Button>
       <ResizeDialog open={open} onCancelButton={handleClose} onSubmitButton={onSubmit} />
     </div>
   );
