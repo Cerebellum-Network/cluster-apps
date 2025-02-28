@@ -385,6 +385,13 @@ export const Row = ({
                   >
                     {!isBranch ? (
                       <ButtonGroup>
+                        {element.metadata?.isImage && (
+                          <ResizeDialogButton
+                            handleSubmit={async (resolutions: ResolutionEntry[]) => {
+                              await onResizeSubmit(row.bucketId, element, resolutions);
+                            }}
+                          ></ResizeDialogButton>
+                        )}
                         <IconButton sx={{ marginRight: '8px' }} onClick={async () => handleCopyLink({ row, element })}>
                           <ShareIcon />
                         </IconButton>
@@ -396,13 +403,6 @@ export const Row = ({
                         >
                           <DownloadIcon />
                         </IconButton>
-                        {element.metadata?.isImage && (
-                          <ResizeDialogButton
-                            handleSubmit={async (resolutions: ResolutionEntry[]) => {
-                              await onResizeSubmit(row.bucketId, element, resolutions);
-                            }}
-                          ></ResizeDialogButton>
-                        )}
                         {downloadingNodeId === element.id ? (
                           <Box
                             sx={{
