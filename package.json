@@ -14,6 +14,7 @@
     "@cere-ddc-sdk/ddc-client": "^2.14.1",
     "@cere/embed-wallet": "^0.23.4",
     "@hookform/resolvers": "^3.9.0",
+    "@reactour/tour": "^3.7.0",
     "mobx": "^6.13.1",
     "mobx-react-lite": "^4.0.7",
     "mobx-utils": "^6.0.8",
@@ -23,19 +24,19 @@
     "react-device-detect": "^2.2.3",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.52.1",
+    "react-image-file-resizer": "^0.4.8",
     "react-router-dom": "^6.25.1",
-    "yup": "^1.4.0",
-    "@reactour/tour": "^3.7.0"
+    "yup": "^1.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "vite-plugin-node-polyfills": "^0.22.0",
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "^8.57.0",
     "prettier": "^3.3.3",
     "typescript": "^5.5.3",
     "vite": "^5.3.4",
+    "vite-plugin-node-polyfills": "^0.22.0",
     "vite-tsconfig-paths": "^4.3.2"
   },
   "workspaces": [

@@ -1,5 +1,13 @@
 import { FileNode, RealData, RowData } from './types.ts';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
+import path from 'path';
+
+function _isImage(filename?: string) {
+  if (!filename) return false;
+  const baseName = path.basename(filename);
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tiff', '.svg'];
+  return imageExtensions.includes(path.extname(baseName).toLowerCase());
+}
 
 export const calculateSize = (node: FileNode): number => {
   if (node.metadata && node.metadata.type === 'file') {
@@ -40,6 +48,7 @@ export const buildTree = (files: RealData[], isPublic: boolean): FileNode => {
           type: 'file',
           isPublic: file.isPublic,
           fullPath: file.name,
+          isImage: _isImage(file.name),
         };
         delete currentNode.children;
       }
