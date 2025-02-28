@@ -20,9 +20,6 @@ const mapAppToRoute = ({ rootComponent, rootPath, ...handle }: Application, inde
   handle,
 });
 
-/**
- * Конфигурация роутера для приложения с использованием HashRouter
- */
 const router = createHashRouter([
   {
     path: '/',
