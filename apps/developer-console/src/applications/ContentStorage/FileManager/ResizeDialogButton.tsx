@@ -1,6 +1,15 @@
 import * as React from 'react';
 
-import { IconButton, Dialog, Box, FormControl, FormControlLabel, DialogContent, DialogActions } from '@cluster-apps/ui';
+import {
+  IconButton,
+  Button,
+  Dialog,
+  Box,
+  FormControl,
+  FormControlLabel,
+  DialogContent,
+  DialogActions,
+} from '@cluster-apps/ui';
 import AspectRatioIcon from '@mui/icons-material/AspectRatio';
 
 import FormLabel from '@mui/material/FormLabel';
@@ -99,8 +108,8 @@ function ResizeDialog(props: SimpleDialogProps) {
         </Box>
       </DialogContent>
       <DialogActions>
-        <IconButton onClick={handleClose}>Cancel</IconButton>
-        <IconButton onClick={handleSubmit}>Submit</IconButton>
+        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={handleSubmit}>Submit</Button>
       </DialogActions>
     </Dialog>
   );
