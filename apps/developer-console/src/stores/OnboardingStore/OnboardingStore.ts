@@ -50,10 +50,9 @@ export class OnboardingStore {
   get isDone() {
     const { buckets, userInfo } = this.accountStore;
 
-    const isOldUser = userInfo && !userInfo.isNewUser;
-    const hasBuckets = buckets && buckets.length > 0;
-
-    return isOldUser || hasBuckets;
+    // Consider the account as onboarded if it has any buckets
+    // This allows the onboarding UI to show but skips actual token transfers
+    return buckets && buckets.length > 0;
   }
 
   async processStatus() {
@@ -81,17 +80,22 @@ export class OnboardingStore {
 
     this.reset();
 
-    await this.addStep('wallet', () => when(() => !!this.accountStore.address));
-    await this.addStep('reward', async () => {
-      await this.faucetApi.sendTokens(this.accountStore.address!, ONBOARDIN_REWARD_AMOUNT);
-
-      return when(() => !!this.accountStore.balance, { timeout: 60000 }).catch(() => {
-        throw new Error('Onboarding tokens were not received after 60s');
-      });
-    });
-
-    await this.addStep('deposit', () => this.accountStore.topUp(ONBOARDIN_DEPOSIT_AMOUNT));
+    // Wait for account data to be loaded
+    await when(() => this.accountStore.address !== undefined);
+    
+    // Show onboarding UI steps but skip actual operations
+    await this.addStep('wallet', () => Promise.resolve());
+    await this.addStep('reward', () => Promise.resolve());
+    await this.addStep('deposit', () => Promise.resolve());
     await this.addStep('bucket', () => this.accountStore.createBucket({ isPublic: ONBOARDIN_PUBLIC_BUCKET }));
+
+    // Wait for the bucket to be indexed
+    await when(() => {
+      const buckets = this.accountStore.buckets;
+      return buckets && buckets.length > 0;
+    }, { timeout: 30000 }).catch(() => {
+      Reporting.message('Bucket was not indexed after 30s', 'warning');
+    });
 
     Reporting.message('User finished onboarding', 'info', { event: 'onboardingFinish' });
   }

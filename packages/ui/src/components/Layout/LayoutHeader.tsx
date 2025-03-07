@@ -2,6 +2,7 @@ import { PropsWithChildren, ReactNode } from 'react';
 import { styled, Stack, Box, Paper, Typography } from '@mui/material';
 
 import { Logo } from '../Logo';
+import { DarkModeToggle } from '../DarkModeToggle';
 
 type StyleProps = {
   fullPage?: boolean;
@@ -82,6 +83,11 @@ export const LayoutHeader = ({
       </Logo>
     </HeaderLeft>
     <HeaderContent>{children}</HeaderContent>
-    <HeaderRight>{rightElement}</HeaderRight>
+    <HeaderRight>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <DarkModeToggle />
+        {rightElement}
+      </Stack>
+    </HeaderRight>
   </Stack>
 );

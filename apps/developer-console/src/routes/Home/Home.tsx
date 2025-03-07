@@ -1,13 +1,12 @@
-import { Box, Button, DiscordButton, LoadingAnimation, styled, useOnboarding, Stack } from '@cluster-apps/ui';
+import { Box, LoadingAnimation, styled, DiscordButton } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { AnalyticsId } from '@cluster-apps/analytics';
 import { Application } from '~/applications';
-import { HomeLayout, Navigation, Sidebar } from '~/components';
+import { HomeLayout, Sidebar } from '~/components';
 import { useAccountStore } from '~/hooks';
 import { DISCORD_LINK } from '~/constants.ts';
-import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeProps = {
   apps: Application[];
@@ -23,32 +22,21 @@ const Loading = styled(LoadingAnimation)({
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
-  const { restartOnboarding } = useOnboarding();
-  const { showTour } = useApplicationTour();
+  const location = useLocation();
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
   }
 
-  const onProductTourClick = () => {
-    restartOnboarding();
-    showTour();
-  };
+  // Don't show sidebar for content-delivery and analytics routes
+  const hideSidebar = ['/content-delivery', '/analytics'].some(path => 
+    location.pathname.startsWith(path)
+  );
 
   return (
     <HomeLayout
-      rightElement={
-        <Navigation
-          items={apps}
-          footer={
-            <Stack spacing={2}>
-              <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
-              <Button onClick={onProductTourClick}>Product tour</Button>
-            </Stack>
-          }
-        />
-      }
-      leftElement={<Sidebar />}
+      navigationItems={apps}
+      leftElement={!hideSidebar ? <Sidebar /> : undefined}
       headerRight={<DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
     >
       {account.isReady() ? (

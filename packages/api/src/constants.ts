@@ -1,4 +1,5 @@
-export const INDEXER_ENDPOINT = import.meta.env.VITE_INDEXER_ENDPOINT || '';
-export const FAUCET_ENDPOINT = import.meta.env.VITE_FAUCET_ENDPOINT || '';
-export const STATS_ENDPOINT = import.meta.env.VITE_STATS_ENDPOINT || '';
-export const CLUSTER_MANAGEMENT_ENDPOINT = import.meta.env.VITE_CLUSTER_MANAGEMENT_ENDPOINT || '';
+// Force mainnet endpoints
+export const INDEXER_ENDPOINT = 'https://subsquid.cere.network/graphql';
+export const FAUCET_ENDPOINT = 'https://faucet-service.network.aws.cere.io/faucet/distribute-tokens';
+export const STATS_ENDPOINT = 'https://dac.ddc-dragon.com/stats';
+export const CLUSTER_MANAGEMENT_ENDPOINT = 'https://cluster-management.cere.io';

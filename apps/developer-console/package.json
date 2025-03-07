@@ -3,8 +3,9 @@
   "private": true,
   "version": "0.17.0",
   "scripts": {
-    "start": "vite --open",
-    "build": "tsc && vite build",
+    "start": "vite --mode prod --open",
+    "start:dev": "vite --mode dev --open",
+    "build": "tsc && vite build --mode prod",
     "preview": "vite preview",
     "check-types": "tsc --noEmit"
   }

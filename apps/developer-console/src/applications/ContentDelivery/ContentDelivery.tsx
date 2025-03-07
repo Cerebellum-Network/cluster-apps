@@ -1,11 +1,7 @@
 import { useCallback, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { AnalyticsId } from '@cluster-apps/analytics';
 import {
   Paper,
-  Docs,
-  DocsGroup,
-  DocsSection,
   Stack,
   Typography,
   BucketSelect,
@@ -18,16 +14,7 @@ import {
   MetricsChart,
 } from '@cluster-apps/ui';
 
-import { CdnDocsIcon } from './icons';
-import { DDC_CLUSTER_NAME } from '~/constants';
-import {
-  UploadWithCliDoc,
-  StreamDoc,
-  SuccessDoc,
-  GITHUB_GUIDE_LINK,
-  GITHUB_TOKEN_BASED_CONTROL_GUIDE_LINK,
-} from './docs';
-
+import { GITHUB_TOKEN_BASED_CONTROL_GUIDE_LINK } from './docs';
 import { useAccount } from '~/hooks';
 
 const ContentDelivery = () => {
@@ -101,44 +88,6 @@ const ContentDelivery = () => {
           <MetricsChart history={account.metrics?.history} />
         </>
       )}
-      <Docs
-        icon={<CdnDocsIcon />}
-        title="Start streaming now with Cere!"
-        description="Enjoy unparalleled speed, reliability and censorship-resistant content streaming"
-      >
-        <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection analyticId={AnalyticsId.starterGuideStreaming} title="Upload your file step-by-step guide">
-            <UploadWithCliDoc />
-          </DocsSection>
-
-          <DocsSection
-            title="Quick start guide in Github"
-            rightSection={
-              <Button
-                variant="contained"
-                color="secondary"
-                className={AnalyticsId.repoCereDdcSdkJsBtn}
-                href={GITHUB_GUIDE_LINK}
-                startIcon={<GithubLogoIcon />}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open in Github
-              </Button>
-            }
-          />
-        </DocsGroup>
-
-        <DocsGroup title={`Stream from ${DDC_CLUSTER_NAME}`}>
-          <DocsSection analyticId={AnalyticsId.starterDragonOne} title="Step-by-step guide">
-            <StreamDoc />
-          </DocsSection>
-
-          <DocsSection analyticId={AnalyticsId.successUserStories} title="Success user stories">
-            <SuccessDoc />
-          </DocsSection>
-        </DocsGroup>
-      </Docs>
     </Stack>
   );
 };

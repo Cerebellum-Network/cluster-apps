@@ -59,13 +59,16 @@ export const Dropdown = ({
         slotProps={{
           paper: {
             elevation: 0,
-            sx: {
+            sx: (theme) => ({
               padding: disablePaddings ? 0 : padding,
               paddingX: !disablePaddings && disableGutters ? 0 : padding,
               borderRadius: 3,
-              border: '1px solid #E7E8EB', // TODO: Use borders from theme
-              boxShadow: '0px 4px 4px #1A0A7C1A;', // TODO: Use theme shadow
-            },
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: theme.palette.mode === 'dark' 
+                ? '0px 4px 4px rgba(0, 0, 0, 0.3)'
+                : '0px 4px 4px rgba(26, 10, 124, 0.1)',
+              backgroundColor: theme.palette.background.paper,
+            }),
           },
         }}
       >

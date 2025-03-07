@@ -1,20 +1,29 @@
 import { PropsWithChildren, useMemo } from 'react';
-import { CssBaseline, ThemeProvider } from '@mui/material';
+import { CssBaseline, ThemeProvider as MuiThemeProvider } from '@mui/material';
 
-import { createTheme, ThemeOptions } from './theme';
+import { createTheme, ThemeOptions, ThemeProvider as CustomThemeProvider, useThemeContext } from './theme';
 import { MessagesProvider } from './hooks';
 
 export type ProviderProps = PropsWithChildren<{
   options?: ThemeOptions;
 }>;
 
-export const Provider = ({ children, options }: ProviderProps) => {
-  const theme = useMemo(() => createTheme(options), [options]);
+const ThemedApp = ({ children, options }: ProviderProps) => {
+  const { mode } = useThemeContext();
+  const theme = useMemo(() => createTheme({ ...options, mode }), [options, mode]);
 
   return (
-    <ThemeProvider theme={theme}>
+    <MuiThemeProvider theme={theme}>
       <CssBaseline />
       <MessagesProvider>{children}</MessagesProvider>
-    </ThemeProvider>
+    </MuiThemeProvider>
+  );
+};
+
+export const Provider = ({ children, options }: ProviderProps) => {
+  return (
+    <CustomThemeProvider>
+      <ThemedApp options={options}>{children}</ThemedApp>
+    </CustomThemeProvider>
   );
 };

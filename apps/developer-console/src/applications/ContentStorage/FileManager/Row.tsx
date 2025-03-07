@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Box,
   BoxProps,
@@ -12,15 +12,30 @@ import {
   Truncate,
   useIsDesktop,
   CircularProgress,
+  MenuItem,
+  FormControl,
+  useMessages,
+  LoadingButton,
+  TextField,
+  Tooltip,
 } from '@cluster-apps/ui';
-import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@cluster-apps/ui';
+import { 
+  DownloadIcon, 
+  FilledFolderIcon, 
+  FolderIcon, 
+  ShareIcon,
+  EditIcon,
+  CheckIcon,
+  CloseIcon,
+} from '@cluster-apps/ui';
+import { Visibility as VisibilityIcon, VisibilityOff as VisibilityOffIcon } from '@mui/icons-material';
 import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
 import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
-import { useAccount } from '~/hooks';
+import { useAccount, useBucketNames, useHiddenBuckets } from '~/hooks';
 
 interface StyledRowProps extends BoxProps {
   open: boolean;
@@ -61,6 +76,34 @@ const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   },
 }));
 
+const StyledSelect = styled(TextField)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius,
+  minWidth: '100px',
+  '& .MuiOutlinedInput-root': {
+    height: '32px',
+    backgroundColor: theme.palette.background.paper,
+    '&:hover .MuiOutlinedInput-notchedOutline': {
+      borderColor: theme.palette.mode === 'dark' 
+        ? theme.palette.grey[700] 
+        : theme.palette.grey[300],
+    },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+      borderColor: theme.palette.primary.main,
+    },
+  },
+  '& .MuiSelect-select': {
+    padding: '4px 12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.875rem',
+    backgroundColor: 'transparent',
+  },
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: theme.palette.divider,
+  },
+}));
+
 export const Row = ({
   row,
   onUpload,
@@ -73,6 +116,7 @@ export const Row = ({
   lockUi,
   onFolderCreate,
   bucketInProgress,
+  onAccessChange,
 }: {
   row: RowData;
   onUpload: (values: {
@@ -91,17 +135,83 @@ export const Row = ({
   lockUi: boolean;
   onFolderCreate: (bucketId: string, name?: string) => Promise<void>;
   bucketInProgress?: string;
+  onAccessChange?: (bucketId: string, isPublic: boolean) => Promise<void>;
 }) => {
   const account = useAccount();
-
-  const ddcClient = account.ddc;
   const { showMessage } = useMessages();
-
+  const ddcClient = account.ddc;
   const isDesktop = useIsDesktop();
-
   const treeData = flattenTree(row.files);
-
   const [downloadingNodeId, setDownloadingNodeId] = useState<INode['id'] | null>(null);
+  const [isSavingAccess, setIsSavingAccess] = useState(false);
+  const [access, setAccess] = useState<'public' | 'private'>(row.acl ? 'public' : 'private');
+  
+  // Bucket naming functionality
+  const { getBucketName, setBucketName } = useBucketNames();
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [bucketNameInput, setBucketNameInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Bucket visibility functionality
+  const { isBucketHidden, toggleBucketVisibility } = useHiddenBuckets();
+  const isHidden = isBucketHidden(row.bucketId);
+  
+  const handleStartRenaming = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setBucketNameInput(getBucketName(row.bucketId));
+    setIsRenaming(true);
+    // Focus the input after rendering
+    setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 0);
+  };
+  
+  const handleCancelRenaming = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setIsRenaming(false);
+  };
+  
+  const handleSaveRenaming = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (bucketNameInput.trim()) {
+      setBucketName(row.bucketId, bucketNameInput.trim());
+      showMessage({
+        appearance: 'success',
+        message: 'Bucket name updated',
+        placement: {
+          vertical: 'top',
+          horizontal: 'right',
+        },
+      });
+    }
+    setIsRenaming(false);
+  };
+  
+  const handleNameInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setBucketNameInput(event.target.value);
+  };
+  
+  const handleNameInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (bucketNameInput.trim()) {
+        setBucketName(row.bucketId, bucketNameInput.trim());
+        showMessage({
+          appearance: 'success',
+          message: 'Bucket name updated',
+          placement: {
+            vertical: 'top',
+            horizontal: 'right',
+          },
+        });
+        setIsRenaming(false);
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsRenaming(false);
+    }
+  };
 
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
@@ -202,23 +312,128 @@ export const Row = ({
     });
   };
 
+  const handleAccessChange = async (event: React.ChangeEvent<{ value: unknown }>) => {
+    if (!onAccessChange) return;
+    
+    const newValue = event.target.value as 'public' | 'private';
+    setAccess(newValue);
+    setIsSavingAccess(true);
+    
+    try {
+      await onAccessChange(row.bucketId, newValue === 'public');
+      showMessage({
+        appearance: 'success',
+        message: 'Bucket access has been updated',
+        placement: {
+          vertical: 'top',
+          horizontal: 'right',
+        },
+      });
+    } catch (error) {
+      console.error('Failed to update bucket access:', error);
+      showMessage({
+        appearance: 'error',
+        message: 'Failed to update bucket access. Please try again.',
+        placement: {
+          vertical: 'top',
+          horizontal: 'right',
+        },
+      });
+      // Revert to previous value
+      setAccess(row.acl ? 'public' : 'private');
+    } finally {
+      setIsSavingAccess(false);
+    }
+  };
+
+  const handleToggleVisibility = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    toggleBucketVisibility(row.bucketId);
+    showMessage({
+      appearance: 'success',
+      message: isHidden ? 'Bucket is now visible' : 'Bucket is now hidden',
+      placement: {
+        vertical: 'top',
+        horizontal: 'right',
+      },
+    });
+  };
+
   return (
     <>
       <StyledRow locked={lockUi} open={isOpen} onClick={onRowClick}>
-        <Typography variant="subtitle1" flex={1}>
-          {row.bucketId}
-        </Typography>
+        <Box flex={1} display="flex" alignItems="center">
+          {isRenaming ? (
+            <Box display="flex" alignItems="center" onClick={(e) => e.stopPropagation()}>
+              <TextField
+                inputRef={inputRef}
+                value={bucketNameInput}
+                onChange={handleNameInputChange}
+                onKeyDown={handleNameInputKeyDown}
+                size="small"
+                autoFocus
+                placeholder="Enter bucket name"
+                sx={{ 
+                  width: '180px',
+                  mr: 1,
+                  '& .MuiOutlinedInput-root': {
+                    height: '32px',
+                  }
+                }}
+              />
+              <IconButton 
+                size="small" 
+                color="primary" 
+                onClick={handleSaveRenaming}
+                sx={{ mr: 0.5 }}
+              >
+                <CheckIcon fontSize="small" />
+              </IconButton>
+              <IconButton 
+                size="small" 
+                onClick={handleCancelRenaming}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          ) : (
+            <>
+              <Box display="flex" alignItems="center">
+                <Typography variant="subtitle1" sx={{ mr: 1 }}>
+                  {getBucketName(row.bucketId)}
+                </Typography>
+                <Tooltip title="Rename bucket">
+                  <IconButton 
+                    size="small" 
+                    onClick={handleStartRenaming}
+                    sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={isHidden ? "Show bucket" : "Hide bucket"}>
+                  <IconButton 
+                    size="small" 
+                    onClick={handleToggleVisibility}
+                    sx={{ opacity: 0.7, '&:hover': { opacity: 1 }, ml: 0.5 }}
+                  >
+                    {isHidden ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
+              <Typography 
+                variant="caption" 
+                color="text.secondary" 
+                sx={{ ml: 1 }}
+              >
+                ID: {row.bucketId}
+              </Typography>
+            </>
+          )}
+        </Box>
         <Box display="flex" alignItems="center" flex={1.5} justifyContent="end">
           {isOpen && (
             <>
-              {/*    <IconButton*/}
-              {/*      sx={{ marginRight: '8px' }}*/}
-              {/*      onClick={(event) => {*/}
-              {/*        event.stopPropagation();*/}
-              {/*      }}*/}
-              {/*    >*/}
-              {/*      <DeleteIcon />*/}
-              {/*    </IconButton>*/}
               <Button
                 color="secondary"
                 variant="outlined"
@@ -235,9 +450,52 @@ export const Row = ({
           )}
           <Typography variant="body2">{row.usedStorage}</Typography>
         </Box>
-        <Typography variant="body2" flex={1} textAlign="center">
-          {row.acl ? 'Public' : 'Private'}
-        </Typography>
+        <Box flex={1} textAlign="center" onClick={(event) => event.stopPropagation()}>
+          {onAccessChange ? (
+            <Box display="flex" alignItems="center" justifyContent="center">
+              <StyledSelect
+                select
+                value={access}
+                onChange={handleAccessChange}
+                disabled={isSavingAccess || lockUi}
+                variant="outlined"
+                size="small"
+                InputProps={{
+                  sx: { borderRadius: 1 }
+                }}
+                SelectProps={{
+                  MenuProps: {
+                    anchorOrigin: {
+                      vertical: 'bottom',
+                      horizontal: 'center',
+                    },
+                    transformOrigin: {
+                      vertical: 'top',
+                      horizontal: 'center',
+                    },
+                    PaperProps: {
+                      sx: {
+                        borderRadius: 1,
+                        mt: 0.5,
+                      }
+                    }
+                  }
+                }}
+                sx={{ m: 0 }}
+              >
+                <MenuItem value="public">Public</MenuItem>
+                <MenuItem value="private">Private</MenuItem>
+              </StyledSelect>
+              {isSavingAccess && (
+                <CircularProgress size={16} sx={{ ml: 1 }} />
+              )}
+            </Box>
+          ) : (
+            <Typography variant="body2">
+              {row.acl ? 'Public' : 'Private'}
+            </Typography>
+          )}
+        </Box>
         <Box
           flex={1}
           textAlign="end"

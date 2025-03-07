@@ -1,12 +1,12 @@
 import { makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
-import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
-import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
+import { EmbedWallet, UserInfo, WalletStatus, WalletEnvironment } from '@cere/embed-wallet';
+import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient, MAINNET } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
-import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET, DDC_SDK_LOG_LEVEL } from '~/constants';
+import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET, DDC_SDK_LOG_LEVEL, APP_EMAIL, APP_NAME } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
 import {
@@ -19,163 +19,180 @@ import {
 import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
 
 export class AccountStore implements Account {
-  readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
-  readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
+  readonly blockchain = new Blockchain({ wsEndpoint: MAINNET.blockchain });
+  readonly wallet = new EmbedWallet({ 
+    appId: APP_ID, 
+    env: 'prod' // Force production environment
+  });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
   readonly ddc = new DdcClient(this.signer, { blockchain: this.blockchain, logLevel: DDC_SDK_LOG_LEVEL });
 
-  private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
   private accountResource?: IResource<IndexedAccount | undefined>;
-  private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
   private accountMetricsResource?: IResource<AccountMetrics | undefined>;
-  private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
+  private bucketStatsResource?: IResource<BucketStats[] | undefined>;
+  private initPromise?: Promise<WalletStatus>;
+  private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
 
   constructor() {
     makeAutoObservable(this, {
       wallet: false,
+      signer: false,
+      ddc: false,
       blockchain: false,
     });
 
     keepAlive(this, 'status');
     keepAlive(this, 'address');
+    keepAlive(this, 'account');
+    keepAlive(this, 'accountMetrics');
+    keepAlive(this, 'bucketStats');
 
-    reaction(
-      () => this.address && this.status === 'connected',
-      (isConnected) => (isConnected ? this.bootstrap() : this.cleanup()),
-    );
+    // Initialize resources when blockchain is ready
+    this.bcReadyPromise.then(() => {
+      // Set up reaction for account data
+      reaction(
+        () => this.address,
+        async (address) => {
+          if (address) {
+            console.log('Setting up account resources for address:', address);
+            this.accountResource = createAccountResource(this);
+            this.accountMetricsResource = createAccountMetricsResource(this);
+            
+            // Force immediate fetch
+            if (this.accountResource && this.accountMetricsResource) {
+              await Promise.all([
+                this.accountResource.current(),
+                this.accountMetricsResource.current()
+              ]);
+            }
+          } else {
+            this.accountResource = undefined;
+            this.accountMetricsResource = undefined;
+          }
+        },
+        { fireImmediately: true }
+      );
 
-    reaction(
-      () => this.buckets?.length,
-      () => {
-        this.bucketsStatsResource = createBucketStatsResource(this);
-      },
-    );
-
-    /**
-     * Track user changes and update the user in the reporting
-     */
-    reaction(
-      () => this.userInfo,
-      (userInfo) =>
-        !userInfo
-          ? Reporting.clearUser()
-          : Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name }),
-    );
-
-    /**
-     * Report an error if the blockchain is not ready after 30s
-     */
-    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch(() => {
-      Reporting.message(`Blockchain is not ready after 30s`, 'warning');
+      // Set up reaction for bucket stats
+      reaction(
+        () => this.buckets,
+        async (buckets) => {
+          if (buckets?.length) {
+            console.log('Setting up bucket stats for buckets:', buckets);
+            this.bucketStatsResource = createBucketStatsResource(this);
+            if (this.bucketStatsResource) {
+              await this.bucketStatsResource.current();
+            }
+          } else {
+            this.bucketStatsResource = undefined;
+          }
+        },
+        { fireImmediately: true }
+      );
     });
-  }
-
-  private async bootstrap() {
-    this.accountResource = createAccountResource(this);
-    this.accountMetricsResource = createAccountMetricsResource(this);
-    this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
-  }
-
-  private async cleanup() {
-    this.userInfoPromise = undefined;
-    this.accountResource = undefined;
-    this.accountMetricsResource = undefined;
-  }
-
-  private getBucketStats(bucketId: bigint) {
-    const stats = this.bucketsStatsResource?.current();
-
-    return (
-      stats &&
-      (stats.find((stats) => stats.bucketId === bucketId) || {
-        bucketId,
-        gets: 0,
-        puts: 0,
-        storedBytes: 0,
-        transferredBytes: 0,
-      })
-    );
-  }
-
-  isReady(): this is ReadyAccount {
-    return !!this.userInfo && !!this.buckets;
   }
 
   get status() {
     return this.statusResource.current();
   }
 
-  get metrics() {
-    return this.accountMetricsResource?.current();
-  }
-
   get address() {
     return this.addressResource.current();
   }
 
+  get account() {
+    return this.accountResource?.current();
+  }
+
   get balance() {
     const balance = this.accountResource?.current()?.balance;
-
+    console.log('Raw balance from mainnet:', balance?.toString());
     return balance === undefined ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get deposit() {
     const deposit = this.accountResource?.current()?.deposit;
-
+    console.log('Raw deposit from mainnet:', deposit?.toString());
     return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
+  get accountMetrics() {
+    return this.accountMetricsResource?.current();
+  }
+
+  get bucketStats() {
+    return this.bucketStatsResource?.current();
+  }
+
   get buckets() {
-    return this.accountResource?.current()?.buckets.map<Bucket>((bucket) => ({
-      ...bucket,
-      stats: this.getBucketStats(bucket.id),
-    }));
+    return this.account?.buckets || [];
   }
 
-  get userInfo() {
-    return this.userInfoPromise?.case({
-      fulfilled: (userInfo) => userInfo,
-    });
+  isReady(): this is ReadyAccount {
+    return this.bcReadyPromise.state === 'fulfilled' && !!this.address && !!this.account;
   }
 
-  async connect({ email }: ConnectOptions) {
-    /**
-     * If the user is already connected - disconnect first
-     */
+  async init(): Promise<WalletStatus> {
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    console.log('Initializing AccountStore...');
+    this.initPromise = (async () => {
+      try {
+        await this.wallet.init(WALLET_INIT_OPTIONS);
+        await this.bcReadyPromise;
+        console.log('AccountStore initialization complete');
+        return this.wallet.status;
+      } catch (error) {
+        console.error('AccountStore initialization failed:', error);
+        Reporting.message('AccountStore initialization failed', 'error', { error });
+        throw error;
+      }
+    })();
+
+    return this.initPromise;
+  }
+
+  async connect({ email }: ConnectOptions): Promise<UserInfo> {
+    console.log('AccountStore: Starting connection process for email:', email);
+
+    await this.init();
+    console.log('AccountStore: Wallet is ready');
+
     if (this.status === 'connected') {
       await this.disconnect();
-
-      /**
-       * Wait for the wallet to disconnect
-       * TODO: Figure out a better way to handle this on Cere Wallet side
-       */
+      // Wait for the wallet to disconnect
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+
+    console.log('AccountStore: Signer is ready');
+    console.log('AccountStore: Connecting signer with permissions:', WALLET_PERMISSIONS);
 
     await this.signer.connect({
       email,
       permissions: WALLET_PERMISSIONS,
     });
 
+    // Wait for connection to be established
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    console.log('AccountStore: Getting user info...');
     const userInfo = await this.wallet.getUserInfo();
+    console.log('AccountStore: User info received:', userInfo);
+
+    if (!userInfo) {
+      throw new Error('Failed to get user info after connection');
+    }
 
     if (userInfo.isNewUser && this.address) {
+      console.log('AccountStore: New user signed up with address:', this.address);
       Reporting.userSignedUp(this.address);
     }
 
     return userInfo;
-  }
-
-  async init() {
-    if (this.wallet.status !== 'not-ready') {
-      return this.status;
-    }
-
-    await this.wallet.init(WALLET_INIT_OPTIONS);
-
-    return this.status;
   }
 
   async disconnect() {

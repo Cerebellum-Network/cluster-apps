@@ -19,7 +19,11 @@ const Anchor = styled(Stack)<{ variant?: DropdownAnchorProps['variant'] }>(({ th
   borderRadius: 25,
   padding: theme.spacing(1),
   color: theme.palette.text.secondary,
-  backgroundColor: variant !== 'header' ? theme.palette.grey[200] : 'transparent',
+  backgroundColor: variant !== 'header' 
+    ? theme.palette.mode === 'dark' 
+      ? theme.palette.grey[800] 
+      : theme.palette.grey[200]
+    : 'transparent',
   cursor: 'pointer',
 }));
 

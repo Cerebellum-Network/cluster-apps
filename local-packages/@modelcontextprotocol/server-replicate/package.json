@@ -1,0 +1,12 @@
+{
+  "name": "@modelcontextprotocol/server-replicate",
+  "version": "1.0.0",
+  "description": "Local implementation of the modelcontextprotocol server-replicate package",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+} 

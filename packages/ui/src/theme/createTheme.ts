@@ -1,5 +1,5 @@
 import '@mui/lab/themeAugmentation';
-import { createTheme as createMuiTheme } from '@mui/material';
+import { createTheme as createMuiTheme, PaletteMode } from '@mui/material';
 
 declare module '@mui/material/Typography' {
   interface TypographyPropsVariantOverrides {
@@ -15,36 +15,40 @@ declare module '@mui/material/Card' {
 }
 
 export type ThemeOptions = {
-  // Add your theme options here
+  mode?: PaletteMode;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- We need to keep the options parameter for future use
-export const createTheme = (_options: ThemeOptions = {}) =>
-  createMuiTheme({
+export const createTheme = (options: ThemeOptions = {}) => {
+  const { mode = 'light' } = options;
+  
+  return createMuiTheme({
     palette: {
+      mode,
       primary: {
         main: '#5865F2',
       },
 
       secondary: {
         main: '#969696',
-        contrastText: '#1D1B20',
-        light: '#F5F6FF',
+        contrastText: mode === 'dark' ? '#ffffff' : '#1D1B20',
+        light: mode === 'dark' ? '#2D2D30' : '#F5F6FF',
       },
 
       background: {
-        default: '#F5F7FA',
+        default: mode === 'dark' ? '#1E1E1E' : '#F5F7FA',
+        paper: mode === 'dark' ? '#252526' : '#FFFFFF',
       },
 
-      divider: '#E6E6E6',
+      divider: mode === 'dark' ? '#3E3E42' : '#E6E6E6',
 
       text: {
-        primary: '#1D1B20',
-        secondary: '#818083',
+        primary: mode === 'dark' ? '#FFFFFF' : '#1D1B20',
+        secondary: mode === 'dark' ? '#CCCCCC' : '#818083',
       },
 
       action: {
-        selected: '#F5F7FA',
+        selected: mode === 'dark' ? '#37373D' : '#F5F7FA',
+        hover: mode === 'dark' ? '#2A2D2E' : '#F5F6FF',
       },
     },
 
@@ -119,6 +123,12 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         defaultProps: {
           variant: 'outlined',
         },
+        styleOverrides: {
+          root: ({ theme }) => ({
+            backgroundColor: theme.palette.background.paper,
+            borderColor: theme.palette.divider,
+          }),
+        },
       },
 
       MuiButton: {
@@ -150,6 +160,7 @@ export const createTheme = (_options: ThemeOptions = {}) =>
 
         styleOverrides: {
           root: ({ theme, ownerState }) => ({
+            backgroundColor: theme.palette.background.paper,
             ...(ownerState.size === 'small' && {
               ['& .MuiCardHeader-root']: {
                 ...theme.typography.body2,
@@ -240,16 +251,97 @@ export const createTheme = (_options: ThemeOptions = {}) =>
         defaultProps: {
           MenuProps: {
             anchorOrigin: {
-              horizontal: 'right',
               vertical: 'bottom',
+              horizontal: 'left',
             },
-
             transformOrigin: {
-              vertical: -8,
-              horizontal: 'right',
+              vertical: 'top',
+              horizontal: 'left',
+            },
+            PaperProps: {
+              elevation: 2,
             },
           },
         },
+        styleOverrides: {
+          root: ({ theme }) => ({
+            backgroundColor: theme.palette.background.paper,
+          }),
+        },
+      },
+      
+      MuiMenu: {
+        styleOverrides: {
+          paper: ({ theme }) => ({
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? theme.palette.background.paper 
+              : '#fff',
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0px 5px 15px rgba(0, 0, 0, 0.5)' 
+              : '0px 5px 15px rgba(0, 0, 0, 0.1)',
+            borderRadius: theme.shape.borderRadius,
+            border: `1px solid ${theme.palette.divider}`,
+          }),
+          list: ({ theme }) => ({
+            padding: theme.spacing(1),
+          }),
+        },
+      },
+      
+      MuiMenuItem: {
+        styleOverrides: {
+          root: ({ theme }) => ({
+            borderRadius: theme.shape.borderRadius / 2,
+            margin: theme.spacing(0.25, 0),
+            padding: theme.spacing(1, 1.5),
+            '&:hover': {
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(255, 255, 255, 0.08)' 
+                : 'rgba(0, 0, 0, 0.04)',
+            },
+            '&.Mui-selected': {
+              backgroundColor: theme.palette.mode === 'dark' 
+                ? 'rgba(122, 159, 255, 0.15)' 
+                : 'rgba(122, 159, 255, 0.1)',
+              '&:hover': {
+                backgroundColor: theme.palette.mode === 'dark' 
+                  ? 'rgba(122, 159, 255, 0.25)' 
+                  : 'rgba(122, 159, 255, 0.2)',
+              },
+            },
+          }),
+        },
+      },
+      
+      MuiCssBaseline: {
+        styleOverrides: (theme) => ({
+          body: {
+            scrollbarColor: theme.palette.mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.3)' 
+              : 'rgba(0, 0, 0, 0.3) rgba(255, 255, 255, 0.2)',
+            '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.2)',
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+            },
+            '&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb': {
+              borderRadius: 4,
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
+              minHeight: 24,
+            },
+            '&::-webkit-scrollbar-thumb:focus, & *::-webkit-scrollbar-thumb:focus': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.4)',
+            },
+            '&::-webkit-scrollbar-thumb:active, & *::-webkit-scrollbar-thumb:active': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.4)',
+            },
+            '&::-webkit-scrollbar-thumb:hover, & *::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.4)',
+            },
+          },
+        }),
       },
     },
   });
+};

@@ -11,9 +11,12 @@ import { TopUp } from './TopUp';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
-const [defaultApp] = applications;
+// Find the home application
+const homeApp = applications.find(app => app.rootPath === 'home');
+const defaultApp = homeApp || applications[0];
+
 const mapAppToRoute = ({ rootComponent, rootPath, ...handle }: Application, index: number): RouteObject => ({
-  index: index === 0,
+  index: rootPath === defaultApp.rootPath,
   path: rootPath,
   Component: rootComponent,
   handle,
@@ -52,7 +55,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'onboarding',
-            element: <Onboarding />,
+            element: <Navigate replace to="/console" />,
           },
         ],
       },

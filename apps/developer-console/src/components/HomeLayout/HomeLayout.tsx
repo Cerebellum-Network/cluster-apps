@@ -1,16 +1,20 @@
 import { PropsWithChildren, ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
 import { isMobile } from 'react-device-detect';
-import { Paper, Stack, styled, MobileOverlay } from '@cluster-apps/ui';
+import { Paper, Stack, styled, MobileOverlay, Box } from '@cluster-apps/ui';
 
 import { Layout } from '../Layout';
 import { AccountDropdown } from '../AccountDropdown';
 import { useApplicationTour } from '~/components/ApplicationTour';
+import Navigation from '../Navigation';
+import { NavigationProps } from '../Navigation/Navigation';
 
 export type HomeLayoutProps = PropsWithChildren<{
   rightElement?: ReactNode;
   leftElement?: ReactNode;
   headerRight?: ReactNode;
+  navigationItems?: NavigationProps['items'];
+  navigationFooter?: NavigationProps['footer'];
 }>;
 
 const Content = styled(Paper)(({ theme }) => ({
@@ -23,18 +27,31 @@ const Content = styled(Paper)(({ theme }) => ({
   boxShadow: '0px 8px 12px 0px #1A0A7C1A', // TODO: use theme
 }));
 
-const Left = styled(Stack)(({ theme }) => ({
+const MainContainer = styled(Stack)({
+  display: 'flex',
+  flexDirection: 'row',
   flex: 1,
-  maxWidth: 400,
-  minWidth: 200,
-  padding: theme.spacing(4, 0, 3, 3),
+  overflow: 'hidden',
+});
+
+const NavigationContainer = styled(Box)(({ theme }) => ({
+  width: 240, // Fixed width of 240px (the expanded width)
+  flexShrink: 0,
+  padding: theme.spacing(2, 0),
 }));
 
 const Right = styled(Stack)(() => ({
-  width: 200,
+  width: 0,
 }));
 
-const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLayoutProps) => {
+const HomeLayout = ({ 
+  children, 
+  rightElement, 
+  leftElement, 
+  headerRight,
+  navigationItems,
+  navigationFooter
+}: HomeLayoutProps) => {
   const { hideTour } = useApplicationTour();
 
   return (
@@ -48,11 +65,15 @@ const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLa
         </Stack>
       }
     >
-      <Stack direction="row">
-        {rightElement && <Left>{rightElement}</Left>}
+      <MainContainer direction="row">
+        {navigationItems && (
+          <NavigationContainer>
+            <Navigation items={navigationItems} footer={navigationFooter} />
+          </NavigationContainer>
+        )}
         <Content elevation={3}>{children}</Content>
         {leftElement && <Right>{leftElement}</Right>}
-      </Stack>
+      </MainContainer>
       {isMobile && <MobileOverlay />}
     </Layout>
   );

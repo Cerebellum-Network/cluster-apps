@@ -117,3 +117,7 @@ export * from './MobileOverlay';
 export * from './DiscordButton';
 export * from './MetricsChart';
 export * from './OnboardingProvider';
+export * from './DarkModeToggle';
+
+// Icons
+export * from '../icons';

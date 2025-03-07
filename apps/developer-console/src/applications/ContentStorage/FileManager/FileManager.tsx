@@ -1,11 +1,13 @@
-import { useEffect } from 'react';
-import { AddCircleOutlinedIcon, Box, Button, LoadingAnimation, styled, Typography, BoxProps } from '@cluster-apps/ui';
+import { useEffect, useState } from 'react';
+import { AddCircleOutlinedIcon, Box, Button, LoadingAnimation, styled, Typography, BoxProps, FormControlLabel } from '@cluster-apps/ui';
+import { Switch } from '@mui/material';
 import { AnalyticsId } from '@cluster-apps/analytics';
 
 import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
 import { useApplicationTour, elementsRendered } from '~/components/ApplicationTour';
+import { useHiddenBuckets } from '~/hooks';
 
 /**
  * This component resets default CSS styles.
@@ -47,6 +49,8 @@ export const FileManager = ({
   onFolderCreate,
   isAccountReady,
   bucketInProgress,
+  onAccessChange,
+  showTitle = true,
 }: {
   data: RealData[];
   onCreateBucket: () => void;
@@ -71,8 +75,17 @@ export const FileManager = ({
   onFolderCreate: (bucketId: string, name?: string) => Promise<void>;
   isAccountReady: boolean;
   bucketInProgress?: string;
+  onAccessChange?: (bucketId: string, isPublic: boolean) => Promise<void>;
+  showTitle?: boolean;
 }) => {
   const rows = transformData(data);
+  const { hiddenBuckets, isBucketHidden } = useHiddenBuckets();
+  const [showHidden, setShowHidden] = useState(false);
+  
+  // Filter out hidden buckets if showHidden is false
+  const filteredRows = showHidden 
+    ? rows 
+    : rows.filter(row => !isBucketHidden(row.bucketId));
 
   const handleCloseStatus = () => {
     setUploadStatus('idle');
@@ -100,8 +113,51 @@ export const FileManager = ({
     onCreateBucket();
   };
 
+  const handleToggleHidden = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setShowHidden(event.target.checked);
+  };
+
   return (
     <CssReset>
+      {showTitle && (
+        <Box mb={3}>
+          <Typography variant="h4">File Manager</Typography>
+        </Box>
+      )}
+      
+      {/* Show hidden buckets toggle */}
+      <Box mb={2}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={!hiddenBuckets.length || showHidden}
+              onChange={handleToggleHidden}
+              name="showHidden"
+              color="primary"
+            />
+          }
+          label="Show hidden buckets"
+        />
+      </Box>
+      
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="subtitle1">
+          {userHasBuckets ? 'Your Buckets' : 'No Buckets Found'}
+        </Typography>
+        <StyledBox locked={lockUi}>
+          <Button
+            className={AnalyticsId.createBucketBtn}
+            variant="contained"
+            color="primary"
+            onClick={onCreateBucket}
+            disabled={lockUi || isBucketCreating}
+            startIcon={<AddCircleOutlinedIcon />}
+          >
+            Create Bucket
+          </Button>
+        </StyledBox>
+      </Box>
+
       <StyledBox
         locked={lockUi && userHasBuckets}
         display="flex"
@@ -109,7 +165,7 @@ export const FileManager = ({
         padding={(theme) => theme.spacing(1, 1.5)}
       >
         <Typography variant="body1" color="secondary" flex={1}>
-          Bucket ID
+          Bucket Name
         </Typography>
         <Typography variant="body1" color="secondary" flex={1.5} textAlign="right">
           Used Storage
@@ -127,7 +183,7 @@ export const FileManager = ({
             </Box>
           </Box>
         ) : (
-          rows.map((row) => (
+          filteredRows.map((row) => (
             <Row
               firstBucketLocked={firstBucketLocked}
               uploadStatus={uploadStatus}
@@ -141,6 +197,7 @@ export const FileManager = ({
               onFolderCreate={onFolderCreate}
               lockUi={lockUi}
               bucketInProgress={bucketInProgress}
+              onAccessChange={onAccessChange}
             />
           ))
         )}

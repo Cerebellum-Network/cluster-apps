@@ -15,14 +15,46 @@ export type BucketSelectProps = Omit<TextFieldProps, 'value' | 'onChange'> & {
 };
 
 const Item = styled(MenuItem)(({ theme }) => ({
-  margin: theme.spacing(0.5, 1),
-  padding: theme.spacing(1),
-  borderRadius: 4,
+  margin: theme.spacing(0.5, 0),
+  padding: theme.spacing(1, 1.5),
+  borderRadius: theme.shape.borderRadius / 2,
+  '&:hover': {
+    backgroundColor: theme.palette.mode === 'dark' 
+      ? 'rgba(255, 255, 255, 0.08)' 
+      : 'rgba(0, 0, 0, 0.04)',
+  },
+  '&.Mui-selected': {
+    backgroundColor: theme.palette.mode === 'dark' 
+      ? 'rgba(122, 159, 255, 0.15)' 
+      : 'rgba(122, 159, 255, 0.1)',
+    '&:hover': {
+      backgroundColor: theme.palette.mode === 'dark' 
+        ? 'rgba(122, 159, 255, 0.25)' 
+        : 'rgba(122, 159, 255, 0.2)',
+    },
+  },
 }));
 
-const Select = styled(TextField)({
+const Select = styled(TextField)(({ theme }) => ({
   minWidth: 300,
-});
+  '& .MuiOutlinedInput-root': {
+    backgroundColor: theme.palette.background.paper,
+    '& fieldset': {
+      borderColor: theme.palette.divider,
+    },
+    '&:hover fieldset': {
+      borderColor: theme.palette.mode === 'dark' 
+        ? theme.palette.grey[700] 
+        : theme.palette.grey[300],
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: theme.palette.primary.main,
+    },
+  },
+  '& .MuiSelect-select': {
+    backgroundColor: 'transparent',
+  },
+}));
 
 export const BucketSelect = forwardRef(({ value, options, onChange, disabled, ...props }: BucketSelectProps, ref) => {
   const handleChange: NonNullable<TextFieldProps['onChange']> = useCallback(
@@ -48,7 +80,16 @@ export const BucketSelect = forwardRef(({ value, options, onChange, disabled, ..
       select
       inputRef={ref}
       onChange={handleChange}
-      SelectProps={{ displayEmpty: true }}
+      SelectProps={{ 
+        displayEmpty: true,
+        MenuProps: {
+          PaperProps: {
+            sx: {
+              maxHeight: 300,
+            },
+          },
+        },
+      }}
       InputLabelProps={{ shrink: true }} // Ensure the label shrinks
       label="Select Your Bucket"
     >

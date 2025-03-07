@@ -13,14 +13,14 @@ const ddcPresets = {
  */
 export const APP_ID = import.meta.env.VITE_APP_ID || 'developer-console';
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Developer Console';
-export const APP_ENV = import.meta.env.VITE_APP_ENV || 'dev';
+export const APP_ENV = 'prod';
 export const APP_EMAIL = import.meta.env.VITE_APP_EMAIL || 'team@cere.network';
 export const APP_VERSION = npmPackage.version;
 
 /**
  * DDC configuration
  */
-const ddcPreset = (import.meta.env.VITE_DDC_NETWORK || 'testnet') as keyof typeof ddcPresets;
+const ddcPreset = 'mainnet' as keyof typeof ddcPresets;
 export const DDC_PRESET = ddcPresets[ddcPreset];
 export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || '';
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
@@ -58,4 +58,4 @@ export const DEFAULT_FOLDER_NAME = 'default';
 /**
  * Feature flags
  */
-export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARDING !== 'false';
+export const FEATURE_USER_ONBOARDING = false;

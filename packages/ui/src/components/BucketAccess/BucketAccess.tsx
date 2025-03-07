@@ -25,7 +25,7 @@ type OptionStyleProps = {
 
 const Option = styled(FormControlLabel, {
   shouldForwardProp: (prop) => prop !== 'selected',
-})<OptionStyleProps>(({ theme, selected }) => ({
+})<OptionStyleProps>(({ theme, selected, disabled }) => ({
   padding: theme.spacing(1),
   borderRadius: theme.shape.borderRadius,
   borderWidth: 1,
@@ -33,15 +33,34 @@ const Option = styled(FormControlLabel, {
   borderColor: theme.palette.divider,
   display: 'flex',
   alignItems: 'center',
+  transition: 'all 0.2s ease-in-out',
 
   ...(selected && {
     borderColor: theme.palette.primary.main,
     backgroundColor: theme.palette.action.selected,
   }),
 
+  ...(disabled && {
+    opacity: 0.6,
+    cursor: 'not-allowed',
+  }),
+
+  '&:hover': {
+    borderColor: !disabled && !selected ? theme.palette.action.hover : undefined,
+    backgroundColor: !disabled && !selected ? theme.palette.action.hover : undefined,
+  },
+
   ['& .MuiFormControlLabel-label']: {
     display: 'flex',
     flex: 1,
+  },
+
+  ['& .MuiRadio-root']: {
+    color: theme.palette.text.secondary,
+  },
+
+  ['& .Mui-checked']: {
+    color: theme.palette.primary.main,
   },
 }));
 

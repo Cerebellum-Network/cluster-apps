@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { ErrorBoundary } from '@cluster-apps/reporting';
 import { Provider as UIProvider, OnboardingProvider } from '@cluster-apps/ui';
+import { Box } from '@cluster-apps/ui';
 
 import { Router } from './routes';
 import { AppStore } from './stores';

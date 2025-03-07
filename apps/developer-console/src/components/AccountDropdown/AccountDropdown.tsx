@@ -73,11 +73,6 @@ const AccountDropdown = () => {
           <CardContent>
             <Typography fontWeight="bold">Starter Pack</Typography>
           </CardContent>
-          {/* <CardActions>
-            <Button fullWidth variant="outlined" color="success">
-              Upgrade
-            </Button>
-          </CardActions> */}
         </Card>
 
         <Button
