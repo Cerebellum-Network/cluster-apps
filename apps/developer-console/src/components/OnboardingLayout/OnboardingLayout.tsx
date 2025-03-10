@@ -1,23 +1,11 @@
-import React from 'react';
-import { OnboardingContainer, RightColumn, LeftColumn, OnboardingContent } from './OnboardingLayout.styled';
+import * as React from 'react';
 
-import { OnboardingVideoSlider } from '../OnboardingVideoSlider';
-
-interface OnboardingLayoutProps extends React.PropsWithChildren {
-  singleColumn?: boolean;
+interface OnboardingLayoutProps {
+  children: React.ReactNode;
 }
 
-export const OnboardingLayout = ({ children, singleColumn = false }: OnboardingLayoutProps) => {
-  return (
-    <OnboardingContainer>
-      <OnboardingContent>
-        <LeftColumn>{children}</LeftColumn>
-        {!singleColumn && (
-          <RightColumn>
-            <OnboardingVideoSlider />
-          </RightColumn>
-        )}
-      </OnboardingContent>
-    </OnboardingContainer>
-  );
+// This component is no longer used directly for the login screen
+// but kept for compatibility with other parts of the application
+export const OnboardingLayout = ({ children }: OnboardingLayoutProps) => {
+  return <>{children}</>;
 };
