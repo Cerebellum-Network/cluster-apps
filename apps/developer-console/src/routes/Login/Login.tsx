@@ -79,7 +79,7 @@ const Login = observer(() => {
   const onSubmit = handleSubmit(async (data) => {
     console.log('Starting login process for email:', data.email);
     setError(null);
-    
+
     try {
       // Check if account is defined
       if (!account) {
@@ -99,7 +99,7 @@ const Login = observer(() => {
         // Continue anyway since we've already connected
         console.log('Tracking analytics event...');
         trackEvent(isNewUser ? AnalyticsId.signUp : AnalyticsId.signIn);
-        
+
         console.log('Navigating to home page...');
         navigate('/');
         return;
@@ -122,7 +122,7 @@ const Login = observer(() => {
 
       console.log('Tracking analytics event...');
       trackEvent(isNewUser ? AnalyticsId.signUp : AnalyticsId.signIn);
-      
+
       console.log('Navigating to next page...');
       navigate(shouldOnboard ? '/login/onboarding' : '/');
     } catch (error) {
@@ -136,11 +136,11 @@ const Login = observer(() => {
       <VideoBackground autoPlay muted loop>
         <source src="https://cdn.pixabay.com/video/2024/02/11/200133-912127882_large.mp4" type="video/mp4" />
       </VideoBackground>
-      
+
       <LogoContainer>
         <Logo size="large" />
       </LogoContainer>
-      
+
       <LoginContainer>
         <LoginBox>
           <form onSubmit={onSubmit}>
@@ -198,9 +198,9 @@ const Login = observer(() => {
         </LoginBox>
       </LoginContainer>
 
-      <Snackbar 
-        open={!!error} 
-        autoHideDuration={6000} 
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
         onClose={() => setError(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
