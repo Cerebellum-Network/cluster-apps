@@ -46,6 +46,8 @@ const ContentStorage = () => {
   const [lockUi, setLockUi] = useState<boolean>(true);
   const [isAccountReady, setIsAccountReady] = useState<boolean>(false);
 
+  const campaignId = sessionStorage.getItem('campaignId') || null;
+
   const account = useAccount();
 
   const events = useEventsStore();
@@ -109,20 +111,26 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
 
-    const startEvent = new ActivityEvent('BUCKET_CREATE_STARTED', {
-      timestamp: new Date().toISOString(),
-    });
-    await events?.eventSource?.dispatchEvent(startEvent);
+    if (campaignId) {
+      const startEvent = new ActivityEvent('BUCKET_CREATE_STARTED', {
+        timestamp: new Date().toISOString(),
+        campaign_id: campaignId,
+      });
+      await events?.eventSource?.dispatchEvent(startEvent);
+    }
     questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
     const createdBucketId = await account.createBucket({ isPublic: true });
     const bucketInfo = await ddcClient.getBucket(createdBucketId);
     if (bucketInfo) {
-      const completedEvent = new ActivityEvent('BUCKET_CREATED', {
-        bucketId: bucketInfo.bucketId.toString(),
-        timestamp: new Date().toISOString(),
-      });
-      await events?.eventSource?.dispatchEvent(completedEvent);
+      if (campaignId) {
+        const completedEvent = new ActivityEvent('BUCKET_CREATED', {
+          bucketId: bucketInfo.bucketId.toString(),
+          timestamp: new Date().toISOString(),
+          campaign_id: campaignId,
+        });
+        await events?.eventSource?.dispatchEvent(completedEvent);
+      }
       setBuckets((prevState) => {
         return [
           ...prevState,
@@ -157,11 +165,14 @@ const ContentStorage = () => {
       isFolder: boolean;
       filePath?: string;
     }) => {
-      const startEvent = new ActivityEvent('FILE_UPLOAD_STARTED', {
-        fileName: acceptedFile.name,
-        timestamp: new Date().toISOString(),
-      });
-      await events?.eventSource?.dispatchEvent(startEvent);
+      if (campaignId) {
+        const startEvent = new ActivityEvent('FILE_UPLOAD_STARTED', {
+          fileName: acceptedFile.name,
+          timestamp: new Date().toISOString(),
+          campaign_id: campaignId,
+        });
+        await events?.eventSource?.dispatchEvent(startEvent);
+      }
       const dagNodeData = JSON.stringify({ createTime: Date.now() });
       const existingDagNode = await ddcClient!
         .read(new DagNodeUri(BigInt(bucketId), cnsName), {
@@ -205,12 +216,15 @@ const ContentStorage = () => {
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
-      const completedEvent = new ActivityEvent('FILE_UPLOADED', {
-        fileName: acceptedFile.name,
-        size: acceptedFile.size,
-        timestamp: new Date().toISOString(),
-      });
-      await events?.eventSource?.dispatchEvent(completedEvent);
+      if (campaignId) {
+        const completedEvent = new ActivityEvent('FILE_UPLOADED', {
+          fileName: acceptedFile.name,
+          size: acceptedFile.size,
+          timestamp: new Date().toISOString(),
+          campaign_id: campaignId,
+        });
+        await events?.eventSource?.dispatchEvent(completedEvent);
+      }
 
       return {
         cid: uri.cid,
@@ -219,7 +233,7 @@ const ContentStorage = () => {
         size: acceptedFile.size,
       };
     },
-    [ddcClient, events],
+    [campaignId, ddcClient, events?.eventSource],
   );
 
   const handleUpload = useCallback(

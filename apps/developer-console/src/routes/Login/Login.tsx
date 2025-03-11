@@ -11,7 +11,7 @@ import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore, useEmailCampaignService } from '~/hooks';
 import { styled } from '@mui/material';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   borderRadius: '12px',
@@ -35,11 +35,30 @@ const Login = observer(() => {
   const emailCampaignService = useEmailCampaignService();
 
   const searchParams = new URLSearchParams(window.location.search);
-  const tg = searchParams.get('tg');
+  const campaignIdFromUrl = searchParams.get('campaignId');
+
+  const campaignId = useMemo(() => {
+    if (campaignIdFromUrl) {
+      sessionStorage.setItem('campaignId', campaignIdFromUrl);
+      return campaignIdFromUrl;
+    }
+    return sessionStorage.getItem('campaignId');
+  }, [campaignIdFromUrl]);
+
+  useEffect(() => {
+    const handleUnload = () => {
+      sessionStorage.removeItem('campaignId');
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, []);
 
   const hideEmailInput = useMemo(() => {
-    return tg === 'true' || false;
-  }, [tg]);
+    return !!campaignId;
+  }, [campaignId]);
 
   const validationSchema = useMemo(
     () =>
