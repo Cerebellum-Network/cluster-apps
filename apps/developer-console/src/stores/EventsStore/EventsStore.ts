@@ -1,4 +1,4 @@
-import { makeAutoObservable, runInAction } from 'mobx';
+import { makeAutoObservable, reaction, runInAction } from 'mobx';
 import { CereWalletSigner, EventSource } from '@cere-activity-sdk/events';
 import {
   AGENT_SERVICE_REGISTRY_URL,
@@ -11,14 +11,25 @@ import {
 import { CereWalletCipher } from '@cere-activity-sdk/ciphers';
 import { AgentServiceRegistry } from '@cluster-apps/api';
 import { EmbedWallet } from '@cere/embed-wallet';
+import { AccountStore } from '~/stores';
 
 export class EventsStore {
   eventSource?: EventSource = undefined;
   private isConnected = false;
-  readonly agentServiceRegistry?: AgentServiceRegistry = new AgentServiceRegistry(AGENT_SERVICE_REGISTRY_URL);
+  readonly agentServiceRegistry: AgentServiceRegistry = new AgentServiceRegistry(AGENT_SERVICE_REGISTRY_URL);
 
-  constructor() {
+  constructor(accountStore: AccountStore) {
     makeAutoObservable(this);
+    reaction(
+      () => accountStore.address,
+      async (address) => {
+        if (address !== '') {
+          await this.connect(accountStore.wallet);
+        } else {
+          this.disconnect();
+        }
+      },
+    );
   }
 
   async shareEdek(signer: CereWalletSigner) {
@@ -45,11 +56,33 @@ export class EventsStore {
     localStorage.setItem(edekKey, 'true');
   }
 
+  async connectWithRetry(cereWallet: EmbedWallet) {
+    let attempts = 0;
+    while (attempts < 3) {
+      try {
+        await cereWallet.connect();
+        const walletConnected = await cereWallet.isConnected;
+        return walletConnected;
+      } catch (error) {
+        console.error('Connection attempt failed:', error);
+        attempts++;
+        if (attempts >= 3) {
+          throw new Error('Max retry attempts reached');
+        }
+      }
+    }
+  }
+
   async connect(cereWallet: EmbedWallet) {
     if (!cereWallet || this.isConnected) return;
 
     try {
-      console.log('Connecting to EventsClient...');
+      if (cereWallet.status !== 'connected') {
+        await cereWallet.connect();
+      }
+
+      await this.connectWithRetry(cereWallet);
+
       const signer = new CereWalletSigner(cereWallet);
       await signer.isReady();
       const cipher = new CereWalletCipher(cereWallet);

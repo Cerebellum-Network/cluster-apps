@@ -109,7 +109,7 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
 
-    const startEvent = new ActivityEvent('CUSTOM_BUCKET_CREATION', {
+    const startEvent = new ActivityEvent('BUCKET_CREATE_STARTED', {
       timestamp: new Date().toISOString(),
     });
     await events?.eventSource?.dispatchEvent(startEvent);
@@ -118,7 +118,7 @@ const ContentStorage = () => {
     const createdBucketId = await account.createBucket({ isPublic: true });
     const bucketInfo = await ddcClient.getBucket(createdBucketId);
     if (bucketInfo) {
-      const completedEvent = new ActivityEvent('CUSTOM_BUCKET_CREATED', {
+      const completedEvent = new ActivityEvent('BUCKET_CREATED', {
         bucketId: bucketInfo.bucketId.toString(),
         timestamp: new Date().toISOString(),
       });
@@ -157,7 +157,7 @@ const ContentStorage = () => {
       isFolder: boolean;
       filePath?: string;
     }) => {
-      const startEvent = new ActivityEvent('CUSTOM_FILE_UPLOAD', {
+      const startEvent = new ActivityEvent('FILE_UPLOAD_STARTED', {
         fileName: acceptedFile.name,
         timestamp: new Date().toISOString(),
       });
@@ -205,7 +205,7 @@ const ContentStorage = () => {
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
-      const completedEvent = new ActivityEvent('CUSTOM_FILE_UPLOAD', {
+      const completedEvent = new ActivityEvent('FILE_UPLOADED', {
         fileName: acceptedFile.name,
         size: acceptedFile.size,
         timestamp: new Date().toISOString(),

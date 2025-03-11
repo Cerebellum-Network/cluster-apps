@@ -1,4 +1,4 @@
-import { makeAutoObservable, reaction, runInAction } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 
 import { AccountStore } from '../AccountStore';
 import { OnboardingStore } from '../OnboardingStore/OnboardingStore';
@@ -21,23 +21,7 @@ export class AppStore {
     this.accountStore = new AccountStore();
     this.onboardingStore = new OnboardingStore(this.accountStore);
     this.questsStore = new QuestsStore(this.accountStore);
-    this.eventsStore = new EventsStore();
-    reaction(
-      () => this.accountStore.address,
-      async (status) => {
-        const connected = status === 'connected';
-
-        runInAction(() => {
-          this.isInited = connected;
-        });
-
-        if (connected) {
-          await this.eventsStore.connect(this.accountStore.wallet);
-        } else {
-          this.eventsStore.disconnect();
-        }
-      },
-    );
+    this.eventsStore = new EventsStore(this.accountStore);
   }
 
   get isReady() {
