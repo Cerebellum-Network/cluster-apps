@@ -6,7 +6,7 @@ import { AccountStats, AccountStatsHistoryRecord, BucketStats, IndexedBucket } f
 export type AccountStatus = WalletStatus;
 
 export type ConnectOptions = {
-  email: string;
+  email?: string;
 };
 
 export type Bucket = IndexedBucket & {

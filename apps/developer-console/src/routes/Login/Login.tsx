@@ -1,5 +1,5 @@
 import { AnalyticsId, trackEvent } from '@cluster-apps/analytics';
-import { FormControl, LoadingButton, RightArrowIcon, Stack, TextField, Typography } from '@cluster-apps/ui';
+import { FormControl, LoadingButton, RightArrowIcon, Stack, TextField, Typography, Button } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { OnboardingLayout } from '~/components';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useAccountStore, useOnboardingStore, useEmailCampaignService } from '~/hooks';
 import { styled } from '@mui/material';
+import { useMemo } from 'react';
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   borderRadius: '12px',
@@ -27,17 +28,30 @@ const StyledStack = styled(Stack)(() => ({
   margin: 'auto',
 }));
 
-const validationSchema = yup
-  .object({
-    email: yup.string().email('Invalid email format').required('Please set the email'),
-  })
-  .required();
-
 const Login = observer(() => {
   const account = useAccountStore();
   const onboarding = useOnboardingStore();
   const navigate = useNavigate();
   const emailCampaignService = useEmailCampaignService();
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const tg = searchParams.get('tg');
+
+  const hideEmailInput = useMemo(() => {
+    return tg === 'true' || false;
+  }, [tg]);
+
+  const validationSchema = useMemo(
+    () =>
+      yup
+        .object({
+          email: hideEmailInput
+            ? yup.string()
+            : yup.string().email('Invalid email format').required('Please set the email'),
+        })
+        .required(),
+    [hideEmailInput],
+  );
 
   const {
     register,
@@ -55,7 +69,7 @@ const Login = observer(() => {
     const shouldOnboard = await onboarding.shouldOnboard();
     const shouldSendToMarketingTool = await onboarding.shouldSendToMarketingTool();
 
-    if (shouldSendToMarketingTool) {
+    if (shouldSendToMarketingTool && data.email) {
       emailCampaignService.addContactToMailjet(data.email).catch(reportError);
     }
 
@@ -75,27 +89,35 @@ const Login = observer(() => {
             minutes, no credit card required.
           </Typography>
 
-          <FormControl fullWidth>
-            <StyledTextField
-              {...register('email')}
-              type="email"
-              label="Account Email"
-              placeholder="Enter your email"
-              variant="outlined"
-              error={!!errors?.['email']?.message}
-            />
-          </FormControl>
-          <LoadingButton
-            fullWidth
-            type="submit"
-            variant="contained"
-            size="large"
-            disabled={!isValid}
-            loading={isSubmitting}
-            endIcon={<RightArrowIcon />}
-          >
-            Get Started
-          </LoadingButton>
+          {!hideEmailInput ? (
+            <>
+              <FormControl fullWidth>
+                <StyledTextField
+                  {...register('email')}
+                  type="email"
+                  label="Account Email"
+                  placeholder="Enter your email"
+                  variant="outlined"
+                  error={!!errors?.['email']?.message}
+                />
+              </FormControl>
+              <LoadingButton
+                fullWidth
+                type="submit"
+                variant="contained"
+                size="large"
+                disabled={!isValid}
+                loading={isSubmitting}
+                endIcon={<RightArrowIcon />}
+              >
+                Get Started
+              </LoadingButton>
+            </>
+          ) : (
+            <Button fullWidth size="large" onClick={onSubmit}>
+              Login
+            </Button>
+          )}
 
           <Terms textAlign="center" variant="caption" color="secondary">
             By using your Cere wallet you automatically agree to our

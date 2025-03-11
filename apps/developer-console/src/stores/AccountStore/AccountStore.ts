@@ -153,9 +153,8 @@ export class AccountStore implements Account {
        */
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
-
     await this.signer.connect({
-      email,
+      ...(email && { email }),
       permissions: WALLET_PERMISSIONS,
     });
 
