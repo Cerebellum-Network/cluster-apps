@@ -14,8 +14,9 @@ import {
   AlertProps,
   AddCircleOutlinedIcon,
 } from '@cluster-apps/ui';
+import { ActivityEvent } from '@cere-activity-sdk/events';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
+import { useAccount, useFetchDirs, useQuestsStore, useEventsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
 import { DagNode, DagNodeUri, Link, File as DdcFile, Tag, FileContent } from '@cere-ddc-sdk/ddc-client';
 import { DataStorageDocsIcon } from './icons';
@@ -46,6 +47,8 @@ const ContentStorage = () => {
   const [isAccountReady, setIsAccountReady] = useState<boolean>(false);
 
   const account = useAccount();
+
+  const events = useEventsStore();
 
   const ddcClient = account.ddc;
 
@@ -106,11 +109,20 @@ const ContentStorage = () => {
   const onBucketCreation = useCallback(async () => {
     if (!ddcClient) return;
 
+    const startEvent = new ActivityEvent('CUSTOM_BUCKET_CREATION', {
+      timestamp: new Date().toISOString(),
+    });
+    await events?.eventSource?.dispatchEvent(startEvent);
     questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
     const createdBucketId = await account.createBucket({ isPublic: true });
     const bucketInfo = await ddcClient.getBucket(createdBucketId);
     if (bucketInfo) {
+      const completedEvent = new ActivityEvent('CUSTOM_BUCKET_CREATED', {
+        bucketId: bucketInfo.bucketId.toString(),
+        timestamp: new Date().toISOString(),
+      });
+      await events?.eventSource?.dispatchEvent(completedEvent);
       setBuckets((prevState) => {
         return [
           ...prevState,
@@ -129,7 +141,7 @@ const ContentStorage = () => {
     }
     setIsBucketCreating(false);
     setLockUi(false);
-  }, [account, ddcClient, questsStore, refetchBucket]);
+  }, [account, ddcClient, events, questsStore, refetchBucket]);
 
   const singleFileUpload = useCallback(
     async ({
@@ -145,6 +157,11 @@ const ContentStorage = () => {
       isFolder: boolean;
       filePath?: string;
     }) => {
+      const startEvent = new ActivityEvent('CUSTOM_FILE_UPLOAD', {
+        fileName: acceptedFile.name,
+        timestamp: new Date().toISOString(),
+      });
+      await events?.eventSource?.dispatchEvent(startEvent);
       const dagNodeData = JSON.stringify({ createTime: Date.now() });
       const existingDagNode = await ddcClient!
         .read(new DagNodeUri(BigInt(bucketId), cnsName), {
@@ -188,6 +205,13 @@ const ContentStorage = () => {
 
       await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
 
+      const completedEvent = new ActivityEvent('CUSTOM_FILE_UPLOAD', {
+        fileName: acceptedFile.name,
+        size: acceptedFile.size,
+        timestamp: new Date().toISOString(),
+      });
+      await events?.eventSource?.dispatchEvent(completedEvent);
+
       return {
         cid: uri.cid,
         path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
@@ -195,7 +219,7 @@ const ContentStorage = () => {
         size: acceptedFile.size,
       };
     },
-    [ddcClient],
+    [ddcClient, events],
   );
 
   const handleUpload = useCallback(
