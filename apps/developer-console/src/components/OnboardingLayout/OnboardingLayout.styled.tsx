@@ -1,45 +1,53 @@
 import { Stack, styled } from '@cluster-apps/ui';
 
 export const OnboardingContainer = styled(Stack)({
-  height: 'calc(100vh - 128px)',
+  height: '100vh',
+  width: '100vw',
+  margin: 0,
+  padding: 0,
   boxSizing: 'border-box',
-  flexGrow: 1,
-  background: '#F5F7FA',
-  alignItems: 'center',
-});
-
-export const OnboardingContent = styled(Stack)(({ theme }) => ({
-  maxWidth: '1560px',
-  flexDirection: 'row',
-  height: '100%',
-  width: '100%',
-  gap: theme.spacing(5),
-  [theme.breakpoints.down('sm')]: {
-    flexDirection: 'column',
-    gap: theme.spacing(1),
-  },
-}));
-
-export const RightColumn = styled(Stack)({
-  flex: 1,
-  overflow: 'hidden',
-  boxSizing: 'border-box',
-  minWidth: '560px',
-  height: '100%',
-  borderRadius: '20px',
-});
-
-export const LeftColumn = styled(Stack)(({ theme }) => ({
-  width: '100%',
-  height: '100%',
-  boxSizing: 'border-box',
-  padding: theme.spacing(6, 5),
-  borderRadius: '20px',
-  background: '#fff',
-  border: '1px solid #E6E6E6',
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(2),
-  },
+  overflow: 'hidden',
+});
+
+export const VideoBackground = styled('video')({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  zIndex: -1,
+});
+
+export const LogoContainer = styled(Stack)({
+  position: 'absolute',
+  top: '24px',
+  left: '24px',
+  zIndex: 2,
+});
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const ContentContainer = styled(Stack)(({ theme }: { theme: any }) => ({
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  zIndex: 1,
+  width: '90%',
+  maxWidth: '480px',
+  padding: theme.spacing(4),
+  borderRadius: '16px',
+  background: 'rgba(255, 255, 255, 0.15)',
+  backdropFilter: 'blur(10px)',
+  border: '1px solid rgba(255, 255, 255, 0.3)',
+  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
 }));
