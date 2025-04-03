@@ -10,12 +10,11 @@ This document outlines the details of the program, including its objectives, cha
 3. [Key Concepts/Keywords](#key-conceptskewords)
 4. [Existing System and Challenges](#existing-system-and-challenges)
 5. [Top-Up DDC Account Manually (Exercise)](#top-up-ddc-account-manually-exercise)
-6. [Proposed Solution](#proposed-solution)
-7. [Key Features](#key-features)
-8. [Benefits](#benefits)
-9. [Deliverables](#deliverables)
-10. [Resources](#resources)
-11. [Application Process](#application-process)
+6. [Key Features](#key-features)
+7. [Benefits](#benefits)
+8. [Deliverables](#deliverables)
+9. [Resources](#resources)
+10. [Application Process](#application-process)
 
 ---
 
@@ -90,42 +89,6 @@ The current process for manually topping up a DDC account involves the following
 This manual process introduces inefficiencies, requiring users to actively monitor their balances and perform multiple steps to maintain uninterrupted access to Cere's infrastructure. It also creates friction for onboarding users unfamiliar with blockchain systems.
 
 ---
-
-## **Proposed Solution** 💡
-# 
-
-The proposed solution aims to simplify and enhance the DDC account top-up process by allowing users to directly top up their accounts using fiat currencies (e.g., USD or EUR) or cryptocurrencies (e.g., USDT or USDC) on EVM-based networks. This approach removes the dependency on manual token acquisition and streamlines onboarding for users unfamiliar with blockchain systems.
-### Sequence Diagrams
-![../../images/image1.png](./images/image5.png)
-![../../images/image1.png](./images/image6.png)
-
-### **Key Features** ✨
-
-1. **Fiat-Based Top-Up**:
-   - Users can directly top up their DDC accounts using fiat currencies like USD through an integrated On-Ramp API.
-   - The system will convert fiat to USDT/USDC and then swap it for CERE tokens.
-2. **Cryptocurrency-Based Top-Up**:
-   - Users can utilize cryptocurrencies such as USDT or USDC to top up their DDC accounts.
-   - Smart contracts will handle the swap of USDT/USDC for CERE tokens and execute the top-up transaction.
-3. **Automated Token Conversion**:
-   - The solution integrates with platforms like Uniswap to facilitate automatic swapping of fiat or cryptocurrency into CERE tokens.
-4. **Cross-Chain Functionality**:
-   - Hyperbridge technology will enable seamless transfer of CERE tokens from EVM-based networks to the Cere Mainnet.
-5. **Enhanced User Experience**:
-   - The Developer Console UI will be upgraded to allow users to initiate top-up transactions in just a few clicks, ensuring a smooth and intuitive process.
-
-### **Benefits**
-
-1. Simplifies onboarding by eliminating the need for manual CERE token acquisition.
-2. Reduces service interruptions caused by low balances through automated processes.
-3. Enhances accessibility by supporting fiat currencies and popular cryptocurrencies for top-ups.
-4. Improves user experience with a streamlined and user-friendly interface.
-5. Encourages broader adoption of the Cere ecosystem by lowering entry barriers for non-technical users.
-
-This proposed solution ensures a more efficient, accessible, and user-friendly process for topping up DDC accounts, fostering broader adoption of Cere's infrastructure.
-
-
-
 
 ## **Deliverables** 📦
 
