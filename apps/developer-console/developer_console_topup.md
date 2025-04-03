@@ -1,6 +1,6 @@
-# README for Grant Program 🚀
+# README for Developer Console USDC / Fiat Onboarding Idea 🚀
 
-Welcome to the **Grant Program**! This document outlines the details of the program, including its objectives, challenges, proposed solutions, deliverables, and resources. Below is the index for easy navigation:
+This document outlines the details of the program, including its objectives, challenges, proposed solutions, deliverables, and resources. Below is the index for easy navigation:
 
 ---
 
