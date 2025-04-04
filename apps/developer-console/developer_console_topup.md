@@ -13,7 +13,6 @@ This document outlines the details of the program, including its objectives, cha
 6. [Deliverables](#deliverables-)
 7. [Resources](#resources-)
 8. [Quick Start Guide](#quick-start-guide-)
-9. [Application Process](#application-process)
 
 ---
 
@@ -250,30 +249,6 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
     - Developer Console: [https://stage.developer.console.cere.network/](https://stage.developer.console.cere.network/)
     - Cere Wallet: [https://wallet.stg.cere.io/wallet/home](https://wallet.stg.cere.io/wallet/home)
 
-## **Application Process**
 
-### Application Submission
-1. Fork [this repository](https://github.com/Cerebellum-Network/grant-program) (branch: `master`)  or `git pull` to update your existing repo.
-2. Create a new branch called `Grant App - Project Name`.
-3. Create a copy of the `application_template.md` file in the `applications/` directory of your newly created fork.
-4. Name the new file after your project: `project_name.md`.
-5. Fill out the template with the details of your project.
-   💡 That file should contain ALL necessary information for complete evaluation of the proposed grant! And the more information, the faster the review.
-6. Review the `Terms and Conditions` file inside the Documents folder.
-7. Once you're done, create a pull request.
-
-   ⚠️ By initiating a pull request, you are indicating you have ready and accepted the terms and conditions as provided.
-
-8. At this stage, the pull request should only contain *one new file* — the markdown file you created from the template.
-
-### Application Review
-1. The Cere Foundation Grants Committee will issue comments and request changes on the pull request.
-2. Clarifications and amendments made in the comments need to be included in the application. You may address feedback by modifying your application directly and leaving a comment once you're done.
-3. The application is accepted when all requested changes are addressed, and the terms and conditions have been agreed upon.
-4. The application will be subject to automatic rejection after 2 weeks of inactivity.
-   Unless specified otherwise, the day on which it is accepted will be considered the starting date of the project, and will be used to estimate delivery dates.
-
-### Onboarding
-We will review the application and provide the further instruction.
 
 ---
