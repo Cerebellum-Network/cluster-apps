@@ -6,15 +6,14 @@ This document outlines the details of the program, including its objectives, cha
 
 ## 📚 Index
 1. [Introduction](#introduction)
-2. [Objective](#objective)
-3. [Key Concepts/Keywords](#key-conceptskewords)
-4. [Existing System and Challenges](#existing-system-and-challenges)
-5. [Top-Up DDC Account Manually (Exercise)](#top-up-ddc-account-manually-exercise)
-6. [Key Features](#key-features)
-7. [Benefits](#benefits)
-8. [Deliverables](#deliverables)
-9. [Resources](#resources)
-10. [Application Process](#application-process)
+2. [Objective](#objective-)
+3. [Key Concepts/Keywords](#key-conceptskeywords-)
+4. [Existing System and Challenges](#existing-system-and-challenges-)
+5. [Top-Up DDC Account Manually (Exercise)](#top-up-ddc-account-manually-exercise-)
+6. [Deliverables](#deliverables-)
+7. [Resources](#resources-)
+8. [Quick Start Guide](#quick-start-guide-)
+9. [Application Process](#application-process)
 
 ---
 
@@ -252,9 +251,6 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
     - Cere Wallet: [https://wallet.stg.cere.io/wallet/home](https://wallet.stg.cere.io/wallet/home)
 
 ## **Application Process**
-
-### Choose Idea OR Come with your Idea
-Click  [here](ideas%2Fopen_ideas.md) for open ideas.
 
 ### Application Submission
 1. Fork [this repository](https://github.com/Cerebellum-Network/grant-program) (branch: `master`)  or `git pull` to update your existing repo.
