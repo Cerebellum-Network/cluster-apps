@@ -1,28 +1,20 @@
-import { useState } from 'react';
+import React from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { darkTheme } from './theme';
+import { Router as AppRoutes } from './routes';
+import { WalletProvider } from './providers/WalletProvider';
 
-import { ErrorBoundary } from '@cluster-apps/reporting';
-import { Provider as UIProvider, OnboardingProvider } from '@cluster-apps/ui';
-
-import { Router } from './routes';
-import { AppStore } from './stores';
-import { AppStoreContext } from './hooks';
-import { ApplicationTourProvider } from '~/components/ApplicationTour';
-
-const App = () => {
-  const [store] = useState(() => new AppStore());
-
+const App: React.FC = () => {
   return (
-    <UIProvider>
-      <ErrorBoundary>
-        <AppStoreContext.Provider value={store}>
-          <ApplicationTourProvider>
-            <OnboardingProvider>
-              <Router />
-            </OnboardingProvider>
-          </ApplicationTourProvider>
-        </AppStoreContext.Provider>
-      </ErrorBoundary>
-    </UIProvider>
+    <ThemeProvider theme={darkTheme}>
+      <CssBaseline />
+      <WalletProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </WalletProvider>
+    </ThemeProvider>
   );
 };
 

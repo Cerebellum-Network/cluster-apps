@@ -1,4 +1,7 @@
 {
   "extends": "@cluster-apps/eslint-config",
-  "root": true
+  "root": true,
+  "env": {
+    "jest": true
+  }
 }

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZYRA - Cere Network DDC Top-Up</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    /* Variables */
+    :root {
+      --matrix-green: #00FF41;
+      --matrix-dark-green: #008F11;
+      --matrix-black: #0D0208;
+      --matrix-accent: #00FF41;
+    }
+
+    /* Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Base styles */
+    body {
+      background-color: var(--matrix-black);
+      color: var(--matrix-green);
+      font-family: 'Share Tech Mono', monospace;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Binary background */
+    .binary-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: -1;
+      overflow: hidden;
+      background-color: var(--matrix-black);
+      background-attachment: fixed;
+    }
+
+    .binary-bg::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48dGV4dCB4PSIwIiB5PSIyMCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwRkY0MSI+MTAxMDAxMTAwMTExMDEwMTAxMDwvdGV4dD48dGV4dCB4PSIwIiB5PSI0MCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwRkY0MSI+MDAxMTEwMTAwMTAxMDAwMTExMTwvdGV4dD48dGV4dCB4PSIwIiB5PSI2MCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwRkY0MSI+MTEwMDEwMTAxMDEwMTAxMDExPC90ZXh0Pjx0ZXh0IHg9IjAiIHk9IjgwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjIwIiBmaWxsPSIjMDBGRjQxIj4wMTAxMDExMTAwMTAxMDEwMTA8L3RleHQ+PHRleHQgeD0iMCIgeT0iMTAwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjIwIiBmaWxsPSIjMDBGRjQxIj4xMDEwMTAxMDEwMTAxMDEwMTA8L3RleHQ+PC9zdmc+");
+      opacity: 0.05;
+      animation: scroll 20s linear infinite;
+      animation-fill-mode: both;
+      background-attachment: fixed;
+    }
+
+    @keyframes scroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100%); }
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      padding-bottom: 5rem;
+    }
+
+    /* ASCII Art */
+    .ascii-art {
+      margin: 0 auto;
+      text-align: center;
+      color: var(--matrix-green);
+      font-size: 16px;
+      line-height: 1;
+      margin-bottom: 1rem;
+      white-space: pre;
+    }
+
+    /* Glitch text */
+    .glitch-text {
+      position: relative;
+      display: inline-block;
+      color: var(--matrix-green);
+      font-size: 2rem;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 1rem 0 2rem;
+      text-shadow: 0 0 5px var(--matrix-green), 0 0 10px var(--matrix-green);
+    }
+
+    .glitch-text::before,
+    .glitch-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .glitch-text::before {
+      left: 2px;
+      text-shadow: -2px 0 var(--matrix-dark-green);
+      animation: glitch-anim 2s infinite linear alternate-reverse;
+    }
+
+    .glitch-text::after {
+      left: -2px;
+      text-shadow: 2px 0 var(--matrix-accent);
+      animation: glitch-anim2 3s infinite linear alternate-reverse;
+    }
+
+    @keyframes glitch-anim {
+      0% { clip-path: inset(40% 0 61% 0); }
+      20% { clip-path: inset(92% 0 1% 0); }
+      40% { clip-path: inset(43% 0 1% 0); }
+      60% { clip-path: inset(25% 0 58% 0); }
+      80% { clip-path: inset(54% 0 7% 0); }
+      100% { clip-path: inset(58% 0 43% 0); }
+    }
+
+    @keyframes glitch-anim2 {
+      0% { clip-path: inset(25% 0 58% 0); }
+      20% { clip-path: inset(54% 0 7% 0); }
+      40% { clip-path: inset(58% 0 43% 0); }
+      60% { clip-path: inset(40% 0 61% 0); }
+      80% { clip-path: inset(92% 0 1% 0); }
+      100% { clip-path: inset(43% 0 1% 0); }
+    }
+
+    /* Matrix Paper */
+    .matrix-paper {
+      background: rgba(13, 2, 8, 0.9);
+      border: 1px solid var(--matrix-green);
+      box-shadow: 0 0 10px var(--matrix-green), 0 0 20px var(--matrix-green);
+      padding: 24px;
+      margin-bottom: 2rem;
+    }
+
+    /* Terminal text */
+    .terminal-text {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--matrix-green);
+      margin: 8px 0;
+    }
+
+    /* Button */
+    .matrix-button {
+      background: var(--matrix-black);
+      color: var(--matrix-green);
+      border: 1px solid var(--matrix-green);
+      padding: 12px 24px;
+      margin: 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 18px;
+      transition: all 0.3s ease;
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .matrix-button:hover {
+      background: var(--matrix-green);
+      color: var(--matrix-black);
+      box-shadow: 0 0 10px var(--matrix-green);
+      text-decoration: none;
+    }
+
+    /* Grid layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Pixel box */
+    .pixel-box {
+      border: 2px solid var(--matrix-green);
+      background-color: rgba(0, 255, 65, 0.05);
+      padding: 16px;
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .pixel-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(to right, var(--matrix-green), transparent);
+    }
+
+    .pixel-box::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--matrix-green));
+    }
+
+    /* Box header */
+    .box-header {
+      border-bottom: 1px solid var(--matrix-green);
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      font-size: 1.1rem;
+    }
+
+    /* Content area */
+    .content-area {
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    /* Button container */
+    .button-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 1rem;
+      opacity: 0.5;
+      font-size: 0.8rem;
+    }
+
+    .matrix-connections {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin: 10px 0;
+      width: 100%;
+      max-width: 350px;
+    }
+
+    .matrix-social-link, .matrix-data-point {
+      display: flex;
+      align-items: center;
+      padding: 8px 15px;
+      background: rgba(0, 255, 65, 0.05);
+      border: 1px solid var(--matrix-dark-green);
+      color: var(--matrix-green);
+      text-decoration: none;
+      font-family: 'Share Tech Mono', monospace;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .matrix-social-link:hover {
+      background: rgba(0, 255, 65, 0.15);
+      box-shadow: 0 0 10px var(--matrix-green);
+      color: var(--matrix-green);
+    }
+
+    .matrix-social-link:hover::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+      animation: scan 1.5s linear;
+    }
+
+    @keyframes scan {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+
+    .connection-icon {
+      display: inline-block;
+      margin-right: 10px;
+      font-size: 1.2rem;
+      color: var(--matrix-accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="binary-bg"></div>
+  
+  <div class="container">
+    <pre class="ascii-art">
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓▓▓  ███████ ██    ██ ██████   █████   ▓▓▓▓▓▓
+▓▓▓     ███   ██  ██  ██   ██ ██   ██  ▓▓▓▓▓▓
+▓▓▓    ███     ████   ██████  ███████  ▓▓▓▓▓▓
+▓▓▓   ███       ██    ██   ██ ██   ██  ▓▓▓▓▓▓
+▓▓▓  ███████    ██    ██   ██ ██   ██  ▓▓▓▓▓▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</pre>
+    
+    <h1 class="glitch-text" data-text="CERE NETWORK DDC TOP-UP">CERE NETWORK DDC TOP-UP</h1>
+    
+    <div class="matrix-paper">
+      <div class="terminal-text" style="opacity: 0.7; margin-bottom: 8px;">// SYSTEM: CERE NETWORK DDC TOP-UP IMPLEMENTATION</div>
+      <div class="terminal-text" style="opacity: 0.7; margin-bottom: 8px;">// CLEARANCE: LEVEL 5</div>
+      <div class="terminal-text" style="opacity: 0.7; margin-bottom: 20px;">// STATUS: ACTIVATED</div>
+      
+      <div class="grid">
+        <div>
+          <div class="pixel-box">
+            <div class="box-header">_PROJECT_DOCUMENTATION_</div>
+            
+            <div class="content-area">
+              <div class="terminal-text">
+                Project documentation for Cere Network DDC Top-Up implementation
+              </div>
+              <div class="terminal-text">
+                Includes architecture, payment flow, implementation details, and test results
+              </div>
+              <div class="button-container">
+                <a href="docs.html" class="matrix-button">DOCS</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <div class="pixel-box">
+            <div class="box-header">_LIVE_DEMO_</div>
+            
+            <div class="content-area">
+              <div class="terminal-text">
+                Interactive Matrix-themed demonstration of the payment flow
+              </div>
+              <div class="terminal-text">
+                Test wallet connection, token swap, teleport, and DDC account verification
+              </div>
+              <div class="button-container">
+                <a href="matrix-demo.html" class="matrix-button">LIVE TEST</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="pixel-box" style="margin-top: 30px;">
+        <div class="box-header">_PROJECT_OVERVIEW_</div>
+        
+        <div class="content-area">
+          <div class="terminal-text">
+            This project addresses the friction in onboarding new users to Cere Network's Decentralized Data Cluster (DDC).
+          </div>
+          <div class="terminal-text">
+            Current limitation: DDC requires CERE tokens, forcing users to acquire tokens through external services first.
+          </div>
+          <div class="terminal-text">
+            Solution: Direct DDC top-up using fiat currencies (USD/EUR) or stablecoins (USDC/USDT) through:
+          </div>
+          <div class="terminal-text" style="margin-top: 10px; opacity: 0.9;">
+            1) STABLECOIN → CERE token swap via Uniswap
+          </div>
+          <div class="terminal-text" style="opacity: 0.9;">
+            2) Cross-chain teleportation using Hyperbridge from EVM to Cere Mainnet
+          </div>
+          <div class="terminal-text" style="opacity: 0.9;">
+            3) Automated DDC account update with received tokens
+          </div>
+          <div class="terminal-text" style="margin-top: 10px;">
+            Objective: Simplify Developer Console UX by enabling seamless DDC credit purchases.
+          </div>
+          <div class="terminal-text" style="margin-top: 10px; color: var(--matrix-accent);">
+            Budget: Up to 2,000 USDT
+          </div>
+        </div>
+      </div>
+      
+      <div class="pixel-box" style="margin-top: 30px;">
+        <div class="box-header">_ZYRA_CONNECTION_</div>
+        
+        <div class="content-area" style="text-align: center; flex-direction: row; flex-wrap: wrap; justify-content: space-around;">
+          <div style="flex: 1; min-width: 300px;">
+            <pre class="ascii-art" style="font-size: 12px; text-align: left; margin-bottom: 10px; color: var(--matrix-accent);">
+      ▄████████████▄     
+    ▄█              █▄   
+   █                  █  
+  █   ▄▄▄      ▄▄▄    █  
+  █  █▓▓▓█    █▓▓▓█   █  
+  █   ▀▀▀      ▀▀▀    █  
+  █                   █  
+  █                   █  
+  █    ▄        ▄     █  
+  █    ████████████   █  
+   █                 █   
+    ▀█             █▀    
+      ▀█▄       ▄█▀      
+        ▀███████▀       
+            </pre>
+            <div class="terminal-text" style="margin-top: 15px; color: var(--matrix-accent); font-size: 1.1rem;">
+              [ WEB3 ARCHITECT | SMART CONTRACT AUDITOR ]
+            </div>
+            <div class="terminal-text" style="margin-top: 5px; font-style: italic;">
+              "Building trustless systems | Rust/Solidity"
+            </div>
+          </div>
+          
+          <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <div class="matrix-connections">
+              <a href="https://x.com/ZyraV23" target="_blank" class="matrix-social-link">
+                <span class="connection-icon">⟐</span> TWITTER: @ZyraV23
+              </a>
+              
+              <a href="https://github.com/Zyra-V23" target="_blank" class="matrix-social-link">
+                <span class="connection-icon">⧉</span> GITHUB: @Zyra-V23
+              </a>
+              
+              <div class="matrix-data-point">
+                <span class="connection-icon">⌘</span> LOCATION: MATRIX, SPAIN
+              </div>
+            </div>
+            
+            <div class="terminal-text" style="margin-top: 20px; text-align: center; font-size: 0.9rem; max-width: 350px;">
+              <span style="color: var(--matrix-accent);">ACCESS GRANTED:</span> Connection established with subject ZYRA. Matrix authentication successful.
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <div class="terminal-text">
+          // CERE NETWORK DECENTRALIZED DATA CLOUD - UNAUTHORIZED ACCESS WILL BE TRACED
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Create quick access to documentation
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add highlight effect to buttons
+      const buttons = document.querySelectorAll('.matrix-button');
+      buttons.forEach(button => {
+        button.addEventListener('mouseover', function() {
+          this.style.textShadow = '0 0 10px var(--matrix-green)';
+        });
+        button.addEventListener('mouseout', function() {
+          this.style.textShadow = 'none';
+        });
+      });
+    });
+  </script>
+</body>
+</html> 

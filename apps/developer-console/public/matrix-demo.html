@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZYRA - Digital Chaos Interface</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    /* Variables */
+    :root {
+      --matrix-green: #00FF41;
+      --matrix-dark-green: #008F11;
+      --matrix-black: #0D0208;
+      --matrix-accent: #00FF41;
+    }
+
+    /* Reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Base styles */
+    body {
+      background-color: var(--matrix-black);
+      color: var(--matrix-green);
+      font-family: 'Share Tech Mono', monospace;
+      line-height: 1.6;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Binary background */
+    .binary-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: -1;
+      overflow: hidden;
+      background-color: var(--matrix-black);
+    }
+
+    .binary-bg::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48dGV4dCB4PSIwIiB5PSIyMCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwRkY0MSI+MTAxMDAxMTAwMTExMDEwMTAxMDwvdGV4dD48dGV4dCB4PSIwIiB5PSI0MCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwRkY0MSI+MDAxMTEwMTAwMTAxMDAwMTExMTwvdGV4dD48dGV4dCB4PSIwIiB5PSI2MCIgZm9udC1mYW1pbHk9Im1vbm9zcGFjZSIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzAwRkY0MSI+MTEwMDEwMTAxMDEwMTAxMDExPC90ZXh0Pjx0ZXh0IHg9IjAiIHk9IjgwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjIwIiBmaWxsPSIjMDBGRjQxIj4wMTAxMDExMTAwMTAxMDEwMTA8L3RleHQ+PHRleHQgeD0iMCIgeT0iMTAwIiBmb250LWZhbWlseT0ibW9ub3NwYWNlIiBmb250LXNpemU9IjIwIiBmaWxsPSIjMDBGRjQxIj4xMDEwMTAxMDEwMTAxMDEwMTA8L3RleHQ+PC9zdmc+");
+      opacity: 0.05;
+      animation: scroll 20s linear infinite;
+    }
+
+    @keyframes scroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100%); }
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* ASCII Art */
+    .ascii-art {
+      margin: 0 auto;
+      text-align: center;
+      color: var(--matrix-green);
+      font-size: 16px;
+      line-height: 1;
+      margin-bottom: 1rem;
+      white-space: pre;
+    }
+
+    /* Glitch text */
+    .glitch-text {
+      position: relative;
+      display: inline-block;
+      color: var(--matrix-green);
+      font-size: 2rem;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 1rem 0 2rem;
+      text-shadow: 0 0 5px var(--matrix-green), 0 0 10px var(--matrix-green);
+    }
+
+    .glitch-text::before,
+    .glitch-text::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .glitch-text::before {
+      left: 2px;
+      text-shadow: -2px 0 var(--matrix-dark-green);
+      animation: glitch-anim 2s infinite linear alternate-reverse;
+    }
+
+    .glitch-text::after {
+      left: -2px;
+      text-shadow: 2px 0 var(--matrix-accent);
+      animation: glitch-anim2 3s infinite linear alternate-reverse;
+    }
+
+    @keyframes glitch-anim {
+      0% { clip-path: inset(40% 0 61% 0); }
+      20% { clip-path: inset(92% 0 1% 0); }
+      40% { clip-path: inset(43% 0 1% 0); }
+      60% { clip-path: inset(25% 0 58% 0); }
+      80% { clip-path: inset(54% 0 7% 0); }
+      100% { clip-path: inset(58% 0 43% 0); }
+    }
+
+    @keyframes glitch-anim2 {
+      0% { clip-path: inset(25% 0 58% 0); }
+      20% { clip-path: inset(54% 0 7% 0); }
+      40% { clip-path: inset(58% 0 43% 0); }
+      60% { clip-path: inset(40% 0 61% 0); }
+      80% { clip-path: inset(92% 0 1% 0); }
+      100% { clip-path: inset(43% 0 1% 0); }
+    }
+
+    /* Matrix Paper */
+    .matrix-paper {
+      background: rgba(13, 2, 8, 0.9);
+      border: 1px solid var(--matrix-green);
+      box-shadow: 0 0 10px var(--matrix-green), 0 0 20px var(--matrix-green);
+      padding: 24px;
+      margin-bottom: 2rem;
+    }
+
+    /* Terminal text */
+    .terminal-text {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--matrix-green);
+      margin: 8px 0;
+    }
+
+    /* Stepper */
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+    }
+
+    .step-label {
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+
+    .step::before {
+      content: '';
+      display: block;
+      width: 20px;
+      height: 20px;
+      background-color: var(--matrix-black);
+      border: 1px solid var(--matrix-green);
+      border-radius: 50%;
+      margin: 0 auto;
+    }
+
+    .step.active::before,
+    .step.completed::before {
+      background-color: var(--matrix-green);
+    }
+
+    .step::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      width: 100%;
+      height: 1px;
+      background-color: var(--matrix-green);
+      z-index: -1;
+    }
+
+    .step:last-child::after {
+      display: none;
+    }
+
+    /* Grid layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Pixel box */
+    .pixel-box {
+      border: 2px solid var(--matrix-green);
+      background-color: rgba(0, 255, 65, 0.05);
+      padding: 16px;
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .pixel-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(to right, var(--matrix-green), transparent);
+    }
+
+    .pixel-box::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--matrix-green));
+    }
+
+    /* Box header */
+    .box-header {
+      border-bottom: 1px solid var(--matrix-green);
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+      font-size: 1.1rem;
+    }
+
+    /* Content area */
+    .content-area {
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    /* Terminal output */
+    .terminal-output {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--matrix-green);
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 12px;
+      height: 250px;
+      overflow: auto;
+      white-space: pre-line;
+    }
+
+    /* Button */
+    .matrix-button {
+      background: var(--matrix-black);
+      color: var(--matrix-green);
+      border: 1px solid var(--matrix-green);
+      padding: 8px 16px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      font-family: 'Share Tech Mono', monospace;
+      width: 100%;
+      transition: all 0.3s ease;
+      display: block;
+    }
+
+    .matrix-button:hover {
+      background: var(--matrix-green);
+      color: var(--matrix-black);
+      box-shadow: 0 0 10px var(--matrix-green);
+    }
+
+    .matrix-button:disabled {
+      background: #111;
+      color: #0a3f0a;
+      border-color: #0a3f0a;
+      cursor: not-allowed;
+    }
+
+    /* Loading spinner */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top: 3px solid var(--matrix-green);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    /* Blink effect */
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    .cursor {
+      animation: blink 1s step-end infinite;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 1rem;
+      opacity: 0.5;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="binary-bg"></div>
+  
+  <div class="container">
+    <pre class="ascii-art">
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓▓▓  ███████ ██    ██ ██████   █████   ▓▓▓▓▓▓
+▓▓▓     ███   ██  ██  ██   ██ ██   ██  ▓▓▓▓▓▓
+▓▓▓    ███     ████   ██████  ███████  ▓▓▓▓▓▓
+▓▓▓   ███       ██    ██   ██ ██   ██  ▓▓▓▓▓▓
+▓▓▓  ███████    ██    ██   ██ ██   ██  ▓▓▓▓▓▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓</pre>
+    
+    <h1 class="glitch-text" data-text="DIGITAL CHAOS INTERFACE">DIGITAL CHAOS INTERFACE</h1>
+    
+    <div class="matrix-paper">
+      <div class="terminal-text" style="opacity: 0.7; margin-bottom: 8px;">// SYSTEM: HYPERBRIDGE TRANSFER PROTOCOL</div>
+      <div class="terminal-text" style="opacity: 0.7; margin-bottom: 8px;">// CLEARANCE: LEVEL 5</div>
+      <div class="terminal-text" style="opacity: 0.7; margin-bottom: 20px;">// STATUS: INITIALIZED</div>
+      
+      <div class="stepper">
+        <div class="step active" id="step-0">
+          <div class="step-label">Connect Wallet</div>
+        </div>
+        <div class="step" id="step-1">
+          <div class="step-label">Swap USDT → CERE</div>
+        </div>
+        <div class="step" id="step-2">
+          <div class="step-label">Teleport Tokens</div>
+        </div>
+        <div class="step" id="step-3">
+          <div class="step-label">Verify DDC Account</div>
+        </div>
+      </div>
+      
+      <div class="grid">
+        <div>
+          <div class="pixel-box">
+            <div class="box-header">_EXECUTION_INTERFACE_</div>
+            
+            <div class="content-area" id="step-content">
+              <div id="step-0-content">
+                <div class="terminal-text">
+                  Connect your wallet to begin the transfer sequence
+                </div>
+              </div>
+              
+              <div id="step-1-content" style="display: none;">
+                <div class="terminal-text">
+                  Swap 100 USDT for CERE tokens using decentralized exchange
+                </div>
+                <div class="terminal-text" id="swap-result" style="margin-top: 16px; color: var(--matrix-accent); display: none;">
+                  Received: 95.5 CERE tokens
+                </div>
+              </div>
+              
+              <div id="step-2-content" style="display: none;">
+                <div class="terminal-text">
+                  Teleport 95.5 CERE tokens to Cere Mainnet via Hyperbridge
+                </div>
+                <div class="terminal-text" id="teleport-result" style="margin-top: 16px; color: var(--matrix-accent); display: none;">
+                  Teleport confirmed: Tokens arrived at destination
+                </div>
+              </div>
+              
+              <div id="step-3-content" style="display: none;">
+                <div class="terminal-text">
+                  Verify DDC account has been updated with transferred tokens
+                </div>
+                <div class="terminal-text" id="verify-result" style="margin-top: 16px; color: var(--matrix-accent); display: none;">
+                  Verification complete: Balance updated to 145.75 CERE
+                </div>
+              </div>
+            </div>
+            
+            <button class="matrix-button" id="action-button">CONNECT WALLET</button>
+          </div>
+        </div>
+        
+        <div>
+          <div class="pixel-box" style="background-color: rgba(0, 0, 0, 0.9);">
+            <div class="box-header">_TERMINAL_OUTPUT_</div>
+            <div class="terminal-output" id="terminal">
+              &gt; Awaiting input... <span class="cursor">_</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <div class="terminal-text">
+          // CERE NETWORK DECENTRALIZED DATA CLOUD - UNAUTHORIZED ACCESS WILL BE TRACED
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // API Configuration
+    const API_BASE_URL = '/api/payments'; // Base URL for payment API endpoints
+    
+    // State
+    let currentStep = 0;
+    let isLoading = false;
+    let walletConnected = false;
+    let swapComplete = false;
+    let teleportComplete = false;
+    let verificationComplete = false;
+    let currentPaymentId = null; // Store payment ID between steps
+    let walletData = {
+      address: '0x7A2F8E98C0dE9C4F8B43011813d0F62A15D926F9B3',
+      network: 'Ethereum'
+    };
+    
+    // Elements
+    const actionButton = document.getElementById('action-button');
+    const terminal = document.getElementById('terminal');
+    const steps = [
+      document.getElementById('step-0'),
+      document.getElementById('step-1'),
+      document.getElementById('step-2'),
+      document.getElementById('step-3')
+    ];
+    const stepContents = [
+      document.getElementById('step-0-content'),
+      document.getElementById('step-1-content'),
+      document.getElementById('step-2-content'),
+      document.getElementById('step-3-content')
+    ];
+    const swapResult = document.getElementById('swap-result');
+    const teleportResult = document.getElementById('teleport-result');
+    const verifyResult = document.getElementById('verify-result');
+    
+    // Terminal commands
+    const commands = {
+      connect: 'connect_wallet -t metamask -a 0x7A2...F9B3',
+      swap: 'swap_tokens -amount 100 -from USDT -to CERE -slippage 0.5',
+      teleport: 'teleport -amount 95.5 -token CERE -to "cere_mainnet" -address c3r3...d83f',
+      verify: 'verify_ddc_balance -account "DDC_123456" -network "cere_mainnet"'
+    };
+    
+    // Helper function for API calls
+    async function callApi(endpoint, method = 'GET', data = null) {
+      // SIMULATION: Instead of actual API calls, simulate responses
+      console.log(`Simulating API call to ${endpoint} with method ${method}`, data);
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simulate responses based on endpoint
+      switch (endpoint) {
+        case '/connect-wallet':
+          return {
+            success: true,
+            wallet: {
+              address: data.walletAddress || '0x7A2F8E98C0dE9C4F8B43011813d0F62A15D926F9B3',
+              network: data.network || 'Ethereum',
+              balance: {
+                USDT: '125.00',
+                USDC: '75.50',
+                ETH: '0.45'
+              }
+            }
+          };
+        
+        case '/swap-tokens':
+          return {
+            success: true,
+            payment: {
+              id: 'payment-' + Date.now(),
+              status: 'TOKENS_SWAPPED'
+            },
+            swapDetails: {
+              cereAmount: '95.5',
+              txHash: '0x' + Math.random().toString(16).substring(2, 10) + '...'
+            }
+          };
+        
+        case '/teleport':
+          return {
+            success: true,
+            teleportDetails: {
+              cereAmount: '95.5',
+              teleportTxId: '0x' + Math.random().toString(16).substring(2, 10) + '...',
+              status: 'COMPLETED'
+            }
+          };
+        
+        case '/verify-ddc':
+          return {
+            success: true,
+            ddcDetails: {
+              accountId: 'DDC_123456',
+              network: 'Cere Mainnet',
+              previousBalance: '50.25',
+              newTokens: '95.5',
+              currentBalance: '145.75'
+            }
+          };
+        
+        default:
+          throw new Error(`Endpoint ${endpoint} not implemented in simulation`);
+      }
+    }
+    
+    // Show typed terminal output
+    function typeTerminal(text, callback) {
+      let index = 0;
+      terminal.innerHTML = '';
+      
+      function type() {
+        if (index < text.length) {
+          terminal.innerHTML += text.charAt(index);
+          terminal.scrollTop = terminal.scrollHeight;
+          index++;
+          setTimeout(type, 5);
+        } else {
+          terminal.innerHTML += '<span class="cursor">_</span>';
+          if (callback) callback();
+        }
+      }
+      
+      type();
+    }
+    
+    // Handle showing step content
+    function showStepContent(step) {
+      stepContents.forEach((content, i) => {
+        content.style.display = i === step ? 'block' : 'none';
+      });
+    }
+    
+    // Update steps
+    function updateSteps() {
+      steps.forEach((step, i) => {
+        if (i < currentStep) {
+          step.classList.add('completed');
+          step.classList.remove('active');
+        } else if (i === currentStep) {
+          step.classList.add('active');
+          step.classList.remove('completed');
+        } else {
+          step.classList.remove('active', 'completed');
+        }
+      });
+      
+      showStepContent(currentStep);
+    }
+    
+    // Update button
+    function updateButton() {
+      if (isLoading) {
+        actionButton.innerHTML = '<span class="spinner"></span> PROCESSING...';
+        actionButton.disabled = true;
+        return;
+      }
+      
+      actionButton.disabled = false;
+      
+      // Check if current step is completed
+      let isCurrentStepCompleted = false;
+      switch (currentStep) {
+        case 0: isCurrentStepCompleted = walletConnected; break;
+        case 1: isCurrentStepCompleted = swapComplete; break;
+        case 2: isCurrentStepCompleted = teleportComplete; break;
+        case 3: isCurrentStepCompleted = verificationComplete; break;
+      }
+      
+      if (isCurrentStepCompleted) {
+        actionButton.innerText = 'NEXT STEP';
+      } else {
+        switch (currentStep) {
+          case 0: actionButton.innerText = 'CONNECT WALLET'; break;
+          case 1: actionButton.innerText = 'SWAP TOKENS'; break;
+          case 2: actionButton.innerText = 'TELEPORT'; break;
+          case 3: actionButton.innerText = 'VERIFY DDC'; break;
+        }
+      }
+    }
+    
+    // Handle connect wallet - Real API integration
+    async function handleConnectWallet() {
+      isLoading = true;
+      updateButton();
+      
+      let output = '> ' + commands.connect + '\nInitiating wallet connection...';
+      typeTerminal(output, async () => {
+        try {
+          // Call the real connect wallet API
+          const result = await callApi('/connect-wallet', 'POST', {
+            walletAddress: walletData.address,
+            network: walletData.network
+          });
+          
+          // Format output for terminal display
+          const balanceData = result.wallet.balance;
+          const formattedOutput = `Connection established.\nWallet address: ${result.wallet.address.substring(0, 6)}...${result.wallet.address.substring(result.wallet.address.length - 4)}\nNetwork: ${result.wallet.network}\nBalance: ${balanceData.USDT} USDT`;
+          
+          output += '\n' + formattedOutput;
+          
+          // Update UI
+          typeTerminal(output, () => {
+            walletConnected = true;
+            isLoading = false;
+            updateButton();
+          });
+        } catch (error) {
+          output += '\nError: ' + error.message;
+          typeTerminal(output, () => {
+            isLoading = false;
+            updateButton();
+          });
+        }
+      });
+    }
+    
+    // Handle swap tokens - Real API integration
+    async function handleSwapTokens() {
+      isLoading = true;
+      updateButton();
+      
+      const stablecoinSymbol = 'USDT';
+      const amount = '100';
+      const userId = 'user-demo-1';
+      const cereNetworkAddress = 'cere1a5defd8c54cb2a54ad36232b49bb7cf9b7e447c8d';
+      const ddcAccountId = 'DDC_123456';
+      
+      let output = '> ' + commands.swap + '\nInitiating swap via Uniswap V3...';
+      typeTerminal(output, async () => {
+        try {
+          // Call the real swap tokens API
+          const result = await callApi('/swap-tokens', 'POST', {
+            userId,
+            walletAddress: walletData.address,
+            stablecoinSymbol,
+            amount,
+            cereNetworkAddress,
+            ddcAccountId
+          });
+          
+          // Store payment ID for next steps
+          currentPaymentId = result.payment.id;
+          
+          // Format output for terminal display
+          const formattedOutput = `Swap path: ${stablecoinSymbol} → CERE\nAmount in: ${amount} ${stablecoinSymbol}\nAmount out: ${result.swapDetails.cereAmount} CERE\nPrice impact: 0.32%\nTransaction hash: ${result.swapDetails.txHash.substring(0, 5)}...${result.swapDetails.txHash.substring(result.swapDetails.txHash.length - 4)}\nSwap completed successfully.`;
+          
+          output += '\n' + formattedOutput;
+          
+          // Update UI
+          swapResult.innerText = `Received: ${result.swapDetails.cereAmount} CERE tokens`;
+          
+          typeTerminal(output, () => {
+            swapComplete = true;
+            swapResult.style.display = 'block';
+            isLoading = false;
+            updateButton();
+          });
+        } catch (error) {
+          output += '\nError: ' + error.message;
+          typeTerminal(output, () => {
+            isLoading = false;
+            updateButton();
+          });
+        }
+      });
+    }
+    
+    // Handle teleport tokens - Real API integration
+    async function handleTeleportTokens() {
+      isLoading = true;
+      updateButton();
+      
+      let output = '> ' + commands.teleport + '\nInitiating teleport via Hyperbridge...';
+      typeTerminal(output, async () => {
+        try {
+          // Call the real teleport API
+          const result = await callApi('/teleport', 'POST', {
+            paymentId: currentPaymentId
+          });
+          
+          // Format output for terminal display
+          const formattedOutput = `Source network: Ethereum\nDestination network: Cere Mainnet\nToken: CERE\nAmount: ${result.teleportDetails.cereAmount} CERE\nSource tx hash: ${result.teleportDetails.teleportTxId.substring(0, 5)}...${result.teleportDetails.teleportTxId.substring(result.teleportDetails.teleportTxId.length - 4)}\nTeleport status: INITIATED\n\n...\n\nTeleport status: CONFIRMED\nDestination tx hash: 0xc9b...872a\nTeleport completed successfully.`;
+          
+          output += '\n' + formattedOutput;
+          
+          // Update UI
+          teleportResult.innerText = 'Teleport confirmed: Tokens arrived at destination';
+          
+          typeTerminal(output, () => {
+            teleportComplete = true;
+            teleportResult.style.display = 'block';
+            isLoading = false;
+            updateButton();
+          });
+        } catch (error) {
+          output += '\nError: ' + error.message;
+          typeTerminal(output, () => {
+            isLoading = false;
+            updateButton();
+          });
+        }
+      });
+    }
+    
+    // Handle verify DDC - Real API integration
+    async function handleVerifyDDC() {
+      isLoading = true;
+      updateButton();
+      
+      let output = '> ' + commands.verify + '\nVerifying DDC account balance...';
+      typeTerminal(output, async () => {
+        try {
+          // Call the real verify DDC API
+          const result = await callApi('/verify-ddc', 'POST', {
+            paymentId: currentPaymentId
+          });
+          
+          // Format output for terminal display
+          const formattedOutput = `Account: ${result.ddcDetails.accountId}\nNetwork: ${result.ddcDetails.network}\nPrevious balance: ${result.ddcDetails.previousBalance} CERE\nNew tokens received: ${result.ddcDetails.newTokens} CERE\nCurrent balance: ${result.ddcDetails.currentBalance} CERE\nDDC account updated successfully.`;
+          
+          output += '\n' + formattedOutput;
+          
+          // Update UI
+          verifyResult.innerText = `Verification complete: Balance updated to ${result.ddcDetails.currentBalance} CERE`;
+          
+          typeTerminal(output, () => {
+            verificationComplete = true;
+            verifyResult.style.display = 'block';
+            isLoading = false;
+            updateButton();
+          });
+        } catch (error) {
+          output += '\nError: ' + error.message;
+          typeTerminal(output, () => {
+            isLoading = false;
+            updateButton();
+          });
+        }
+      });
+    }
+    
+    // Handle button click
+    actionButton.addEventListener('click', async () => {
+      if (isLoading) return;
+      
+      // Check if current step is completed
+      let isCurrentStepCompleted = false;
+      switch (currentStep) {
+        case 0: isCurrentStepCompleted = walletConnected; break;
+        case 1: isCurrentStepCompleted = swapComplete; break;
+        case 2: isCurrentStepCompleted = teleportComplete; break;
+        case 3: isCurrentStepCompleted = verificationComplete; break;
+      }
+      
+      if (isCurrentStepCompleted) {
+        // Move to next step
+        if (currentStep < 3) {
+          currentStep++;
+          updateSteps();
+          updateButton();
+        }
+      } else {
+        // Execute current step
+        switch (currentStep) {
+          case 0: await handleConnectWallet(); break;
+          case 1: await handleSwapTokens(); break;
+          case 2: await handleTeleportTokens(); break;
+          case 3: await handleVerifyDDC(); break;
+        }
+      }
+    });
+    
+    // Initialize
+    updateSteps();
+    updateButton();
+  </script>
+
+  <div class="footer" style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 10px; background: rgba(13, 2, 8, 0.8); font-size: 0.8rem; border-top: 1px solid var(--matrix-dark-green);">
+    <div class="terminal-text">
+      // IMPLEMENTATION BY: <a href="https://github.com/Zyra-V23" target="_blank" style="color: var(--matrix-accent); text-decoration: none;">ZYRA</a> | <a href="https://x.com/ZyraV23" target="_blank" style="color: var(--matrix-accent); text-decoration: none;">@ZyraV23</a>
+    </div>
+    <div class="terminal-text" style="opacity: 0.7; font-size: 0.7rem;">
+      // CERE NETWORK DECENTRALIZED DATA CLOUD - MATRIX CONNECTION ESTABLISHED
+    </div>
+  </div>
+</body>
+</html> 

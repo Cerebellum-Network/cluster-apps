@@ -1,6 +1,6 @@
 import { makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
-import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
+//import { EmbedWallet, UserInfo } from '@cere/embed-wallet';//
 import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';

@@ -8,6 +8,8 @@ import { Home } from './Home';
 import { Login } from './Login';
 import { OnboardingRoot } from './OnboardingRoot';
 import { TopUp } from './TopUp';
+import MatrixSwapDemoPage from '../pages/MatrixSwapDemo';
+import MatrixDemo from '../pages/MatrixDemo';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -24,6 +26,10 @@ const mapAppToRoute = ({ rootComponent, rootPath, ...handle }: Application, inde
  */
 const router = createBrowserRouter([
   {
+    path: '/matrix-chaos',
+    element: <MatrixDemo />,
+  },
+  {
     path: '/',
     Component: App,
     children: [
@@ -38,6 +44,14 @@ const router = createBrowserRouter([
           {
             path: 'top-up',
             Component: TopUp,
+          },
+          {
+            path: 'matrix-swap-demo',
+            element: <MatrixSwapDemoPage />,
+          },
+          {
+            path: 'matrix-demo',
+            element: <MatrixDemo />,
           },
           ...applications.map(mapAppToRoute),
         ],

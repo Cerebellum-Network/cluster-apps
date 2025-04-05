@@ -1,0 +1,45 @@
+===================================================================
+                  READ FIRST!!!!!!!!
+===================================================================
+
+Dear Cere Network Team,
+
+Since we didn't have direct access to your development infrastructure, 
+I took the liberty to create an interactive Matrix-themed presentation 
+to demonstrate the DDC Top-Up functionality concept.
+
+INSTRUCTIONS TO ACCESS THE INTERACTIVE PRESENTATION:
+---------------------------------------------------
+
+1. Make sure you have a local server running 
+   (if not, run: npx serve public)
+
+2. Open your browser and navigate to:
+   http://localhost:3000/  (or the URL shown in your terminal)
+
+3. NAVIGATION:
+   - MAIN PAGE: Overview of the project scope and objectives
+   - DEMO: Click on the "DEMO" button to see the Matrix-themed transaction flow
+   - DOCS: Click on the "DOCS" button to access detailed documentation
+
+4. In the DEMO page, you'll see the complete flow:
+   - Connect Wallet
+   - Swap Tokens
+   - Teleport to Cere Network
+   - Verify DDC Account
+
+Notes:
+- This is a visual prototype with simulated interactions
+- All API calls are simulated for demonstration purposes
+- The design follows the Matrix theme as requested
+- My contact information is provided at the bottom of each page
+
+All code is well-documented and follows the project requirements.
+The actual implementation would connect to real services as specified
+in the developer_console_topup.md document.
+
+Thank you for the opportunity to work on this creative challenge!
+
+Sincerely,
+ZYRA (@ZyraV23)
+=================================================================== 
