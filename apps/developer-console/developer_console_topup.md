@@ -240,6 +240,22 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
 
 ---
 
+## **Interact With HyperBridge on BSC Testnet**
+### Execute the TopUp
+- Go to the teleport contract and call the **teleport** function at [TokenGateway Address](https://testnet.bscscan.com/address/0xFcDa26cA021d5535C3059547390E6cCd8De7acA6#writeContract) with the following inputs:
+- 1. **teleport**: `0`
+    2. **amount**: Specify the token amount to transfer.
+        - Example: For transferring 800 CERE, enter: `80000000000` (800 followed by 10 zeros).
+    3. **relayerFee**: `0`
+    4. **assetId**: Use the Asset ID retrieved in Step 3 (include the 0x prefix). `0xac05b69379f7ac8d594d29d1cc11e6ed5bec3b481c0882bbb1c4fdaa08ba77c6`
+    5. **redeem**: `false`
+    6. **to**: Enter the 32-byte hex public key of the **Substrate account** (not the SS58 address). //
+    7. **dest**: `0x5355425354524154452d63657265` (Hex representation of `SUBSTRATE-cere`).
+    8. **timeout**: `0`
+    9. **nativeCost**: `0`
+  10. **data**: Encoded call of the `deposit_extra` function of DDC customers pallet with Signature. To encode the call, you should use the SCALE codec. This how it will be handled on [Blockchain side](https://github.com/polytope-labs/hyperbridge/blob/main/modules/pallets/token-gateway/src/lib.rs#L618-L673).  
+
+
 ## **Resources** 📚
 - Dev Console: [https://stage.developer.console.cere.network/](https://stage.developer.console.cere.network/)
 - Cere Wallet Client: [GitHub Link](https://github.com/cere-io/cere-wallet-client)
