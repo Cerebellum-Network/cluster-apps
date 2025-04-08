@@ -257,53 +257,60 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
 
   Example to Encode Transfer Call:-
 ```
-    const { ApiPromise, WsProvider } = require('@polkadot/api');
-    const { u8aToHex, stringToU8a } = require('@polkadot/util');
-    const { Keyring } = require('@polkadot/keyring');
-    const { encodeAddress } = require('@polkadot/util-crypto');
-    
-    async function encodeData() {
+   const { ApiPromise, WsProvider } = require('@polkadot/api');
+const { Keyring } = require('@polkadot/keyring');
+const { u8aToHex } = require('@polkadot/util');
+
+async function encodePalletCall() {
     // Connect to a Substrate node
-    const wsProvider = new WsProvider('wss://your-substrate-node-url');
+    const wsProvider = new WsProvider('wss://your-substrate-node-url'); // Replace with your node's URL
     const api = await ApiPromise.create({ provider: wsProvider });
-    
-        // Example data to encode
-        const beneficiary = '5FLSigC9H8N8Ls9mUjZVLG3iMZxM4gwx6uFzFgE7qXjQkdtZ'; // Example address
-        const runtimeCall = {
-            method: 'transfer',
-            args: {
-                dest: beneficiary,
-                value: 1000000000 // Example value
-            }
-        };
-        const nonce = 0; // Example nonce
-    
-        // Encode the runtime call and nonce
-        const encodedRuntimeCall = api.registry.createType('Call', runtimeCall).toU8a();
-        const payload = api.registry.createType('ExtrinsicPayload', { nonce, runtimeCall }).toU8a();
-    
-        console.log('Encoded Runtime Call:', u8aToHex(encodedRuntimeCall));
-        console.log('Encoded Payload:', u8aToHex(payload));
-    
-        // Sign the payload (example using Ed25519)
-        const keyring = new Keyring({ type: 'ed25519' });
-        const pair = keyring.addFromUri('//Alice'); // Example key pair
-        const signature = pair.sign(payload);
-    
-        console.log('Signature:', u8aToHex(signature));
-    
-        // Final data to send to Substrate
-        const finalData = {
-            signature: u8aToHex(signature),
-            runtimeCall: u8aToHex(encodedRuntimeCall)
-        };
-    
-        console.log('Final Encoded Data:', finalData);
-    
-        await api.disconnect();
-    }
-    
-    encodeData().catch(console.error);
+
+    // Define the beneficiary and transfer amount
+    const beneficiary = '5FLSigC9H8N8Ls9mUjZVLG3iMZxM4gwx6uFzFgE7qXjQkdtZ'; // Example recipient address
+    const amount = BigInt(1000000000); // Example transfer amount
+
+    // Create a pallet call (balances.transfer)
+    const call = api.tx.balances.transfer(beneficiary, amount);
+
+    // Encode the runtime call using SCALE codec
+    const encodedCallData = call.method.toHex();
+
+    console.log('Encoded Pallet Call Data:', encodedCallData);
+
+    // Signing the payload (example using Ed25519)
+    const keyring = new Keyring({ type: 'ed25519' });
+    const sender = keyring.addFromUri('//Alice'); // Example sender account
+
+    const nonce = await api.query.system.accountNonce(sender.address);
+    const payload = api.registry.createType('ExtrinsicPayload', {
+        method: call.method,
+        nonce,
+        era: 0,
+        tip: 0,
+        genesisHash: api.genesisHash,
+        blockHash: api.genesisHash,
+        specVersion: api.runtimeVersion.specVersion,
+        transactionVersion: api.runtimeVersion.transactionVersion,
+    });
+
+    const signature = sender.sign(payload.toU8a(true));
+
+    console.log('Signature:', u8aToHex(signature));
+
+    // Final data structure to send
+    const finalData = {
+        signature: u8aToHex(signature),
+        callData: encodedCallData,
+        nonce,
+    };
+
+    console.log('Final Encoded Data:', finalData);
+
+    await api.disconnect();
+}
+
+encodePalletCall().catch(console.error);
 
 ```
   
