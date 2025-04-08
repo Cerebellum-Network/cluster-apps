@@ -255,7 +255,7 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
     9. **nativeCost**: `0`
   10. **data**: Encoded call of the [`deposit_extra`](https://github.com/Cerebellum-Network/blockchain-node/blob/dev/pallets/ddc-customers/src/lib.rs#L360) function of DDC customers pallet with Signature. To encode the call, you should use the SCALE codec. This how it will be handled on [Blockchain side](https://github.com/polytope-labs/hyperbridge/blob/main/modules/pallets/token-gateway/src/lib.rs#L618-L673).
 
-  Example to Encode Deposit Call:-
+  Example to Encode Transfer Call:-
 ```
     const { ApiPromise, WsProvider } = require('@polkadot/api');
     const { u8aToHex, stringToU8a } = require('@polkadot/util');
