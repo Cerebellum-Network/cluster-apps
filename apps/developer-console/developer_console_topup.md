@@ -253,7 +253,60 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
     7. **dest**: `0x5355425354524154452d63657265` (Hex representation of `SUBSTRATE-cere`).
     8. **timeout**: `0`
     9. **nativeCost**: `0`
-  10. **data**: Encoded call of the `deposit_extra` function of DDC customers pallet with Signature. To encode the call, you should use the SCALE codec. This how it will be handled on [Blockchain side](https://github.com/polytope-labs/hyperbridge/blob/main/modules/pallets/token-gateway/src/lib.rs#L618-L673).  
+  10. **data**: Encoded call of the [`deposit_extra`](https://github.com/Cerebellum-Network/blockchain-node/blob/dev/pallets/ddc-customers/src/lib.rs#L360) function of DDC customers pallet with Signature. To encode the call, you should use the SCALE codec. This how it will be handled on [Blockchain side](https://github.com/polytope-labs/hyperbridge/blob/main/modules/pallets/token-gateway/src/lib.rs#L618-L673).
+
+  Example to Encode Deposit Call:-
+```
+    const { ApiPromise, WsProvider } = require('@polkadot/api');
+    const { u8aToHex, stringToU8a } = require('@polkadot/util');
+    const { Keyring } = require('@polkadot/keyring');
+    const { encodeAddress } = require('@polkadot/util-crypto');
+    
+    async function encodeData() {
+    // Connect to a Substrate node
+    const wsProvider = new WsProvider('wss://your-substrate-node-url');
+    const api = await ApiPromise.create({ provider: wsProvider });
+    
+        // Example data to encode
+        const beneficiary = '5FLSigC9H8N8Ls9mUjZVLG3iMZxM4gwx6uFzFgE7qXjQkdtZ'; // Example address
+        const runtimeCall = {
+            method: 'transfer',
+            args: {
+                dest: beneficiary,
+                value: 1000000000 // Example value
+            }
+        };
+        const nonce = 0; // Example nonce
+    
+        // Encode the runtime call and nonce
+        const encodedRuntimeCall = api.registry.createType('Call', runtimeCall).toU8a();
+        const payload = api.registry.createType('ExtrinsicPayload', { nonce, runtimeCall }).toU8a();
+    
+        console.log('Encoded Runtime Call:', u8aToHex(encodedRuntimeCall));
+        console.log('Encoded Payload:', u8aToHex(payload));
+    
+        // Sign the payload (example using Ed25519)
+        const keyring = new Keyring({ type: 'ed25519' });
+        const pair = keyring.addFromUri('//Alice'); // Example key pair
+        const signature = pair.sign(payload);
+    
+        console.log('Signature:', u8aToHex(signature));
+    
+        // Final data to send to Substrate
+        const finalData = {
+            signature: u8aToHex(signature),
+            runtimeCall: u8aToHex(encodedRuntimeCall)
+        };
+    
+        console.log('Final Encoded Data:', finalData);
+    
+        await api.disconnect();
+    }
+    
+    encodeData().catch(console.error);
+
+```
+  
 
 
 ## **Resources** 📚
