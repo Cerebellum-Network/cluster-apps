@@ -43,7 +43,7 @@ export const ONBOARDIN_PUBLIC_BUCKET = true;
  * Project Links
  */
 
-export const DISCORD_LINK = 'https://discord.com/invite/8RBXaQ6nT5';
+export const DISCORD_LINK = 'https://discord.gg/HtkRSgUCMB';
 export const DEVELOPER_DOCS_LINK = 'https://www.developer.cere.network/get-started';
 export const TERMS_AND_CONDITIONS_LINK =
   'https://www.notion.so/cere/Terms-and-conditions-6728e7cf5ab74c0eb95e52b62e4f0b6f?pvs=4';

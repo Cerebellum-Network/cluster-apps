@@ -240,6 +240,82 @@ To achieve the proposed solution of enabling fiat and cryptocurrency-based top-u
 
 ---
 
+## **Interact With HyperBridge on BSC Testnet**
+### Execute the TopUp
+- Go to the teleport contract and call the **teleport** function at [TokenGateway Address](https://testnet.bscscan.com/address/0xFcDa26cA021d5535C3059547390E6cCd8De7acA6#writeContract) with the following inputs:
+- 1. **teleport**: `0`
+    2. **amount**: Specify the token amount to transfer.
+        - Example: For transferring 800 CERE, enter: `80000000000` (800 followed by 10 zeros).
+    3. **relayerFee**: `0`
+    4. **assetId**: Use the Asset ID retrieved in Step 3 (include the 0x prefix). `0xac05b69379f7ac8d594d29d1cc11e6ed5bec3b481c0882bbb1c4fdaa08ba77c6`
+    5. **redeem**: `false`
+    6. **to**: Enter the 32-byte hex public key of the **Substrate account** (not the SS58 address). //
+    7. **dest**: `0x5355425354524154452d63657265` (Hex representation of `SUBSTRATE-cere`).
+    8. **timeout**: `0`
+    9. **nativeCost**: `0`
+  10. **data**: Encoded call of the [`deposit_extra`](https://github.com/Cerebellum-Network/blockchain-node/blob/dev/pallets/ddc-customers/src/lib.rs#L360) function of DDC customers pallet with Signature. To encode the call, you should use the SCALE codec. This how it will be handled on [Blockchain side](https://github.com/polytope-labs/hyperbridge/blob/main/modules/pallets/token-gateway/src/lib.rs#L618-L673).
+
+  Example to Encode Transfer Call:-
+```
+   const { ApiPromise, WsProvider } = require('@polkadot/api');
+const { Keyring } = require('@polkadot/keyring');
+const { u8aToHex } = require('@polkadot/util');
+
+async function encodePalletCall() {
+    // Connect to a Substrate node
+    const wsProvider = new WsProvider('wss://your-substrate-node-url'); // Replace with your node's URL
+    const api = await ApiPromise.create({ provider: wsProvider });
+
+    // Define the beneficiary and transfer amount
+    const beneficiary = '5FLSigC9H8N8Ls9mUjZVLG3iMZxM4gwx6uFzFgE7qXjQkdtZ'; // Example recipient address
+    const amount = BigInt(1000000000); // Example transfer amount
+
+    // Create a pallet call (balances.transfer)
+    const call = api.tx.balances.transfer(beneficiary, amount);
+
+    // Encode the runtime call using SCALE codec
+    const encodedCallData = call.method.toHex();
+
+    console.log('Encoded Pallet Call Data:', encodedCallData);
+
+    // Signing the payload (example using Ed25519)
+    const keyring = new Keyring({ type: 'ed25519' });
+    const sender = keyring.addFromUri('//Alice'); // Example sender account
+
+    const nonce = await api.query.system.accountNonce(sender.address);
+    const payload = api.registry.createType('ExtrinsicPayload', {
+        method: call.method,
+        nonce,
+        era: 0,
+        tip: 0,
+        genesisHash: api.genesisHash,
+        blockHash: api.genesisHash,
+        specVersion: api.runtimeVersion.specVersion,
+        transactionVersion: api.runtimeVersion.transactionVersion,
+    });
+
+    const signature = sender.sign(payload.toU8a(true));
+
+    console.log('Signature:', u8aToHex(signature));
+
+    // Final data structure to send
+    const finalData = {
+        signature: u8aToHex(signature),
+        callData: encodedCallData,
+        nonce,
+    };
+
+    console.log('Final Encoded Data:', finalData);
+
+    await api.disconnect();
+}
+
+encodePalletCall().catch(console.error);
+
+```
+  
+
+
 ## **Resources** 📚
 - Dev Console: [https://stage.developer.console.cere.network/](https://stage.developer.console.cere.network/)
 - Cere Wallet Client: [GitHub Link](https://github.com/cere-io/cere-wallet-client)

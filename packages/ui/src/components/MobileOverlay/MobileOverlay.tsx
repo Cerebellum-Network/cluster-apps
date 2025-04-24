@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { styled, keyframes } from '@mui/material';
+import { DISCORD_LINK } from '@cluster-apps/developer-console/src/constants.ts';
 
 const fadeInDown = keyframes`
     from {
@@ -115,7 +116,7 @@ export const MobileOverlay: React.FC = () => {
           browser to explore our full suite of features.
         </Text>
 
-        <Button href="https://discord.com/invite/cYVKUYHWhp" target="_blank" rel="noopener noreferrer">
+        <Button href={DISCORD_LINK} target="_blank" rel="noopener noreferrer">
           Join Dragon 1 on Discord
         </Button>
       </Content>
