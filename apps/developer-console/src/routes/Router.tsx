@@ -8,6 +8,7 @@ import { Home } from './Home';
 import { Login } from './Login';
 import { OnboardingRoot } from './OnboardingRoot';
 import { TopUp } from './TopUp';
+import { PaymentsHistory } from './PaymentsHistory';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
           {
             path: 'top-up',
             Component: TopUp,
+          },
+          {
+            path: 'payments-history',
+            Component: PaymentsHistory,
           },
           ...applications.map(mapAppToRoute),
         ],
