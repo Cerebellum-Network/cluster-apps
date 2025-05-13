@@ -66,9 +66,14 @@ const MetricCard: FC<{
 
 const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
   // Calculate total values
-  const totalPayments = data.reduce((sum, item) => sum + item.total_customer_charges, 0);
-  const totalTraffic = data.reduce((sum, item) => sum + item.total_traffic_value, 0);
-  const totalStorage = data.reduce((sum, item) => sum + (item.total_puts_value + item.total_gets_value), 0) / 2; // Approximation
+  const totalPayments = data.reduce((sum, item) => sum + (item.token_estimates?.total_customer_charges || 0), 0);
+  const totalTraffic = data.reduce((sum, item) => sum + (item.token_estimates?.total_traffic_value || 0), 0);
+  const totalStorage =
+    data.reduce(
+      (sum, item) =>
+        sum + ((item.token_estimates?.total_puts_value || 0) + (item.token_estimates?.total_gets_value || 0)),
+      0,
+    ) / 2; // Approximation
 
   // Mock changes for demonstration
   const paymentChange = 12.5;

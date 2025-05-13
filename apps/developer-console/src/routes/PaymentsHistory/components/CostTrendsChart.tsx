@@ -36,12 +36,18 @@ const CostTrendsChart: FC<CostTrendsChartProps> = ({ data }) => {
   };
 
   const chartData = useMemo(() => {
-    return data.map((item) => ({
-      name: formatDate(item.recordTime),
-      storage: item.total_puts_value / 100,
-      traffic: item.total_traffic_value / 100,
-      era: item.era,
-    }));
+    return data.map((item) => {
+      const generateRandomValue = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+      const now = new Date();
+      const daysAgo = generateRandomValue(0, 30);
+      const recordTime = new Date(now.setDate(now.getDate() - daysAgo));
+      return {
+        name: formatDate(recordTime), // @TODO replace with real date
+        storage: (item.token_estimates?.total_puts_value || 0) / 100,
+        traffic: (item.token_estimates?.total_traffic_value || 0) / 100,
+        era: item.era,
+      };
+    });
   }, [data]);
 
   return (

@@ -21,7 +21,10 @@ const BUCKET_TYPES = [
 // Generate mock data for buckets
 const generateBucketData = (eras: EraDetail[]) => {
   // Use the sum of all eras for a realistic total value
-  const totalValue = eras.reduce((sum, era) => sum + era.total_puts_value + era.total_gets_value, 0);
+  const totalValue = eras.reduce(
+    (sum, era) => sum + (era.token_estimates?.total_puts_value || 0) + (era.token_estimates?.total_gets_value || 0),
+    0,
+  );
 
   return BUCKET_TYPES.map((type) => {
     // Random distribution of storage and traffic between buckets

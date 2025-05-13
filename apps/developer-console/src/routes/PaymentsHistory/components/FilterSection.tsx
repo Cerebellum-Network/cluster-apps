@@ -17,7 +17,7 @@ const periods = [
 
 const FilterSection: FC<FilterSectionProps> = ({ store }) => {
   const handleClusterChange = (event: SelectChangeEvent<string>) => {
-    store.setSelectedCluster(event.target.value);
+    store.setSelectedEra(parseInt(event.target.value));
   };
 
   return (
@@ -27,13 +27,13 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
           <InputLabel id="era-select-label">Era</InputLabel>
           <Select
             labelId="era-select-label"
-            value={store.selectedClusterId || ''}
+            value={store.selectedEraId?.toString() || ''}
             label="Era"
             onChange={handleClusterChange}
           >
-            {store.clusters.map((clusterId) => (
-              <MenuItem key={clusterId} value={clusterId}>
-                ID: {clusterId}
+            {store.eras.map((eraId) => (
+              <MenuItem key={eraId} value={eraId}>
+                ID: {eraId}
               </MenuItem>
             ))}
           </Select>
@@ -53,7 +53,7 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
         <FormControl sx={{ minWidth: 180 }}>
           <InputLabel id="bucket-select-label">Bucket</InputLabel>
           <Select labelId="bucket-select-label" value="" label="Bucket">
-            <MenuItem value="">ID: {store.selectedClusterId || ''}</MenuItem>
+            <MenuItem value="">ID: {store.selectedEraId || ''}</MenuItem>
           </Select>
         </FormControl>
 

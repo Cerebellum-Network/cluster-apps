@@ -1,13 +1,16 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { DacApi, EraDetail } from '@cluster-apps/api';
+import { DDC_CLUSTER_ID } from '~/constants.ts';
 
 export class PaymentsHistoryStore {
-  clusters: string[] = [];
-  selectedClusterId: string | null = null;
+  private dacApi = new DacApi();
+  private readonly clusterId: string = DDC_CLUSTER_ID;
+
+  eras: number[] = [];
+  selectedEraId: number | null = null;
   eraData: EraDetail[] = [];
   isLoading: boolean = false;
   error: string | null = null;
-  private dacApi = new DacApi();
 
   constructor() {
     makeAutoObservable(this);
@@ -19,15 +22,15 @@ export class PaymentsHistoryStore {
     this.error = null;
 
     try {
-      const clusters = await this.dacApi.getClusters();
+      const eras = await this.dacApi.getEras(this.clusterId);
 
       runInAction(() => {
-        this.clusters = clusters;
+        this.eras = eras;
 
         // Select first cluster by default if available
-        if (clusters.length > 0 && !this.selectedClusterId) {
-          this.selectedClusterId = clusters[0];
-          this.fetchClusterData(clusters[0]);
+        if (eras.length > 0 && !this.selectedEraId) {
+          this.selectedEraId = eras[0];
+          this.fetchEraData(this.clusterId);
         }
       });
     } catch (error) {
@@ -41,14 +44,14 @@ export class PaymentsHistoryStore {
     }
   }
 
-  async fetchClusterData(clusterId: string) {
+  async fetchEraData(clusterId: string) {
     if (!clusterId) return;
 
     this.isLoading = true;
     this.error = null;
 
     try {
-      const eraData = await this.dacApi.getAllErasDetails(clusterId);
+      const eraData = await this.dacApi.getAllErasDetails(this.clusterId);
 
       runInAction(() => {
         this.eraData = eraData;
@@ -64,9 +67,9 @@ export class PaymentsHistoryStore {
     }
   }
 
-  setSelectedCluster(clusterId: string) {
-    this.selectedClusterId = clusterId;
-    this.fetchClusterData(clusterId);
+  setSelectedEra(eraId: number) {
+    this.selectedEraId = eraId;
+    this.fetchEraData(this.clusterId);
   }
 }
 

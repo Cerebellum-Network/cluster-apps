@@ -91,20 +91,27 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
-              <TableRow key={row.era} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                <TableCell component="th" scope="row">
-                  {row.era}
-                </TableCell>
-                <TableCell>{formatDate(row.recordTime)}</TableCell>
-                <TableCell>{formatAmount(row.total_customer_charges)}</TableCell>
-                <TableCell>{formatBytes(row.total_puts_value)}</TableCell>
-                <TableCell>{formatBytes(row.total_traffic_value)}</TableCell>
-                <TableCell>
-                  <Chip label={row.status} color={getStatusColor(row.status)} size="small" />
-                </TableCell>
-              </TableRow>
-            ))}
+            {data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
+              const generateRandomValue = (min: number, max: number) =>
+                Math.floor(Math.random() * (max - min + 1)) + min;
+              const now = new Date();
+              const daysAgo = generateRandomValue(0, 30);
+              const recordTime = new Date(now.setDate(now.getDate() - daysAgo)); // @TODO replace with real date
+              return (
+                <TableRow key={row.era} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableCell component="th" scope="row">
+                    {row.era}
+                  </TableCell>
+                  <TableCell>{formatDate(recordTime)}</TableCell>
+                  <TableCell>{formatAmount(row.token_estimates?.total_customer_charges || 0)}</TableCell>
+                  <TableCell>{formatBytes(row.token_estimates?.total_puts_value || 0)}</TableCell>
+                  <TableCell>{formatBytes(row.token_estimates?.total_traffic_value || 0)}</TableCell>
+                  <TableCell>
+                    <Chip label={row.status} color={getStatusColor(row.status)} size="small" />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
