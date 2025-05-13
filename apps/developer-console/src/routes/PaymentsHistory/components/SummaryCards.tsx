@@ -1,8 +1,9 @@
 import { FC } from 'react';
-import { Box, Card, CardContent, Stack, Typography } from '@cluster-apps/ui';
+import { Grid, Box, Card, CardContent, Stack, Typography } from '@cluster-apps/ui';
 import { ArrowUpward, ArrowDownward } from '@mui/icons-material';
 import { observer } from 'mobx-react-lite';
 import { EraDetail } from '@cluster-apps/api';
+import { MoneyIcon, TrafficIcon, StorageIcon, PeriodIcon } from '~/assets/icons';
 
 interface SummaryCardsProps {
   data: EraDetail[];
@@ -46,17 +47,30 @@ const MetricCard: FC<{
               {value}
             </Typography>
           </Box>
-          {icon && <Box>{icon}</Box>}
+          {icon && (
+            <Box
+              sx={{
+                '& > svg': {
+                  width: '40px',
+                  height: '40px',
+                },
+              }}
+            >
+              {icon}
+            </Box>
+          )}
         </Stack>
 
         {change !== undefined && (
-          <Typography
-            variant="body2"
-            color={isPositive ? 'success.main' : 'error.main'}
-            sx={{ display: 'flex', alignItems: 'center', mt: 1 }}
-          >
-            {isPositive ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />}
-            {Math.abs(change).toFixed(2)}% Vs Last Period
+          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+            <Box
+              component="span"
+              sx={{ display: 'flex', alignItems: 'center', color: isPositive ? 'success.main' : 'error.main', mr: 0.5 }}
+            >
+              {isPositive ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />}
+              {Math.abs(change).toFixed(2)}%
+            </Box>
+            Vs Last Period
           </Typography>
         )}
       </CardContent>
@@ -65,7 +79,6 @@ const MetricCard: FC<{
 };
 
 const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
-  // Calculate total values
   const totalPayments = data.reduce((sum, item) => sum + (item.token_estimates?.total_customer_charges || 0), 0);
   const totalTraffic = data.reduce((sum, item) => sum + (item.token_estimates?.total_traffic_value || 0), 0);
   const totalStorage =
@@ -73,33 +86,48 @@ const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
       (sum, item) =>
         sum + ((item.token_estimates?.total_puts_value || 0) + (item.token_estimates?.total_gets_value || 0)),
       0,
-    ) / 2; // Approximation
+    ) / 2;
 
-  // Mock changes for demonstration
   const paymentChange = 12.5;
   const trafficChange = 8.2;
   const storageChange = -23.1;
   const costChange = -12.5;
 
   return (
-    <Stack direction="row" spacing={3} sx={{ mb: 4 }}>
-      <Box sx={{ flex: 1 }}>
-        <MetricCard title="Total Payments" value={`$${formatNumber(totalPayments / 100)}`} change={paymentChange} />
-      </Box>
-      <Box sx={{ flex: 1 }}>
-        <MetricCard title="Total Traffic" value={`${formatNumber(totalTraffic, true)}`} change={trafficChange} />
-      </Box>
-      <Box sx={{ flex: 1 }}>
-        <MetricCard title="Total Storage" value={`${formatNumber(totalStorage, true)}`} change={storageChange} />
-      </Box>
-      <Box sx={{ flex: 1 }}>
-        <MetricCard
-          title="Average Cost Per Period"
-          value={`$${formatNumber(totalPayments / (data.length || 1) / 100)}`}
-          change={costChange}
-        />
-      </Box>
-    </Stack>
+    <Grid container spacing={3} sx={{ mb: 4 }}>
+      {[
+        {
+          title: 'Total Payments',
+          value: `$${formatNumber(totalPayments / 100)}`,
+          change: paymentChange,
+          icon: <MoneyIcon width="40px" height="40px" />,
+        },
+        {
+          title: 'Total Traffic',
+          value: `${formatNumber(totalTraffic, true)}`,
+          change: trafficChange,
+          icon: <TrafficIcon />,
+        },
+        {
+          title: 'Total Storage',
+          value: `${formatNumber(totalStorage, true)}`,
+          change: storageChange,
+          icon: <StorageIcon />,
+        },
+        {
+          title: 'Average Cost Per Period',
+          value: `$${formatNumber(totalPayments / (data.length || 1) / 100)}`,
+          change: costChange,
+          icon: <PeriodIcon />,
+        },
+      ].map((item, index) => (
+        <Grid item xs={12} sm={6} md={6} xl={3} lg={6} key={index}>
+          <Box height="100%">
+            <MetricCard {...item} />
+          </Box>
+        </Grid>
+      ))}
+    </Grid>
   );
 };
 

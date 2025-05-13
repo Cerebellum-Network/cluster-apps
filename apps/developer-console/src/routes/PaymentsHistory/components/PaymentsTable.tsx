@@ -9,7 +9,6 @@ import {
   TableRow,
   Paper,
   Typography,
-  Stack,
 } from '@cluster-apps/ui';
 import { TablePagination, Chip } from '@mui/material';
 import { observer } from 'mobx-react-lite';
@@ -70,14 +69,9 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
 
   return (
     <Box>
-      <Typography variant="subtitle1" sx={{ mb: 2 }}>
+      <Typography variant="h3" sx={{ mb: 2 }}>
         Payments history
       </Typography>
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Frame
-        </Typography>
-      </Stack>
       <TableContainer component={Paper}>
         <Table sx={{ minWidth: 650 }} aria-label="payments history table">
           <TableHead>
