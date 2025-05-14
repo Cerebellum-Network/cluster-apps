@@ -36,7 +36,11 @@ export function firstTcaTimestampMsFromPaymentEraId(
   tcaEraDuration: number,
   paymentEraDuration: number,
 ): number {
-  const tcaEraId = tcaEraIdsFromPaymentEraId(paymentEraId, tcaEraDuration, paymentEraDuration)[0];
+  const tcaEraIds = tcaEraIdsFromPaymentEraId(paymentEraId, tcaEraDuration, paymentEraDuration);
+  if (tcaEraIds.length === 0) {
+    throw new Error('No TCA era IDs found for the given payment era ID');
+  }
+  const tcaEraId = tcaEraIds[0];
   return tcaEraId * tcaEraDuration;
 }
 

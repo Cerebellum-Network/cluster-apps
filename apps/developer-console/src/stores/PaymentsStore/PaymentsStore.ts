@@ -8,15 +8,23 @@ export class PaymentsHistoryStore {
   private indexerApi = new IndexerApi();
   private readonly clusterId: string = DDC_CLUSTER_ID;
 
+  // Current values
   eras: number[] = [];
-  selectedEraId: number | null = null;
   eraData: EraDetail[] = [];
   buckets: IndexedBucket[] = [];
-  selectedBucketId: string | null = null;
-  selectedPeriod: string = 'this_month';
   isLoading: boolean = false;
   error: string | null = null;
   accountId: string | null = null;
+
+  // Applied filter values
+  selectedEraId: number | null = null;
+  selectedBucketId: string | null = null;
+  selectedPeriod: string = 'this_month';
+
+  // Temporary filter values (buffer state)
+  tempSelectedEraId: number | null = null;
+  tempSelectedBucketId: string | null = null;
+  tempSelectedPeriod: string = 'this_month';
 
   constructor(private accountStore: AccountStore) {
     makeAutoObservable(this);
@@ -46,6 +54,7 @@ export class PaymentsHistoryStore {
         // Select first era by default if available
         if (eras.length > 0 && !this.selectedEraId) {
           this.selectedEraId = eras[0];
+          this.tempSelectedEraId = eras[0];
           this.fetchEraData();
         }
       });
@@ -66,7 +75,6 @@ export class PaymentsHistoryStore {
     this.error = null;
 
     try {
-      // Replace hardcoded account ID with actual authenticated user ID when available
       const account = await this.indexerApi.getAccount(this.accountId);
 
       runInAction(() => {
@@ -106,38 +114,85 @@ export class PaymentsHistoryStore {
     }
   }
 
+  // Methods for updating temporary filter values
+  setTempEra(eraId: number) {
+    this.tempSelectedEraId = eraId;
+  }
+
+  setTempBucket(bucketId: string | null) {
+    this.tempSelectedBucketId = bucketId;
+  }
+
+  setTempPeriod(period: string) {
+    this.tempSelectedPeriod = period;
+  }
+
+  // Apply filters and fetch data
+  applyFilters() {
+    let shouldFetch = false;
+
+    // Update only if values have changed
+    if (this.tempSelectedEraId !== this.selectedEraId) {
+      this.selectedEraId = this.tempSelectedEraId;
+      shouldFetch = true;
+    }
+
+    if (this.tempSelectedBucketId !== this.selectedBucketId) {
+      this.selectedBucketId = this.tempSelectedBucketId;
+      shouldFetch = true;
+    }
+
+    if (this.tempSelectedPeriod !== this.selectedPeriod) {
+      this.selectedPeriod = this.tempSelectedPeriod;
+      shouldFetch = true;
+    }
+
+    if (shouldFetch) {
+      this.fetchEraData();
+    }
+  }
+
+  // Legacy methods for backward compatibility
   setSelectedEra(eraId: number) {
-    this.selectedEraId = eraId;
-    this.fetchEraData();
+    this.setTempEra(eraId);
   }
 
   setSelectedBucket(bucketId: string | null) {
-    this.selectedBucketId = bucketId;
-    this.fetchEraData();
+    this.setTempBucket(bucketId);
   }
 
   setSelectedPeriod(period: string) {
-    this.selectedPeriod = period;
-    this.fetchEraData();
+    this.setTempPeriod(period);
   }
 
-  // Helper methods for filtering data based on selected bucket
+  // Helper methods for filtering data based on selected filters
   getFilteredEraData(): EraDetail[] {
-    if (!this.selectedBucketId) {
-      return this.eraData;
+    let filteredData = this.eraData;
+
+    // Filter by Era ID if selected
+    if (this.selectedEraId !== null) {
+      filteredData = filteredData.filter((era) => era.era === this.selectedEraId);
     }
 
-    // Filter data for selected bucket
-    // This is a placeholder - actual filtering logic will depend on your data structure
-    return this.eraData.map((era) => ({
-      ...era,
-      customers: {
-        [this.selectedBucketId!]: era.customers[this.selectedBucketId!] || {
-          gets: 0,
-          puts: 0,
-          transferredBytes: 0,
+    // If no data after era filtering, return empty array
+    if (filteredData.length === 0) {
+      return [];
+    }
+
+    // Filter by Bucket ID if selected
+    if (this.selectedBucketId) {
+      return filteredData.map((era) => ({
+        ...era,
+        customers: {
+          [this.selectedBucketId!]: era.customers[this.selectedBucketId!] || {
+            gets: 0,
+            puts: 0,
+            transferredBytes: 0,
+          },
         },
-      },
-    }));
+      }));
+    }
+
+    return filteredData;
   }
 }

@@ -15,10 +15,14 @@ const PaymentsHistory: FC = () => {
     };
   }, []);
 
-  // Get filtered data based on selected bucket
+  // Get filtered data based on selected filters
   const filteredData = toJS(store.getFilteredEraData());
+  // Get all era data for the table (unfiltered)
+  const allEraData = toJS(store.eraData);
 
-  console.log({ filteredData });
+  console.log('PaymentsHistory - Rendering with selected Era:', store.selectedEraId);
+  console.log('PaymentsHistory - Filtered data count:', filteredData.length);
+  console.log('PaymentsHistory - All era data count:', allEraData.length);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -40,8 +44,9 @@ const PaymentsHistory: FC = () => {
         </Alert>
       )}
 
-      {!store.isLoading && !store.error && filteredData.length > 0 && (
+      {!store.isLoading && !store.error && allEraData.length > 0 && (
         <>
+          {/* Always show cards and charts, even with empty filtered data */}
           <SummaryCards data={filteredData} />
 
           <Box display="flex" gap={3} sx={{ mb: 4 }}>
@@ -53,11 +58,12 @@ const PaymentsHistory: FC = () => {
             </Box>
           </Box>
 
-          <PaymentsTable data={filteredData} />
+          {/* Always show the full payment history table */}
+          <PaymentsTable data={allEraData} />
         </>
       )}
 
-      {!store.isLoading && !store.error && filteredData.length === 0 && (
+      {!store.isLoading && !store.error && allEraData.length === 0 && (
         <Box
           sx={{
             display: 'flex',

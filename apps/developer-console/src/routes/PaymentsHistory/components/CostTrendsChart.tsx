@@ -1,11 +1,11 @@
-import { FC, useMemo, useState } from 'react';
-import { Box, Card, Typography, Stack } from '@cluster-apps/ui';
+import { FC, useMemo } from 'react';
+import { Box, Card, Stack, Typography } from '@cluster-apps/ui';
 import { styled } from '@mui/material/styles';
 import { observer } from 'mobx-react-lite';
 import { EraDetail } from '@cluster-apps/api';
-import { AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area, ResponsiveContainer, Legend } from 'recharts';
-import { MenuItem, Select, FormControl, InputLabel, SelectChangeEvent } from '@mui/material';
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { firstTcaTimestampMsFromPaymentEraId } from '~/utils/era';
+import { usePaymentHistoryStore } from '~/hooks';
 
 interface CostTrendsChartProps {
   data: EraDetail[];
@@ -18,127 +18,142 @@ const ChartContainer = styled(Box)({
   paddingBottom: 8,
 });
 
-const PeriodOptions = [
-  { value: '30', label: 'Last 30 days' },
-  { value: '60', label: 'Last 60 days' },
-  { value: '90', label: 'Last 90 days' },
-];
-
 const formatDate = (timestamp: number) => {
   const date = new Date(timestamp);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const CostTrendsChart: FC<CostTrendsChartProps> = ({ data }) => {
-  const [period, setPeriod] = useState('30');
+// Convert period string to days for filtering
+const getPeriodDays = (periodValue: string): number => {
+  switch (periodValue) {
+    case 'this_month':
+      return 30;
+    case 'last_month':
+      return 60;
+    case 'last_3_months':
+      return 90;
+    case 'last_year':
+      return 365;
+    default:
+      return parseInt(periodValue, 10) || 30;
+  }
+};
 
-  const handlePeriodChange = (event: SelectChangeEvent) => {
-    setPeriod(event.target.value);
-  };
+// Generate empty chart data for visualization
+const generateEmptyChartData = () => {
+  const now = new Date();
+  const data = [];
+
+  // Create empty data points for the last 5 days
+  for (let i = 4; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    data.push({
+      name: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      timestamp: date.getTime(),
+      storage: 0,
+      traffic: 0,
+    });
+  }
+
+  return data;
+};
+
+const CostTrendsChart: FC<CostTrendsChartProps> = ({ data }) => {
+  const store = usePaymentHistoryStore();
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) {
-      return [];
+      console.log('CostTrendsChart - No data, generating empty chart');
+      return generateEmptyChartData();
     }
 
-    // Sort data by era ID (ascending)
-    const sortedData = [...data].sort((a, b) => a.era - b.era);
+    console.log('CostTrendsChart - Rendering with period:', store.selectedPeriod);
+    console.log('CostTrendsChart - Data count:', data.length);
 
-    return sortedData.map((item) => {
-      // Calculate timestamp from era ID
-      const tcaEraDuration = 60 * 1000; // 1 minute in milliseconds
-      const paymentEraDuration = 20 * 60 * 1000; // 20 minutes in milliseconds for devnet
-      const timestamp = firstTcaTimestampMsFromPaymentEraId(item.era, tcaEraDuration, paymentEraDuration);
+    const now = Date.now();
+    const days = getPeriodDays(store.selectedPeriod);
+    const startTimestamp = now - days * 24 * 60 * 60 * 1000;
 
-      // Calculate storage and traffic costs
-      const storageCost =
-        ((item.token_estimates?.total_puts_value || 0) + (item.token_estimates?.total_gets_value || 0)) / 200; // convert to dollars
-      const trafficCost = (item.token_estimates?.total_traffic_value || 0) / 100; // convert to dollars
+    const tcaEraDuration = 60 * 1000; // 1 minute in milliseconds
+    const paymentEraDuration = 20 * 60 * 1000; // 20 minutes in milliseconds for devnet
 
-      return {
-        name: formatDate(timestamp),
-        storage: storageCost,
-        traffic: trafficCost,
-        era: item.era,
-        timestamp: timestamp, // Keep timestamp for sorting if needed
-      };
-    });
-  }, [data]);
+    const transformed = data
+      .sort((a, b) => a.era - b.era)
+      .map((item) => {
+        const timestamp = firstTcaTimestampMsFromPaymentEraId(item.era, tcaEraDuration, paymentEraDuration);
+        return {
+          name: formatDate(timestamp),
+          timestamp,
+          era: item.era,
+          storage:
+            ((item.token_estimates?.total_puts_value || 0) + (item.token_estimates?.total_gets_value || 0)) / 200, // convert to dollars
+          traffic: (item.token_estimates?.total_traffic_value || 0) / 100, // convert to dollars
+        };
+      });
+
+    const filtered = transformed.filter((item) => item.timestamp >= startTimestamp);
+    console.log('CostTrendsChart - Filtered count:', filtered.length);
+
+    // If we have filtered out all data, return empty chart rather than nothing
+    return filtered.length > 0 ? filtered : generateEmptyChartData();
+  }, [data, store.selectedPeriod]);
+
+  const isEmpty = data.length === 0;
 
   return (
     <Card sx={{ p: 3, mb: 4 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="subtitle1">Cost Trends</Typography>
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel id="period-select">Last 30 days</InputLabel>
-          <Select
-            labelId="period-select"
-            value={period}
-            label="Last 30 days"
-            onChange={handlePeriodChange}
-            size="small"
-          >
-            {PeriodOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Typography variant="subtitle1" color={isEmpty ? 'text.disabled' : 'text.primary'}>
+          Cost Trends
+          {isEmpty && ' (No data for selected filters)'}
+        </Typography>
       </Stack>
 
-      {chartData.length > 0 ? (
-        <ChartContainer>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#82ca9d" stopOpacity={0.1} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" />
-              <YAxis tickFormatter={(value: number) => `$${value.toFixed(2)}`} domain={[0, 'auto']} />
-              <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, undefined]} />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="storage"
-                stroke="#8884d8"
-                fillOpacity={1}
-                fill="url(#colorStorage)"
-                name="Storage"
-              />
-              <Area
-                type="monotone"
-                dataKey="traffic"
-                stroke="#82ca9d"
-                fillOpacity={1}
-                fill="url(#colorTraffic)"
-                name="Traffic"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      ) : (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '300px',
-          }}
-        >
-          <Typography variant="body1" color="text.secondary">
-            No cost data available for the selected period
-          </Typography>
-        </Box>
-      )}
+      {/* Always show chart, even if empty */}
+      <ChartContainer>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorStorage" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#8884d8" stopOpacity={isEmpty ? 0.3 : 0.8} />
+                <stop offset="95%" stopColor="#8884d8" stopOpacity={isEmpty ? 0.05 : 0.1} />
+              </linearGradient>
+              <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#82ca9d" stopOpacity={isEmpty ? 0.3 : 0.8} />
+                <stop offset="95%" stopColor="#82ca9d" stopOpacity={isEmpty ? 0.05 : 0.1} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={isEmpty ? 0.5 : 1} />
+            <XAxis dataKey="name" opacity={isEmpty ? 0.5 : 1} />
+            <YAxis
+              tickFormatter={(value: number) => `$${value.toFixed(2)}`}
+              domain={[0, 'auto']}
+              opacity={isEmpty ? 0.5 : 1}
+            />
+            <Tooltip formatter={(value: number) => [`$${value.toFixed(2)}`, undefined]} />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="storage"
+              stroke="#8884d8"
+              strokeOpacity={isEmpty ? 0.5 : 1}
+              fillOpacity={1}
+              fill="url(#colorStorage)"
+              name="Storage"
+            />
+            <Area
+              type="monotone"
+              dataKey="traffic"
+              stroke="#82ca9d"
+              strokeOpacity={isEmpty ? 0.5 : 1}
+              fillOpacity={1}
+              fill="url(#colorTraffic)"
+              name="Traffic"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </ChartContainer>
     </Card>
   );
 };

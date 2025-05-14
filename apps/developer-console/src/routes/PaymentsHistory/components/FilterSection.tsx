@@ -17,19 +17,19 @@ const periods = [
 
 const FilterSection: FC<FilterSectionProps> = ({ store }) => {
   const handleEraChange = (event: SelectChangeEvent<string>) => {
-    store.setSelectedEra(parseInt(event.target.value));
+    store.setTempEra(parseInt(event.target.value));
   };
 
   const handlePeriodChange = (event: SelectChangeEvent<string>) => {
-    store.setSelectedPeriod(event.target.value);
+    store.setTempPeriod(event.target.value);
   };
 
   const handleBucketChange = (event: SelectChangeEvent<string>) => {
-    store.setSelectedBucket(event.target.value || null);
+    store.setTempBucket(event.target.value || null);
   };
 
   const applyFilters = () => {
-    store.fetchEraData();
+    store.applyFilters();
   };
 
   return (
@@ -39,7 +39,7 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
           <InputLabel id="era-select-label">Era</InputLabel>
           <Select
             labelId="era-select-label"
-            value={store.selectedEraId?.toString() || ''}
+            value={store.tempSelectedEraId?.toString() || ''}
             label="Era"
             onChange={handleEraChange}
           >
@@ -55,7 +55,7 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
           <InputLabel id="period-select-label">Period</InputLabel>
           <Select
             labelId="period-select-label"
-            value={store.selectedPeriod}
+            value={store.tempSelectedPeriod}
             label="Period"
             onChange={handlePeriodChange}
           >
@@ -71,7 +71,7 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
           <InputLabel id="bucket-select-label">Bucket</InputLabel>
           <Select
             labelId="bucket-select-label"
-            value={store.selectedBucketId || ''}
+            value={store.tempSelectedBucketId || ''}
             label="Bucket"
             onChange={handleBucketChange}
           >
