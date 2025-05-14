@@ -1,11 +1,12 @@
 import { observer } from 'mobx-react-lite';
+import { toJS } from 'mobx';
 import { FC, useEffect } from 'react';
 import { Box, Typography, CircularProgress, Alert } from '@cluster-apps/ui';
 import { FilterSection, SummaryCards, CostTrendsChart, UsageByBucket, PaymentsTable } from './components';
-import { paymentsHistoryStore } from './store';
+import { usePaymentHistoryStore } from '~/hooks';
 
 const PaymentsHistory: FC = () => {
-  const store = paymentsHistoryStore;
+  const store = usePaymentHistoryStore();
 
   useEffect(() => {
     // Initial data fetch is handled in the store constructor
@@ -13,6 +14,11 @@ const PaymentsHistory: FC = () => {
       // Cleanup if needed
     };
   }, []);
+
+  // Get filtered data based on selected bucket
+  const filteredData = toJS(store.getFilteredEraData());
+
+  console.log({ filteredData });
 
   return (
     <Box sx={{ p: 3 }}>
@@ -34,24 +40,24 @@ const PaymentsHistory: FC = () => {
         </Alert>
       )}
 
-      {!store.isLoading && !store.error && store.eraData.length > 0 && (
+      {!store.isLoading && !store.error && filteredData.length > 0 && (
         <>
-          <SummaryCards data={store.eraData} />
+          <SummaryCards data={filteredData} />
 
           <Box display="flex" gap={3} sx={{ mb: 4 }}>
             <Box flex={1}>
-              <CostTrendsChart data={store.eraData} />
+              <CostTrendsChart data={filteredData} />
             </Box>
             <Box flex={1}>
-              <UsageByBucket data={store.eraData} />
+              <UsageByBucket data={filteredData} />
             </Box>
           </Box>
 
-          <PaymentsTable data={store.eraData} />
+          <PaymentsTable data={filteredData} />
         </>
       )}
 
-      {!store.isLoading && !store.error && store.eraData.length === 0 && (
+      {!store.isLoading && !store.error && filteredData.length === 0 && (
         <Box
           sx={{
             display: 'flex',

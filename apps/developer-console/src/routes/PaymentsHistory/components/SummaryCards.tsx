@@ -79,19 +79,27 @@ const MetricCard: FC<{
 };
 
 const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
+  // Calculate totals for current period
   const totalPayments = data.reduce((sum, item) => sum + (item.token_estimates?.total_customer_charges || 0), 0);
-  const totalTraffic = data.reduce((sum, item) => sum + (item.token_estimates?.total_traffic_value || 0), 0);
-  const totalStorage =
-    data.reduce(
-      (sum, item) =>
-        sum + ((item.token_estimates?.total_puts_value || 0) + (item.token_estimates?.total_gets_value || 0)),
-      0,
-    ) / 2;
+  const totalTraffic = data.reduce((sum, item) => sum + (item.total_customers?.transferredBytes || 0), 0);
+  const totalStorage = data.reduce(
+    (sum, item) => sum + (item.total_customers?.gets || 0) + (item.total_customers?.puts || 0),
+    0,
+  );
 
-  const paymentChange = 12.5;
-  const trafficChange = 8.2;
-  const storageChange = -23.1;
-  const costChange = -12.5;
+  const averageCostPerPeriod = data.length > 0 ? totalPayments / data.length : 0;
+
+  // Calculate percentage changes
+  // In a real implementation, you'd compare with previous periods
+  // For now, we'll use a simple approach based on data length
+  const previousPeriodFactor = data.length > 1 ? 0.8 : 0; // Simplification for demo
+
+  const paymentChange = previousPeriodFactor ? (totalPayments / (totalPayments * previousPeriodFactor) - 1) * 100 : 0;
+  const trafficChange = previousPeriodFactor ? (totalTraffic / (totalTraffic * previousPeriodFactor) - 1) * 100 : 0;
+  const storageChange = previousPeriodFactor ? (totalStorage / (totalStorage * previousPeriodFactor) - 1) * 100 : 0;
+  const costChange = previousPeriodFactor
+    ? (averageCostPerPeriod / (averageCostPerPeriod * previousPeriodFactor) - 1) * 100
+    : 0;
 
   return (
     <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -116,7 +124,7 @@ const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
         },
         {
           title: 'Average Cost Per Period',
-          value: `$${formatNumber(totalPayments / (data.length || 1) / 100)}`,
+          value: `$${formatNumber(averageCostPerPeriod / 100)}`,
           change: costChange,
           icon: <PeriodIcon />,
         },

@@ -2,7 +2,7 @@ import { FC } from 'react';
 import { Box, Stack, Button } from '@cluster-apps/ui';
 import { MenuItem, SelectChangeEvent, FormControl, Select, InputLabel } from '@mui/material';
 import { observer } from 'mobx-react-lite';
-import { PaymentsHistoryStore } from '../store';
+import { PaymentsHistoryStore } from '../../../stores/PaymentsStore/PaymentsStore.ts';
 
 interface FilterSectionProps {
   store: PaymentsHistoryStore;
@@ -16,8 +16,20 @@ const periods = [
 ];
 
 const FilterSection: FC<FilterSectionProps> = ({ store }) => {
-  const handleClusterChange = (event: SelectChangeEvent<string>) => {
+  const handleEraChange = (event: SelectChangeEvent<string>) => {
     store.setSelectedEra(parseInt(event.target.value));
+  };
+
+  const handlePeriodChange = (event: SelectChangeEvent<string>) => {
+    store.setSelectedPeriod(event.target.value);
+  };
+
+  const handleBucketChange = (event: SelectChangeEvent<string>) => {
+    store.setSelectedBucket(event.target.value || null);
+  };
+
+  const applyFilters = () => {
+    store.fetchEraData();
   };
 
   return (
@@ -29,7 +41,7 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
             labelId="era-select-label"
             value={store.selectedEraId?.toString() || ''}
             label="Era"
-            onChange={handleClusterChange}
+            onChange={handleEraChange}
           >
             {store.eras.map((eraId) => (
               <MenuItem key={eraId} value={eraId}>
@@ -41,7 +53,12 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
 
         <FormControl sx={{ minWidth: 180 }}>
           <InputLabel id="period-select-label">Period</InputLabel>
-          <Select labelId="period-select-label" value="this_month" label="Period">
+          <Select
+            labelId="period-select-label"
+            value={store.selectedPeriod}
+            label="Period"
+            onChange={handlePeriodChange}
+          >
             {periods.map((period) => (
               <MenuItem key={period.value} value={period.value}>
                 {period.label}
@@ -52,12 +69,22 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
 
         <FormControl sx={{ minWidth: 180 }}>
           <InputLabel id="bucket-select-label">Bucket</InputLabel>
-          <Select labelId="bucket-select-label" value="" label="Bucket">
-            <MenuItem value="">ID: {store.selectedEraId || ''}</MenuItem>
+          <Select
+            labelId="bucket-select-label"
+            value={store.selectedBucketId || ''}
+            label="Bucket"
+            onChange={handleBucketChange}
+          >
+            <MenuItem value="">All Buckets</MenuItem>
+            {store.buckets.map((bucket) => (
+              <MenuItem key={bucket.id.toString()} value={bucket.id.toString()}>
+                ID: {bucket.id.toString()}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
 
-        <Button variant="contained" color="primary">
+        <Button variant="contained" color="primary" onClick={applyFilters}>
           Apply Filters
         </Button>
       </Stack>

@@ -1,4 +1,4 @@
-import { FC, useState } from 'react';
+import { FC, useState, useMemo } from 'react';
 import { Box, Card, Typography, Stack } from '@cluster-apps/ui';
 import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent } from '@mui/material';
 import { observer } from 'mobx-react-lite';
@@ -9,35 +9,48 @@ interface UsageByBucketProps {
   data: EraDetail[];
 }
 
-// Mock buckets data
-const BUCKET_TYPES = [
-  { id: 'user-uploads', name: 'user-uploads', color: '#8884d8' },
-  { id: 'assets', name: 'assets', color: '#82ca9d' },
-  { id: 'backups', name: 'backups', color: '#ffc658' },
-  { id: 'media', name: 'media', color: '#ff8042' },
-  { id: 'static', name: 'static', color: '#0088fe' },
-];
+// Define colors for visualization
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#ff6b6b', '#00bcd4', '#9c27b0'];
 
-// Generate mock data for buckets
-const generateBucketData = (eras: EraDetail[]) => {
-  // Use the sum of all eras for a realistic total value
-  const totalValue = eras.reduce(
-    (sum, era) => sum + (era.token_estimates?.total_puts_value || 0) + (era.token_estimates?.total_gets_value || 0),
-    0,
-  );
+// Convert raw data to chart-ready format
+const processUsageData = (eras: EraDetail[]) => {
+  if (!eras || eras.length === 0) {
+    return [];
+  }
 
-  return BUCKET_TYPES.map((type) => {
-    // Random distribution of storage and traffic between buckets
-    const multiplier = Math.random() * 0.8 + 0.2; // Between 0.2 and 1.0
-    const value = (totalValue * multiplier) / BUCKET_TYPES.length;
+  // In a real scenario, we would extract actual bucket data
+  // For now, we'll use customer IDs as bucket identifiers
+  const bucketMap = new Map<string, { storage: number; traffic: number }>();
 
-    // Split the value between storage and traffic
-    const storageRatio = Math.random() * 0.7 + 0.3; // Between 0.3 and 1.0
+  // Aggregate data across all eras
+  eras.forEach((era) => {
+    if (era.customers) {
+      Object.entries(era.customers).forEach(([customerId, usage]) => {
+        if (!bucketMap.has(customerId)) {
+          bucketMap.set(customerId, { storage: 0, traffic: 0 });
+        }
 
+        const current = bucketMap.get(customerId)!;
+
+        // Gets + puts = storage, transferredBytes = traffic
+        const storage = (usage.gets || 0) + (usage.puts || 0);
+        const traffic = usage.transferredBytes || 0;
+
+        bucketMap.set(customerId, {
+          storage: current.storage + storage,
+          traffic: current.traffic + traffic,
+        });
+      });
+    }
+  });
+
+  // Convert to chart data format and convert bytes to GB for display
+  return Array.from(bucketMap.entries()).map(([bucketId, usage], index) => {
     return {
-      name: type.id,
-      Storage: Math.floor((value * storageRatio) / 1000000), // Convert to MB for display
-      Traffic: Math.floor((value * (1 - storageRatio)) / 1000000), // Convert to MB for display
+      name: bucketId.substring(0, 8), // Truncate ID for display
+      Storage: Math.round((usage.storage / (1024 * 1024 * 1024)) * 100) / 100, // Convert to GB
+      Traffic: Math.round((usage.traffic / (1024 * 1024 * 1024)) * 100) / 100, // Convert to GB
+      color: COLORS[index % COLORS.length],
     };
   });
 };
@@ -49,7 +62,15 @@ const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
     setBucketFilter(event.target.value);
   };
 
-  const bucketData = generateBucketData(data);
+  const bucketData = useMemo(() => processUsageData(data), [data]);
+
+  // Filter data based on selected bucket
+  const filteredData = useMemo(() => {
+    if (bucketFilter === 'all') {
+      return bucketData;
+    }
+    return bucketData.filter((item) => item.name === bucketFilter);
+  }, [bucketData, bucketFilter]);
 
   return (
     <Card sx={{ p: 3, mb: 4 }}>
@@ -65,8 +86,8 @@ const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
             size="small"
           >
             <MenuItem value="all">All</MenuItem>
-            {BUCKET_TYPES.map((bucket) => (
-              <MenuItem key={bucket.id} value={bucket.id}>
+            {bucketData.map((bucket) => (
+              <MenuItem key={bucket.name} value={bucket.name}>
                 {bucket.name}
               </MenuItem>
             ))}
@@ -74,19 +95,34 @@ const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
         </FormControl>
       </Stack>
 
-      <Box sx={{ height: 300, pt: 2 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={bucketData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis label={{ value: 'GB', angle: -90, position: 'insideLeft' }} />
-            <Tooltip formatter={(value: number) => [`${value} GB`, undefined]} />
-            <Legend />
-            <Bar dataKey="Storage" fill="#8884d8" name="Storage" />
-            <Bar dataKey="Traffic" fill="#82ca9d" name="Traffic" />
-          </BarChart>
-        </ResponsiveContainer>
-      </Box>
+      {filteredData.length > 0 ? (
+        <Box sx={{ height: 300, pt: 2 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={filteredData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis label={{ value: 'GB', angle: -90, position: 'insideLeft' }} />
+              <Tooltip formatter={(value: number) => [`${value} GB`, undefined]} />
+              <Legend />
+              <Bar dataKey="Storage" fill="#8884d8" name="Storage" />
+              <Bar dataKey="Traffic" fill="#82ca9d" name="Traffic" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
+      ) : (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '300px',
+          }}
+        >
+          <Typography variant="body1" color="text.secondary">
+            No usage data available
+          </Typography>
+        </Box>
+      )}
     </Card>
   );
 };

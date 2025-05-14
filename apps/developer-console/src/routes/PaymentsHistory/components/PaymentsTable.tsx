@@ -13,6 +13,7 @@ import {
 import { TablePagination, Chip } from '@mui/material';
 import { observer } from 'mobx-react-lite';
 import { EraDetail } from '@cluster-apps/api';
+import { firstTcaTimestampMsFromPaymentEraId } from '~/utils/era';
 
 interface PaymentsTableProps {
   data: EraDetail[];
@@ -31,8 +32,13 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
     setPage(0);
   };
 
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('en-US', {
+  const formatDate = (eraId: number) => {
+    // Calculate timestamp from era ID using utility function
+    const tcaEraDuration = 60 * 1000; // 1 minute in milliseconds
+    const paymentEraDuration = 20 * 60 * 1000; // 20 minutes in milliseconds for devnet
+    const timestampMs = firstTcaTimestampMsFromPaymentEraId(eraId, tcaEraDuration, paymentEraDuration);
+
+    return new Date(timestampMs).toLocaleDateString('en-US', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -86,22 +92,22 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
           </TableHead>
           <TableBody>
             {data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
-              const generateRandomValue = (min: number, max: number) =>
-                Math.floor(Math.random() * (max - min + 1)) + min;
-              const now = new Date();
-              const daysAgo = generateRandomValue(0, 30);
-              const recordTime = new Date(now.setDate(now.getDate() - daysAgo)); // @TODO replace with real date
+              // All records in the table are considered paid
+              const status = 'paid';
+              const storage = row.total_customers?.puts || 0;
+              const traffic = row.total_customers?.transferredBytes || 0;
+
               return (
                 <TableRow key={row.era} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                   <TableCell component="th" scope="row">
                     {row.era}
                   </TableCell>
-                  <TableCell>{formatDate(recordTime)}</TableCell>
+                  <TableCell>{formatDate(row.era)}</TableCell>
                   <TableCell>{formatAmount(row.token_estimates?.total_customer_charges || 0)}</TableCell>
-                  <TableCell>{formatBytes(row.token_estimates?.total_puts_value || 0)}</TableCell>
-                  <TableCell>{formatBytes(row.token_estimates?.total_traffic_value || 0)}</TableCell>
+                  <TableCell>{formatBytes(storage)}</TableCell>
+                  <TableCell>{formatBytes(traffic)}</TableCell>
                   <TableCell>
-                    <Chip label={row.status} color={getStatusColor(row.status)} size="small" />
+                    <Chip label={status} color={getStatusColor(status)} size="small" />
                   </TableCell>
                 </TableRow>
               );
