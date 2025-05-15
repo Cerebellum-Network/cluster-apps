@@ -48,7 +48,7 @@ const FilterSection: FC<FilterSectionProps> = ({ store }) => {
     <Box sx={{ mb: 3 }}>
       <Stack direction="row" spacing={2} alignItems="center">
         {/* Bucket Selection (Multiple) */}
-        <FormControl sx={{ minWidth: 180, flex: 1 }}>
+        <FormControl sx={{ maxWidth: 300, flex: 1 }}>
           <InputLabel id="bucket-select-label">Bucket</InputLabel>
           <Select
             labelId="bucket-select-label"
