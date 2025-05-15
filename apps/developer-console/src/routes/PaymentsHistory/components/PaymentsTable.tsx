@@ -14,6 +14,7 @@ import { TablePagination, Chip } from '@mui/material';
 import { observer } from 'mobx-react-lite';
 import { EraDetail } from '@cluster-apps/api';
 import { firstTcaTimestampMsFromPaymentEraId } from '~/utils/era';
+import { usePaymentHistoryStore } from '~/hooks';
 
 interface PaymentsTableProps {
   data: EraDetail[];
@@ -22,6 +23,7 @@ interface PaymentsTableProps {
 const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const store = usePaymentHistoryStore();
 
   const handleChangePage = (_event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
     setPage(newPage);
@@ -46,7 +48,7 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
   };
 
   const formatAmount = (amount: number) => {
-    return `$${(amount / 100).toFixed(2)}`;
+    return `$${(amount / 100000).toFixed(2)}`;
   };
 
   const formatBytes = (bytes: number) => {
@@ -58,6 +60,10 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
       return `${(bytes / 1000).toFixed(1)} KB`;
     }
     return `${bytes} B`;
+  };
+
+  const formatOperations = (count: number) => {
+    return count.toLocaleString();
   };
 
   const getStatusColor = (status: string): 'success' | 'warning' | 'error' => {
@@ -73,10 +79,60 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
     }
   };
 
+  // Calculate total cost for selected buckets in a given era
+  const getSelectedBucketsCost = (era: EraDetail): number => {
+    let totalCost = 0;
+
+    if (era.token_estimates?.bucket_estimates && store.selectedBucketIds.length > 0) {
+      store.selectedBucketIds.forEach((bucketId) => {
+        if (bucketId in era.token_estimates.bucket_estimates) {
+          totalCost += era.token_estimates.bucket_estimates[bucketId].total_value || 0;
+        }
+      });
+    } else if (store.selectedBucketIds.length === 0) {
+      // If no buckets selected, show total cost
+      totalCost = era.token_estimates?.total_customer_charges || 0;
+    }
+
+    return totalCost;
+  };
+
+  // Calculate total operations and traffic for selected buckets
+  const getSelectedBucketsStats = (era: EraDetail): { operations: number; traffic: number } => {
+    let operations = 0;
+    let traffic = 0;
+
+    if (era.buckets && store.selectedBucketIds.length > 0) {
+      store.selectedBucketIds.forEach((bucketId) => {
+        if (bucketId in era.buckets) {
+          const bucketData = era.buckets[bucketId];
+          operations += (bucketData.gets || 0) + (bucketData.puts || 0);
+          traffic += bucketData.transferredBytes || 0;
+        }
+      });
+    } else if (store.selectedBucketIds.length === 0) {
+      // If no buckets selected, show totals
+      operations = (era.total_buckets?.gets || 0) + (era.total_buckets?.puts || 0);
+      traffic = era.total_buckets?.transferredBytes || 0;
+
+      if (operations === 0) {
+        operations = (era.total_customers?.gets || 0) + (era.total_customers?.puts || 0);
+      }
+      if (traffic === 0) {
+        traffic = era.total_customers?.transferredBytes || 0;
+      }
+    }
+
+    return { operations, traffic };
+  };
+
   return (
     <Box>
       <Typography variant="h3" sx={{ mb: 2 }}>
-        Payments history
+        Payments history{' '}
+        {store.selectedBucketIds.length > 0
+          ? `(${store.selectedBucketIds.length} bucket${store.selectedBucketIds.length > 1 ? 's' : ''})`
+          : '(All buckets)'}
       </Typography>
       <TableContainer component={Paper}>
         <Table sx={{ minWidth: 650 }} aria-label="payments history table">
@@ -85,7 +141,7 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
               <TableCell>Era ID</TableCell>
               <TableCell>Date</TableCell>
               <TableCell>Amount</TableCell>
-              <TableCell>Storage</TableCell>
+              <TableCell>Operations</TableCell>
               <TableCell>Traffic</TableCell>
               <TableCell>Status</TableCell>
             </TableRow>
@@ -94,8 +150,8 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
             {data.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
               // All records in the table are considered paid
               const status = 'paid';
-              const storage = row.total_customers?.puts || 0;
-              const traffic = row.total_customers?.transferredBytes || 0;
+              const cost = getSelectedBucketsCost(row);
+              const { operations, traffic } = getSelectedBucketsStats(row);
 
               return (
                 <TableRow key={row.era} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
@@ -103,8 +159,8 @@ const PaymentsTable: FC<PaymentsTableProps> = ({ data }) => {
                     {row.era}
                   </TableCell>
                   <TableCell>{formatDate(row.era)}</TableCell>
-                  <TableCell>{formatAmount(row.token_estimates?.total_customer_charges || 0)}</TableCell>
-                  <TableCell>{formatBytes(storage)}</TableCell>
+                  <TableCell>{formatAmount(cost)}</TableCell>
+                  <TableCell>{formatOperations(operations)}</TableCell>
                   <TableCell>{formatBytes(traffic)}</TableCell>
                   <TableCell>
                     <Chip label={status} color={getStatusColor(status)} size="small" />

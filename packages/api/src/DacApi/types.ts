@@ -1,25 +1,44 @@
-type WrapperResponseEhdUsageNumbers = {
+type UsageStats = {
   gets: number;
   puts: number;
   transferredBytes: number;
 };
 
+type TokenEstimate = {
+  gets_value: number;
+  puts_value: number;
+  total_value: number;
+  traffic_value: number;
+};
+
+type EstimatesGroup = {
+  [key: string]: TokenEstimate;
+};
+
+type TokenEstimates = {
+  bucket_estimates: EstimatesGroup;
+  customer_estimates: EstimatesGroup;
+  node_estimates: EstimatesGroup;
+  provider_estimates: EstimatesGroup;
+  total_customer_charges: number;
+  total_gets_value: number;
+  total_puts_value: number;
+  total_traffic_value: number;
+};
+
+type EntityGroup = {
+  [key: string]: UsageStats;
+};
+
 export interface EraDetail {
+  buckets: EntityGroup;
+  customers: EntityGroup;
+  phs_nodes_aggregates: EntityGroup;
+  providers: EntityGroup;
   era: number;
-
-  customers: Record<string, WrapperResponseEhdUsageNumbers>;
-
-  providers: Record<string, WrapperResponseEhdUsageNumbers>;
-
-  token_estimates: {
-    total_customer_charges: number;
-    total_gets_value: number;
-    total_puts_value: number;
-    total_traffic_value: number;
-  } | null;
-
-  total_customers: WrapperResponseEhdUsageNumbers;
-
-  total_providers: WrapperResponseEhdUsageNumbers;
-  status: 'paid' | 'pending' | 'failed';
+  token_estimates: TokenEstimates;
+  total_buckets: UsageStats;
+  total_customers: UsageStats;
+  total_nodes: UsageStats;
+  total_providers: UsageStats;
 }

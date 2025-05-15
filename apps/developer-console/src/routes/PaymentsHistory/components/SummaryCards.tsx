@@ -4,6 +4,7 @@ import { ArrowUpward, ArrowDownward, HorizontalRule } from '@mui/icons-material'
 import { observer } from 'mobx-react-lite';
 import { EraDetail } from '@cluster-apps/api';
 import { MoneyIcon, TrafficIcon, StorageIcon, PeriodIcon } from '~/assets/icons';
+import { usePaymentHistoryStore } from '~/hooks';
 
 interface SummaryCardsProps {
   data: EraDetail[];
@@ -100,34 +101,54 @@ const MetricCard: FC<{
 };
 
 const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
+  const store = usePaymentHistoryStore();
   const isEmpty = data.length === 0;
+  const era = data.length > 0 ? data[0] : null;
 
-  // Calculate totals for current period
-  const totalPayments = data.reduce((sum, item) => sum + (item.token_estimates?.total_customer_charges || 0), 0);
-  const totalTraffic = data.reduce((sum, item) => sum + (item.total_customers?.transferredBytes || 0), 0);
-  const totalStorage = data.reduce(
-    (sum, item) => sum + (item.total_customers?.gets || 0) + (item.total_customers?.puts || 0),
-    0,
-  );
+  // Calculate totals for selected buckets
+  let totalPayments = 0;
+  let totalTraffic = 0;
+  let totalStorage = 0;
 
-  const averageCostPerPeriod = data.length > 0 ? totalPayments / data.length : 0;
+  if (era && store.selectedBucketIds.length > 0) {
+    // Sum up values for all selected buckets
+    store.selectedBucketIds.forEach((bucketId) => {
+      // Add cost if available in token estimates
+      if (era.token_estimates?.bucket_estimates && bucketId in era.token_estimates.bucket_estimates) {
+        totalPayments += era.token_estimates.bucket_estimates[bucketId].total_value || 0;
+      }
 
-  // Calculate percentage changes only if we have data
-  const previousPeriodFactor = data.length > 1 ? 0.8 : 0; // Simplification for demo
+      // Add traffic and storage operations if bucket exists
+      if (era.buckets && bucketId in era.buckets) {
+        const bucketData = era.buckets[bucketId];
+        totalTraffic += bucketData.transferredBytes || 0;
+        totalStorage += (bucketData.gets || 0) + (bucketData.puts || 0);
+      }
+    });
+  } else if (era) {
+    // Fallback to total values if no buckets selected
+    totalPayments = era.token_estimates.total_customer_charges || 0;
+    totalTraffic = era.total_buckets?.transferredBytes || era.total_customers?.transferredBytes || 0;
+    totalStorage =
+      (era.total_buckets?.gets || 0) + (era.total_buckets?.puts || 0) ||
+      (era.total_customers?.gets || 0) + (era.total_customers?.puts || 0);
+  }
 
-  const paymentChange = previousPeriodFactor ? (totalPayments / (totalPayments * previousPeriodFactor) - 1) * 100 : 0;
-  const trafficChange = previousPeriodFactor ? (totalTraffic / (totalTraffic * previousPeriodFactor) - 1) * 100 : 0;
-  const storageChange = previousPeriodFactor ? (totalStorage / (totalStorage * previousPeriodFactor) - 1) * 100 : 0;
-  const costChange = previousPeriodFactor
-    ? (averageCostPerPeriod / (averageCostPerPeriod * previousPeriodFactor) - 1) * 100
-    : 0;
+  // Calculate cost per period (we're looking at a single era now)
+  const costPerPeriod = totalPayments;
+
+  // Dummy change values (could be improved with historical data)
+  const paymentChange = 5.2; // Example percentage change
+  const trafficChange = 3.8;
+  const storageChange = -1.2;
+  const costChange = 4.5;
 
   return (
     <Grid container spacing={3} sx={{ mb: 4 }}>
       {[
         {
           title: 'Total Payments',
-          value: isEmpty ? '$0.00' : `$${formatNumber(totalPayments / 100)}`,
+          value: isEmpty ? '$0.00' : `$${formatNumber(totalPayments / 100000)}`,
           change: paymentChange,
           icon: <MoneyIcon width="40px" height="40px" />,
           isEmpty,
@@ -140,15 +161,15 @@ const SummaryCards: FC<SummaryCardsProps> = ({ data }) => {
           isEmpty,
         },
         {
-          title: 'Total Storage',
-          value: isEmpty ? '0 Bytes' : `${formatNumber(totalStorage, true)}`,
+          title: 'Total Storage Operations',
+          value: isEmpty ? '0' : `${totalStorage}`,
           change: storageChange,
           icon: <StorageIcon />,
           isEmpty,
         },
         {
-          title: 'Average Cost Per Period',
-          value: isEmpty ? '$0.00' : `$${formatNumber(averageCostPerPeriod / 100)}`,
+          title: 'Cost This Period',
+          value: isEmpty ? '$0.00' : `$${formatNumber(costPerPeriod / 100000)}`,
           change: costChange,
           icon: <PeriodIcon />,
           isEmpty,

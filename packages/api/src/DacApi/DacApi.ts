@@ -1,4 +1,4 @@
-import { DAC_ENDPOINT } from '../constants.ts';
+import { DAC_API_VERSION, DAC_ENDPOINT } from '../constants.ts';
 import { EraDetail } from './types.ts';
 import axios from 'axios';
 
@@ -6,13 +6,13 @@ export class DacApi {
   private readonly baseUrl: string = `${DAC_ENDPOINT}/api`;
 
   async getEras(clusterId: string): Promise<number[]> {
-    const response = await axios.get(`${this.baseUrl}/cluster/${clusterId}/eras`);
-    return response.data.data;
+    const response = await axios.get(`${this.baseUrl}/cluster/${clusterId}/info`);
+    return response.data.completed_eras;
   }
 
   async getEraDetails(clusterId: string, eraId: number): Promise<EraDetail> {
     const response = await axios.get(`${this.baseUrl}/cluster/${clusterId}/era/${eraId}`);
-    return response.data.data;
+    return response.data[DAC_API_VERSION];
   }
 
   async getAllErasDetails(clusterId: string): Promise<EraDetail[]> {
