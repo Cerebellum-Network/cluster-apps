@@ -3,8 +3,10 @@ import { WalletAccount } from '@cere/embed-wallet';
 import { IndexerApi, StatsApi } from '@cluster-apps/api';
 
 import type { AccountStore } from './AccountStore';
-import type { AccountStatus, AccountMetrics } from './types';
+import type { AccountMetrics, AccountStatus } from './types';
 import { createPullResource } from './createPullResource';
+
+import { fetchAccountFromChain } from './fetchAccountFromChain'; // добавь путь к файлу с функцией
 
 export const createStatusResource = ({ wallet }: AccountStore) => {
   let unsubscribe = () => {};
@@ -75,5 +77,19 @@ export const createAccountMetricsResource = (account: AccountStore) => {
 export const createAccountResource = (account: AccountStore) => {
   const api = new IndexerApi();
 
-  return createPullResource(() => (!account.address ? undefined : api.getAccount(account.address)));
+  return createPullResource(async () => {
+    if (!account.address) return undefined;
+
+    try {
+      const indexerAccount = await api.getAccount(account.address);
+      if (indexerAccount.exists) {
+        return indexerAccount;
+      }
+
+      return await fetchAccountFromChain(account.address);
+    } catch (error) {
+      console.warn('Error loading account:', error);
+      return undefined;
+    }
+  });
 };

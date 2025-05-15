@@ -11,6 +11,7 @@ export type IndexedAccount = {
   balance: bigint;
   deposit: bigint;
   buckets: IndexedBucket[];
+  exists: boolean;
 };
 
 type AccountResult = {
@@ -40,11 +41,13 @@ const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccoun
         balance: BigInt(account.balance),
         deposit: BigInt(account.deposit),
         buckets: account.buckets.map(mapBucket),
+        exists: true,
       }
     : {
         balance: 0n,
         deposit: 0n,
         buckets: [],
+        exists: false,
       };
 
 const mapResultToDdcNodes = ({ data: { ddcNodes } }: DdcNodesResult) => (ddcNodes?.length > 0 ? ddcNodes : []);
