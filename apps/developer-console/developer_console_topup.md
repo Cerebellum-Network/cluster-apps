@@ -2,20 +2,31 @@
 
 ## Index
 
+### Project Overview
 - [Problem Statement](#problem-statement)
 - [Objective](#objective)
-- [Key Concepts/Keywords 📝](#key-conceptskewords-)
+- [Key Concepts/Keywords 📝](#key-conceptskeywords-)
 - [Overview](#overview)
+
+### Technical Architecture
 - [System Architecture](#system-architecture)
 - [User Flow](#user-flow)
   - [Step-by-Step Sequence](#step-by-step-sequence)
 - [Sequence Diagram](#sequence-diagram)
-- [User Interface](#user-interface)
 - [Data Flow](#data-flow)
+
+### Implementation Details
+- [User Interface](#user-interface)
+- [🌲Data Model / Endpoints](#data-model--endpoints)
 - [Security & Compliance](#security--compliance)
+
+### Development Guide
 - [Quick Start Guide 🚀](#quick-start-guide-)
+- [🥡 Contribution Guide](#-contribution-guide)
+
+### Project Management
 - [Deliverables](#deliverables)
-- [Acceptance Criteria](#acceptance-criteria)
+- [User Stories](#user-stories)
 
 ---
 
@@ -46,7 +57,7 @@ Enhance the **Developer Console UI** by integrating an IFRAME that allows users 
 
 ## Overview
 
-This document details the technical specification for topping up a DDC account via credit/debit card using the Cluster’s Developer Console.
+This document details the technical specification for topping up a DDC account via credit/debit card using the Cluster's Developer Console.
 
 ---
 
@@ -181,7 +192,7 @@ The top-up UI allows users to:
 
 ---
 
-## Acceptance Criteria
+## User Stories
 
 - **User Successfully Tops Up DDC Wallet via Credit/Debit Card**
   - User logs in, enters amount and card details, payment is processed, DDC balance increases, confirmation displayed, transaction recorded.
@@ -196,3 +207,155 @@ The top-up UI allows users to:
   - Users can add, remove, or update payment methods securely; changes are immediate and confirmed.
 
 ---
+
+## 🌲Data Model / Endpoints
+
+Flow for topping up a customer's DDC account, integrating payment and blockchain services, all managed within a cluster.
+
+---
+
+**Step-by-Step Flow:**
+
+1. **Customer Input:**
+    
+    The customer provides their card info, the amount (in fiat), and whether they want auto top-up.
+    
+2. **Dev Console:**
+    
+    Receives this data and forwards it, along with the customer's DDC Account ID, to the Customer Payment Service.
+    
+3. **Customer Payment Service:**
+    - Receives card info, amount, auto top-up flag, and DDC Account.
+    - Sends payment details to the Payment Provider (external service).
+    - Receives back a PaymentMethodId and OrderId.
+    - Stores these IDs in the database.
+    - If auto top-up is enabled or triggered, it sends a notification (with cluster account, DDC account, and top-up amount) to the Notification Service.
+4. **Notification Service:**
+    - Triggers auto top-up by sending the necessary details to the Customer Payment Service.
+5. **Ramp Service:**
+    - Receives cluster account, DDC account, and top-up amount from the Customer Payment Service.
+    - Prepares a blockchain transaction for the Cere Node.
+6. **Cere Node (Blockchain):**
+    - The Ramp Service calls the DDC-customer pallet's `deposit_for` extrinsic on the Cere blockchain.
+    - Inputs:
+    
+    ```jsx
+    - `cluster_id`: ClusterId
+    - `customer_ddc_account`: AccountId32
+    - `value`: u128
+    ```
+    
+    - Code Snippet
+    
+    ```jsx
+     // 2. Create keyring instance
+      const keyring = new Keyring({ type: 'sr25519' });
+      const signer = keyring.addFromMnemonic('your-mnemonic-phrase-here');
+    
+      // 3. Create transaction
+      const tx = api.tx.ddcCustomer.depositFor(
+        '5Fc9V6...',    // owner (AccountId)
+        42,             // cluster_id (u64)
+        1000000000000   // value (compact BalanceOf)
+      );
+    
+      // 4. Send transaction
+      const hash = await tx.signAndSend(signer);
+      console.log(`Transaction hash: ${hash}`);
+    ```
+    
+    - This extrinsic credits the customer's DDC account for the specified cluster and returns a transaction response.
+
+**Key Data Objects:**
+
+| Step | Data Fields |
+| --- | --- |
+| Customer → Dev Console | Card Info, Amount, Auto TopUp |
+| Dev Console → Payment Svc | Card Info, Amount, Auto TopUp, DDC Account |
+| Payment Svc → Payment Prov. | Card Info, Amount, Store Card, Receipt Address |
+| Payment Prov. → Payment Svc | PaymentMethodId, OrderId |
+| Payment Svc → Notification | Cluster Account, DDC Account, TopUp Amount |
+| Payment Svc → Ramp Service | Cluster Account, DDC Account, TopUp Amount |
+| Ramp Svc → Cere Node | Cluster Account, DDC Account, TopUp Amount |
+
+# 🥡 Contribution Guide
+
+To integrate the Top-Up component into the Developer Console UI, follow these structured steps for both the frontend and backend implementations:
+
+### **Frontend: Developer Console UI Integration**
+
+- **Branch Creation**
+    
+    Begin by creating a new branch from the development branch to isolate your Top-Up component changes.
+    
+- **Repository Setup**
+    
+    Clone the main project repository to your local environment:
+    
+    ```jsx
+    git clone https://github.com/Cerebellum-Network/cluster-apps.git
+    ```
+    
+- **Payment Provider Configuration**
+    - Register for a Stripe test account and generate test API keys as per [Stripe's documentation](https://docs.stripe.com/keys).
+    - Ensure these keys are stored securely and used exclusively in test mode.
+    - Clone the Developer Console UI repository and update the configuration files (e.g., `.env`) with your Stripe test keys to enable payment processing in a safe environment.
+- **Dependency Installation**
+    
+    Navigate to your project directory and install all required dependencies:
+    
+    ```jsx
+    npm install
+    ```
+    
+    or
+    
+    ```jsx
+    yarn install
+    ```
+    
+- **Local Development**
+    
+    Start the application locally:
+    
+    ```jsx
+    npm start
+    ```
+    
+    or
+    
+    ```jsx
+    yarn start
+    ```
+    
+    Access the Developer Console at `http://localhost:3000` and verify the Top-Up functionality using test payment methods.
+    
+
+### **Backend: Customer Payment Service (CPS) Implementation**
+
+- **Repository and Deployment**
+    
+    Clone follwing repository: 
+    
+    ```jsx
+    git clone https://github.com/Cerebellum-Network/customer-payment-service
+    ```
+    
+    Ensure the backend is containerized by providing a Docker image, enabling local testing and seamless deployment on Kubernetes clusters.
+    
+- **Key Backend Responsibilities**
+    - Securely initiate and manage payment flows (SetupIntent and PaymentIntent) with the payment provider (e.g., Stripe).
+    - Never store raw card data; instead, use payment method tokens or references provided by the payment gateway.
+    - Handle webhook events for asynchronous payment status updates and reconciliation.
+    - Support both one-time and recurring (auto top-up) payments using saved payment methods.
+
+**Testing and Validation**
+
+- Use the Developer Console UI to simulate top-up transactions with test cards.
+- Ensure all payment flows are executed securely and that sensitive card data is never exposed to the frontend or stored on your servers.
+- Validate that the backend correctly processes payments, updates DDC wallet balances, and manages payment method tokens for future transactions.
+
+**Deployment**
+
+- Provide clear documentation and Docker images to facilitate both local and production deployments.
+- Ensure environment variables and configuration steps are well-documented for smooth integration and scaling.
