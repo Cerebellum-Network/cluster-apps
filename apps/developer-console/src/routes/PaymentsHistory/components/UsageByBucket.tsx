@@ -3,6 +3,7 @@ import { Box, Card, Typography, Stack } from '@cluster-apps/ui';
 import { FormControl, InputLabel, MenuItem, Select, SelectChangeEvent, Chip, OutlinedInput } from '@mui/material';
 import { observer } from 'mobx-react-lite';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
 import { EraDetail, IndexedBucket } from '@cluster-apps/api';
 import { usePaymentHistoryStore } from '~/hooks';
 
@@ -10,7 +11,6 @@ interface UsageByBucketProps {
   data: EraDetail[];
 }
 
-// Define colors for visualization
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#ff6b6b', '#00bcd4', '#9c27b0'];
 
 const ITEM_HEIGHT = 48;
@@ -24,17 +24,13 @@ const MenuProps = {
   },
 };
 
-// Generate empty data for buckets when no real data
 const generateEmptyBucketData = (buckets: IndexedBucket[]) => {
-  if (!buckets || buckets.length === 0) {
-    return [];
-  }
-
+  if (!buckets?.length) return [];
   return buckets.slice(0, 5).map((bucket, index) => {
-    const bucketId = bucket.id.toString();
+    const idStr = bucket.id.toString();
     return {
-      id: bucketId,
-      name: `ID: ${bucketId.substring(0, 8)}`,
+      id: idStr,
+      name: `ID: ${idStr.slice(0, 8)}`,
       Storage: 0,
       Traffic: 0,
       Cost: 0,
@@ -43,71 +39,48 @@ const generateEmptyBucketData = (buckets: IndexedBucket[]) => {
   });
 };
 
-// Convert raw data to chart-ready format
 const processUsageData = (eras: EraDetail[], buckets: IndexedBucket[], selectedBucketIds: string[]) => {
-  if (!eras || eras.length === 0 || !buckets || buckets.length === 0) {
-    return generateEmptyBucketData(buckets);
-  }
+  if (!eras?.length || !buckets?.length) return generateEmptyBucketData(buckets);
 
-  // Current era data
   const era = eras[0];
-
-  // Use actual buckets for data
-  const bucketMap = new Map<string, { storage: number; traffic: number; cost: number; name: string }>();
-
-  // Only process buckets that are either in selectedBucketIds or all buckets if none selected
-  const bucketsToProcess =
+  const filteredBuckets =
     selectedBucketIds.length > 0 ? buckets.filter((b) => selectedBucketIds.includes(b.id.toString())) : buckets;
 
-  // Initialize map with bucket IDs
-  bucketsToProcess.forEach((bucket) => {
-    const bucketId = bucket.id.toString();
-    bucketMap.set(bucketId, {
-      storage: 0,
-      traffic: 0,
-      cost: 0,
-      name: `ID: ${bucketId.substring(0, 8)}`, // Truncate for display
-    });
+  const bucketMap = new Map<string, { storage: number; traffic: number; cost: number; name: string }>();
+  filteredBuckets.forEach((b) => {
+    const id = b.id.toString();
+    bucketMap.set(id, { storage: 0, traffic: 0, cost: 0, name: `ID: ${id.slice(0, 8)}` });
   });
 
-  // Process bucket data from the era
   if (era.buckets) {
     Object.entries(era.buckets).forEach(([bucketId, usage]) => {
-      // Skip if not a tracked bucket
       if (!bucketMap.has(bucketId)) return;
 
-      const current = bucketMap.get(bucketId)!;
-
-      // Gets + puts = storage operations, transferredBytes = traffic
+      const prev = bucketMap.get(bucketId)!;
       const storage = (usage.gets || 0) + (usage.puts || 0);
       const traffic = usage.transferredBytes || 0;
-
-      // Get cost from token estimates if available
       let cost = 0;
-      if (era.token_estimates?.bucket_estimates && bucketId in era.token_estimates.bucket_estimates) {
+      if (era.token_estimates?.bucket_estimates?.[bucketId]) {
         cost = era.token_estimates.bucket_estimates[bucketId].total_value || 0;
       }
 
       bucketMap.set(bucketId, {
-        ...current,
-        storage: storage,
-        traffic: traffic,
-        cost: cost,
+        storage,
+        traffic,
+        cost,
+        name: prev.name,
       });
     });
   }
 
-  // Convert to chart data format and normalize units for display
-  return Array.from(bucketMap.entries()).map(([bucketId, usage], index) => {
-    return {
-      id: bucketId,
-      name: usage.name,
-      Storage: usage.storage, // Storage operations count
-      Traffic: Math.round((usage.traffic / (1024 * 1024)) * 100) / 100, // Convert to MB
-      Cost: Math.round(usage.cost / 10000) / 100, // Convert to dollars
-      color: COLORS[index % COLORS.length],
-    };
-  });
+  return Array.from(bucketMap.entries()).map(([id, usage], index) => ({
+    id,
+    name: usage.name,
+    Storage: usage.storage,
+    Traffic: Math.round((usage.traffic / (1024 * 1024)) * 100) / 100,
+    Cost: Math.round(usage.cost / 10000) / 100,
+    color: COLORS[index % COLORS.length],
+  }));
 };
 
 const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
@@ -133,22 +106,21 @@ const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
     <Card sx={{ p: 3, mb: 4 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="subtitle1" color={isEmpty ? 'text.disabled' : 'text.primary'}>
-          Usage by Bucket
-          {isEmpty && ' (No data for selected filters)'}
+          Usage by Bucket{isEmpty && ' (No data for selected filters)'}
         </Typography>
+
         <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel id="chart-bucket-filter-label">Buckets</InputLabel>
+          <InputLabel id="bucket-filter-label">Buckets</InputLabel>
           <Select
-            labelId="chart-bucket-filter-label"
+            labelId="bucket-filter-label"
             multiple
             value={store.selectedBucketIds}
-            label="Buckets"
             onChange={handleBucketChange}
             input={<OutlinedInput label="Buckets" />}
             renderValue={(selected) => (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                 {selected.length > 0 ? (
-                  selected.map((value) => <Chip key={value} label={`ID: ${value.substring(0, 8)}`} size="small" />)
+                  selected.map((val) => <Chip key={val} label={`ID: ${val.slice(0, 8)}`} size="small" />)
                 ) : (
                   <Chip label="All" size="small" />
                 )}
@@ -160,7 +132,7 @@ const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
           >
             {store.buckets.map((bucket) => (
               <MenuItem key={bucket.id.toString()} value={bucket.id.toString()}>
-                ID: {bucket.id.toString().substring(0, 8)}...
+                ID: {bucket.id.toString().slice(0, 8)}...
               </MenuItem>
             ))}
           </Select>
@@ -175,10 +147,16 @@ const UsageByBucket: FC<UsageByBucketProps> = ({ data }) => {
             <YAxis label={{ value: 'Units', angle: -90, position: 'insideLeft' }} opacity={isEmpty ? 0.5 : 1} />
             <Tooltip
               formatter={(value: number, name: string) => {
-                if (name === 'Storage') return [`${value} ops`, name];
-                if (name === 'Traffic') return [`${value} MB`, name];
-                if (name === 'Cost') return [`$${value}`, name];
-                return [value, name];
+                switch (name) {
+                  case 'Storage':
+                    return [`${value} ops`, name];
+                  case 'Traffic':
+                    return [`${value} MB`, name];
+                  case 'Cost':
+                    return [`$${value}`, name];
+                  default:
+                    return [value, name];
+                }
               }}
             />
             <Legend />
