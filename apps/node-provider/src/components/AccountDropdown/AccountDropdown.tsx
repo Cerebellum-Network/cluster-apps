@@ -30,8 +30,6 @@ const AccountDropdown = () => {
 
   const handleClose = () => setOpen(false);
 
-  console.log(account);
-
   return (
     <Dropdown variant="header" open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
       <Stack spacing={2} width={240}>
