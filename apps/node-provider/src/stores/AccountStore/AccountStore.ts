@@ -227,7 +227,7 @@ export class AccountStore implements Account {
   async topUp(amount: number) {
     await this.bcReadyPromise;
 
-    await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
+    await this.ddc.depositBalance(DDC_CLUSTER_ID, BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
     this.accountResource = undefined;
     this.accountResource = createAccountResource(this);
 
