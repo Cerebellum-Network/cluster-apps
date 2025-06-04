@@ -124,13 +124,11 @@ export class IndexerApi {
                 id
                 blockTimestamp
                 amount
-                clusterId { id }
               }
               ddcCustomerCharges(orderBy: blockTimestamp_DESC, where: { clusterId: { id_eq: "${DDC_CLUSTER_ID}" } }) {
                 id
                 blockTimestamp
                 amount
-                clusterId { id }
               }
               ddcCustomerBalances(where: { clusterId: { id_eq: "${DDC_CLUSTER_ID}" } }) {
                 id
