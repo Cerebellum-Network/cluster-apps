@@ -1,5 +1,4 @@
 import { INDEXER_ENDPOINT } from '../constants';
-import { DDC_CLUSTER_ID } from '@cluster-apps/developer-console/src/constants.ts';
 
 export type IndexedBucket = {
   id: bigint;
@@ -53,6 +52,7 @@ type GraphQLBucket = {
 type GraphQLAccount = {
   id: string;
   cereFreeBalance: string;
+  ddcActiveBalance: string;
   ddcBuckets: GraphQLBucket[];
   ddcCustomerDeposits: IndexedDeposit[];
   ddcCustomerCharges: IndexedCharge[];
@@ -82,22 +82,28 @@ const mapBucket = (bucket: GraphQLBucket): IndexedBucket => ({
   storedBytes: 0, // TODO: get from actual usage
 });
 
-const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccount =>
-  account
-    ? {
-        buckets: account.ddcBuckets.map(mapBucket),
-        balance: BigInt(account.cereFreeBalance),
-        deposit:
-          sumBigInts(account.ddcCustomerDeposits?.map((d) => BigInt(d.amount))) -
-          sumBigInts(account.ddcCustomerCharges?.map((c) => BigInt(c.amount))),
-        charges: sumBigInts(account.ddcCustomerCharges?.map((c) => BigInt(c.amount))),
-      }
-    : {
-        balance: 0n,
-        deposit: 0n,
-        charges: 0n,
-        buckets: [],
-      };
+const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccount => {
+  if (!account) {
+    return {
+      balance: 0n,
+      deposit: 0n,
+      charges: 0n,
+      buckets: [],
+    };
+  }
+  const deposits = account.ddcCustomerDeposits ?? [];
+  const charges = account.ddcCustomerCharges ?? [];
+
+  const depositSum = sumBigInts(deposits.map((d) => BigInt(d.amount)));
+  const chargeSum = sumBigInts(charges.map((c) => BigInt(c.amount)));
+
+  return {
+    buckets: account.ddcBuckets.map(mapBucket),
+    balance: BigInt(account.cereFreeBalance),
+    deposit: BigInt(account.ddcActiveBalance) > 0n ? BigInt(account.ddcActiveBalance) : depositSum - chargeSum,
+    charges: chargeSum,
+  };
+};
 
 const mapResultToDdcNodes = ({ data: { ddcNodes } }: DdcNodesResult): IndexedDdcNode[] =>
   ddcNodes?.length > 0 ? ddcNodes : [];
@@ -114,23 +120,26 @@ export class IndexerApi {
             account: accountById(id: "${accountId}") {
               id
               cereFreeBalance
+              ddcActiveBalance
               ddcBuckets {
                 id
                 isPublic
                 isRemoved
                 clusterId { id }
               }
-              ddcCustomerDeposits(orderBy: blockTimestamp_DESC, where: { clusterId: { id_eq: "${DDC_CLUSTER_ID}" } }) {
+              ddcCustomerDeposits(orderBy: blockTimestamp_DESC) {
                 id
                 blockTimestamp
                 amount
+                clusterId { id }
               }
-              ddcCustomerCharges(orderBy: blockTimestamp_DESC, where: { clusterId: { id_eq: "${DDC_CLUSTER_ID}" } }) {
+              ddcCustomerCharges(orderBy: blockTimestamp_DESC) {
                 id
                 blockTimestamp
                 amount
+                clusterId { id }
               }
-              ddcCustomerBalances(where: { clusterId: { id_eq: "${DDC_CLUSTER_ID}" } }) {
+              ddcCustomerBalances {
                 id
                 activeBalance
                 clusterId { id }
@@ -145,6 +154,78 @@ export class IndexerApi {
     });
 
     return response.json().then(mapResultToAccount);
+  }
+
+  async getAccountForCluster(accountId: string, clusterId: string) {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        query: `
+          query {
+            account: accountById(id: "${accountId}") {
+              id
+              cereFreeBalance
+              ddcActiveBalance
+              ddcBuckets(where: { clusterId: { id_eq: "${clusterId}" } }) {
+                id
+                isPublic
+                isRemoved
+                clusterId { id }
+              }
+              ddcCustomerDeposits(orderBy: blockTimestamp_DESC, where: { clusterId: { id_eq: "${clusterId}" } }) {
+                id
+                blockTimestamp
+                amount
+                clusterId { id }
+              }
+              ddcCustomerCharges(orderBy: blockTimestamp_DESC, where: { clusterId: { id_eq: "${clusterId}" } }) {
+                id
+                blockTimestamp
+                amount
+                clusterId { id }
+              }
+              ddcCustomerBalances(where: { clusterId: { id_eq: "${clusterId}" } }) {
+                id
+                activeBalance
+                clusterId { id }
+              }
+            }
+          }
+        `,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.json().then(mapResultToAccount);
+  }
+
+  async getClusterBalances(clusterId: string, limit = 10) {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        query: `
+          query {
+            ddcCustomerBalances(
+              where: { clusterId: { id_eq: "${clusterId}" } }
+              limit: ${limit}
+              orderBy: activeBalance_DESC
+            ) {
+              id
+              activeBalance
+              accountId { id }
+              clusterId { id }
+            }
+          }
+        `,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.json();
   }
 
   async getDdcNodes(accountId: string) {
@@ -165,6 +246,60 @@ export class IndexerApi {
     });
 
     return response.json().then(mapResultToDdcNodes);
+  }
+
+  async getAllCustomerDeposits(accountId: string, limit = 100) {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        query: `
+          query {
+            ddcCustomerDeposits(
+              where: { accountId: { id_eq: "${accountId}" } }
+              limit: ${limit}
+              orderBy: blockTimestamp_DESC
+            ) {
+              id
+              blockTimestamp
+              amount
+              clusterId { id }
+            }
+          }
+        `,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.json();
+  }
+
+  async getAllCustomerCharges(accountId: string, limit = 100) {
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      body: JSON.stringify({
+        query: `
+          query {
+            ddcCustomerCharges(
+              where: { accountId: { id_eq: "${accountId}" } }
+              limit: ${limit}
+              orderBy: blockTimestamp_DESC
+            ) {
+              id
+              blockTimestamp
+              amount
+              clusterId { id }
+            }
+          }
+        `,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.json();
   }
 
   async getCustomerDeposits(accountId: string, limit = 10) {
