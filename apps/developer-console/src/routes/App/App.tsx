@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useMatch } from 'react-router-dom';
 import { Box, LoadingAnimation, Paper, styled } from '@cluster-apps/ui';
 
 import { useAppStore } from '~/hooks';
@@ -16,9 +16,21 @@ const Loading = styled(LoadingAnimation)({
 const App = () => {
   const appStore = useAppStore();
 
+  const isOnLogin = !!useMatch('/login');
+  const isLoggedIn = appStore.accountStore.isReady();
+  const isReady = appStore.isReady;
+
   useEffect(() => {
     appStore.init();
   }, [appStore]);
+
+  if (isReady && !isOnLogin && !isLoggedIn) {
+    return <Navigate to="/login" />;
+  }
+
+  if (isReady && isOnLogin && isLoggedIn) {
+    return <Navigate to="/" />;
+  }
 
   if (appStore.isReady) {
     return <Outlet />;
