@@ -4,6 +4,10 @@
 
 -
 
+### [Developer Console] v0.18.0
+
+- Migrated from Global ledger to per-cluster ledgers
+
 ### [Developer Console] v0.17.0
 
 - Replace hints with react-tour
