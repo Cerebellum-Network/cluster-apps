@@ -7,6 +7,7 @@
 ### [Developer Console] v0.18.0
 
 - Migrated from Global ledger to per-cluster ledgers
+- Fixed bug with ddcCustomers deposits
 
 ### [Developer Console] v0.17.0
 
