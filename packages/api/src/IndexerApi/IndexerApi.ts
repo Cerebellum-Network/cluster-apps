@@ -93,7 +93,15 @@ const mapResultToAccount = ({ data: { account } }: AccountResult, clusterId?: st
   }
 
   const filterByCluster = <T extends { clusterId?: { id: string } }>(arr: T[]) => {
-    return clusterId ? arr.filter((i) => i.clusterId?.id === clusterId) : arr;
+    if (!clusterId) return arr;
+
+    return arr.filter((i) => {
+      const matches = i.clusterId?.id.toLowerCase() === clusterId.toLowerCase();
+      if (!matches) {
+        console.warn(`Cluster mismatch: expected ${clusterId}, got ${i.clusterId?.id}`);
+      }
+      return matches;
+    });
   };
 
   const deposits = filterByCluster(account.ddcCustomerDeposits ?? []);
@@ -317,5 +325,9 @@ export class IndexerApi {
     });
 
     return response.json();
+  }
+
+  getAccountForCluster(accountId: string, clusterId: string) {
+    return this.getAccount(accountId, clusterId);
   }
 }
