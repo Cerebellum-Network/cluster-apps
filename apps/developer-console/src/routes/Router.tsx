@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, RouteObject, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouteObject, RouterProvider, Route, Routes } from 'react-router-dom';
 
 import applications, { Application } from '~/applications';
 
@@ -8,6 +8,10 @@ import { Home } from './Home';
 import { Login } from './Login';
 import { OnboardingRoot } from './OnboardingRoot';
 import { TopUp } from './TopUp';
+import { TopUpWithCard } from './TopUpWithCard';
+import { Success } from './Success/Success';
+import { Cancel } from './Cancel/Cancel';
+import DepositFromWallet from './DepositFromWallet/DepositFromWallet';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
@@ -38,6 +42,22 @@ const router = createBrowserRouter([
           {
             path: 'top-up',
             Component: TopUp,
+          },
+          {
+            path: 'top-up-card',
+            Component: TopUpWithCard,
+          },
+          {
+            path: 'success',
+            Component: Success,
+          },
+          {
+            path: 'cancel',
+            Component: Cancel,
+          },
+          {
+            path: 'deposit-from-wallet',
+            Component: DepositFromWallet,
           },
           ...applications.map(mapAppToRoute),
         ],
