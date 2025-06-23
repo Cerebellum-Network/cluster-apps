@@ -66,11 +66,12 @@ export class PaymentsHistoryStore {
         this.allErasDetails = allErasDetails;
 
         // Default to first bucket if available
-        if (this.buckets.length > 0 && this.selectedBucketIds.length === 0) {
-          this.selectedBucketIds = [this.buckets[0].id.toString()];
-          this.tempSelectedBucketIds = [this.buckets[0].id.toString()];
-          this.updateFilteredEras();
-        }
+        // @TODO uncomment this
+        // if (this.buckets.length > 0 && this.selectedBucketIds.length === 0) {
+        //   this.selectedBucketIds = [this.buckets[0].id.toString()];
+        //   this.tempSelectedBucketIds = [this.buckets[0].id.toString()];
+        //   this.updateFilteredEras();
+        // }
       });
     } catch (error) {
       runInAction(() => {
@@ -89,16 +90,34 @@ export class PaymentsHistoryStore {
     this.error = null;
 
     try {
-      const account = await this.indexerApi.getAccount(this.accountId);
+      // @TODO uncomment this
+      // const account = await this.indexerApi.getAccount(this.accountId);
 
       runInAction(() => {
-        this.buckets = account.buckets;
+        // @TODO delete
+        this.buckets = [
+          {
+            id: BigInt(573456),
+            isPublic: true,
+            isRemoved: false,
+            storedBytes: 0,
+          },
+          {
+            id: BigInt(573457),
+            isPublic: true,
+            isRemoved: false,
+            storedBytes: 0,
+          },
+        ];
+        // @TODO uncomment this
+        // this.buckets = account.buckets;
 
         // Default to first bucket
-        if (account.buckets.length > 0) {
-          this.selectedBucketIds = [account.buckets[0].id.toString()];
-          this.tempSelectedBucketIds = [account.buckets[0].id.toString()];
-        }
+        // @TODO uncomment this
+        // if (account.buckets.length > 0) {
+        //   this.selectedBucketIds = [account.buckets[0].id.toString()];
+        //   this.tempSelectedBucketIds = [account.buckets[0].id.toString()];
+        // }
 
         // Now that we have buckets, fetch all other data
         this.fetchAllData();
