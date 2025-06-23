@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Divider,
-  LoadingButton,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-} from '@cluster-apps/ui';
+import { Divider, LoadingButton, Paper, Stack, TextField, Typography, Card, CardContent, Grid } from '@cluster-apps/ui';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
 import { useAccount } from '~/hooks';
@@ -80,6 +70,7 @@ export const TopUpWithCard = () => {
         body: JSON.stringify({
           amount: Math.round(parseFloat(usdAmount) * 100), // Convert to cents
           account_id: account.address,
+          origin: window.location.origin, // Send the origin to determine redirect URLs
         }),
       });
 
@@ -119,8 +110,8 @@ export const TopUpWithCard = () => {
             {isPriceLoading
               ? 'Fetching live rate...'
               : cerePrice
-              ? `1 CERE ≈ $${cerePrice.toFixed(4)} USD`
-              : 'Rate unavailable'}
+                ? `1 CERE ≈ $${cerePrice.toFixed(4)} USD`
+                : 'Rate unavailable'}
           </Typography>
         </Divider>
 
@@ -196,4 +187,4 @@ export const TopUpWithCard = () => {
   );
 };
 
-export default TopUpWithCard; 
+export default TopUpWithCard;
