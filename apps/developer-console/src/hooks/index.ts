@@ -6,3 +6,4 @@ export * from './useAccount';
 export * from './useFetchDirs';
 export * from './use-email-compaign-service';
 export * from './usePaymentHistoryStore';
+export * from './useActivityStore';
