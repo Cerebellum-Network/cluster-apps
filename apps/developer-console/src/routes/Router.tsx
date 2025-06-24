@@ -9,6 +9,8 @@ import { Login } from './Login';
 import { OnboardingRoot } from './OnboardingRoot';
 import { TopUp } from './TopUp';
 import { TopUpWithCard } from './TopUpWithCard';
+import { AutoTopUp } from './AutoTopUp';
+import { AutoTopUpSettings } from './AutoTopUpSettings';
 import { Success } from './Success/Success';
 import { Cancel } from './Cancel/Cancel';
 import DepositFromWallet from './DepositFromWallet/DepositFromWallet';
@@ -46,6 +48,14 @@ const router = createBrowserRouter([
           {
             path: 'top-up-card',
             Component: TopUpWithCard,
+          },
+          {
+            path: 'auto-top-up',
+            Component: AutoTopUp,
+          },
+          {
+            path: 'auto-top-up-settings',
+            Component: AutoTopUpSettings,
           },
           {
             path: 'success',

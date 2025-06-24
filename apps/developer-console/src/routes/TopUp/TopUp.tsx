@@ -23,13 +23,22 @@ const CereIcon = () => (
   </svg>
 );
 
+const AutoTopUpIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+      fill="#6577E8"
+    />
+  </svg>
+);
+
 const TopUp = () => {
   return (
     <Stack spacing={3} sx={{ px: 4 }}>
       <Typography variant="h4">Top Up Your Account</Typography>
       <Grid container spacing={4}>
         {/* Option 1: Pay with Card */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Paper
             component={Link}
             to="/top-up-card"
@@ -49,7 +58,7 @@ const TopUp = () => {
             <Stack spacing={2}>
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <PayWithCardIcon />
-                <Typography variant="h6">Pay with Card</Typography>
+                <Typography variant="subtitle1">Pay with Card</Typography>
               </Stack>
               <Typography color="text.secondary">
                 The easiest way to get started. Instantly top up your balance with a credit or debit card.
@@ -62,7 +71,7 @@ const TopUp = () => {
         </Grid>
 
         {/* Option 2: Deposit CERE */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={4}>
           <Paper
             component={Link}
             to="/deposit-from-wallet"
@@ -82,7 +91,7 @@ const TopUp = () => {
             <Stack spacing={2}>
               <Stack direction="row" spacing={1.5} alignItems="center">
                 <CereIcon />
-                <Typography variant="h6">Deposit CERE</Typography>
+                <Typography variant="subtitle1">Deposit CERE</Typography>
               </Stack>
               <Typography color="text.secondary">
                 Already have CERE tokens? Deposit them directly from your wallet to your DDC account.
@@ -90,6 +99,39 @@ const TopUp = () => {
             </Stack>
             <Button variant="contained" size="large" sx={{ mt: 3, '&:hover': { textDecoration: 'none' } }}>
               Deposit Now
+            </Button>
+          </Paper>
+        </Grid>
+
+        {/* Option 3: Auto Top-Up */}
+        <Grid item xs={12} md={4}>
+          <Paper
+            component={Link}
+            to="/auto-top-up"
+            sx={{
+              p: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              justifyContent: 'space-between',
+              textDecoration: 'none',
+              color: 'inherit',
+              '&:hover': {
+                boxShadow: 6,
+              },
+            }}
+          >
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <AutoTopUpIcon />
+                <Typography variant="subtitle1">Auto Top-Up</Typography>
+              </Stack>
+              <Typography color="text.secondary">
+                Set up automatic top-ups to ensure your account always has sufficient balance. Charges from your DDC Account.
+              </Typography>
+            </Stack>
+            <Button variant="contained" size="large" sx={{ mt: 3, '&:hover': { textDecoration: 'none' } }}>
+              Set Up Auto Top-Up
             </Button>
           </Paper>
         </Grid>
