@@ -1,6 +1,7 @@
 import { makeAutoObservable } from 'mobx';
 import { fromPromise, IPromiseBasedObservable } from 'mobx-utils';
 import { DacApi } from '@cluster-apps/api';
+import { DDC_CLUSTER_ID } from '~/constants.ts';
 
 export interface CustomerActivity {
   customerId: string;
@@ -45,7 +46,7 @@ export class ActivityStore {
     return this.activityPromise?.state === 'pending';
   }
 
-  async fetchCustomerActivity(_customerId: string, clusterId: string = '0x825c4b2352850de9986d9d28568db6f0c023a1e3') {
+  async fetchCustomerActivity(_customerId: string, clusterId: string = DDC_CLUSTER_ID) {
     try {
       // Use the provided customer id
       this.activityPromise = fromPromise(this.loadCustomerActivity(_customerId, clusterId));
@@ -55,19 +56,13 @@ export class ActivityStore {
     }
   }
 
-  private async fetchGovernanceParams(clusterId: string) {
-    const response = await fetch(`https://dac.stage.chainswarm.org/api/cluster/${clusterId}/info`);
-    const data = await response.json();
-    return data.governance_params;
-  }
-
   private async loadCustomerActivity(customerId: string, clusterId: string): Promise<CustomerActivity> {
     const eraIds = await this.dacApi.getEras(clusterId);
     // Only fetch the most recent eras (limit to 10 for performance)
     const recentEraIds = eraIds.slice(-10);
 
     // Fetch governance params once
-    const governanceParams = await this.fetchGovernanceParams(clusterId);
+    const governanceParams = await this.dacApi.getGovernanceParams(clusterId);
     const unitPerGet = governanceParams.unit_per_get_request;
     const unitPerPut = governanceParams.unit_per_put_request;
     const unitPerMbStreamed = governanceParams.unit_per_mb_streamed;

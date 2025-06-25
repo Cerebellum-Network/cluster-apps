@@ -29,4 +29,10 @@ export class DacApi {
     const erasDetailsPromises = recentEras.map((eraId) => this.getEraDetails(clusterId, eraId));
     return Promise.all(erasDetailsPromises);
   }
+
+  async getGovernanceParams(clusterId: string) {
+    const response = await fetch(`https://dac.stage.chainswarm.org/api/cluster/${clusterId}/info`);
+    const data = await response.json();
+    return data.governance_params;
+  }
 }
