@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Typography, Box, Card, CardContent, Grid, CircularProgress, Alert, Dialog, DialogTitle, DialogContent, IconButton, DialogActions, Button } from '@cluster-apps/ui';
+import {
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  Grid,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  DialogActions,
+  Button,
+} from '@cluster-apps/ui';
 import { Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { useActivityStore, useAccount } from '~/hooks';
 import CloseIcon from '@mui/icons-material/Close';
@@ -14,7 +28,6 @@ type EraDetailType = CustomerActivity['eraDetails'][number];
 function ActivityCapture() {
   const activityStore = useActivityStore();
   const account = useAccount();
-  const [customerId, setCustomerId] = useState('');
   const [selectedEra, setSelectedEra] = useState<EraDetailType | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('7days');
@@ -31,39 +44,49 @@ function ActivityCapture() {
     { value: '30days', label: 'Last 30 Days' },
     { value: '90days', label: 'Last 90 Days' },
     { value: '6months', label: 'Last 6 Months' },
-    { value: '1year', label: 'Last 1 year' }
+    { value: '1year', label: 'Last 1 year' },
   ];
 
   const getTimeRangeInMs = (filter: string) => {
     const now = Date.now();
     switch (filter) {
-      case '15min': return now - (15 * 60 * 1000);
-      case '1hour': return now - (60 * 60 * 1000);
-      case '2hours': return now - (2 * 60 * 60 * 1000);
-      case '6hours': return now - (6 * 60 * 60 * 1000);
-      case '12hours': return now - (12 * 60 * 60 * 1000);
-      case '24hours': return now - (24 * 60 * 60 * 1000);
-      case '2days': return now - (2 * 24 * 60 * 60 * 1000);
-      case '7days': return now - (7 * 24 * 60 * 60 * 1000);
-      case '30days': return now - (30 * 24 * 60 * 60 * 1000);
-      case '90days': return now - (90 * 24 * 60 * 60 * 1000);
-      case '6months': return now - (182 * 24 * 60 * 60 * 1000); // Approximate 6 months as 182 days
-      case '1year': return now - (365 * 24 * 60 * 60 * 1000);
-      default: return now - (7 * 24 * 60 * 60 * 1000);
+      case '15min':
+        return now - 15 * 60 * 1000;
+      case '1hour':
+        return now - 60 * 60 * 1000;
+      case '2hours':
+        return now - 2 * 60 * 60 * 1000;
+      case '6hours':
+        return now - 6 * 60 * 60 * 1000;
+      case '12hours':
+        return now - 12 * 60 * 60 * 1000;
+      case '24hours':
+        return now - 24 * 60 * 60 * 1000;
+      case '2days':
+        return now - 2 * 24 * 60 * 60 * 1000;
+      case '7days':
+        return now - 7 * 24 * 60 * 60 * 1000;
+      case '30days':
+        return now - 30 * 24 * 60 * 60 * 1000;
+      case '90days':
+        return now - 90 * 24 * 60 * 60 * 1000;
+      case '6months':
+        return now - 182 * 24 * 60 * 60 * 1000; // Approximate 6 months as 182 days
+      case '1year':
+        return now - 365 * 24 * 60 * 60 * 1000;
+      default:
+        return now - 7 * 24 * 60 * 60 * 1000;
     }
   };
 
-  const getEraFromTimestamp = (timestamp: number) => {
-    return Math.floor(timestamp / 3600000);
-  };
+  const filteredEraDetails =
+    activityStore.activity?.eraDetails.filter((era) => {
+      const eraTimestamp = era.eraId * 3600000;
+      const cutoffTime = getTimeRangeInMs(timeFilter);
+      return eraTimestamp >= cutoffTime;
+    }) || [];
 
-  const filteredEraDetails = activityStore.activity?.eraDetails.filter(era => {
-    const eraTimestamp = era.eraId * 3600000;
-    const cutoffTime = getTimeRangeInMs(timeFilter);
-    return eraTimestamp >= cutoffTime;
-  }) || [];
-
-  const graphData = filteredEraDetails.map(era => ({
+  const graphData = filteredEraDetails.map((era) => ({
     timestamp: new Date(era.eraId * 3600000).toLocaleString(),
     gets: era.gets,
     puts: era.puts,
@@ -71,20 +94,22 @@ function ActivityCapture() {
     getsValue: (era.getsValue / 10000000000).toFixed(10),
     putsValue: (era.putsValue / 10000000000).toFixed(10),
     trafficValue: (era.trafficValue / 10000000000).toFixed(10),
-    totalValue: (era.totalValue / 10000000000).toFixed(10)
+    totalValue: (era.totalValue / 10000000000).toFixed(10),
   }));
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <Box sx={{
-          backgroundColor: 'white',
-          border: '1px solid #ccc',
-          borderRadius: 1,
-          p: 2,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-        }}>
+        <Box
+          sx={{
+            backgroundColor: 'white',
+            border: '1px solid #ccc',
+            borderRadius: 1,
+            p: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          }}
+        >
           <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
             {label}
           </Typography>
@@ -120,33 +145,22 @@ function ActivityCapture() {
 
   useEffect(() => {
     if (account.address) {
-      setCustomerId(account.address);
       activityStore.fetchCustomerActivity(account.address);
     }
   }, [account.address, activityStore]);
 
   const activity = activityStore.activity;
 
-  const formatBytes = (bytes: number) => {
-    return bytes.toLocaleString() + ' Bytes';
-  };
-
-  const handleEraClick = (era: EraDetailType) => {
-    setSelectedEra(era);
-    setModalOpen(true);
-  };
-
   const handleModalClose = () => {
     setModalOpen(false);
     setSelectedEra(null);
   };
 
-  const allZero = filteredEraDetails.length === 0 || filteredEraDetails.every(era =>
-    era.gets === 0 &&
-    era.puts === 0 &&
-    era.transferredBytes === 0 &&
-    era.totalValue === 0
-  );
+  const allZero =
+    filteredEraDetails.length === 0 ||
+    filteredEraDetails.every(
+      (era) => era.gets === 0 && era.puts === 0 && era.transferredBytes === 0 && era.totalValue === 0,
+    );
 
   if (activityStore.isLoading) {
     return (
@@ -157,11 +171,7 @@ function ActivityCapture() {
   }
 
   if (!activity) {
-    return (
-      <Alert severity="info">
-        No activity data found for your account
-      </Alert>
-    );
+    return <Alert severity="info">No activity data found for your account</Alert>;
   }
 
   return (
@@ -202,16 +212,18 @@ function ActivityCapture() {
       </Grid>
 
       {/* Time Filter */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        mb: 3,
-        p: 2,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 1,
-        border: '1px solid #e9ecef'
-      }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+          p: 2,
+          backgroundColor: '#f8f9fa',
+          borderRadius: 1,
+          border: '1px solid #e9ecef',
+        }}
+      >
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#495057' }}>
           Filter Activity Data
         </Typography>
@@ -297,7 +309,10 @@ function ActivityCapture() {
                     Total Amount (Charged in CERE)
                   </Typography>
                   <Typography variant="h4" fontWeight="bold">
-                    {(filteredEraDetails.reduce((sum, era) => sum + era.totalValue, 0) / 10000000000).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                    {(filteredEraDetails.reduce((sum, era) => sum + era.totalValue, 0) / 10000000000).toLocaleString(
+                      undefined,
+                      { maximumFractionDigits: 6 },
+                    )}
                   </Typography>
                 </CardContent>
               </Card>
@@ -311,10 +326,7 @@ function ActivityCapture() {
             <CardContent>
               <Box sx={{ height: 480, p: 1 }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={graphData}
-                    margin={{ top: 30, right: 60, left: 10, bottom: 60 }}
-                  >
+                  <BarChart data={graphData} margin={{ top: 30, right: 60, left: 10, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                     <XAxis
                       dataKey="timestamp"
@@ -344,7 +356,7 @@ function ActivityCapture() {
                         position: 'insideRight',
                         fill: '#ff9800',
                         fontWeight: 700,
-                        dx: 30
+                        dx: 30,
                       }}
                       axisLine={{ stroke: '#ff9800', strokeWidth: 2 }}
                       tickLine={{ stroke: '#ff9800', strokeWidth: 2 }}
@@ -364,13 +376,15 @@ function ActivityCapture() {
 
       {/* Modal for Era Details */}
       <Dialog open={modalOpen} onClose={handleModalClose} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          backgroundColor: '#f5f5f5',
-          borderBottom: '1px solid #e0e0e0'
-        }}>
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#f5f5f5',
+            borderBottom: '1px solid #e0e0e0',
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               Era {selectedEra?.eraId} Details
@@ -379,12 +393,12 @@ function ActivityCapture() {
           <IconButton
             aria-label="close"
             onClick={handleModalClose}
-            sx={{ 
+            sx={{
               color: '#666',
-              '&:hover': { 
+              '&:hover': {
                 backgroundColor: '#e0e0e0',
-                color: '#333'
-              }
+                color: '#333',
+              },
             }}
           >
             <CloseIcon />
@@ -396,14 +410,16 @@ function ActivityCapture() {
               <Typography variant="h4" gutterBottom sx={{ color: '#1976d2', mb: 2 }}>
                 Activity Summary
               </Typography>
-              
+
               <Box sx={{ display: 'grid', gap: 2, mb: 3 }}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #e0e0e0', 
-                  borderRadius: 1,
-                  backgroundColor: '#fafafa'
-                }}>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    backgroundColor: '#fafafa',
+                  }}
+                >
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Gets
                   </Typography>
@@ -411,13 +427,15 @@ function ActivityCapture() {
                     {selectedEra.gets.toLocaleString()}
                   </Typography>
                 </Box>
-                
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #e0e0e0', 
-                  borderRadius: 1,
-                  backgroundColor: '#fafafa'
-                }}>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    backgroundColor: '#fafafa',
+                  }}
+                >
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Puts
                   </Typography>
@@ -425,13 +443,15 @@ function ActivityCapture() {
                     {selectedEra.puts.toLocaleString()}
                   </Typography>
                 </Box>
-                
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #e0e0e0', 
-                  borderRadius: 1,
-                  backgroundColor: '#fafafa'
-                }}>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    backgroundColor: '#fafafa',
+                  }}
+                >
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Transferred Bytes
                   </Typography>
@@ -444,14 +464,16 @@ function ActivityCapture() {
               <Typography variant="h4" gutterBottom sx={{ color: '#1976d2', mb: 2 }}>
                 Cost Breakdown (CERE)
               </Typography>
-              
+
               <Box sx={{ display: 'grid', gap: 2 }}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #4caf50', 
-                  borderRadius: 1,
-                  backgroundColor: '#f1f8e9'
-                }}>
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '1px solid #4caf50',
+                    borderRadius: 1,
+                    backgroundColor: '#f1f8e9',
+                  }}
+                >
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Gets Value
                   </Typography>
@@ -459,13 +481,15 @@ function ActivityCapture() {
                     {(selectedEra.getsValue / 10000000000).toFixed(10)}
                   </Typography>
                 </Box>
-                
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #ff9800', 
-                  borderRadius: 1,
-                  backgroundColor: '#fff3e0'
-                }}>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '1px solid #ff9800',
+                    borderRadius: 1,
+                    backgroundColor: '#fff3e0',
+                  }}
+                >
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Puts Value
                   </Typography>
@@ -473,13 +497,15 @@ function ActivityCapture() {
                     {(selectedEra.putsValue / 10000000000).toFixed(10)}
                   </Typography>
                 </Box>
-                
-                <Box sx={{ 
-                  p: 2, 
-                  border: '1px solid #2196f3', 
-                  borderRadius: 1,
-                  backgroundColor: '#e3f2fd'
-                }}>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    border: '1px solid #2196f3',
+                    borderRadius: 1,
+                    backgroundColor: '#e3f2fd',
+                  }}
+                >
                   <Typography variant="subtitle2" color="textSecondary" gutterBottom>
                     Traffic Value
                   </Typography>
@@ -492,12 +518,12 @@ function ActivityCapture() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2, backgroundColor: '#f5f5f5' }}>
-          <Button 
+          <Button
             onClick={handleModalClose}
             variant="contained"
-            sx={{ 
+            sx={{
               backgroundColor: '#1976d2',
-              '&:hover': { backgroundColor: '#1565c0' }
+              '&:hover': { backgroundColor: '#1565c0' },
             }}
           >
             Close
