@@ -36,7 +36,7 @@ const ContentDelivery = () => {
   const [isSaving, setSaving] = useState(false);
   const [bucketId, setBucketId] = useState<bigint>();
   const [access, setAccess] = useState<BucketAccessProps['value']>();
-  const currentBucket = account.buckets.find((bucket) => bucket.id === bucketId) || account.buckets.at(0);
+  const currentBucket = account.buckets.find((bucket) => bucket.id === bucketId) || account.buckets[0];
   const currentBucketAccess = access || (currentBucket?.isPublic ? 'public' : 'private');
 
   const handleSaveAccess = useCallback(async () => {
