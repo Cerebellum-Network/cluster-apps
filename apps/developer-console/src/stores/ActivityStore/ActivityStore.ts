@@ -26,7 +26,6 @@ export interface CustomerActivity {
 export class ActivityStore {
   private dacApi = new DacApi();
   private activityPromise?: IPromiseBasedObservable<CustomerActivity>;
-  private MOCK_CUSTOMER_ID = "0x9c1df13add435bdecc1db08f39c509dfdfbb3074d25b2192928bda88149cb66d";
 
   constructor() {
     makeAutoObservable(this);
@@ -48,8 +47,8 @@ export class ActivityStore {
 
   async fetchCustomerActivity(_customerId: string, clusterId: string = '0x825c4b2352850de9986d9d28568db6f0c023a1e3') {
     try {
-      // Always use the mock customer id
-      this.activityPromise = fromPromise(this.loadCustomerActivity(this.MOCK_CUSTOMER_ID, clusterId));
+      // Use the provided customer id
+      this.activityPromise = fromPromise(this.loadCustomerActivity(_customerId, clusterId));
     } catch (error) {
       console.error('Error fetching customer activity:', error);
       throw error;
