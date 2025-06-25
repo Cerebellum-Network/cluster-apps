@@ -31,6 +31,7 @@ export async function fetchAccountFromChain(address: string): Promise<IndexedAcc
       balance: balance.free.toBigInt(),
       deposit,
       buckets: [],
+      charges: 0n,
       exists: true,
     };
   } catch (error) {

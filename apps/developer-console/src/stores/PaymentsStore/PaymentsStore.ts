@@ -1,11 +1,10 @@
 import { makeAutoObservable, reaction, runInAction } from 'mobx';
-import { DacApi, EraDetail, IndexerApi, IndexedBucket } from '@cluster-apps/api';
+import { DacApi, EraDetail, IndexedBucket } from '@cluster-apps/api';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { AccountStore } from '~/stores';
 
 export class PaymentsHistoryStore {
   private dacApi = new DacApi();
-  private indexerApi = new IndexerApi();
   private readonly clusterId: string = DDC_CLUSTER_ID;
 
   // Current values
