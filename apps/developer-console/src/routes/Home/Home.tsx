@@ -4,7 +4,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 
 import { AnalyticsId } from '@cluster-apps/analytics';
 import { Application } from '~/applications';
-import { HomeLayout, Navigation, Sidebar } from '~/components';
+import { HomeLayout, Navigation } from '~/components';
 import { useAccountStore } from '~/hooks';
 import { DISCORD_LINK } from '~/constants.ts';
 import { useApplicationTour } from '~/components/ApplicationTour';
@@ -48,7 +48,6 @@ const Home = ({ apps }: HomeProps) => {
           }
         />
       }
-      leftElement={<Sidebar />}
       headerRight={<DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
     >
       {account.isReady() ? (

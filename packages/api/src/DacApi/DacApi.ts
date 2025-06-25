@@ -15,6 +15,11 @@ export class DacApi {
     return response.data[DAC_API_VERSION];
   }
 
+  async getCustomerEraDetails(clusterId: string, eraId: number, customerId: string): Promise<EraDetail> {
+    const response = await axios.get(`${this.baseUrl}/cluster/${clusterId}/era/${eraId}/customer/${customerId}`);
+    return response.data[DAC_API_VERSION];
+  }
+
   async getAllErasDetails(clusterId: string): Promise<EraDetail[]> {
     const eras = await this.getEras(clusterId);
 
