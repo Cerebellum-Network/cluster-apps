@@ -2,6 +2,7 @@ import { fromResource } from 'mobx-utils';
 import { WalletAccount } from '@cere/embed-wallet';
 import { IndexerApi, StatsApi } from '@cluster-apps/api';
 
+import { DDC_CLUSTER_ID } from '~/constants';
 import type { AccountStore } from './AccountStore';
 import type { AccountMetrics, AccountStatus } from './types';
 import { createPullResource } from './createPullResource';
@@ -92,4 +93,12 @@ export const createAccountResource = (account: AccountStore) => {
       return undefined;
     }
   });
+};
+
+export const createClusterAccountResource = (account: AccountStore) => {
+  const api = new IndexerApi();
+
+  return createPullResource(() =>
+    !account.address ? undefined : api.getAccountForCluster(account.address, DDC_CLUSTER_ID),
+  );
 };
