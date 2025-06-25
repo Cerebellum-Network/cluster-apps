@@ -49,9 +49,7 @@ const NetworkTopology = () => {
               </TableHead>
               <TableBody>
                 <TableRow>
-                  {account.ddcNodes?.map(({ id }) => (
-                    <TableCell>{id}</TableCell>
-                  ))}
+                  {account.ddcNodes?.map(({ id }) => <TableCell>{id}</TableCell>)}
                   <TableCell>{DDC_CLUSTER_ID}</TableCell>
                   <TableCell>Approved</TableCell>
                   <TableCell />
