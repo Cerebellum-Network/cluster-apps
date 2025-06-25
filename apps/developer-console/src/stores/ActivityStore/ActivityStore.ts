@@ -3,22 +3,6 @@ import { fromPromise, IPromiseBasedObservable } from 'mobx-utils';
 import { DacApi } from '@cluster-apps/api';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 
-// Function to convert encoded customer ID to raw wallet address
-function decodeCustomerId(encodedId: string): string {
-  // If it's already a wallet address format, return as is
-  if (encodedId.startsWith('0x')) {
-    return encodedId;
-  }
-  
-  // For now, we'll use a simple mapping for the known conversion
-  // In a production environment, you'd want to implement proper base58 decoding
-  const knownConversions: Record<string, string> = {
-    '6TneJd8CZN3PYK5b7TSrBdKpcKvo6GiHqjuJvynqppaFSyT2': '0xbd2963e8502b918b1d2d1ce74b4c382631cd4b60c0ffc97e178f16eae742d3bc'
-  };
-  
-  return knownConversions[encodedId] || encodedId;
-}
-
 export interface CustomerActivity {
   customerId: string;
   totalGets: number;
@@ -64,11 +48,8 @@ export class ActivityStore {
 
   async fetchCustomerActivity(_customerId: string, clusterId: string = DDC_CLUSTER_ID) {
     try {
-      // Convert the encoded customer ID to raw wallet address format
-      const decodedCustomerId = decodeCustomerId(_customerId);
-      console.log('Converting customer ID:', _customerId, 'to:', decodedCustomerId);
       // Use the provided customer id
-      this.activityPromise = fromPromise(this.loadCustomerActivity(decodedCustomerId, clusterId));
+      this.activityPromise = fromPromise(this.loadCustomerActivity(_customerId, clusterId));
     } catch (error) {
       console.error('Error fetching customer activity:', error);
       throw error;
