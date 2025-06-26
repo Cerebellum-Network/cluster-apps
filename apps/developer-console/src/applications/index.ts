@@ -4,7 +4,7 @@ import contentDelivery from './ContentDelivery';
 import activityCapture from './ActivityCapture';
 import contentStorage from './ContentStorage';
 
-const applications: Application[] = [contentStorage, contentDelivery, activityCapture];
+const applications: Application[] = [activityCapture, contentStorage, contentDelivery];
 
 export * from './types';
 

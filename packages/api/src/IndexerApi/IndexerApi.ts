@@ -12,6 +12,7 @@ export type IndexedAccount = {
   deposit: bigint;
   charges: bigint;
   buckets: IndexedBucket[];
+  exists: boolean;
 };
 
 export type IndexedDeposit = {
@@ -89,6 +90,7 @@ const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccoun
       deposit: 0n,
       charges: 0n,
       buckets: [],
+      exists: false,
     };
   }
   const deposits = account.ddcCustomerDeposits ?? [];
@@ -102,6 +104,7 @@ const mapResultToAccount = ({ data: { account } }: AccountResult): IndexedAccoun
     balance: BigInt(account.cereFreeBalance),
     deposit: BigInt(account.ddcActiveBalance) > 0n ? BigInt(account.ddcActiveBalance) : depositSum - chargeSum,
     charges: chargeSum,
+    exists: true,
   };
 };
 
