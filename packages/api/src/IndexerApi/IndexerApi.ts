@@ -60,51 +60,6 @@ type GraphQLAccount = {
   ddcCustomerBalances: IndexedBalance[];
 };
 
-export type IndexedDeposit = {
-  id: string;
-  blockTimestamp: string;
-  amount: string;
-  clusterId?: {
-    id: string;
-  };
-};
-
-export type IndexedCharge = {
-  id: string;
-  blockTimestamp: string;
-  amount: string;
-  clusterId?: {
-    id: string;
-  };
-};
-
-export type IndexedBalance = {
-  id: string;
-  activeBalance: string;
-  clusterId?: {
-    id: string;
-  };
-};
-
-type GraphQLBucket = {
-  id: string;
-  isPublic: boolean;
-  isRemoved: boolean;
-  clusterId?: {
-    id: string;
-  };
-};
-
-type GraphQLAccount = {
-  id: string;
-  cereFreeBalance: string;
-  ddcActiveBalance: string;
-  ddcBuckets: GraphQLBucket[];
-  ddcCustomerDeposits: IndexedDeposit[];
-  ddcCustomerCharges: IndexedCharge[];
-  ddcCustomerBalances: IndexedBalance[];
-};
-
 type AccountResult = {
   data: {
     account: GraphQLAccount | null;
