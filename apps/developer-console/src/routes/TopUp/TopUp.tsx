@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Paper, Stack, Typography, Grid, Button } from '@cluster-apps/ui';
+import TopUpHistory from '../TopUpHistory';
 
 const PayWithCardIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -136,6 +137,9 @@ const TopUp = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* TopUp History Section */}
+      <TopUpHistory />
     </Stack>
   );
 };
