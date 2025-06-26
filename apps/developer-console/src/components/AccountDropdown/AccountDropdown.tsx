@@ -70,6 +70,11 @@ const AccountDropdown = () => {
           <CardHeader avatar={<InfoOutlinedIcon />} title="DDC Wallet" />
           <CardContent>
             <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
+            {account.clusterDeposit !== undefined && account.clusterDeposit !== account.deposit && (
+              <Typography variant="body2" color="text.secondary">
+                Cluster balance: {account.clusterDeposit} CERE
+              </Typography>
+            )}
           </CardContent>
           <CardActions>
             <Button component={NavLink} fullWidth variant="outlined" to="/top-up" onClick={handleClose}>

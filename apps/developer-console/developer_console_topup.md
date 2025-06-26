@@ -1,330 +1,361 @@
-# Developer Console USDC / Fiat Onboarding Idea 🚀
+# Dev Console Top-Up RFP
 
-This document outlines the details of the program, including its objectives, challenges, proposed solutions, deliverables, and resources. Below is the index for easy navigation:
+## Index
 
----
+### Project Overview
+- [Problem Statement](#problem-statement)
+- [Objective](#objective)
+- [Key Concepts/Keywords 📝](#key-conceptskeywords-)
+- [Overview](#overview)
 
-## 📚 Index
-1. [Introduction](#introduction)
-2. [Objective](#objective-)
-3. [Key Concepts/Keywords](#key-conceptskeywords-)
-4. [Existing System and Challenges](#existing-system-and-challenges-)
-5. [Top-Up DDC Account Manually (Exercise)](#top-up-ddc-account-manually-exercise-)
-6. [Deliverables](#deliverables-)
-7. [Resources](#resources-)
-8. [Quick Start Guide](#quick-start-guide-)
+### Technical Architecture
+- [System Architecture](#system-architecture)
+- [User Flow](#user-flow)
+  - [Step-by-Step Sequence](#step-by-step-sequence)
+- [Sequence Diagram](#sequence-diagram)
+- [Data Flow](#data-flow)
 
----
+### Implementation Details
+- [User Interface](#user-interface)
+- [🌲Data Model / Endpoints](#data-model--endpoints)
+- [Security & Compliance](#security--compliance)
 
-## **Introduction** 🌟
-Using Cere Network's Decentralized Data Cluster (DDC) infrastructure requires the user to convert CERE tokens into DDC Credits. These credits are essential to pay for storage, data retrival and computations.
-To top up a DDC accounts, the user must first add CERE tokens to their wallet. If they do not have CERE tokens, they need to purchase or swap them through external services. These extra steps can create friction in the user onboarding process.
+### Development Guide
+- [Quick Start Guide 🚀](#quick-start-guide-)
+- [🥡 Contribution Guide](#-contribution-guide)
 
-The goal for this RFP is to create a solution that makes the process seamless by enabling users to directly top up their account with DDC Credits using fiat currencies like USD or EUR, or cryptocurrencies such as USDT or USDC. This streamlined approach simplifies the onboarding process and enhances accessibility for new users within the Cere ecosystem.
-
----
-
-## **Objective** 🎯
-The goal of this initiative is to improve the **Developer Console UI** by enabling users to directly top up their **DDC wallets** using fiat currencies (e.g., 💵 USD) or cryptocurrencies like **USDC/USDT** on EVM-based networks. This feature aims to:
-- ✅ Simplify the onboarding process for developers.
-- ✅ Reduce reliance on external services for acquiring CERE tokens.
-
-**Budget:**
-Up to 2.000 USDT
+### Project Management
+- [Deliverables](#deliverables)
+- [User Stories](#user-stories)
 
 ---
 
-## **Key Concepts/Keywords** 📝
+## Problem Statement
+
+Using Cere Network's Decentralized Data Cluster (DDC) infrastructure requires users to convert CERE tokens into DDC Credits, which are essential for storage, data retrieval, and computations. To top up a DDC account, users must first acquire CERE tokens, often through external services, creating friction in the onboarding process.
+
+This project aims to streamline the experience by enabling users to top up their DDC balance directly via credit card payments (e.g., through Stripe). The architecture should also be designed for future support of direct USDC/USDT transfers.
+
+---
+
+## Objective
+
+Enhance the **Developer Console UI** by integrating an IFRAME that allows users to seamlessly top up their **DDC wallets** with fiat currencies (e.g., USD). This feature will:
+
+- Streamline the onboarding experience for developers
+- Minimize dependence on third-party services for obtaining CERE tokens
+
+---
+
+## Key Concepts/Keywords 📝
+
 - **DDC (Decentralized Data Cluster):** Blockchain-based storage solution.
-- **On-Ramp Provider:** Service enabling fiat-to-crypto conversion.
 - **Fiat:** Government-issued currency like USD.
 - **USDC/USDT:** Stablecoins pegged to USD.
 
 ---
 
-## **Existing System and Challenges** ⚙️
-![../../images/image1.png](./images/image1.png)
-### Existing System 🔄
-The current DDC top-up mechanism involves the following processes, as illustrated in the diagram:
+## Overview
 
-1. **Creating a DDC Account for the First Time**:
-   - Customers initiate a transaction to create their DDC account by specifying the account ID and the initial amount they wish to top up.
-   - The blockchain checks if the DDC account already exists. If not, a new ledger is created for the customer with the specified amount.
-   - The top-up amount is transferred from the user's account to an on-chain pot account, and the ledger storage is updated accordingly.
-2. **Topping Up an Existing DDC Account**:
-   - Customers perform a transaction to top up their existing DDC accounts.
-   - The blockchain verifies whether the DDC account exists. If it does, the top-up amount is transferred from the user's account to the on-chain pot account, and the ledger storage is updated.
-3. **Charging for Usage**:
-   - An internal call charges the customer's account based on usage and transfers funds to a payout vault.
-   - The specified amount is deducted from the on-chain pot account and transferred to the payout vault.
-   - The customer's ledger storage is updated, reducing their balance accordingly.
-
-### Challenges 🚧
-### 
-
-1. **Dependency on CERE Tokens**:
-   - The system requires users to acquire CERE tokens for top-ups, which creates barriers for those unfamiliar with blockchain systems or token acquisition processes. This dependency complicates user onboarding into the Cere ecosystem.
-2. **Manual Top-Up Process**:
-   - Users must manually monitor their balances and initiate top-ups, increasing the risk of service interruptions due to low or depleted balances. This lack of automation can lead to inefficiencies and disrupt seamless usage.
-
-These challenges highlight areas where improvements are necessary to enhance user experience and streamline access to Cere's infrastructure.
+This document details the technical specification for topping up a DDC account via credit/debit card using the Cluster's Developer Console.
 
 ---
 
-## **Top-Up DDC Account Manually (Exercise)** 🛠️
-The current process for manually topping up a DDC account involves the following steps:
-### Steps:
-1. **Sign Up on Developer Console**
-    - Users must register on the Developer Console using their email ID to access the platform.
-      ![../../images/image1.png](./images/image2.png)
-2. **Initiate a Top-Up Transaction**
-    - After logging in, users click the "Top Up" button within the Developer Console to begin the top-up process.
-      ![../../images/image1.png](./images/image3.png)
-3. **Transfer Funds Manually**
-    - Users manually transfer funds from their Cere Wallet to their DDC Account. This step requires users to ensure they have sufficient CERE tokens in their wallet and complete the transaction manually.
-      ![../../images/image1.png](./images/image4.png)
+## System Architecture
 
-This manual process introduces inefficiencies, requiring users to actively monitor their balances and perform multiple steps to maintain uninterrupted access to Cere's infrastructure. It also creates friction for onboarding users unfamiliar with blockchain systems.
+The top-up flow involves several components working together to securely process payments and update user balances.
+
+![image](https://github.com/user-attachments/assets/123965b4-ba52-42e3-b110-07889f49fffc)
+x![image](https://github.com/user-attachments/assets/93b06c70-ff19-43d3-a0fb-c3e8ea8909e9)
 
 ---
 
-## **Deliverables** 📦
+## User Flow
 
-### Deliverable 1: Manual Execution 📝
-- Users will manually execute the proposed solution to gain a clear understanding of the process and identify programming requirements.
-- **Steps**:
-   1. Swap USDT for CERE ERC20 tokens using Uniswap.
-   2. Use Hyperbridge to teleport the tokens from the EVM-based network to the Cere Mainnet.
-   3. Verify whether the DDC account has been updated with the transferred tokens.
-- **Outcome**: Screenshots and detailed observations will be collected during this manual process to ensure clarity on each step.
+### Step-by-Step Sequence
 
-### Deliverable 2: Programmatic Implementation 💻
-- Automate the entire process of token swaps, teleportation, and DDC account updates using smart contracts and APIs.
-- **Key Tasks**:
-   1. Develop smart contracts to handle token swaps (e.g., USDT to CERE) and teleportation via Hyperbridge.
-   2. Integrate fiat-to-USDT conversion functionality using an On-Ramp API for seamless fiat-based top-ups.
-   3. Ensure programmatic updates of DDC accounts on the Cere Mainnet.
-
-### Deliverable 3: Polishing and Optimization 🎨
-- Fully integrate all functionalities into the Developer Console for a seamless user experience.
-- **Key Enhancements**:
-   1. Optimize smart contract performance to reduce gas fees and improve transaction speed.
-   2. Implement robust error handling mechanisms to manage failures during token swaps, teleportation, or account updates.
-   3. Strengthen security measures to protect user funds and data integrity during transactions.
-   4. Provide comprehensive documentation for both developers and end-users, including step-by-step guides, API references, and troubleshooting tips.
+- Users enter card details on the Cluster's Dev Console (Frontend) via IFRAME.
+- The frontend sends card details to the backend (Customer Payment Service, CPS).
+- The backend delegates secure card handling to the payment provider (e.g., Stripe or Razorpay).
+- The backend creates a **SetupIntent** (to save the card) and/or a **PaymentIntent** (to process payment).
+- The payment provider manages sensitive card data and returns confirmation to the frontend.
+- The payment provider notifies the backend of successful setup or payment.
+- The backend stores a safe reference (e.g., payment method ID), not the actual card number.
+- For automated top-ups, the Notification Service instructs the backend to charge the saved card.
+- The backend uses the reference to process the payment via the provider.
+- The payment provider completes the transaction and updates the backend with the result.
 
 ---
 
+## Sequence Diagram
 
-## **Quick Start Guide** 🚀
-
-This guide provides a step-by-step process to set up, run, and analyze the implementation required for the proposed solution. Additionally, it includes the requirements for achieving the smart contract functionality necessary for the solution.
-
----
-
-### **1. Setting Up Your Environment** 🛠️
-
-1. **Clone the Repository**  
-   Clone the project repository to your local machine:
-   ```bash  
-   git clone https://github.com/Cerebellum-Network/cluster-apps.git  
-   ```
-
-2. **Payment Provider Test Accounts**
-    - Sign up for a Stripe test account and obtain test API keys by following [Stripe's guide](https://docs.stripe.com/keys).
-    - Keep these keys secure and use them only in test mode.
-
-3. **Configure the Project**
-    - Clone the Developer Console UI repository.
-    - Update configuration files (e.g., `.env`) with your test API keys, ensuring proper setup for test mode.
-
----
-
-### **2. Running the Base Implementation** ⚙️
-
-1. **Install Dependencies**  
-   Navigate to the project directory and install all necessary dependencies:
-   ```bash  
-   npm install  
-   ```
-   or
-   ```bash  
-   yarn install  
-   ```
-
-2. **Start the Application**  
-   Launch the local server:
-   ```bash  
-   npm start  
-   ```
-   or
-   ```bash  
-   yarn start  
-   ```
-
-3. **Test the Base Functionality**
-    - Access the Developer Console locally at `http://localhost:3000`.
-    - Attempt to top up an account using test payment methods to avoid real transactions.
-
----
-
-### **3. Analyzing Performance** 📊
-
-1. **Understand Logs**
-    - Check application logs for transaction records, focusing on successes and failures.
-
-2. **Blockchain Verification**
-    - Use a blockchain explorer like [Etherscan](https://sepolia.etherscan.io/) to verify if USDC deposits are received by the smart contract and correctly mapped to Developer Console accounts.
-
-3. **Calculate Success Rates**  
-   Use this formula to calculate success rates:  
-   $$
-   \text{Success Rate} = \left( \frac{\text{Successful Transactions}}{\text{Total Transactions}} \right) \times 100\%
-   $$
-
-4. **User Flow Metrics**  
-   Simulate the payment process to identify friction points, noting any error messages or confusing UI elements for improvement.
-
----
-
-### **4. Optimizing Payment Flow** 🔧
-
-1. **Research Better Approaches**  
-   Explore alternative payment providers like Square or Ramp.network for better conversion rates or user experience.
-
-2. **Implement Changes**  
-   Fork the code to integrate a new provider or optimize the existing one, ensuring testing with test API keys.
-
-3. **Test and Verify**  
-   Run the application, test the new flow, and analyze logs to check for improved conversion rates, tracking changes in success rates and user feedback.
-
----
-
-### **5. Requirements for Smart Contracts Implementation** 🔒
-
-To achieve the proposed solution of enabling fiat and cryptocurrency-based top-ups with automated token conversion and cross-chain functionality, follow these requirements:
-
-#### 1️⃣ **Smart Contract Features**
-- Develop a smart contract that supports:
-    - Conversion of USDT/USDC into CERE tokens using decentralized exchanges like Uniswap.
-    - Mapping of converted tokens to user DDC accounts on the Cere Mainnet.
-    - Cross-chain teleportation of tokens from EVM-based networks (e.g., Ethereum) to Cere Mainnet using Hyperbridge technology.
-
-#### 2️⃣ **Token Swap Integration**
-- Integrate with Uniswap or similar platforms to enable:
-    - Automated swapping of USDT/USDC into CERE tokens.
-    - Error handling for failed swaps due to insufficient liquidity or price slippage.
-
-#### 3️⃣ **Cross-Chain Teleportation**
-- Implement Hyperbridge technology for:
-    - Seamless transfer of CERE tokens from EVM-based networks (e.g., Ethereum) to Cere Mainnet.
-    - Verification mechanisms to ensure successful teleportation.
-
-#### 3️⃣ **Security Measures**
-- Add robust security features such as:
-    - Multi-signature wallets for fund management.
-    - Reentrancy guards in smart contracts.
-    - Input validation for transaction parameters.
-
-#### 3️⃣ **Programmatic Updates**
-- Automate updates of user DDC accounts by:
-    - Triggering smart contract events upon successful token swaps and teleportation.
-    - Updating account balances on Cere Mainnet via APIs.
-
-#### 6️⃣ **Testing and Deployment**
-- Deploy contracts on testnets like Goerli or Sepolia before mainnet deployment.
-- Test all functionalities, including:
-    - Token swaps.
-    - Cross-chain teleportation.
-    - Account balance updates.
-
----
-
-## **Interact With HyperBridge on BSC Testnet**
-### Execute the TopUp
-- Go to the teleport contract and call the **teleport** function at [TokenGateway Address](https://testnet.bscscan.com/address/0xFcDa26cA021d5535C3059547390E6cCd8De7acA6#writeContract) with the following inputs:
-- 1. **teleport**: `0`
-    2. **amount**: Specify the token amount to transfer.
-        - Example: For transferring 800 CERE, enter: `80000000000` (800 followed by 10 zeros).
-    3. **relayerFee**: `0`
-    4. **assetId**: Use the Asset ID retrieved in Step 3 (include the 0x prefix). `0xac05b69379f7ac8d594d29d1cc11e6ed5bec3b481c0882bbb1c4fdaa08ba77c6`
-    5. **redeem**: `false`
-    6. **to**: Enter the 32-byte hex public key of the **Substrate account** (not the SS58 address). //
-    7. **dest**: `0x5355425354524154452d63657265` (Hex representation of `SUBSTRATE-cere`).
-    8. **timeout**: `0`
-    9. **nativeCost**: `0`
-  10. **data**: Encoded call of the [`deposit_extra`](https://github.com/Cerebellum-Network/blockchain-node/blob/dev/pallets/ddc-customers/src/lib.rs#L360) function of DDC customers pallet with Signature. To encode the call, you should use the SCALE codec. This how it will be handled on [Blockchain side](https://github.com/polytope-labs/hyperbridge/blob/main/modules/pallets/token-gateway/src/lib.rs#L618-L673).
-
-  Example to Encode Transfer Call:-
-```
-   const { ApiPromise, WsProvider } = require('@polkadot/api');
-const { Keyring } = require('@polkadot/keyring');
-const { u8aToHex } = require('@polkadot/util');
-
-async function encodePalletCall() {
-    // Connect to a Substrate node
-    const wsProvider = new WsProvider('wss://your-substrate-node-url'); // Replace with your node's URL
-    const api = await ApiPromise.create({ provider: wsProvider });
-
-    // Define the beneficiary and transfer amount
-    const beneficiary = '5FLSigC9H8N8Ls9mUjZVLG3iMZxM4gwx6uFzFgE7qXjQkdtZ'; // Example recipient address
-    const amount = BigInt(1000000000); // Example transfer amount
-
-    // Create a pallet call (balances.transfer)
-    const call = api.tx.balances.transfer(beneficiary, amount);
-
-    // Encode the runtime call using SCALE codec
-    const encodedCallData = call.method.toHex();
-
-    console.log('Encoded Pallet Call Data:', encodedCallData);
-
-    // Signing the payload (example using Ed25519)
-    const keyring = new Keyring({ type: 'ed25519' });
-    const sender = keyring.addFromUri('//Alice'); // Example sender account
-
-    const nonce = await api.query.system.accountNonce(sender.address);
-    const payload = api.registry.createType('ExtrinsicPayload', {
-        method: call.method,
-        nonce,
-        era: 0,
-        tip: 0,
-        genesisHash: api.genesisHash,
-        blockHash: api.genesisHash,
-        specVersion: api.runtimeVersion.specVersion,
-        transactionVersion: api.runtimeVersion.transactionVersion,
-    });
-
-    const signature = sender.sign(payload.toU8a(true));
-
-    console.log('Signature:', u8aToHex(signature));
-
-    // Final data structure to send
-    const finalData = {
-        signature: u8aToHex(signature),
-        callData: encodedCallData,
-        nonce,
-    };
-
-    console.log('Final Encoded Data:', finalData);
-
-    await api.disconnect();
-}
-
-encodePalletCall().catch(console.error);
-
-```
-  
-
-
-## **Resources** 📚
-- Dev Console: [https://stage.developer.console.cere.network/](https://stage.developer.console.cere.network/)
-- Cere Wallet Client: [GitHub Link](https://github.com/cere-io/cere-wallet-client)
-- Cere Wallet SDK: [GitHub Link](https://github.com/cere-io/cere-wallet-client/tree/dev/packages/embed-wallet)
-- Cere Wallet API: [GitHub Link](https://github.com/cere-io/cere-wallet-api)
-- Testnet Details:
-    - Developer Console: [https://stage.developer.console.cere.network/](https://stage.developer.console.cere.network/)
-    - Cere Wallet: [https://wallet.stg.cere.io/wallet/home](https://wallet.stg.cere.io/wallet/home)
-
+![image](https://github.com/user-attachments/assets/a001cdd7-1740-470b-8faf-8ac3b0c93636)
 
 
 ---
+
+## User Interface
+
+The top-up UI allows users to:
+
+- Enter the amount
+- Input card details
+- Review fees before submitting
+
+![image](https://github.com/user-attachments/assets/de81ee7b-280a-4b27-a87b-0617634be9ab)
+![image](https://github.com/user-attachments/assets/7116fd76-6468-433c-9c06-55342373dc0e)
+![image](https://github.com/user-attachments/assets/4ba1c4b6-998b-40ed-b9ae-bb877aa1e124)
+
+---
+
+## Data Flow
+
+| Step | Source              | Destination               | Data/Action                                 |
+|------|---------------------|---------------------------|---------------------------------------------|
+| 1    | Customer            | Top Up Window             | Initiate top-up, enter card details         |
+| 2    | Top Up Window       | Customer Payment Service  | Process payment with card info              |
+| 3    | Customer Payment Service | Payment Gateway      | Send card info, amount                      |
+| 4    | Payment Gateway     | Customer Payment Service  | Payment success (OrderId, Card Token)       |
+| 5    | Customer Payment Service | Top Up Window        | Send OrderId and Card Token                 |
+| 6    | Top Up Window       | Customer                  | Notify user of success                      |
+| 7    | Customer Payment Service | (Internal)           | Track OrderId status, store card token      |
+
+---
+
+## Security & Compliance
+
+- **Tokenization:** Card tokens are used for recurring or auto top-ups, avoiding storage of raw card data.
+- **PCI DSS Compliance:** All card data is handled via secure, compliant payment components.
+
+---
+
+## Quick Start Guide 🚀
+
+**1. Setting Up Your Environment 🛠️**
+
+- **Clone the Repository**
+  ```bash
+  git clone https://github.com/Cerebellum-Network/cluster-apps.git
+  ```
+- **Payment Provider Test Accounts**
+  - Sign up for a Stripe test account and obtain test API keys.
+- **Configure the Project**
+  - Update configuration files (e.g., `.env`) with your test API keys.
+
+**2. Running the Base Implementation ⚙️**
+
+- **Install Dependencies**
+  ```bash
+  npm install
+  # or
+  yarn install
+  ```
+- **Start the Application**
+  ```bash
+  npm start
+  # or
+  yarn start
+  ```
+- **Test the Base Functionality**
+  - Access the Developer Console at `http://localhost:3000` and attempt a test top-up.
+
+---
+
+## Deliverables
+
+1. **Technical Documentation**
+   - System architecture, data flow, security, and integration steps.
+   - Diagrams and detailed API/interface specifications.
+   - Step-by-step Quick Start Guide.
+
+2. **Developer Console UI Integration**
+   - IFRAME-based UI component for seamless DDC wallet top-ups.
+   - Includes amount entry, card details, fee breakdown, and confirmation screens.
+
+3. **Backend Payment Service Implementation**
+   - Secure payment initiation, tokenization, and provider communication.
+   - Handles one-time and recurring payments using saved methods.
+
+4. **Payment Provider Integration**
+   - Integration with Stripe (or equivalent) for card processing.
+   - Webhook handling for asynchronous payment updates.
+
+5. **Automated Top-Up Support**
+   - Logic to trigger automated top-ups using saved payment methods.
+
+6. **Security & Compliance Measures**
+   - Tokenization and adherence to PCI DSS and other standards.
+   - Documentation of compliance procedures.
+
+7. **Deployment & Operations Guide**
+   - Instructions for deploying in test and production environments.
+
+---
+
+## User Stories
+
+- **User Successfully Tops Up DDC Wallet via Credit/Debit Card**
+  - User logs in, enters amount and card details, payment is processed, DDC balance increases, confirmation displayed, transaction recorded.
+
+- **Payment Security and Compliance**
+  - Card fields rendered via secure, PCI DSS-compliant IFRAME; raw card data never stored.
+
+- **Handling Failed or Declined Payments**
+  - Clear error messages for failed payments, no funds deducted, failed transactions logged.
+
+- **Payment Method Management**
+  - Users can add, remove, or update payment methods securely; changes are immediate and confirmed.
+
+---
+
+## 🌲Data Model / Endpoints
+
+Flow for topping up a customer's DDC account, integrating payment and blockchain services, all managed within a cluster.
+
+---
+
+**Step-by-Step Flow:**
+
+1. **Customer Input:**
+    
+    The customer provides their card info, the amount (in fiat), and whether they want auto top-up.
+    
+2. **Dev Console:**
+    
+    Receives this data and forwards it, along with the customer's DDC Account ID, to the Customer Payment Service.
+    
+3. **Customer Payment Service:**
+    - Receives card info, amount, auto top-up flag, and DDC Account.
+    - Sends payment details to the Payment Provider (external service).
+    - Receives back a PaymentMethodId and OrderId.
+    - Stores these IDs in the database.
+    - If auto top-up is enabled or triggered, it sends a notification (with cluster account, DDC account, and top-up amount) to the Notification Service.
+4. **Notification Service:**
+    - Triggers auto top-up by sending the necessary details to the Customer Payment Service.
+5. **Ramp Service:**
+    - Receives cluster account, DDC account, and top-up amount from the Customer Payment Service.
+    - Prepares a blockchain transaction for the Cere Node.
+6. **Cere Node (Blockchain):**
+    - The Ramp Service calls the DDC-customer pallet's `deposit_for` extrinsic on the Cere blockchain.
+    - Inputs:
+    
+    ```jsx
+    - `cluster_id`: ClusterId
+    - `customer_ddc_account`: AccountId32
+    - `value`: u128
+    ```
+    
+    - Code Snippet
+    
+    ```jsx
+     // 2. Create keyring instance
+      const keyring = new Keyring({ type: 'sr25519' });
+      const signer = keyring.addFromMnemonic('your-mnemonic-phrase-here');
+    
+      // 3. Create transaction
+      const tx = api.tx.ddcCustomer.depositFor(
+        '5Fc9V6...',    // owner (AccountId)
+        42,             // cluster_id (u64)
+        1000000000000   // value (compact BalanceOf)
+      );
+    
+      // 4. Send transaction
+      const hash = await tx.signAndSend(signer);
+      console.log(`Transaction hash: ${hash}`);
+    ```
+    
+    - This extrinsic credits the customer's DDC account for the specified cluster and returns a transaction response.
+
+**Key Data Objects:**
+
+| Step | Data Fields |
+| --- | --- |
+| Customer → Dev Console | Card Info, Amount, Auto TopUp |
+| Dev Console → Payment Svc | Card Info, Amount, Auto TopUp, DDC Account |
+| Payment Svc → Payment Prov. | Card Info, Amount, Store Card, Receipt Address |
+| Payment Prov. → Payment Svc | PaymentMethodId, OrderId |
+| Payment Svc → Notification | Cluster Account, DDC Account, TopUp Amount |
+| Payment Svc → Ramp Service | Cluster Account, DDC Account, TopUp Amount |
+| Ramp Svc → Cere Node | Cluster Account, DDC Account, TopUp Amount |
+
+# 🥡 Contribution Guide
+
+To integrate the Top-Up component into the Developer Console UI, follow these structured steps for both the frontend and backend implementations:
+
+### **Frontend: Developer Console UI Integration**
+
+- **Branch Creation**
+    
+    Begin by creating a new branch from the development branch to isolate your Top-Up component changes.
+    
+- **Repository Setup**
+    
+    Clone the main project repository to your local environment:
+    
+    ```jsx
+    git clone https://github.com/Cerebellum-Network/cluster-apps.git
+    ```
+    
+- **Payment Provider Configuration**
+    - Register for a Stripe test account and generate test API keys as per [Stripe's documentation](https://docs.stripe.com/keys).
+    - Ensure these keys are stored securely and used exclusively in test mode.
+    - Clone the Developer Console UI repository and update the configuration files (e.g., `.env`) with your Stripe test keys to enable payment processing in a safe environment.
+- **Dependency Installation**
+    
+    Navigate to your project directory and install all required dependencies:
+    
+    ```jsx
+    npm install
+    ```
+    
+    or
+    
+    ```jsx
+    yarn install
+    ```
+    
+- **Local Development**
+    
+    Start the application locally:
+    
+    ```jsx
+    npm start
+    ```
+    
+    or
+    
+    ```jsx
+    yarn start
+    ```
+    
+    Access the Developer Console at `http://localhost:3000` and verify the Top-Up functionality using test payment methods.
+    
+
+### **Backend: Customer Payment Service (CPS) Implementation**
+
+- **Repository and Deployment**
+    
+    Clone follwing repository: 
+    
+    ```jsx
+    git clone https://github.com/Cerebellum-Network/customer-payment-service
+    ```
+    
+    Ensure the backend is containerized by providing a Docker image, enabling local testing and seamless deployment on Kubernetes clusters.
+    
+- **Key Backend Responsibilities**
+    - Securely initiate and manage payment flows (SetupIntent and PaymentIntent) with the payment provider (e.g., Stripe).
+    - Never store raw card data; instead, use payment method tokens or references provided by the payment gateway.
+    - Handle webhook events for asynchronous payment status updates and reconciliation.
+    - Support both one-time and recurring (auto top-up) payments using saved payment methods.
+
+**Testing and Validation**
+
+- Use the Developer Console UI to simulate top-up transactions with test cards.
+- Ensure all payment flows are executed securely and that sensitive card data is never exposed to the frontend or stored on your servers.
+- Validate that the backend correctly processes payments, updates DDC wallet balances, and manages payment method tokens for future transactions.
+
+**Deployment**
+
+- Provide clear documentation and Docker images to facilitate both local and production deployments.
+- Ensure environment variables and configuration steps are well-documented for smooth integration and scaling.

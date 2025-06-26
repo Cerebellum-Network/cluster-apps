@@ -6,8 +6,8 @@ import ActivityCapture from './ActivityCapture';
 const application: Application = {
   rootComponent: ActivityCapture,
   rootPath: 'activity-capture',
-  title: 'Customer Data Platform',
-  description: `Store user sessions data to get insights and trigger appropriate scenarios`,
+  title: 'Activity Dashboard',
+  description: `Monitor customer activity including gets, puts, and data transfer across all eras`,
   icon: <ActivityAppIcon />,
 };
 

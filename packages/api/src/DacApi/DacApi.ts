@@ -15,6 +15,11 @@ export class DacApi {
     return response.data[DAC_API_VERSION];
   }
 
+  async getCustomerEraDetails(clusterId: string, eraId: number, customerId: string): Promise<EraDetail> {
+    const response = await axios.get(`${this.baseUrl}/cluster/${clusterId}/era/${eraId}/customer/${customerId}`);
+    return response.data[DAC_API_VERSION];
+  }
+
   async getAllErasDetails(clusterId: string): Promise<EraDetail[]> {
     const eras = await this.getEras(clusterId);
 
@@ -23,5 +28,11 @@ export class DacApi {
 
     const erasDetailsPromises = recentEras.map((eraId) => this.getEraDetails(clusterId, eraId));
     return Promise.all(erasDetailsPromises);
+  }
+
+  async getGovernanceParams(clusterId: string) {
+    const response = await fetch(`https://dac.stage.chainswarm.org/api/cluster/${clusterId}/info`);
+    const data = await response.json();
+    return data.governance_params;
   }
 }
