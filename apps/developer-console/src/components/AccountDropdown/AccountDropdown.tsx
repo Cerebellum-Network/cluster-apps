@@ -53,16 +53,6 @@ const AccountDropdown = () => {
           />
           <CardContent>
             <Typography fontWeight="bold">{account.balance === undefined ? '-' : `${account.balance} CERE`}</Typography>
-            <Button
-              component={NavLink}
-              fullWidth
-              variant="outlined"
-              color="success"
-              to="/payments-history"
-              onClick={handleClose}
-            >
-              Payments History
-            </Button>
           </CardContent>
         </Card>
 

@@ -1,5 +1,5 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { DDC_PRESET } from '~/constants.ts';
+import { DDC_CLUSTER_ID, DDC_PRESET } from '~/constants.ts';
 import { IndexedAccount } from '@cluster-apps/api';
 import type { AccountInfo } from '@polkadot/types/interfaces';
 
@@ -18,7 +18,7 @@ export async function fetchAccountFromChain(address: string): Promise<IndexedAcc
     const accountInfo = (await api.query.system.account(address)) as unknown as AccountInfo;
     const { data: balance, nonce } = accountInfo;
 
-    const ledger = await api.query.ddcCustomers.ledger(address);
+    const ledger = await api.query.ddcCustomers.clusterLedger(DDC_CLUSTER_ID, address);
     const ledgerHuman = ledger.toHuman() as any;
 
     const deposit = ledgerHuman?.total ? BigInt(ledgerHuman.active.replace(/,/g, '')) : BigInt(0);
