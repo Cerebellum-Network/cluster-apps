@@ -102,11 +102,3 @@ export const createClusterAccountResource = (account: AccountStore) => {
     !account.address ? undefined : api.getAccountForCluster(account.address, DDC_CLUSTER_ID),
   );
 };
-
-export const createClusterAccountResource = (account: AccountStore) => {
-  const api = new IndexerApi();
-
-  return createPullResource(() =>
-    !account.address ? undefined : api.getAccountForCluster(account.address, DDC_CLUSTER_ID),
-  );
-};
