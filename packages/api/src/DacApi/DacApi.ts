@@ -31,7 +31,7 @@ export class DacApi {
   }
 
   async getGovernanceParams(clusterId: string) {
-    const response = await fetch(`https://dac.stage.chainswarm.org/api/cluster/${clusterId}/info`);
+    const response = await fetch(`https://ubersquid.stage.chainswarm.org/api/cluster/${clusterId}/info`);
     const data = await response.json();
     return data.governance_params;
   }
