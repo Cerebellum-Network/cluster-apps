@@ -33,12 +33,22 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
     try {
       const newDirs: DirectoryType[] = [];
       const indices: Record<string, number> = {};
+      console.log(`[useFetchDirs] Starting to fetch ${buckets.length} buckets`);
+
       for (const bucket of buckets) {
         const dagUri = new DagNodeUri(BigInt(bucket.id), 'fs');
+
         try {
-          const dir = await ddcClient.read(dagUri, {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 секунд
+          });
+
+          const readPromise = ddcClient.read(dagUri, {
             cacheControl: 'no-cache',
           });
+
+          const dir = await Promise.race([readPromise, timeoutPromise]);
+
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {
@@ -51,15 +61,25 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
             }
           }
         } catch (dirError) {
-          Reporting.error(dirError);
+          const error = dirError as Error;
+          console.warn(`[useFetchDirs] Bucket ${bucket.id} not accessible, adding placeholder:`, error.message);
 
-          newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...({} as Link) });
-          console.error(`Error reading directory for bucket ${bucket.id}:`, dirError);
+          // Добавляем placeholder вместо пустого объекта
+          newDirs.push({
+            bucketId: bucket.id.toString(),
+            isPublic: bucket.isPublic,
+            name: 'default',
+            size: 0,
+            cid: '',
+          });
+
+          Reporting.error(dirError);
         }
       }
       setDirs((prevState) => [...prevState, ...newDirs]);
       setDefaultDirIndices(indices);
     } catch (e) {
+      console.error('[useFetchDirs] General error:', e);
       setError((e as Error).message);
     } finally {
       setLoading(false);
@@ -81,10 +101,19 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         const dagUri = new DagNodeUri(bucketId, 'fs');
         const newDirs: DirectoryType[] = [];
         const indices: Record<string, number> = {};
+
         try {
-          const dir = await ddcClient.read(dagUri, {
+          // Добавляем таймаут для предотвращения бесконечных попыток
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 секунд
+          });
+
+          const readPromise = ddcClient.read(dagUri, {
             cacheControl: 'no-cache',
           });
+
+          const dir = await Promise.race([readPromise, timeoutPromise]);
+
           if (dir) {
             const links: Link[] = dir.links;
             for (const link of links) {
@@ -107,8 +136,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
         setDirs((prevDirs) => [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs]);
         setDefaultDirIndices((prevIndices) => ({ ...prevIndices, ...indices }));
       } catch (error) {
-        Reporting.error(error);
-
+        console.error('[refetchBucket] General error:', error);
         setError((error as Error).message);
       } finally {
         setLoading(false);
