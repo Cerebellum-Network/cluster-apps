@@ -2,11 +2,21 @@ import { makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
+import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
 import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
-import { APP_ENV, APP_ID, CERE_DECIMALS, DDC_CLUSTER_ID, DDC_PRESET, DDC_SDK_LOG_LEVEL } from '~/constants';
+import {
+  APP_ENV,
+  APP_ID,
+  CERE_DECIMALS,
+  DDC_CLUSTER_ID,
+  DDC_PRESET,
+  DDC_SDK_LOG_LEVEL,
+  DDC_BLOCKCHAIN_MAX_RETRIES,
+  DDC_BLOCKCHAIN_RETRY_DELAY,
+} from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
 import {
@@ -17,13 +27,19 @@ import {
   createBucketStatsResource,
   createClusterAccountResource,
 } from './resources';
-import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
 
 export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
-  readonly ddc = new DdcClient(this.signer, { blockchain: this.blockchain, logLevel: DDC_SDK_LOG_LEVEL });
+  readonly ddc = new DdcClient(this.signer, {
+    blockchain: this.blockchain,
+    logLevel: DDC_SDK_LOG_LEVEL,
+    blockchainRetryConfig: {
+      maxRetries: DDC_BLOCKCHAIN_MAX_RETRIES,
+      retryDelay: DDC_BLOCKCHAIN_RETRY_DELAY,
+    },
+  });
 
   private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);
@@ -39,6 +55,7 @@ export class AccountStore implements Account {
       wallet: false,
       blockchain: false,
     });
+    this.startAutoCacheCleaning();
 
     keepAlive(this, 'status');
     keepAlive(this, 'address');
@@ -86,6 +103,44 @@ export class AccountStore implements Account {
     this.accountResource = undefined;
     this.clusterAccountResource = undefined;
     this.accountMetricsResource = undefined;
+  }
+
+  /**
+   * Start automatic cache clearing to prevent stale data issues
+   */
+  private startAutoCacheCleaning() {
+    const CACHE_CLEAR_INTERVAL = 2 * 60 * 1000; // 2 minutes
+
+    // Clear cache every 2 minutes
+    setInterval(() => {
+      try {
+        if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
+          this.ddc.clearPingCache();
+          console.log('[AutoCache] Ping cache cleared automatically');
+        }
+
+        // Also expose manual clearing functions to window for debugging
+        if (typeof window !== 'undefined') {
+          (window as any).clearDdcCache = () => {
+            if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
+              this.ddc.clearPingCache();
+              console.log('[Manual] DDC cache cleared');
+            }
+          };
+
+          (window as any).getCacheInfo = () => {
+            if (this.ddc && typeof this.ddc.getPingCacheInfo === 'function') {
+              const info = this.ddc.getPingCacheInfo();
+              console.log('[CacheInfo] Current cache state:', info);
+              return info;
+            }
+            return null;
+          };
+        }
+      } catch (error) {
+        console.warn('[AutoCache] Failed to clear cache:', error);
+      }
+    }, CACHE_CLEAR_INTERVAL);
   }
 
   private getBucketStats(bucketId: bigint) {
@@ -228,11 +283,21 @@ export class AccountStore implements Account {
   async createBucket(params: BucketParams) {
     await this.bcReadyPromise;
 
-    return this.ddc.createBucket(DDC_CLUSTER_ID, params).then((bucketId) => {
-      Reporting.bucketCreated(bucketId);
+    try {
+      const bucketId = await this.ddc.createBucket(DDC_CLUSTER_ID, params);
+      console.log('Bucket created successfully with ID:', bucketId.toString());
+      try {
+        const bucketInfo = await this.ddc.getBucket(bucketId);
+        console.log('Created bucket info:', bucketInfo);
+      } catch (getBucketError) {
+        console.warn('️Could not fetch bucket info immediately after creation:', getBucketError);
+      }
 
       return bucketId;
-    });
+    } catch (error) {
+      console.error('Failed to create bucket:', error);
+      throw error;
+    }
   }
 
   async saveBucket(bucketId: bigint, params: BucketParams) {
@@ -260,7 +325,8 @@ export class AccountStore implements Account {
   }
 
   async createAuthToken(bucketId: bigint, pieceCid: string) {
-    const params: Omit<AuthTokenParams, 'subject'> = {
+    const params: AuthTokenParams = {
+      subject: this.address!,
       bucketId,
       pieceCid,
       operations: [AuthTokenOperation.GET],

@@ -7,8 +7,6 @@ import type { AccountStore } from './AccountStore';
 import type { AccountMetrics, AccountStatus } from './types';
 import { createPullResource } from './createPullResource';
 
-import { fetchAccountFromChain } from './fetchAccountFromChain'; // добавь путь к файлу с функцией
-
 export const createStatusResource = ({ wallet }: AccountStore) => {
   let unsubscribe = () => {};
 
@@ -79,17 +77,24 @@ export const createAccountResource = (account: AccountStore) => {
   const api = new IndexerApi();
 
   return createPullResource(async () => {
-    if (!account.address) return undefined;
+    if (!account.address) {
+      return undefined;
+    }
 
     try {
       const indexerAccount = await api.getAccount(account.address);
+
       if (indexerAccount.exists) {
+        console.log('[createAccountResource] Account loaded:', {
+          exists: indexerAccount.exists,
+          bucketsCount: indexerAccount.buckets?.length || 0,
+        });
         return indexerAccount;
       }
 
-      return await fetchAccountFromChain(account.address);
+      return undefined;
     } catch (error) {
-      console.warn('Error loading account:', error);
+      console.warn('[createAccountResource] Error loading account:', error);
       return undefined;
     }
   });
@@ -98,7 +103,25 @@ export const createAccountResource = (account: AccountStore) => {
 export const createClusterAccountResource = (account: AccountStore) => {
   const api = new IndexerApi();
 
-  return createPullResource(() =>
-    !account.address ? undefined : api.getAccountForCluster(account.address, DDC_CLUSTER_ID),
-  );
+  return createPullResource(async () => {
+    if (!account.address) {
+      return undefined;
+    }
+
+    try {
+      const clusterAccount = await api.getAccountForCluster(account.address, DDC_CLUSTER_ID);
+
+      if (clusterAccount.exists) {
+        console.log('[createClusterAccountResource] Cluster account loaded:', {
+          exists: clusterAccount.exists,
+          bucketsCount: clusterAccount.buckets?.length || 0,
+        });
+      }
+
+      return clusterAccount;
+    } catch (error) {
+      console.warn('[createClusterAccountResource] Error loading cluster account:', error);
+      return undefined;
+    }
+  });
 };

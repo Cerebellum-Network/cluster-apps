@@ -27,10 +27,22 @@ const TopUp = () => {
   const handleSubmit = form.handleSubmit(async (data) => {
     try {
       await account.topUp(Number(data.amount));
-    } catch (err) {
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.toString() || '';
+
+      let userMessage = 'Top-up failed. Please try again.';
+
+      if (errorMessage.includes('Not enough tokens') || errorMessage.includes('insufficient')) {
+        userMessage = 'Not enough tokens in your wallet';
+      } else if (errorMessage.includes('temporarily banned') || errorMessage.includes('1012')) {
+        userMessage = 'Transaction is temporarily blocked. Please wait a moment and try again.';
+      } else if (errorMessage.includes('try again later')) {
+        userMessage = errorMessage; // Use the retry message from AccountStore
+      }
+
       showMessage({
         appearance: 'error',
-        message: 'Not enough tokens',
+        message: userMessage,
         placement: { vertical: 'top', horizontal: 'right' },
       });
       return;

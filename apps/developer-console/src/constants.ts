@@ -1,4 +1,5 @@
 import { DEVNET, MAINNET, TESTNET } from '@cere-ddc-sdk/ddc-client';
+import { ClusterId } from '@cere-ddc-sdk/blockchain';
 
 import npmPackage from '../package.json';
 
@@ -22,10 +23,16 @@ export const APP_VERSION = npmPackage.version;
  */
 const ddcPreset = (import.meta.env.VITE_DDC_NETWORK || 'testnet') as keyof typeof ddcPresets;
 export const DDC_PRESET = ddcPresets[ddcPreset];
-export const DDC_CLUSTER_ID = import.meta.env.VITE_DDC_CLUSTER_ID || '';
+export const DDC_CLUSTER_ID = (import.meta.env.VITE_DDC_CLUSTER_ID || '0x0') as ClusterId;
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
 export const DDC_STORAGE_NODE_URL = import.meta.env.VITE_DDC_STORAGE_NODE_URL || '';
 export const DDC_SDK_LOG_LEVEL = import.meta.env.VITE_DDC_SDK_LOG_LEVEL || 'info';
+
+/**
+ * DDC Blockchain Retry Configuration
+ */
+export const DDC_BLOCKCHAIN_MAX_RETRIES = parseInt(import.meta.env.VITE_DDC_BLOCKCHAIN_MAX_RETRIES || '5');
+export const DDC_BLOCKCHAIN_RETRY_DELAY = parseInt(import.meta.env.VITE_DDC_BLOCKCHAIN_RETRY_DELAY || '2000');
 
 /**
  * Cere blockchain configuration
