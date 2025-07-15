@@ -296,6 +296,37 @@ export const Row = ({
                     <Typography variant="body2" flex={1}>
                       <Truncate text={element.name} variant="text" maxLength={15} endingLength={4} />
                     </Typography>
+                    <Box
+                      marginLeft="8px"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText((element.metadata?.cid as string) || '');
+                        showMessage({
+                          appearance: 'success',
+                          message: 'CID was copied successfully!',
+                          placement: { vertical: 'top', horizontal: 'right' },
+                          autoDismiss: true,
+                        });
+                      }}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '6px 6px',
+                        borderRadius: '6px',
+                        backgroundColor: '#f5f5f5',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          backgroundColor: '#e0e0e0',
+                          cursor: 'pointer',
+                        },
+                      }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" height={18} viewBox="0 0 24 24" width={18} fill={'#555'}>
+                        <path d="M0 0h24v24H0z" fill="none" />
+                        <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 18H8V7h11v16z" />
+                      </svg>
+                      <Typography variant="caption">Copy CID</Typography>
+                    </Box>
                   </Box>
                   {element.metadata?.usedStorage && (
                     <Typography
