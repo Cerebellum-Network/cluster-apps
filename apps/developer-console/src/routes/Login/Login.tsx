@@ -56,7 +56,10 @@ const Login = observer(() => {
     const shouldSendToMarketingTool = await onboarding.shouldSendToMarketingTool();
 
     if (shouldSendToMarketingTool) {
-      emailCampaignService.addContactToMailjet(data.email).catch(reportError);
+      emailCampaignService.addContactToMailjet(data.email).catch((error) => {
+        console.warn('Failed to add contact to Mailjet:', error.message);
+        reportError(error);
+      });
     }
 
     trackEvent(isNewUser ? AnalyticsId.signUp : AnalyticsId.signIn);

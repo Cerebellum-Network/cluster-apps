@@ -56,12 +56,25 @@ export class OnboardingStore {
     return isOldUser || hasBuckets;
   }
 
+  /**
+   * Check if we have enough data to determine onboarding status
+   */
+  get canDetermineStatus() {
+    const { buckets, userInfo } = this.accountStore;
+    return buckets !== undefined && userInfo !== undefined;
+  }
+
   async processStatus() {
-    await when(() => this.isDone !== undefined, { timeout: 30000 }).catch(() => {
-      Reporting.message('Onboarding status is not properly detected after 30s', 'warning');
+    await when(() => this.canDetermineStatus, { timeout: 30000 }).catch(() => {
+      Reporting.message('Onboarding status is not properly detected after 30s', 'warning', {
+        buckets: this.accountStore.buckets !== undefined ? 'loaded' : 'undefined',
+        userInfo: this.accountStore.userInfo !== undefined ? 'loaded' : 'undefined',
+      });
     });
 
-    return !this.isDone;
+    const result = !this.isDone;
+
+    return result;
   }
 
   async shouldSendToMarketingTool() {

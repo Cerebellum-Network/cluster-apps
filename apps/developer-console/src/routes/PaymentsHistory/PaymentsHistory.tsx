@@ -1,12 +1,21 @@
 import { observer } from 'mobx-react-lite';
 import { toJS } from 'mobx';
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { Box, Typography, CircularProgress, Alert } from '@cluster-apps/ui';
 import { FilterSection, SummaryCards, CostTrendsChart, UsageByBucket, PaymentsTable } from './components';
-import { usePaymentHistoryStore } from '~/hooks';
+import { usePaymentHistoryStore, useAccountStore } from '~/hooks';
 
 const PaymentsHistory: FC = () => {
   const store = usePaymentHistoryStore();
+  const account = useAccountStore();
+
+  useEffect(() => {
+    if (account.address) {
+      store.initialize();
+    } else {
+      store.reset();
+    }
+  }, [account.address, store]);
 
   // Get filtered data based on selected filters
   const filteredData = toJS(store.getFilteredEraData());

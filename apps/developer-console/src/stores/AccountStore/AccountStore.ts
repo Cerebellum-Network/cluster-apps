@@ -159,7 +159,7 @@ export class AccountStore implements Account {
   }
 
   isReady(): this is ReadyAccount {
-    return !!this.userInfo && !!this.buckets;
+    return !!this.userInfo && this.buckets !== undefined;
   }
 
   get status() {
@@ -192,11 +192,13 @@ export class AccountStore implements Account {
 
   get buckets() {
     // Prefer cluster-specific buckets if available
-    const clusterBuckets = this.clusterAccountResource?.current()?.buckets;
-    const allBuckets = this.accountResource?.current()?.buckets;
+    const clusterAccount = this.clusterAccountResource?.current();
+    const allAccount = this.accountResource?.current();
 
-    const buckets = clusterBuckets && clusterBuckets.length > 0 ? clusterBuckets : allBuckets;
+    const clusterBuckets = clusterAccount?.buckets;
+    const allBuckets = allAccount?.buckets;
 
+    const buckets = clusterBuckets !== undefined ? clusterBuckets : allBuckets;
     return buckets?.map<Bucket>((bucket) => ({
       ...bucket,
       stats: this.getBucketStats(bucket.id),
