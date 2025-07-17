@@ -146,8 +146,16 @@ function ActivityCapture() {
   useEffect(() => {
     if (account.address) {
       activityStore.fetchCustomerActivity(account.address);
+    } else {
+      activityStore.reset();
     }
   }, [account.address, activityStore]);
+
+  const handleRefresh = () => {
+    if (account.address) {
+      activityStore.refreshCustomerActivity(account.address);
+    }
+  };
 
   const activity = activityStore.activity;
 
@@ -170,15 +178,44 @@ function ActivityCapture() {
     );
   }
 
+  if (activityStore.hasError) {
+    return (
+      <Box p={3}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h4">Activity Dashboard</Typography>
+          <Button variant="outlined" onClick={handleRefresh} disabled={activityStore.isLoading}>
+            {activityStore.isLoading ? 'Loading...' : 'Retry'}
+          </Button>
+        </Box>
+        <Alert severity="error">
+          Failed to load activity data. Please try refreshing the page or contact support if the problem persists.
+        </Alert>
+      </Box>
+    );
+  }
+
   if (!activity) {
-    return <Alert severity="info">No activity data found for your account</Alert>;
+    return (
+      <Box p={3}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+          <Typography variant="h4">Activity Dashboard</Typography>
+          <Button variant="outlined" onClick={handleRefresh} disabled={activityStore.isLoading}>
+            {activityStore.isLoading ? 'Loading...' : 'Load Data'}
+          </Button>
+        </Box>
+        <Alert severity="info">No activity data found for your account</Alert>
+      </Box>
+    );
   }
 
   return (
     <Box p={3}>
-      <Typography variant="h4" gutterBottom>
-        Activity Dashboard
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Typography variant="h4">Activity Dashboard</Typography>
+        <Button variant="outlined" onClick={handleRefresh} disabled={activityStore.isLoading}>
+          {activityStore.isLoading ? 'Loading...' : 'Refresh Data'}
+        </Button>
+      </Box>
 
       {/* Account Balance Cards - 2 per row, same size as summary cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

@@ -82,19 +82,8 @@ export const createAccountResource = (account: AccountStore) => {
     }
 
     try {
-      const indexerAccount = await api.getAccount(account.address);
-
-      if (indexerAccount.exists) {
-        console.log('[createAccountResource] Account loaded:', {
-          exists: indexerAccount.exists,
-          bucketsCount: indexerAccount.buckets?.length || 0,
-        });
-        return indexerAccount;
-      }
-
-      return undefined;
+      return await api.getAccount(account.address);
     } catch (error) {
-      console.warn('[createAccountResource] Error loading account:', error);
       return undefined;
     }
   });
@@ -109,18 +98,8 @@ export const createClusterAccountResource = (account: AccountStore) => {
     }
 
     try {
-      const clusterAccount = await api.getAccountForCluster(account.address, DDC_CLUSTER_ID);
-
-      if (clusterAccount.exists) {
-        console.log('[createClusterAccountResource] Cluster account loaded:', {
-          exists: clusterAccount.exists,
-          bucketsCount: clusterAccount.buckets?.length || 0,
-        });
-      }
-
-      return clusterAccount;
+      return await api.getAccountForCluster(account.address, DDC_CLUSTER_ID);
     } catch (error) {
-      console.warn('[createClusterAccountResource] Error loading cluster account:', error);
       return undefined;
     }
   });

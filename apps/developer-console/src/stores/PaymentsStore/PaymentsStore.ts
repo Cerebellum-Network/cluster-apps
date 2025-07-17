@@ -1,4 +1,4 @@
-import { makeAutoObservable, reaction, runInAction } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import { DacApi, EraDetail, IndexerApi, IndexedBucket } from '@cluster-apps/api';
 import { DDC_CLUSTER_ID } from '~/constants.ts';
 import { AccountStore } from '~/stores';
@@ -31,18 +31,45 @@ export class PaymentsHistoryStore {
   // Filtered era options based on selected buckets
   filteredEras: number[] = [];
 
+  // Track if data has been initialized
+  private hasInitialized: boolean = false;
+
   constructor(private accountStore: AccountStore) {
     makeAutoObservable(this);
+  }
 
-    reaction(
-      () => this.accountStore.address,
-      (address) => {
-        if (address) {
-          this.accountId = address;
-          this.fetchBuckets();
-        }
-      },
-    );
+  async initialize() {
+    const address = this.accountStore.address;
+    if (!address) {
+      throw new Error('No account address available');
+    }
+
+    if (this.hasInitialized && this.accountId === address) {
+      return; // Already initialized for this account
+    }
+
+    this.accountId = address;
+    this.hasInitialized = true;
+    await this.fetchBuckets();
+  }
+
+  reset() {
+    this.eras = [];
+    this.eraData = [];
+    this.allErasDetails = [];
+    this.buckets = [];
+    this.isLoading = false;
+    this.isInitializing = false;
+    this.error = null;
+    this.accountId = null;
+    this.selectedEraId = null;
+    this.selectedBucketIds = [];
+    this.selectedPeriod = 'this_month';
+    this.tempSelectedEraId = null;
+    this.tempSelectedBucketIds = [];
+    this.tempSelectedPeriod = 'this_month';
+    this.filteredEras = [];
+    this.hasInitialized = false;
   }
 
   async fetchAllData() {
