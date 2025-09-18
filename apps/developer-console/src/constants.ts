@@ -76,4 +76,4 @@ export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARD
 /**
  * Billing service configuration
  */
-export const BILLING_SERVICE_ENDPOINT = import.meta.env.VITE_BILLING_SERVICE_ENDPOINT || 'http://localhost:8080';
+export const BILLING_SERVICE_ENDPOINT = import.meta.env.VITE_BILLING_SERVICE_ENDPOINT || 'https://billing-service.devnet.cere.network/';
