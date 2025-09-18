@@ -35,12 +35,6 @@ export const DDC_BLOCKCHAIN_MAX_RETRIES = parseInt(import.meta.env.VITE_DDC_BLOC
 export const DDC_BLOCKCHAIN_RETRY_DELAY = parseInt(import.meta.env.VITE_DDC_BLOCKCHAIN_RETRY_DELAY || '2000');
 
 /**
- * Blockchain endpoint override for testing
- * Set VITE_BLOCKCHAIN_ENDPOINT_OVERRIDE to override the default blockchain endpoint
- */
-export const BLOCKCHAIN_ENDPOINT_OVERRIDE = import.meta.env.VITE_BLOCKCHAIN_ENDPOINT_OVERRIDE || '';
-
-/**
  * Cere blockchain configuration
  */
 export const CERE_DECIMALS = Number(import.meta.env.VITE_CERE_DECIMALS || 10);

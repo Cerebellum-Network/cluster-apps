@@ -16,7 +16,6 @@ import {
   DDC_SDK_LOG_LEVEL,
   DDC_BLOCKCHAIN_MAX_RETRIES,
   DDC_BLOCKCHAIN_RETRY_DELAY,
-  BLOCKCHAIN_ENDPOINT_OVERRIDE,
 } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
@@ -31,7 +30,7 @@ import {
 
 export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ 
-    wsEndpoint: BLOCKCHAIN_ENDPOINT_OVERRIDE || DDC_PRESET.blockchain 
+    wsEndpoint: DDC_PRESET.blockchain 
   });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
@@ -60,11 +59,7 @@ export class AccountStore implements Account {
     });
     
     // Log blockchain endpoint configuration
-    if (BLOCKCHAIN_ENDPOINT_OVERRIDE) {
-      console.log(`🔗 Blockchain endpoint OVERRIDE active: ${BLOCKCHAIN_ENDPOINT_OVERRIDE}`);
-    } else {
-      console.log(`🔗 Using default blockchain endpoint: ${DDC_PRESET.blockchain}`);
-    }
+    console.log(`🔗 Using blockchain endpoint: ${DDC_PRESET.blockchain}`);
     
     this.startAutoCacheCleaning();
 
