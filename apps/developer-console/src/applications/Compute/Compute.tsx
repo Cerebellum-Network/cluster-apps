@@ -337,6 +337,14 @@ const Compute = () => {
 
       setForceRefreshStatus((prev) => prev + 1);
 
+      localStorage.removeItem('toursDone');
+
+      console.log('Cleared all tour completion status and redirecting to content-storage');
+
+      setTimeout(() => {
+        window.location.href = '/content-storage?compute-tour=true';
+      }, 1000);
+
       console.log('Tier selection submitted successfully');
     } catch (err) {
       console.error('Error submitting tier selection:', err);

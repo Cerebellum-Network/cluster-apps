@@ -24,6 +24,8 @@ import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
 import { NavLink } from 'react-router-dom';
+import { setGlobalOnCreateBucket } from '~/components/ApplicationTour/ComputeTours';
+import { useApplicationTour } from '~/components/ApplicationTour/TourController';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -46,6 +48,7 @@ const ContentStorage = () => {
   const [isAccountReady, setIsAccountReady] = useState<boolean>(false);
 
   const account = useAccount();
+  const { showTour } = useApplicationTour();
 
   const ddcClient = account.ddc;
 
@@ -130,6 +133,23 @@ const ContentStorage = () => {
     setIsBucketCreating(false);
     setLockUi(false);
   }, [account, ddcClient, questsStore, refetchBucket]);
+
+  useEffect(() => {
+    setGlobalOnCreateBucket(onBucketCreation);
+    return () => {
+      setGlobalOnCreateBucket(null);
+    };
+  }, [onBucketCreation]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('compute-tour') && account.isReady()) {
+      console.log('ContentStorage: Force starting compute tour');
+      setTimeout(() => {
+        showTour('bucket');
+      }, 1000);
+    }
+  }, [account.isReady(), showTour]);
 
   const singleFileUpload = useCallback(
     async ({
