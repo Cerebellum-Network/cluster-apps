@@ -63,6 +63,54 @@ export const EMPTY_FILE_NAME = '.ddc-empty';
 export const DEFAULT_FOLDER_NAME = 'default';
 
 /**
+ * Compute Tiers Configuration
+ */
+export interface ComputeTier {
+  id: string;
+  name: string;
+  cpu: number;
+  ram: number; // in GB
+  gpuCredits: number;
+  description: string;
+  price?: string;
+}
+
+export const COMPUTE_TIERS: ComputeTier[] = [
+  {
+    id: 'basic',
+    name: 'Basic',
+    cpu: parseFloat(import.meta.env.VITE_COMPUTE_BASIC_CPU || '0.5'),
+    ram: parseFloat(import.meta.env.VITE_COMPUTE_BASIC_RAM || '0.5'),
+    gpuCredits: parseInt(import.meta.env.VITE_COMPUTE_BASIC_GPU_CREDITS || '100'),
+    description: 'Perfect for small projects and testing',
+    price: import.meta.env.VITE_COMPUTE_BASIC_PRICE || 'Free',
+  },
+  {
+    id: 'advanced',
+    name: 'Advanced',
+    cpu: parseFloat(import.meta.env.VITE_COMPUTE_ADVANCED_CPU || '2'),
+    ram: parseFloat(import.meta.env.VITE_COMPUTE_ADVANCED_RAM || '4'),
+    gpuCredits: parseInt(import.meta.env.VITE_COMPUTE_ADVANCED_GPU_CREDITS || '1000'),
+    description: 'Ideal for production applications',
+    price: import.meta.env.VITE_COMPUTE_ADVANCED_PRICE || 'Premium',
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    cpu: parseFloat(import.meta.env.VITE_COMPUTE_PRO_CPU || '8'),
+    ram: parseFloat(import.meta.env.VITE_COMPUTE_PRO_RAM || '16'),
+    gpuCredits: parseInt(import.meta.env.VITE_COMPUTE_PRO_GPU_CREDITS || '10000'),
+    description: 'Enterprise-grade compute power',
+    price: import.meta.env.VITE_COMPUTE_PRO_PRICE || 'Enterprise',
+  },
+];
+
+/**
+ * Admin Configuration
+ */
+export const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').filter(Boolean);
+
+/**
  * Feature flags
  */
 export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARDING !== 'false';
