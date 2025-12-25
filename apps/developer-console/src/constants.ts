@@ -27,6 +27,8 @@ export const DDC_CLUSTER_ID = (import.meta.env.VITE_DDC_CLUSTER_ID || '0x0') as 
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
 export const DDC_STORAGE_NODE_URL = import.meta.env.VITE_DDC_STORAGE_NODE_URL || '';
 export const DDC_SDK_LOG_LEVEL = import.meta.env.VITE_DDC_SDK_LOG_LEVEL || 'info';
+export const CUSTOMER_DEPOSIT_SMART_CONTRACT_ADDRESS =
+  import.meta.env.VITE_CUSTOMER_DEPOSIT_SMART_CONTRACT_ADDRESS || '';
 
 /**
  * DDC Blockchain Retry Configuration

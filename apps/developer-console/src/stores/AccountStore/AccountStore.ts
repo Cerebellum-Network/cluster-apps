@@ -14,8 +14,9 @@ import {
   DDC_CLUSTER_ID,
   DDC_PRESET,
   DDC_SDK_LOG_LEVEL,
-  DDC_BLOCKCHAIN_MAX_RETRIES,
-  DDC_BLOCKCHAIN_RETRY_DELAY,
+  // DDC_BLOCKCHAIN_MAX_RETRIES,
+  // DDC_BLOCKCHAIN_RETRY_DELAY,
+  CUSTOMER_DEPOSIT_SMART_CONTRACT_ADDRESS,
 } from '~/constants';
 import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
 import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
@@ -32,14 +33,27 @@ export class AccountStore implements Account {
   readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
-  readonly ddc = new DdcClient(this.signer, {
-    blockchain: this.blockchain,
-    logLevel: DDC_SDK_LOG_LEVEL,
-    blockchainRetryConfig: {
-      maxRetries: DDC_BLOCKCHAIN_MAX_RETRIES,
-      retryDelay: DDC_BLOCKCHAIN_RETRY_DELAY,
-    },
-  });
+
+  private _ddc?: DdcClient;
+
+  get ddc(): DdcClient {
+    if (!this._ddc) {
+      if (!this.blockchain.api?.isConnected) {
+        throw new Error('Blockchain is not connected yet. Please wait for bcReadyPromise to resolve.');
+      }
+
+      this._ddc = new DdcClient(this.signer, {
+        blockchain: this.blockchain,
+        logLevel: DDC_SDK_LOG_LEVEL,
+        customerDepositContractAddress: CUSTOMER_DEPOSIT_SMART_CONTRACT_ADDRESS,
+        // blockchainRetryConfig: {
+        //   maxRetries: DDC_BLOCKCHAIN_MAX_RETRIES,
+        //   retryDelay: DDC_BLOCKCHAIN_RETRY_DELAY,
+        // },
+      });
+    }
+    return this._ddc;
+  }
 
   private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);
@@ -54,8 +68,9 @@ export class AccountStore implements Account {
     makeAutoObservable(this, {
       wallet: false,
       blockchain: false,
+      ddc: false,
     });
-    this.startAutoCacheCleaning();
+    // this.startAutoCacheCleaning();
 
     keepAlive(this, 'status');
     keepAlive(this, 'address');
@@ -105,43 +120,43 @@ export class AccountStore implements Account {
     this.accountMetricsResource = undefined;
   }
 
-  /**
-   * Start automatic cache clearing to prevent stale data issues
-   */
-  private startAutoCacheCleaning() {
-    const CACHE_CLEAR_INTERVAL = 2 * 60 * 1000; // 2 minutes
-
-    // Clear cache every 2 minutes
-    setInterval(() => {
-      try {
-        if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
-          this.ddc.clearPingCache();
-          console.log('[AutoCache] Ping cache cleared automatically');
-        }
-
-        // Also expose manual clearing functions to window for debugging
-        if (typeof window !== 'undefined') {
-          (window as any).clearDdcCache = () => {
-            if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
-              this.ddc.clearPingCache();
-              console.log('[Manual] DDC cache cleared');
-            }
-          };
-
-          (window as any).getCacheInfo = () => {
-            if (this.ddc && typeof this.ddc.getPingCacheInfo === 'function') {
-              const info = this.ddc.getPingCacheInfo();
-              console.log('[CacheInfo] Current cache state:', info);
-              return info;
-            }
-            return null;
-          };
-        }
-      } catch (error) {
-        console.warn('[AutoCache] Failed to clear cache:', error);
-      }
-    }, CACHE_CLEAR_INTERVAL);
-  }
+  // /**
+  //  * Start automatic cache clearing to prevent stale data issues
+  //  */
+  // private startAutoCacheCleaning() {
+  //   const CACHE_CLEAR_INTERVAL = 2 * 60 * 1000; // 2 minutes
+  //
+  //   // Clear cache every 2 minutes
+  //   setInterval(() => {
+  //     try {
+  //       if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
+  //         this.ddc.clearPingCache();
+  //         console.log('[AutoCache] Ping cache cleared automatically');
+  //       }
+  //
+  //       // Also expose manual clearing functions to window for debugging
+  //       if (typeof window !== 'undefined') {
+  //         (window as any).clearDdcCache = () => {
+  //           if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
+  //             this.ddc.clearPingCache();
+  //             console.log('[Manual] DDC cache cleared');
+  //           }
+  //         };
+  //
+  //         (window as any).getCacheInfo = () => {
+  //           if (this.ddc && typeof this.ddc.getPingCacheInfo === 'function') {
+  //             const info = this.ddc.getPingCacheInfo();
+  //             console.log('[CacheInfo] Current cache state:', info);
+  //             return info;
+  //           }
+  //           return null;
+  //         };
+  //       }
+  //     } catch (error) {
+  //       console.warn('[AutoCache] Failed to clear cache:', error);
+  //     }
+  //   }, CACHE_CLEAR_INTERVAL);
+  // }
 
   private getBucketStats(bucketId: bigint) {
     const stats = this.bucketsStatsResource?.current();
@@ -313,17 +328,50 @@ export class AccountStore implements Account {
   async topUp(amount: number) {
     await this.bcReadyPromise;
 
-    await this.ddc.depositBalance(DDC_CLUSTER_ID, BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
+    await this.ddc.depositBalance(BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
 
-    // Refresh both resources to get updated balances
-    this.accountResource = undefined;
-    this.accountResource = createAccountResource(this);
-    this.clusterAccountResource = undefined;
-    this.clusterAccountResource = createClusterAccountResource(this);
+    // Force immediate refresh of balance data with retry logic
+    await this.refreshBalanceWithRetry();
 
     if (this.address) {
       Reporting.topUp(this.address, amount);
     }
+  }
+
+  private async refreshBalanceWithRetry(maxRetries = 3, delayMs = 2000) {
+    console.log('🔄 Refreshing balance data after deposit...');
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Clear existing resources
+        this.accountResource = undefined;
+        this.clusterAccountResource = undefined;
+
+        // Wait a bit for indexer to process the deposit
+        if (attempt > 1) {
+          console.log(`⏳ Attempt ${attempt}/${maxRetries} - waiting ${delayMs}ms for indexer...`);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
+
+        // Recreate resources (this will fetch fresh data from indexer)
+        this.accountResource = createAccountResource(this);
+        this.clusterAccountResource = createClusterAccountResource(this);
+
+        // Check if balance was updated (simple validation)
+        // Wait a moment for the resource to load
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const currentBalance = this.deposit;
+        if (currentBalance !== undefined) {
+          console.log(`✅ Balance refreshed successfully: ${currentBalance} CERE`);
+          return;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Balance refresh attempt ${attempt} failed:`, error);
+      }
+    }
+
+    console.log('⚠️ Balance refresh completed after maximum retries');
   }
 
   async createAuthToken(bucketId: bigint, pieceCid: string) {
