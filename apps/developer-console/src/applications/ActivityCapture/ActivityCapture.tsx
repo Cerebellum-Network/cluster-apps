@@ -31,6 +31,7 @@ function ActivityCapture() {
   const [selectedEra, setSelectedEra] = useState<EraDetailType | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('7days');
+  const [eraFilter, setEraFilter] = useState<string>('all');
 
   const timeFilterOptions = [
     { value: '15min', label: 'Last 15 minutes' },
@@ -81,20 +82,35 @@ function ActivityCapture() {
 
   const filteredEraDetails =
     activityStore.activity?.eraDetails.filter((era) => {
+      // Filter by time range
       const eraTimestamp = era.eraId * 3600000;
       const cutoffTime = getTimeRangeInMs(timeFilter);
-      return eraTimestamp >= cutoffTime;
+      const timeMatch = eraTimestamp >= cutoffTime;
+      
+      // Filter by era if specific era is selected
+      if (eraFilter !== 'all') {
+        return timeMatch && era.eraId.toString() === eraFilter;
+      }
+      
+      return timeMatch;
     }) || [];
 
+  // Get unique eras for the era selector
+  const availableEras = activityStore.activity?.eraDetails.map((era) => era.eraId) || [];
+  const uniqueEras = Array.from(new Set(availableEras)).sort((a, b) => b - a);
+
   const graphData = filteredEraDetails.map((era) => ({
+    eraId: era.eraId,
     timestamp: new Date(era.eraId * 3600000).toLocaleString(),
     gets: era.gets,
     puts: era.puts,
     transferredBytes: era.transferredBytes,
-    getsValue: (era.getsValue / 10000000000).toFixed(10),
-    putsValue: (era.putsValue / 10000000000).toFixed(10),
-    trafficValue: (era.trafficValue / 10000000000).toFixed(10),
-    totalValue: (era.totalValue / 10000000000).toFixed(10),
+    storedBytes: era.storedBytes,
+    computes: era.computes,
+    cpuUnits: era.cpuUnits,
+    gpuUnits: era.gpuUnits,
+    ramUnits: era.ramUnits,
+    eraData: era, // Store full era data for click handling
   }));
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -114,7 +130,7 @@ function ActivityCapture() {
             {label}
           </Typography>
           <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold', color: '#495057' }}>
-            Activity Metrics:
+            Usage Metrics:
           </Typography>
           <Typography variant="body2" sx={{ color: '#8884d8' }}>
             Gets: {data.gets?.toLocaleString() || 0}
@@ -125,17 +141,20 @@ function ActivityCapture() {
           <Typography variant="body2" sx={{ color: '#ffc658' }}>
             Transferred Bytes: {data.transferredBytes?.toLocaleString() || 0}
           </Typography>
-          <Typography variant="body2" sx={{ mt: 2, mb: 1, fontWeight: 'bold', color: '#495057' }}>
-            Cost Breakdown (CERE):
+          <Typography variant="body2" sx={{ color: '#9c27b0' }}>
+            Stored Bytes: {data.storedBytes?.toLocaleString() || 0}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#ff7300' }}>
-            Gets Value: {data.getsValue || '0.0000000000'}
+          <Typography variant="body2" sx={{ color: '#f44336' }}>
+            Computes: {data.computes?.toLocaleString() || 0}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#00ff00' }}>
-            Puts Value: {data.putsValue || '0.0000000000'}
+          <Typography variant="body2" sx={{ color: '#2196f3' }}>
+            CPU Units: {data.cpuUnits?.toLocaleString() || 0}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#ff0000' }}>
-            Traffic Value: {data.trafficValue || '0.0000000000'}
+          <Typography variant="body2" sx={{ color: '#4caf50' }}>
+            GPU Units: {data.gpuUnits?.toLocaleString() || 0}
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#ff9800' }}>
+            RAM Units: {data.ramUnits?.toLocaleString() || 0}
           </Typography>
         </Box>
       );
@@ -167,7 +186,15 @@ function ActivityCapture() {
   const allZero =
     filteredEraDetails.length === 0 ||
     filteredEraDetails.every(
-      (era) => era.gets === 0 && era.puts === 0 && era.transferredBytes === 0 && era.totalValue === 0,
+      (era) =>
+        era.gets === 0 &&
+        era.puts === 0 &&
+        era.transferredBytes === 0 &&
+        era.storedBytes === 0 &&
+        era.computes === 0 &&
+        era.cpuUnits === 0 &&
+        era.gpuUnits === 0 &&
+        era.ramUnits === 0,
     );
 
   if (activityStore.isLoading) {
@@ -209,38 +236,85 @@ function ActivityCapture() {
   }
 
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">Activity Dashboard</Typography>
-        <Button variant="outlined" onClick={handleRefresh} disabled={activityStore.isLoading}>
+    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, backgroundColor: '#f5f7fa', minHeight: '100vh' }}>
+      <Box 
+        display="flex" 
+        justifyContent="space-between" 
+        alignItems="center" 
+        mb={4}
+        sx={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: 2,
+          p: 3,
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
+        }}
+      >
+        <Typography variant="h4" sx={{ color: 'white', fontWeight: 600 }}>
+          Usage Analytics Dashboard
+        </Typography>
+        <Button 
+          variant="contained" 
+          onClick={handleRefresh} 
+          disabled={activityStore.isLoading}
+          sx={{
+            backgroundColor: 'white',
+            color: '#667eea',
+            fontWeight: 600,
+            '&:hover': {
+              backgroundColor: '#f0f0f0',
+            },
+          }}
+        >
           {activityStore.isLoading ? 'Loading...' : 'Refresh Data'}
         </Button>
       </Box>
 
-      {/* Account Balance Cards - 2 per row, same size as summary cards */}
+      {/* Account Balance Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6}>
-          <Card>
+          <Card
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 32px rgba(102, 126, 234, 0.35)',
+              },
+            }}
+          >
             <CardContent sx={{ minHeight: CARD_MIN_HEIGHT }}>
-              <Typography variant="subtitle1" color="primary" gutterBottom>
+              <Typography variant="subtitle1" sx={{ color: 'rgba(255, 255, 255, 0.9)', mb: 1 }}>
                 DDC Wallet
               </Typography>
-              <Typography variant="h4" fontWeight="bold">
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'white', mb: 0.5 }}>
                 {account.deposit === undefined ? '-' : `${account.deposit} CERE`}
               </Typography>
-              <Typography variant="body2" color="textSecondary">
+              <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                 Active Balance
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6}>
-          <Card>
+          <Card
+            sx={{
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              color: 'white',
+              boxShadow: '0 8px 24px rgba(245, 87, 108, 0.25)',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 32px rgba(245, 87, 108, 0.35)',
+              },
+            }}
+          >
             <CardContent sx={{ minHeight: CARD_MIN_HEIGHT }}>
-              <Typography variant="subtitle1" color="primary" gutterBottom>
+              <Typography variant="subtitle1" sx={{ color: 'rgba(255, 255, 255, 0.9)', mb: 1 }}>
                 Cere Wallet
               </Typography>
-              <Typography variant="h4" fontWeight="bold">
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
                 {account.balance === undefined ? '-' : `${account.balance} CERE`}
               </Typography>
             </CardContent>
@@ -248,49 +322,87 @@ function ActivityCapture() {
         </Grid>
       </Grid>
 
-      {/* Time Filter */}
-      <Box
+      {/* Filters */}
+      <Card
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 3,
-          p: 2,
-          backgroundColor: '#f8f9fa',
-          borderRadius: 1,
-          border: '1px solid #e9ecef',
+          mb: 4,
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+          borderRadius: 2,
         }}
       >
-        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#495057' }}>
-          Filter Activity Data
-        </Typography>
-        <FormControl sx={{ minWidth: 250 }}>
-          <InputLabel sx={{ color: '#6c757d' }}>Select Time Range</InputLabel>
-          <Select
-            value={timeFilter}
-            label="Select Time Range"
-            onChange={(e) => setTimeFilter(e.target.value)}
+        <CardContent>
+          <Box
             sx={{
-              backgroundColor: 'white',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#dee2e6',
-              },
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#adb5bd',
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: '#1976d2',
-              },
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 3,
+              alignItems: { xs: 'stretch', sm: 'center' },
             }}
           >
-            {timeFilterOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#6c757d', fontWeight: 600 }}>
+                Time Range
+              </Typography>
+              <FormControl fullWidth>
+                <Select
+                  value={timeFilter}
+                  onChange={(e) => setTimeFilter(e.target.value)}
+                  sx={{
+                    backgroundColor: 'white',
+                    borderRadius: 1,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e0e0e0',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#667eea',
+                    },
+                  }}
+                >
+                  {timeFilterOptions.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, color: '#6c757d', fontWeight: 600 }}>
+                Era Selection
+              </Typography>
+              <FormControl fullWidth>
+                <Select
+                  value={eraFilter}
+                  onChange={(e) => setEraFilter(e.target.value)}
+                  sx={{
+                    backgroundColor: 'white',
+                    borderRadius: 1,
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#e0e0e0',
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#667eea',
+                    },
+                  }}
+                >
+                  <MenuItem value="all">All Eras</MenuItem>
+                  {uniqueEras.map((eraId) => (
+                    <MenuItem key={eraId} value={eraId.toString()}>
+                      Era {eraId} ({new Date(eraId * 3600000).toLocaleDateString()})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Activity Summary and Trend */}
       {allZero ? (
@@ -299,67 +411,247 @@ function ActivityCapture() {
         </Alert>
       ) : (
         <>
-          <Typography variant="h4" gutterBottom>
-            Activity Summary
+          <Typography 
+            variant="h5" 
+            gutterBottom 
+            sx={{ 
+              mb: 3, 
+              fontWeight: 600, 
+              color: '#2d3748',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            Usage Summary
           </Typography>
           <Grid container spacing={3} sx={{ mb: 4 }}>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
                 <CardContent>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
                     Total Gets
                   </Typography>
-                  <Typography variant="h4" fontWeight="bold">
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#1976d2' }}>
                     {filteredEraDetails.reduce((sum, era) => sum + era.gets, 0).toLocaleString()}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
                 <CardContent>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
                     Total Puts
                   </Typography>
-                  <Typography variant="h4" fontWeight="bold">
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#82ca9d' }}>
                     {filteredEraDetails.reduce((sum, era) => sum + era.puts, 0).toLocaleString()}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
                 <CardContent>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Total Data Transferred (Bytes)
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
+                    Transferred Bytes
                   </Typography>
-                  <Typography variant="h4" fontWeight="bold">
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#ff9800' }}>
                     {filteredEraDetails.reduce((sum, era) => sum + era.transferredBytes, 0).toLocaleString()}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
-              <Card>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
                 <CardContent>
-                  <Typography variant="subtitle1" color="primary" gutterBottom>
-                    Total Amount (Charged in CERE)
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
+                    Stored Bytes
                   </Typography>
-                  <Typography variant="h4" fontWeight="bold">
-                    {(filteredEraDetails.reduce((sum, era) => sum + era.totalValue, 0) / 10000000000).toLocaleString(
-                      undefined,
-                      { maximumFractionDigits: 6 },
-                    )}
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#9c27b0' }}>
+                    {filteredEraDetails.reduce((sum, era) => sum + era.storedBytes, 0).toLocaleString()}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
+                    Computes
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#f44336' }}>
+                    {filteredEraDetails.reduce((sum, era) => sum + era.computes, 0).toLocaleString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
+                    CPU Units
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#2196f3' }}>
+                    {filteredEraDetails.reduce((sum, era) => sum + era.cpuUnits, 0).toLocaleString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
+                    GPU Units
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#4caf50' }}>
+                    {filteredEraDetails.reduce((sum, era) => sum + era.gpuUnits, 0).toLocaleString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card
+                sx={{
+                  height: '100%',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  },
+                }}
+              >
+                <CardContent>
+                  <Typography variant="subtitle2" sx={{ color: '#6c757d', mb: 1, fontWeight: 500 }}>
+                    RAM Units
+                  </Typography>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#ff9800' }}>
+                    {filteredEraDetails.reduce((sum, era) => sum + era.ramUnits, 0).toLocaleString()}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+            {activity.totalTokensCharged > 0 && (
+              <Grid item xs={12} sm={6} md={3}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
+                    },
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant="subtitle2" sx={{ color: 'rgba(255, 255, 255, 0.9)', mb: 1, fontWeight: 500 }}>
+                      Tokens Charged
+                    </Typography>
+                    <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
+                      {(activity.totalTokensCharged / 10000000000).toLocaleString(undefined, {
+                        maximumFractionDigits: 6,
+                      })}{' '}
+                      CERE
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            )}
           </Grid>
           {/* Activity Graph */}
-          <Typography variant="h4" gutterBottom>
-            Activity Trend
+          <Typography 
+            variant="h5" 
+            gutterBottom 
+            sx={{ 
+              mb: 3, 
+              fontWeight: 600, 
+              color: '#2d3748',
+            }}
+          >
+            Usage Trend
           </Typography>
-          <Card sx={{ mb: 4, border: '3px solid #1976d2', boxShadow: '0 4px 24px rgba(25, 118, 210, 0.08)' }}>
+          <Card 
+            sx={{ 
+              mb: 4, 
+              borderRadius: 2,
+              boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)',
+              border: '1px solid #e0e0e0',
+            }}
+          >
             <CardContent>
               <Box sx={{ height: 480, p: 1 }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -381,14 +673,14 @@ function ActivityCapture() {
                       allowDecimals={false}
                       label={{ value: 'Gets / Puts', angle: -90, position: 'insideLeft', fill: '#8884d8' }}
                     />
-                    {/* Right Y-axis for Transferred Bytes */}
+                    {/* Right Y-axis for Bytes and Units */}
                     <YAxis
                       yAxisId="right"
                       orientation="right"
                       tick={{ fontSize: 13, fill: '#ff9800', fontWeight: 700 }}
                       allowDecimals={false}
                       label={{
-                        value: 'Transferred Bytes',
+                        value: 'Bytes / Units',
                         angle: 90,
                         position: 'insideRight',
                         fill: '#ff9800',
@@ -402,7 +694,12 @@ function ActivityCapture() {
                     <Legend verticalAlign="top" height={36} iconType="circle" />
                     <Bar yAxisId="left" dataKey="gets" fill="#1976d2" name="Gets" />
                     <Bar yAxisId="left" dataKey="puts" fill="#82ca9d" name="Puts" />
+                    <Bar yAxisId="left" dataKey="computes" fill="#f44336" name="Computes" />
                     <Bar yAxisId="right" dataKey="transferredBytes" fill="#ffc658" name="Transferred Bytes" />
+                    <Bar yAxisId="right" dataKey="storedBytes" fill="#9c27b0" name="Stored Bytes" />
+                    <Bar yAxisId="right" dataKey="cpuUnits" fill="#2196f3" name="CPU Units" />
+                    <Bar yAxisId="right" dataKey="gpuUnits" fill="#4caf50" name="GPU Units" />
+                    <Bar yAxisId="right" dataKey="ramUnits" fill="#ff9800" name="RAM Units" />
                   </BarChart>
                 </ResponsiveContainer>
               </Box>
@@ -445,112 +742,273 @@ function ActivityCapture() {
           {selectedEra && (
             <Box>
               <Typography variant="h4" gutterBottom sx={{ color: '#1976d2', mb: 2 }}>
-                Activity Summary
+                Usage Summary
               </Typography>
 
-              <Box sx={{ display: 'grid', gap: 2, mb: 3 }}>
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    backgroundColor: '#fafafa',
-                  }}
-                >
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Gets
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    {selectedEra.gets.toLocaleString()}
-                  </Typography>
-                </Box>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Gets
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                      {selectedEra.gets.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.gets >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.gets >= 0 ? '+' : ''}
+                        {selectedEra.changes.gets.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
 
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    backgroundColor: '#fafafa',
-                  }}
-                >
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Puts
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    {selectedEra.puts.toLocaleString()}
-                  </Typography>
-                </Box>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Puts
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                      {selectedEra.puts.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.puts >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.puts >= 0 ? '+' : ''}
+                        {selectedEra.changes.puts.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
 
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    backgroundColor: '#fafafa',
-                  }}
-                >
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Transferred Bytes
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
-                    {selectedEra.transferredBytes.toLocaleString()}
-                  </Typography>
-                </Box>
-              </Box>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Transferred Bytes
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                      {selectedEra.transferredBytes.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.transferredBytes >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.transferredBytes >= 0 ? '+' : ''}
+                        {selectedEra.changes.transferredBytes.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
 
-              <Typography variant="h4" gutterBottom sx={{ color: '#1976d2', mb: 2 }}>
-                Cost Breakdown (CERE)
-              </Typography>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Stored Bytes
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                      {selectedEra.storedBytes.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.storedBytes >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.storedBytes >= 0 ? '+' : ''}
+                        {selectedEra.changes.storedBytes.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
 
-              <Box sx={{ display: 'grid', gap: 2 }}>
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #4caf50',
-                    borderRadius: 1,
-                    backgroundColor: '#f1f8e9',
-                  }}
-                >
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Gets Value
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
-                    {(selectedEra.getsValue / 10000000000).toFixed(10)}
-                  </Typography>
-                </Box>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      backgroundColor: '#fafafa',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      Computes
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+                      {selectedEra.computes.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.computes >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.computes >= 0 ? '+' : ''}
+                        {selectedEra.changes.computes.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
 
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #ff9800',
-                    borderRadius: 1,
-                    backgroundColor: '#fff3e0',
-                  }}
-                >
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Puts Value
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#e65100' }}>
-                    {(selectedEra.putsValue / 10000000000).toFixed(10)}
-                  </Typography>
-                </Box>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #2196f3',
+                      borderRadius: 1,
+                      backgroundColor: '#e3f2fd',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      CPU Units
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1565c0' }}>
+                      {selectedEra.cpuUnits.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.cpuUnits >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.cpuUnits >= 0 ? '+' : ''}
+                        {selectedEra.changes.cpuUnits.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
 
-                <Box
-                  sx={{
-                    p: 2,
-                    border: '1px solid #2196f3',
-                    borderRadius: 1,
-                    backgroundColor: '#e3f2fd',
-                  }}
-                >
-                  <Typography variant="subtitle2" color="textSecondary" gutterBottom>
-                    Traffic Value
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#1565c0' }}>
-                    {(selectedEra.trafficValue / 10000000000).toFixed(10)}
-                  </Typography>
-                </Box>
-              </Box>
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #4caf50',
+                      borderRadius: 1,
+                      backgroundColor: '#f1f8e9',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      GPU Units
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                      {selectedEra.gpuUnits.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.gpuUnits >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.gpuUnits >= 0 ? '+' : ''}
+                        {selectedEra.changes.gpuUnits.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: '1px solid #ff9800',
+                      borderRadius: 1,
+                      backgroundColor: '#fff3e0',
+                    }}
+                  >
+                    <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                      RAM Units
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#e65100' }}>
+                      {selectedEra.ramUnits.toLocaleString()}
+                    </Typography>
+                    {selectedEra.changes && (
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: selectedEra.changes.ramUnits >= 0 ? '#4caf50' : '#f44336',
+                          mt: 0.5,
+                        }}
+                      >
+                        {selectedEra.changes.ramUnits >= 0 ? '+' : ''}
+                        {selectedEra.changes.ramUnits.toLocaleString()} from previous era
+                      </Typography>
+                    )}
+                  </Box>
+                </Grid>
+
+                {selectedEra.tokensCharged && (
+                  <Grid item xs={12}>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: '1px solid #9c27b0',
+                        borderRadius: 1,
+                        backgroundColor: '#f3e5f5',
+                      }}
+                    >
+                      <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+                        Tokens Charged
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#7b1fa2' }}>
+                        {(selectedEra.tokensCharged / 10000000000).toLocaleString(undefined, {
+                          maximumFractionDigits: 6,
+                        })}{' '}
+                        CERE
+                      </Typography>
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
             </Box>
           )}
         </DialogContent>

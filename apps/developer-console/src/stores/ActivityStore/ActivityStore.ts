@@ -1,7 +1,6 @@
 import { makeAutoObservable } from 'mobx';
 import { fromPromise, IPromiseBasedObservable } from 'mobx-utils';
-import { DacApi } from '@cluster-apps/api';
-import { DDC_CLUSTER_ID } from '~/constants.ts';
+import { BillingApi } from '@cluster-apps/api';
 
 // Function to convert encoded address to raw wallet address
 function getRawAddressFromEncoded(encodedAddress: string): string {
@@ -57,24 +56,39 @@ export interface CustomerActivity {
   totalGets: number;
   totalPuts: number;
   totalTransferredBytes: number;
-  totalGetsValue: number;
-  totalPutsValue: number;
-  totalTrafficValue: number;
-  totalValue: number;
+  totalStoredBytes: number;
+  totalComputes: number;
+  totalCpuUnits: number;
+  totalGpuUnits: number;
+  totalRamUnits: number;
+  totalTokensCharged: number;
   eraDetails: Array<{
     eraId: number;
     gets: number;
     puts: number;
     transferredBytes: number;
-    getsValue: number;
-    putsValue: number;
-    trafficValue: number;
-    totalValue: number;
+    storedBytes: number;
+    computes: number;
+    cpuUnits: number;
+    gpuUnits: number;
+    ramUnits: number;
+    tokensCharged?: number;
+    // Change from previous era (for comparison)
+    changes?: {
+      gets: number;
+      puts: number;
+      transferredBytes: number;
+      storedBytes: number;
+      computes: number;
+      cpuUnits: number;
+      gpuUnits: number;
+      ramUnits: number;
+    };
   }>;
 }
 
 export class ActivityStore {
-  private dacApi = new DacApi();
+  private billingApi = new BillingApi();
   private activityPromise: IPromiseBasedObservable<CustomerActivity> | null = null;
   private lastFetchedCustomerId: string | null = null;
 
@@ -104,9 +118,9 @@ export class ActivityStore {
     return this.activityPromise?.state === 'rejected';
   }
 
-  async fetchCustomerActivity(_customerId: string, clusterId: string = DDC_CLUSTER_ID) {
+  async fetchCustomerActivity(_customerId: string) {
     try {
-      // Convert encoded address to raw wallet address for DAC API calls
+      // Convert encoded address to raw wallet address for billing API calls
       const rawWalletAddress = getRawAddressFromEncoded(_customerId);
 
       if (this.lastFetchedCustomerId === rawWalletAddress && (this.hasData || this.isLoading)) {
@@ -115,18 +129,18 @@ export class ActivityStore {
 
       this.lastFetchedCustomerId = rawWalletAddress;
       // Use the provided customer id
-      this.activityPromise = fromPromise(this.loadCustomerActivity(rawWalletAddress, clusterId));
+      this.activityPromise = fromPromise(this.loadCustomerActivity(rawWalletAddress));
     } catch (error) {
       console.error('Error fetching customer activity:', error);
       throw error;
     }
   }
 
-  async refreshCustomerActivity(_customerId: string, clusterId: string = DDC_CLUSTER_ID) {
+  async refreshCustomerActivity(_customerId: string) {
     try {
       const rawWalletAddress = getRawAddressFromEncoded(_customerId);
       this.lastFetchedCustomerId = rawWalletAddress;
-      this.activityPromise = fromPromise(this.loadCustomerActivity(rawWalletAddress, clusterId));
+      this.activityPromise = fromPromise(this.loadCustomerActivity(rawWalletAddress));
     } catch (error) {
       console.error('Error refreshing customer activity:', error);
       throw error;
@@ -138,57 +152,65 @@ export class ActivityStore {
     this.lastFetchedCustomerId = null;
   }
 
-  private async loadCustomerActivity(customerId: string, clusterId: string): Promise<CustomerActivity> {
+  private async loadCustomerActivity(customerId: string): Promise<CustomerActivity> {
     try {
-      const eraIds = await this.dacApi.getEras(clusterId);
-
-      const governanceParams = await this.dacApi.getGovernanceParams(clusterId);
-      const unitPerGet = governanceParams.unit_per_get_request;
-      const unitPerPut = governanceParams.unit_per_put_request;
-      const unitPerMbStreamed = governanceParams.unit_per_mb_streamed;
+      const billingData = await this.billingApi.getCustomerActivity(customerId);
 
       let totalGets = 0;
       let totalPuts = 0;
       let totalTransferredBytes = 0;
-      let totalGetsValue = 0;
-      let totalPutsValue = 0;
-      let totalTrafficValue = 0;
-      let totalValue = 0;
+      let totalStoredBytes = 0;
+      let totalComputes = 0;
+      let totalCpuUnits = 0;
+      let totalGpuUnits = 0;
+      let totalRamUnits = 0;
+      let totalTokensCharged = 0;
       const eraDetails: CustomerActivity['eraDetails'] = [];
 
-      for (const eraId of eraIds) {
-        try {
-          const eraDetail = await this.dacApi.getCustomerEraDetails(clusterId, eraId, customerId);
-          if (!eraDetail?.customers?.[customerId]) continue;
+      // Sort eras by era_id descending (newest first)
+      const sortedEras = [...billingData.eras].sort((a, b) => b.era_id - a.era_id);
 
-          const customerStats = eraDetail.customers[customerId];
-          const getsValue = customerStats.gets * unitPerGet;
-          const putsValue = customerStats.puts * unitPerPut;
-          const trafficValue = customerStats.transferredBytes * unitPerMbStreamed;
-          const eraTotalValue = getsValue + putsValue + trafficValue;
+      for (let i = 0; i < sortedEras.length; i++) {
+        const era = sortedEras[i];
+        const previousEra = i < sortedEras.length - 1 ? sortedEras[i + 1] : null;
 
-          totalGets += customerStats.gets;
-          totalPuts += customerStats.puts;
-          totalTransferredBytes += customerStats.transferredBytes;
-          totalGetsValue += getsValue;
-          totalPutsValue += putsValue;
-          totalTrafficValue += trafficValue;
-          totalValue += eraTotalValue;
+        totalGets += era.gets;
+        totalPuts += era.puts;
+        totalTransferredBytes += era.transferred_bytes;
+        totalStoredBytes += era.stored_bytes;
+        totalComputes += era.computes || 0;
+        totalCpuUnits += era.cpu_units || 0;
+        totalGpuUnits += era.gpu_units || 0;
+        totalRamUnits += era.ram_units || 0;
+        totalTokensCharged += era.tokens_charged || 0;
 
-          eraDetails.push({
-            eraId: eraDetail.era,
-            gets: customerStats.gets,
-            puts: customerStats.puts,
-            transferredBytes: customerStats.transferredBytes,
-            getsValue,
-            putsValue,
-            trafficValue,
-            totalValue: eraTotalValue,
-          });
-        } catch (eraError) {
-          console.warn(`Failed to fetch era ${eraId} details:`, eraError);
-          continue;
-        }
+        // Calculate changes from previous era
+        const changes = previousEra
+          ? {
+              gets: era.gets - (previousEra.gets || 0),
+              puts: era.puts - (previousEra.puts || 0),
+              transferredBytes: era.transferred_bytes - (previousEra.transferred_bytes || 0),
+              storedBytes: era.stored_bytes - (previousEra.stored_bytes || 0),
+              computes: (era.computes || 0) - (previousEra.computes || 0),
+              cpuUnits: (era.cpu_units || 0) - (previousEra.cpu_units || 0),
+              gpuUnits: (era.gpu_units || 0) - (previousEra.gpu_units || 0),
+              ramUnits: (era.ram_units || 0) - (previousEra.ram_units || 0),
+            }
+          : undefined;
+
+        eraDetails.push({
+          eraId: era.era_id,
+          gets: era.gets,
+          puts: era.puts,
+          transferredBytes: era.transferred_bytes,
+          storedBytes: era.stored_bytes,
+          computes: era.computes || 0,
+          cpuUnits: era.cpu_units || 0,
+          gpuUnits: era.gpu_units || 0,
+          ramUnits: era.ram_units || 0,
+          tokensCharged: era.tokens_charged,
+          changes,
+        });
       }
 
       return {
@@ -196,11 +218,13 @@ export class ActivityStore {
         totalGets,
         totalPuts,
         totalTransferredBytes,
-        totalGetsValue,
-        totalPutsValue,
-        totalTrafficValue,
-        totalValue,
-        eraDetails: eraDetails.sort((a, b) => b.eraId - a.eraId),
+        totalStoredBytes,
+        totalComputes,
+        totalCpuUnits,
+        totalGpuUnits,
+        totalRamUnits,
+        totalTokensCharged,
+        eraDetails,
       };
     } catch (err) {
       console.error('Failed to load customer activity:', err);
