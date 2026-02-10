@@ -9,6 +9,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@cere/cere-design-system": "^0.0.17",
     "recharts": "^2.15.3"
   }
 }
