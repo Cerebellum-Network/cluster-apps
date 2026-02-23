@@ -215,7 +215,7 @@ const ContentStorage = () => {
       filePath?: string;
       skipQuests?: boolean;
       emptyFolder?: boolean;
-    }) => {
+    }): Promise<string | null> => {
       const currentBucket = account.buckets.find((bucket) => bucket.id.toString() === bucketId.toString());
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
       questsStore.markStepDone('uploadFile', 'startUploading');
@@ -237,7 +237,7 @@ const ContentStorage = () => {
             setUploadStatus('success');
           }
 
-          return;
+          return null;
         } catch (err) {
           Reporting.error(err);
           setUploadStatus('error');
