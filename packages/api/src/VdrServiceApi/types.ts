@@ -55,3 +55,67 @@ export const ERA_RANGE_OFFSETS: Record<EraRangePreset, number | null> = {
   last_6_months: 180 * DAY_MS,
   all_time: null,
 };
+
+// --- Provider types ---
+
+export interface QoSLatency {
+  p50: number;
+  p95: number;
+  p99: number;
+}
+
+export interface QoSAvailability {
+  uptime_percent: number;
+}
+
+export interface QoSBandwidth {
+  mbps: number;
+}
+
+export interface ProviderEraRecord {
+  era_id: number;
+  transferred_bytes: number;
+  stored_bytes: number;
+  gets: number;
+  puts: number;
+  computes: number;
+  cpu_units: string;
+  gpu_units: string;
+  ram_units: string;
+  latency: QoSLatency | null;
+  availability: QoSAvailability | null;
+  bandwidth: QoSBandwidth | null;
+  reward: string;
+  time_start: number;
+  time_end: number;
+}
+
+export type ProviderMetricKey =
+  | 'reward'
+  | 'cpu_units'
+  | 'gpu_units'
+  | 'ram_units'
+  | 'gets'
+  | 'puts'
+  | 'transferred_bytes';
+
+export interface ProviderTableRowData extends ProviderEraRecord {
+  rewardDelta: number | null;
+}
+
+export interface ProviderErasParams {
+  from?: number;
+  to?: number;
+  timeFrom?: number;
+  timeTo?: number;
+}
+
+export const PROVIDER_METRIC_LABELS: Record<ProviderMetricKey, string> = {
+  reward: 'Reward Earned ($)',
+  cpu_units: 'CPU Units',
+  gpu_units: 'GPU Units',
+  ram_units: 'RAM Units',
+  gets: 'GETs',
+  puts: 'PUTs',
+  transferred_bytes: 'Transferred Bytes',
+};

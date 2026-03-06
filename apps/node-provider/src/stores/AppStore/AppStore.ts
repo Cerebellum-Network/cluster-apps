@@ -5,6 +5,7 @@ import { OnboardingStore } from '../OnboardingStore/OnboardingStore';
 import { QuestsStore } from '../QuestsStore';
 import { DdcBlockchainStore } from '../DdcBlockchainStore';
 import { NodeConfigurationStore } from '../NodeConfigurationStore';
+import { ProviderUsageStore } from '../ProviderUsageStore';
 
 export type AppState = 'initing' | 'onboard' | 'ready';
 
@@ -16,6 +17,7 @@ export class AppStore {
   readonly questsStore: QuestsStore;
   readonly ddcBlockchainStore: DdcBlockchainStore;
   readonly nodeConfigurationStore: NodeConfigurationStore;
+  readonly providerUsageStore: ProviderUsageStore;
 
   constructor() {
     makeAutoObservable(this);
@@ -25,6 +27,7 @@ export class AppStore {
     this.questsStore = new QuestsStore(this.accountStore);
     this.ddcBlockchainStore = new DdcBlockchainStore(this.accountStore);
     this.nodeConfigurationStore = new NodeConfigurationStore(this.ddcBlockchainStore);
+    this.providerUsageStore = new ProviderUsageStore(this.accountStore);
   }
 
   get isReady() {

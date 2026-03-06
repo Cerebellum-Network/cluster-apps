@@ -5,3 +5,4 @@ export * from './Sidebar';
 export * from './OnboardingLayout';
 export * from './Layout';
 export * from './QuestHint';
+export * from './ProviderDashboard';
