@@ -8,10 +8,7 @@ export class VdrServiceApi {
 
   async getCustomerEras(customerId: string, params?: CustomerErasParams): Promise<CustomerEraRecord[]> {
     try {
-      const response = await axios.get<CustomerEraRecord[]>(
-        `${this.baseUrl}/customer/${customerId}/eras`,
-        { params },
-      );
+      const response = await axios.get<CustomerEraRecord[]>(`${this.baseUrl}/customer/${customerId}/eras`, { params });
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -31,9 +28,7 @@ export class VdrServiceApi {
 
   async getCustomerEra(customerId: string, eraId: number): Promise<CustomerEraRecord | null> {
     try {
-      const response = await axios.get<CustomerEraRecord>(
-        `${this.baseUrl}/customer/${customerId}/era/${eraId}`,
-      );
+      const response = await axios.get<CustomerEraRecord>(`${this.baseUrl}/customer/${customerId}/era/${eraId}`);
       return response.data;
     } catch (error) {
       if (error instanceof AxiosError) {

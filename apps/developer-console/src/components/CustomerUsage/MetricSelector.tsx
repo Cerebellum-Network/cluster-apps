@@ -6,9 +6,7 @@ interface MetricSelectorProps {
   onChange: (key: MetricKey) => void;
 }
 
-const metricOptions = (Object.entries(METRIC_LABELS) as [MetricKey, string][]).filter(
-  ([key]) => key !== 'charge',
-);
+const metricOptions = (Object.entries(METRIC_LABELS) as [MetricKey, string][]).filter(([key]) => key !== 'charge');
 
 export const MetricSelector = ({ value, onChange }: MetricSelectorProps) => (
   <TextField

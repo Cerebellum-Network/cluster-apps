@@ -13,21 +13,9 @@ export interface CustomerEraRecord {
   time_end: number;
 }
 
-export type MetricKey =
-  | 'charge'
-  | 'cpu_units'
-  | 'gpu_units'
-  | 'ram_units'
-  | 'gets'
-  | 'puts'
-  | 'transferred_bytes';
+export type MetricKey = 'charge' | 'cpu_units' | 'gpu_units' | 'ram_units' | 'gets' | 'puts' | 'transferred_bytes';
 
-export type EraRangePreset =
-  | 'last_week'
-  | 'last_month'
-  | 'last_3_months'
-  | 'last_6_months'
-  | 'all_time';
+export type EraRangePreset = 'last_week' | 'last_month' | 'last_3_months' | 'last_6_months' | 'all_time';
 
 export interface TableRowData extends CustomerEraRecord {
   usageDelta: number | null;

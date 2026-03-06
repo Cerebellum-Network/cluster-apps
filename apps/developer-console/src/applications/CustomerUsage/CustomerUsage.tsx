@@ -55,10 +55,7 @@ const CustomerUsage = () => {
               </MenuItem>
             ))}
           </TextField>
-          <EraRangeSelector
-            value={store.eraRangePreset}
-            onChange={(preset) => store.setEraRange(preset)}
-          />
+          <EraRangeSelector value={store.eraRangePreset} onChange={(preset) => store.setEraRange(preset)} />
         </Box>
 
         <Box padding="24px">

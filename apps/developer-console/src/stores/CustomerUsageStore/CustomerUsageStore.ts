@@ -61,9 +61,7 @@ export class CustomerUsageStore {
     this.error = null;
 
     const offset = ERA_RANGE_OFFSETS[this.eraRangePreset];
-    const params = offset != null
-      ? { timeFrom: Date.now() - offset, timeTo: Date.now() }
-      : undefined;
+    const params = offset != null ? { timeFrom: Date.now() - offset, timeTo: Date.now() } : undefined;
 
     try {
       const result = await this.vdrApi.getCustomerEras(id, params);

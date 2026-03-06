@@ -1,11 +1,4 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-} from '@cluster-apps/ui';
+import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@cluster-apps/ui';
 import { TableRowData } from '@cluster-apps/api';
 import { formatInteger, formatDecimal, formatCurrency, formatDelta } from '~/utils/formatters';
 
@@ -21,13 +14,27 @@ export const PastErasTable = ({ data }: PastErasTableProps) => (
       <TableHead>
         <TableRow>
           <TableCell sx={noWrap}>Era</TableCell>
-          <TableCell align="right" sx={noWrap}>GETs</TableCell>
-          <TableCell align="right" sx={noWrap}>PUTs</TableCell>
-          <TableCell align="right" sx={noWrap}>CPU</TableCell>
-          <TableCell align="right" sx={noWrap}>GPU</TableCell>
-          <TableCell align="right" sx={noWrap}>RAM</TableCell>
-          <TableCell align="right" sx={noWrap}>Amount Charged</TableCell>
-          <TableCell align="right" sx={noWrap}>Usage Δ</TableCell>
+          <TableCell align="right" sx={noWrap}>
+            GETs
+          </TableCell>
+          <TableCell align="right" sx={noWrap}>
+            PUTs
+          </TableCell>
+          <TableCell align="right" sx={noWrap}>
+            CPU
+          </TableCell>
+          <TableCell align="right" sx={noWrap}>
+            GPU
+          </TableCell>
+          <TableCell align="right" sx={noWrap}>
+            RAM
+          </TableCell>
+          <TableCell align="right" sx={noWrap}>
+            Amount Charged
+          </TableCell>
+          <TableCell align="right" sx={noWrap}>
+            Usage Δ
+          </TableCell>
         </TableRow>
       </TableHead>
       <TableBody>
@@ -36,13 +43,27 @@ export const PastErasTable = ({ data }: PastErasTableProps) => (
             <TableCell component="th" scope="row" sx={noWrap}>
               {row.era_id}
             </TableCell>
-            <TableCell align="right" sx={noWrap}>{formatInteger(row.gets)}</TableCell>
-            <TableCell align="right" sx={noWrap}>{formatInteger(row.puts)}</TableCell>
-            <TableCell align="right" sx={noWrap}>{formatDecimal(row.cpu_units)}</TableCell>
-            <TableCell align="right" sx={noWrap}>{formatDecimal(row.gpu_units)}</TableCell>
-            <TableCell align="right" sx={noWrap}>{formatDecimal(row.ram_units)}</TableCell>
-            <TableCell align="right" sx={noWrap}>{formatCurrency(row.charge)}</TableCell>
-            <TableCell align="right" sx={noWrap}>{formatDelta(row.usageDelta)}</TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatInteger(row.gets)}
+            </TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatInteger(row.puts)}
+            </TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatDecimal(row.cpu_units)}
+            </TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatDecimal(row.gpu_units)}
+            </TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatDecimal(row.ram_units)}
+            </TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatCurrency(row.charge)}
+            </TableCell>
+            <TableCell align="right" sx={noWrap}>
+              {formatDelta(row.usageDelta)}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
