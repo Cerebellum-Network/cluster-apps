@@ -4,3 +4,4 @@ export * from './StatsApi';
 export * from './ClusterManagementApi';
 export * from './AccessRegistryApi';
 export * from './DacApi';
+export * from './VdrServiceApi';
