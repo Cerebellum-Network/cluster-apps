@@ -26,6 +26,8 @@ import {
   createStatusResource,
   createBucketStatsResource,
   createClusterAccountResource,
+  createBalanceResource,
+  createDepositResource,
 } from './resources';
 
 export class AccountStore implements Account {
@@ -46,6 +48,8 @@ export class AccountStore implements Account {
   private addressResource = createAddressResource(this);
   private accountResource?: IResource<IndexedAccount | undefined>;
   private clusterAccountResource?: IResource<IndexedAccount | undefined>;
+  private balanceResource?: IResource<bigint | undefined>;
+  private depositResource?: IResource<bigint | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
   private accountMetricsResource?: IResource<AccountMetrics | undefined>;
   private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
@@ -62,7 +66,7 @@ export class AccountStore implements Account {
 
     reaction(
       () => this.address && this.status === 'connected',
-      (isConnected) => (isConnected ? this.bootstrap() : this.cleanup()),
+      (isConnected: any) => (isConnected ? this.bootstrap() : this.cleanup()),
     );
 
     reaction(
@@ -77,7 +81,7 @@ export class AccountStore implements Account {
      */
     reaction(
       () => this.userInfo,
-      (userInfo) =>
+      (userInfo: { email: any; name: any }) =>
         !userInfo
           ? Reporting.clearUser()
           : Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name }),
@@ -94,6 +98,8 @@ export class AccountStore implements Account {
   private async bootstrap() {
     this.accountResource = createAccountResource(this);
     this.clusterAccountResource = createClusterAccountResource(this);
+    this.balanceResource = createBalanceResource(this);
+    this.depositResource = createDepositResource(this);
     this.accountMetricsResource = createAccountMetricsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
   }
@@ -102,6 +108,8 @@ export class AccountStore implements Account {
     this.userInfoPromise = undefined;
     this.accountResource = undefined;
     this.clusterAccountResource = undefined;
+    this.balanceResource = undefined;
+    this.depositResource = undefined;
     this.accountMetricsResource = undefined;
   }
 
@@ -148,7 +156,7 @@ export class AccountStore implements Account {
 
     return (
       stats &&
-      (stats.find((stats) => stats.bucketId === bucketId) || {
+      (stats.find((stats: { bucketId: bigint }) => stats.bucketId === bucketId) || {
         bucketId,
         gets: 0,
         puts: 0,
@@ -175,17 +183,13 @@ export class AccountStore implements Account {
   }
 
   get balance() {
-    const balance = this.accountResource?.current()?.balance;
+    const balance = this.balanceResource?.current();
 
     return balance === undefined ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get deposit() {
-    // Try cluster-specific deposit first, then fall back to general deposit
-    const clusterDeposit = this.clusterAccountResource?.current()?.deposit;
-    const generalDeposit = this.accountResource?.current()?.deposit;
-
-    const deposit = clusterDeposit !== undefined ? clusterDeposit : generalDeposit;
+    const deposit = this.depositResource?.current();
 
     return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
@@ -219,7 +223,7 @@ export class AccountStore implements Account {
 
   get userInfo() {
     return this.userInfoPromise?.case({
-      fulfilled: (userInfo) => userInfo,
+      fulfilled: (userInfo: any) => userInfo,
     });
   }
 
@@ -315,11 +319,15 @@ export class AccountStore implements Account {
 
     await this.ddc.depositBalance(DDC_CLUSTER_ID, BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
 
-    // Refresh both resources to get updated balances
+    // Refresh resources to get updated balances
     this.accountResource = undefined;
     this.accountResource = createAccountResource(this);
     this.clusterAccountResource = undefined;
     this.clusterAccountResource = createClusterAccountResource(this);
+    this.balanceResource = undefined;
+    this.balanceResource = createBalanceResource(this);
+    this.depositResource = undefined;
+    this.depositResource = createDepositResource(this);
 
     if (this.address) {
       Reporting.topUp(this.address, amount);

@@ -104,3 +104,31 @@ export const createClusterAccountResource = (account: AccountStore) => {
     }
   });
 };
+
+export const createBalanceResource = (account: AccountStore) => {
+  return createPullResource(async () => {
+    if (!account.address) {
+      return undefined;
+    }
+
+    try {
+      return await account.ddc.getBalance();
+    } catch (error) {
+      return undefined;
+    }
+  });
+};
+
+export const createDepositResource = (account: AccountStore) => {
+  return createPullResource(async () => {
+    if (!account.address) {
+      return undefined;
+    }
+
+    try {
+      return await account.ddc.getDeposit(DDC_CLUSTER_ID);
+    } catch (error) {
+      return undefined;
+    }
+  });
+};
