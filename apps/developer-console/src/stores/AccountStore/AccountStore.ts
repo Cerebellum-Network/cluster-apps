@@ -47,14 +47,14 @@ export class AccountStore implements Account {
   private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
-  private accountResource?: IResource<IndexedAccount | undefined>;
-  private clusterAccountResource?: IResource<IndexedAccount | undefined>;
-  private bucketListResource?: IResource<BlockchainBucket[] | undefined>;
+  private accountResource?: IResource<IndexedAccount | null | undefined>;
+  private clusterAccountResource?: IResource<IndexedAccount | null | undefined>;
+  private bucketListResource?: IResource<BlockchainBucket[] | null | undefined>;
   private _bucketsLoading = false;
-  private balanceResource?: IResource<bigint | undefined>;
-  private depositResource?: IResource<bigint | undefined>;
+  private balanceResource?: IResource<bigint | null | undefined>;
+  private depositResource?: IResource<bigint | null | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-  private accountMetricsResource?: IResource<AccountMetrics | undefined>;
+  private accountMetricsResource?: IResource<AccountMetrics | null | undefined>;
   private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
 
   constructor() {
@@ -187,7 +187,7 @@ export class AccountStore implements Account {
   }
 
   get metrics() {
-    return this.accountMetricsResource?.current();
+    return this.accountMetricsResource?.current() ?? undefined;
   }
 
   get address() {
@@ -197,13 +197,13 @@ export class AccountStore implements Account {
   get balance() {
     const balance = this.balanceResource?.current();
 
-    return balance === undefined ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
+    return balance == null ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get deposit() {
     const deposit = this.depositResource?.current();
 
-    return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
+    return deposit == null ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get buckets() {
@@ -233,7 +233,7 @@ export class AccountStore implements Account {
   // Add method to get cluster-specific deposit
   get clusterDeposit() {
     const deposit = this.clusterAccountResource?.current()?.deposit;
-    return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
+    return deposit == null ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   // Add method to get all deposits (legacy and cluster-specific)
