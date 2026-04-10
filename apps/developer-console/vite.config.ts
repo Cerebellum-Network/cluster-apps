@@ -15,9 +15,6 @@ export default defineConfig({
   assetsInclude: ['**/*.md'],
   envDir: rootDir,
   build: { outDir, emptyOutDir: true },
-  resolve: {
-    extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json'],
-  },
   optimizeDeps: {
     include: ['date-fns'],
   },

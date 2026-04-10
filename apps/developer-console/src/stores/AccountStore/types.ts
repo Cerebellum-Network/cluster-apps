@@ -26,6 +26,7 @@ export interface Account {
   readonly balance?: number;
   readonly deposit?: number;
   readonly buckets?: Bucket[];
+  readonly bucketsLoading?: boolean;
   readonly metrics?: AccountMetrics;
 
   isReady(): this is ReadyAccount;
@@ -39,6 +40,7 @@ export interface Account {
   createAuthToken(bucketId: bigint, cid: string): Promise<AuthToken>;
 }
 
-export type ReadyAccount = Required<Omit<Account, 'stats'>> & {
+export type ReadyAccount = Required<Omit<Account, 'stats' | 'buckets'>> & {
+  readonly buckets?: Bucket[];
   readonly metrics?: AccountMetrics;
 };

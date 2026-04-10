@@ -1,9 +1,9 @@
-import { makeAutoObservable, reaction, when } from 'mobx';
+import { action, makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
-import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
+import { Blockchain, Bucket as BlockchainBucket, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
@@ -28,6 +28,7 @@ import {
   createClusterAccountResource,
   createBalanceResource,
   createDepositResource,
+  createBucketListResource,
 } from './resources';
 
 export class AccountStore implements Account {
@@ -48,6 +49,8 @@ export class AccountStore implements Account {
   private addressResource = createAddressResource(this);
   private accountResource?: IResource<IndexedAccount | undefined>;
   private clusterAccountResource?: IResource<IndexedAccount | undefined>;
+  private bucketListResource?: IResource<BlockchainBucket[] | undefined>;
+  private _bucketsLoading = false;
   private balanceResource?: IResource<bigint | undefined>;
   private depositResource?: IResource<bigint | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
@@ -66,7 +69,7 @@ export class AccountStore implements Account {
 
     reaction(
       () => this.address && this.status === 'connected',
-      (isConnected: any) => (isConnected ? this.bootstrap() : this.cleanup()),
+      (isConnected) => (isConnected ? this.bootstrap() : this.cleanup()),
     );
 
     reaction(
@@ -81,7 +84,7 @@ export class AccountStore implements Account {
      */
     reaction(
       () => this.userInfo,
-      (userInfo: { email: any; name: any }) =>
+      (userInfo: UserInfo | undefined) =>
         !userInfo
           ? Reporting.clearUser()
           : Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name }),
@@ -96,8 +99,15 @@ export class AccountStore implements Account {
   }
 
   private async bootstrap() {
+    this._bucketsLoading = true;
     this.accountResource = createAccountResource(this);
     this.clusterAccountResource = createClusterAccountResource(this);
+    this.bucketListResource = createBucketListResource(
+      this,
+      action(() => {
+        this._bucketsLoading = false;
+      }),
+    );
     this.balanceResource = createBalanceResource(this);
     this.depositResource = createDepositResource(this);
     this.accountMetricsResource = createAccountMetricsResource(this);
@@ -105,9 +115,11 @@ export class AccountStore implements Account {
   }
 
   private async cleanup() {
+    this._bucketsLoading = false;
     this.userInfoPromise = undefined;
     this.accountResource = undefined;
     this.clusterAccountResource = undefined;
+    this.bucketListResource = undefined;
     this.balanceResource = undefined;
     this.depositResource = undefined;
     this.accountMetricsResource = undefined;
@@ -167,7 +179,7 @@ export class AccountStore implements Account {
   }
 
   isReady(): this is ReadyAccount {
-    return !!this.userInfo && this.buckets !== undefined;
+    return !!this.userInfo;
   }
 
   get status() {
@@ -195,18 +207,27 @@ export class AccountStore implements Account {
   }
 
   get buckets() {
+    const allBuckets = this.bucketListResource?.current();
+
+    if (!allBuckets) {
+      return undefined;
+    }
+
     // Prefer cluster-specific buckets if available
-    const clusterAccount = this.clusterAccountResource?.current();
-    const allAccount = this.accountResource?.current();
+    const clusterBuckets = allBuckets.filter((bucket) => bucket.clusterId === DDC_CLUSTER_ID);
+    const source = clusterBuckets.length > 0 ? clusterBuckets : allBuckets;
 
-    const clusterBuckets = clusterAccount?.buckets;
-    const allBuckets = allAccount?.buckets;
-
-    const buckets = clusterBuckets !== undefined ? clusterBuckets : allBuckets;
-    return buckets?.map<Bucket>((bucket) => ({
-      ...bucket,
-      stats: this.getBucketStats(bucket.id),
+    return source.map<Bucket>((bucket) => ({
+      id: bucket.bucketId,
+      isPublic: bucket.isPublic,
+      isRemoved: false,
+      storedBytes: 0,
+      stats: this.getBucketStats(bucket.bucketId),
     }));
+  }
+
+  get bucketsLoading() {
+    return this._bucketsLoading;
   }
 
   // Add method to get cluster-specific deposit
@@ -223,7 +244,7 @@ export class AccountStore implements Account {
 
   get userInfo() {
     return this.userInfoPromise?.case({
-      fulfilled: (userInfo: any) => userInfo,
+      fulfilled: (userInfo) => userInfo,
     });
   }
 

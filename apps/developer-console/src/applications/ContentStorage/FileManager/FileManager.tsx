@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { AddCircleOutlinedIcon, Box, Button, LoadingAnimation, styled, Typography, BoxProps } from '@cluster-apps/ui';
+import { AddCircleOutlinedIcon, Box, Button, CircularProgress, LoadingAnimation, styled, Typography, BoxProps } from '@cluster-apps/ui';
 import { AnalyticsId } from '@cluster-apps/analytics';
 
 import { Row } from './Row.tsx';
@@ -33,6 +33,7 @@ export const FileManager = ({
   data,
   userHasBuckets,
   isLoading,
+  isBucketsLoading,
   onCreateBucket,
   onUpload,
   uploadType,
@@ -58,6 +59,7 @@ export const FileManager = ({
     filePath?: string;
   }) => void;
   isLoading: boolean;
+  isBucketsLoading: boolean;
   uploadStatus: 'idle' | 'uploading' | 'success' | 'error';
   uploadType: 'file' | 'folder' | 'emptyFolder';
   setUploadStatus: (status: 'idle' | 'uploading' | 'success' | 'error') => void;
@@ -120,7 +122,14 @@ export const FileManager = ({
         <Box flex={1}></Box>
       </StyledBox>
       <Box>
-        {isLoading ? (
+        {isBucketsLoading ? (
+          <Box display="flex" alignItems="center" justifyContent="center" padding={(theme) => theme.spacing(2)}>
+            <CircularProgress size={24} />
+            <Typography variant="body2" color="text.secondary" marginLeft={(theme) => theme.spacing(1)}>
+              Loading buckets...
+            </Typography>
+          </Box>
+        ) : isLoading ? (
           <Box display="flex" alignItems="center" justifyContent="center">
             <Box width="96px" height="55px">
               <LoadingAnimation />
@@ -162,7 +171,7 @@ export const FileManager = ({
               startIcon={<AddCircleOutlinedIcon />}
               className={AnalyticsId.createBucketBtn}
               onClick={onCreateNextBucket}
-              disabled={isLoading}
+              disabled={isBucketCreating}
               data-tour="bucket"
             >
               {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
@@ -170,7 +179,7 @@ export const FileManager = ({
           ) : (
             <Button
               onClick={onFirstBucketClick}
-              disabled={isLoading || isBucketCreating || !isAccountReady}
+              disabled={isBucketCreating || !isAccountReady}
               className={AnalyticsId.createFirstBucketBtn}
               data-tour="bucket"
             >
