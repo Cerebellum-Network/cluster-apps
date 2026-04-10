@@ -15,6 +15,9 @@ export default defineConfig({
   assetsInclude: ['**/*.md'],
   envDir: rootDir,
   build: { outDir, emptyOutDir: true },
+  optimizeDeps: {
+    include: ['date-fns'],
+  },
   plugins: [
     tsconfigPaths({ root: __dirname }),
     react(),

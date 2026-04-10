@@ -49,7 +49,14 @@ const ContentStorage = () => {
 
   const ddcClient = account.ddc;
 
-  const [buckets, setBuckets] = useState<Bucket[]>(account.buckets || []);
+  const isBucketsLoading = account.bucketsLoading ?? false;
+  const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
+
+  useEffect(() => {
+    if (account.buckets !== undefined) {
+      setBuckets(account.buckets);
+    }
+  }, [account.buckets]);
 
   const { dirs, loading, defaultDirIndices, setDefaultFolderIndex, refetchBucket } = useFetchDirs(buckets, ddcClient);
 
@@ -216,7 +223,7 @@ const ContentStorage = () => {
       skipQuests?: boolean;
       emptyFolder?: boolean;
     }) => {
-      const currentBucket = account.buckets.find((bucket) => bucket.id.toString() === bucketId.toString());
+      const currentBucket = account.buckets?.find((bucket) => bucket.id.toString() === bucketId.toString());
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
       questsStore.markStepDone('uploadFile', 'startUploading');
       setBucketInProgress(bucketId);
@@ -378,6 +385,7 @@ const ContentStorage = () => {
             data={dirs || []}
             userHasBuckets={buckets.length > 0 || false}
             isLoading={loading}
+            isBucketsLoading={isBucketsLoading}
             onCreateBucket={onBucketCreation}
             onUpload={handleUpload}
             uploadType={uploadType}

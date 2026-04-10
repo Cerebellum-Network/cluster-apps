@@ -38,7 +38,10 @@ const tourDescriptors: TourDescriptor[] = [
     name: 'uploadTourSteps',
     initialStep: 'upload',
     condition: (account: Account) =>
-      account.isReady() && account.buckets.length > 0 && account.buckets.every((bucket) => bucket.storedBytes === 0),
+      account.isReady() &&
+      account.buckets != null &&
+      account.buckets.length > 0 &&
+      account.buckets.every((bucket) => bucket.storedBytes === 0),
     renderCondition: () => elementsRendered.uploadButton,
     firstTour: false,
   },
@@ -47,7 +50,11 @@ const tourDescriptors: TourDescriptor[] = [
     name: 'createBucketTourSteps',
     initialStep: 'bucket',
     condition: (account: Account) =>
-      account.isReady() && account.balance > 0 && account.deposit > 0 && account.buckets.length === 0,
+      account.isReady() &&
+      account.balance > 0 &&
+      account.deposit > 0 &&
+      account.buckets != null &&
+      account.buckets.length === 0,
     renderCondition: () => elementsRendered.createBucketScreen,
     firstTour: false,
   },

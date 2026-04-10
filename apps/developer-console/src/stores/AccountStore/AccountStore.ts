@@ -1,9 +1,9 @@
-import { makeAutoObservable, reaction, when } from 'mobx';
+import { action, makeAutoObservable, reaction, when } from 'mobx';
 import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
 import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
 import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
 import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
-import { Blockchain, BucketParams } from '@cere-ddc-sdk/blockchain';
+import { Blockchain, Bucket as BlockchainBucket, BucketParams } from '@cere-ddc-sdk/blockchain';
 import { BucketStats, IndexedAccount } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
@@ -26,6 +26,9 @@ import {
   createStatusResource,
   createBucketStatsResource,
   createClusterAccountResource,
+  createBalanceResource,
+  createDepositResource,
+  createBucketListResource,
 } from './resources';
 
 export class AccountStore implements Account {
@@ -44,10 +47,14 @@ export class AccountStore implements Account {
   private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
   private statusResource = createStatusResource(this);
   private addressResource = createAddressResource(this);
-  private accountResource?: IResource<IndexedAccount | undefined>;
-  private clusterAccountResource?: IResource<IndexedAccount | undefined>;
+  private accountResource?: IResource<IndexedAccount | null | undefined>;
+  private clusterAccountResource?: IResource<IndexedAccount | null | undefined>;
+  private bucketListResource?: IResource<BlockchainBucket[] | null | undefined>;
+  private _bucketsLoading = false;
+  private balanceResource?: IResource<bigint | null | undefined>;
+  private depositResource?: IResource<bigint | null | undefined>;
   private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-  private accountMetricsResource?: IResource<AccountMetrics | undefined>;
+  private accountMetricsResource?: IResource<AccountMetrics | null | undefined>;
   private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
 
   constructor() {
@@ -77,7 +84,7 @@ export class AccountStore implements Account {
      */
     reaction(
       () => this.userInfo,
-      (userInfo) =>
+      (userInfo: UserInfo | undefined) =>
         !userInfo
           ? Reporting.clearUser()
           : Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name }),
@@ -92,16 +99,29 @@ export class AccountStore implements Account {
   }
 
   private async bootstrap() {
+    this._bucketsLoading = true;
     this.accountResource = createAccountResource(this);
     this.clusterAccountResource = createClusterAccountResource(this);
+    this.bucketListResource = createBucketListResource(
+      this,
+      action(() => {
+        this._bucketsLoading = false;
+      }),
+    );
+    this.balanceResource = createBalanceResource(this);
+    this.depositResource = createDepositResource(this);
     this.accountMetricsResource = createAccountMetricsResource(this);
     this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
   }
 
   private async cleanup() {
+    this._bucketsLoading = false;
     this.userInfoPromise = undefined;
     this.accountResource = undefined;
     this.clusterAccountResource = undefined;
+    this.bucketListResource = undefined;
+    this.balanceResource = undefined;
+    this.depositResource = undefined;
     this.accountMetricsResource = undefined;
   }
 
@@ -148,7 +168,7 @@ export class AccountStore implements Account {
 
     return (
       stats &&
-      (stats.find((stats) => stats.bucketId === bucketId) || {
+      (stats.find((stats: { bucketId: bigint }) => stats.bucketId === bucketId) || {
         bucketId,
         gets: 0,
         puts: 0,
@@ -159,7 +179,7 @@ export class AccountStore implements Account {
   }
 
   isReady(): this is ReadyAccount {
-    return !!this.userInfo && this.buckets !== undefined;
+    return !!this.userInfo;
   }
 
   get status() {
@@ -167,7 +187,7 @@ export class AccountStore implements Account {
   }
 
   get metrics() {
-    return this.accountMetricsResource?.current();
+    return this.accountMetricsResource?.current() ?? undefined;
   }
 
   get address() {
@@ -175,40 +195,45 @@ export class AccountStore implements Account {
   }
 
   get balance() {
-    const balance = this.accountResource?.current()?.balance;
+    const balance = this.balanceResource?.current();
 
-    return balance === undefined ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
+    return balance == null ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get deposit() {
-    // Try cluster-specific deposit first, then fall back to general deposit
-    const clusterDeposit = this.clusterAccountResource?.current()?.deposit;
-    const generalDeposit = this.accountResource?.current()?.deposit;
+    const deposit = this.depositResource?.current();
 
-    const deposit = clusterDeposit !== undefined ? clusterDeposit : generalDeposit;
-
-    return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
+    return deposit == null ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   get buckets() {
+    const allBuckets = this.bucketListResource?.current();
+
+    if (!allBuckets) {
+      return undefined;
+    }
+
     // Prefer cluster-specific buckets if available
-    const clusterAccount = this.clusterAccountResource?.current();
-    const allAccount = this.accountResource?.current();
+    const clusterBuckets = allBuckets.filter((bucket) => bucket.clusterId === DDC_CLUSTER_ID);
+    const source = clusterBuckets.length > 0 ? clusterBuckets : allBuckets;
 
-    const clusterBuckets = clusterAccount?.buckets;
-    const allBuckets = allAccount?.buckets;
-
-    const buckets = clusterBuckets !== undefined ? clusterBuckets : allBuckets;
-    return buckets?.map<Bucket>((bucket) => ({
-      ...bucket,
-      stats: this.getBucketStats(bucket.id),
+    return source.map<Bucket>((bucket) => ({
+      id: bucket.bucketId,
+      isPublic: bucket.isPublic,
+      isRemoved: false,
+      storedBytes: 0,
+      stats: this.getBucketStats(bucket.bucketId),
     }));
+  }
+
+  get bucketsLoading() {
+    return this._bucketsLoading;
   }
 
   // Add method to get cluster-specific deposit
   get clusterDeposit() {
     const deposit = this.clusterAccountResource?.current()?.deposit;
-    return deposit === undefined ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
+    return deposit == null ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
   }
 
   // Add method to get all deposits (legacy and cluster-specific)
@@ -315,11 +340,15 @@ export class AccountStore implements Account {
 
     await this.ddc.depositBalance(DDC_CLUSTER_ID, BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
 
-    // Refresh both resources to get updated balances
+    // Refresh resources to get updated balances
     this.accountResource = undefined;
     this.accountResource = createAccountResource(this);
     this.clusterAccountResource = undefined;
     this.clusterAccountResource = createClusterAccountResource(this);
+    this.balanceResource = undefined;
+    this.balanceResource = createBalanceResource(this);
+    this.depositResource = undefined;
+    this.depositResource = createDepositResource(this);
 
     if (this.address) {
       Reporting.topUp(this.address, amount);

@@ -20,10 +20,15 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
   const [error, setError] = useState<string | null>(null);
   const [defaultDirIndices, setDefaultDirIndices] = useState<Record<string, number>>({});
 
-  const fetched = useRef(false);
+  const fetchedBucketIds = useRef(new Set<string>());
 
   const fetchDirs = useCallback(async () => {
-    if (!ddcClient || fetched.current) {
+    if (!ddcClient) {
+      return;
+    }
+
+    const newBuckets = buckets.filter((b) => !fetchedBucketIds.current.has(b.id.toString()));
+    if (newBuckets.length === 0) {
       return;
     }
 
@@ -33,9 +38,9 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
     try {
       const newDirs: DirectoryType[] = [];
       const indices: Record<string, number> = {};
-      console.log(`[useFetchDirs] Starting to fetch ${buckets.length} buckets`);
+      console.log(`[useFetchDirs] Starting to fetch ${newBuckets.length} new buckets`);
 
-      for (const bucket of buckets) {
+      for (const bucket of newBuckets) {
         const dagUri = new DagNodeUri(BigInt(bucket.id), 'fs');
 
         try {
@@ -76,6 +81,7 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
           Reporting.error(dirError);
         }
       }
+      newBuckets.forEach((b) => fetchedBucketIds.current.add(b.id.toString()));
       setDirs((prevState) => [...prevState, ...newDirs]);
       setDefaultDirIndices(indices);
     } catch (e) {
@@ -83,7 +89,6 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
       setError((e as Error).message);
     } finally {
       setLoading(false);
-      fetched.current = true;
     }
   }, [buckets, ddcClient]);
 
