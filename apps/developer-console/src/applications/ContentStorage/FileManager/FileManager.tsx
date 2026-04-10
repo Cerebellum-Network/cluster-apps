@@ -1,5 +1,14 @@
 import { useEffect } from 'react';
-import { AddCircleOutlinedIcon, Box, Button, CircularProgress, LoadingAnimation, styled, Typography, BoxProps } from '@cluster-apps/ui';
+import {
+  AddCircleOutlinedIcon,
+  Box,
+  Button,
+  CircularProgress,
+  LoadingAnimation,
+  styled,
+  Typography,
+  BoxProps,
+} from '@cluster-apps/ui';
 import { AnalyticsId } from '@cluster-apps/analytics';
 
 import { Row } from './Row.tsx';
