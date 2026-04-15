@@ -3,3 +3,4 @@ export * from './AccountStore';
 export * from './QuestsStore';
 export * from './PaymentsStore';
 export * from './ActivityStore';
+export * from './CustomerUsageStore';

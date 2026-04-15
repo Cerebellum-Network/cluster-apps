@@ -5,6 +5,7 @@ import { OnboardingStore } from '../OnboardingStore/OnboardingStore';
 import { QuestsStore } from '../QuestsStore';
 import { PaymentsHistoryStore } from '../PaymentsStore';
 import { ActivityStore } from '../ActivityStore';
+import { CustomerUsageStore } from '../CustomerUsageStore';
 
 export type AppState = 'initing' | 'onboard' | 'ready';
 
@@ -16,6 +17,7 @@ export class AppStore {
   readonly questsStore: QuestsStore;
   readonly paymentsStore: PaymentsHistoryStore;
   readonly activityStore: ActivityStore;
+  readonly customerUsageStore: CustomerUsageStore;
 
   constructor() {
     makeAutoObservable(this);
@@ -25,6 +27,7 @@ export class AppStore {
     this.questsStore = new QuestsStore(this.accountStore);
     this.paymentsStore = new PaymentsHistoryStore(this.accountStore);
     this.activityStore = new ActivityStore();
+    this.customerUsageStore = new CustomerUsageStore(this.accountStore);
   }
 
   get isReady() {
