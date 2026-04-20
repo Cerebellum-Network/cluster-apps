@@ -32,7 +32,9 @@ import {
 } from './resources';
 
 export class AccountStore implements Account {
-  readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
+  readonly blockchain = new Blockchain({ 
+    wsEndpoint: DDC_PRESET.blockchain 
+  });
   readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
   readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
   readonly ddc = new DdcClient(this.signer, {
@@ -62,6 +64,10 @@ export class AccountStore implements Account {
       wallet: false,
       blockchain: false,
     });
+    
+    // Log blockchain endpoint configuration
+    console.log(`🔗 Using blockchain endpoint: ${DDC_PRESET.blockchain}`);
+    
     this.startAutoCacheCleaning();
 
     keepAlive(this, 'status');

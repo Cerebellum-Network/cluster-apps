@@ -66,3 +66,8 @@ export const DEFAULT_FOLDER_NAME = 'default';
  * Feature flags
  */
 export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARDING !== 'false';
+
+/**
+ * Billing service configuration
+ */
+export const BILLING_SERVICE_ENDPOINT = import.meta.env.VITE_BILLING_SERVICE_ENDPOINT || 'https://billing-service.devnet.cere.network/';
