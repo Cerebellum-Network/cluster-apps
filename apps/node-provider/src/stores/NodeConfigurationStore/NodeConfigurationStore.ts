@@ -83,7 +83,8 @@ export class NodeConfigurationStore {
   handleCopyCommand = async () => {
     const storageRoot = './';
     const mode = this.nodeType === 'cdn' ? 'cache' : 'storage';
-    const command = `bash <(curl -s https://cdn.dragon.cere.network/1022/baear4iht6wsvrfu6ctgmeobot3y7g7zpmtxrgb6mkogywvg2du6pnaxlea/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "storage" "${this.port}" "${this.grpcPort}" "${this.p2pPort}" "${DDC_NETWORK}" "${DDC_CLUSTER_ID}"`;
+    const command = `bash <(curl -s https://cdn.dragon.cere.network/1022/baear4ibjkplersxm4ybw6n6zmp65hcot5u7umlg7mni7jhpyw3c63tpf3q/bootstrap.sh) "${storageRoot}" "${DDC_PRESET.blockchain}" "${mode}" "storage" "${this.port}" "${this.grpcPort}" "${this.p2pPort}" "${DDC_NETWORK}" "${DDC_CLUSTER_ID}"`;
+    // const command = `./bootstrap.sh "/Users/antonmazhuto/Documents/Work/storage_node" "wss://rpc.testnet.cere.network/ws" "storage" "storage" "8081" "9091" "9071" ${DDC_NETWORK} ${DDC_CLUSTER_ID}`;
     navigator.clipboard.writeText(command).then(() => {});
   };
 

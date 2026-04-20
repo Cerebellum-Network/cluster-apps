@@ -37,7 +37,7 @@ echo "Generated public key: $PUBLIC_KEY"
 echo "Using NODE_ID: $NODE_ID"
 
 # Path to agent configuration file
-AGENT_CONFIG_FILE="./agent-config.yaml"
+AGENT_CONFIG_FILE="$(dirname "$(realpath "$0")")/agent-config.yaml"
 
 # Check for the existence of the configuration file
 if [ ! -f "$AGENT_CONFIG_FILE" ]; then
