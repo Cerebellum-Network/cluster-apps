@@ -50,6 +50,35 @@ export const useDeposit = (address: string | null) =>
     queryFn: () => chain.getDeposit(address!),
   });
 
+/** CERE has 10 decimals; convert a decimal CERE string to the chain's smallest unit. */
+export function cereToUnits(cere: string): bigint {
+  const t = cere.trim();
+  if (!/^\d+(\.\d+)?$/.test(t)) throw new Error('Enter a positive amount of CERE.');
+  const [whole, frac = ''] = t.split('.');
+  const fracPadded = (frac + '0'.repeat(10)).slice(0, 10);
+  const units = BigInt(whole) * 10_000_000_000n + BigInt(fracPadded || '0');
+  if (units <= 0n) throw new Error('Enter a positive amount of CERE.');
+  return units;
+}
+
+/**
+ * Lock an on-chain CERE deposit in the configured cluster (funds storage +
+ * inference). Extrinsic -> wallet consent. Refetches the deposit on success.
+ */
+export function useMakeDeposit(getSigner: () => CefSigner, address: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (cere: string) => {
+      const value = cereToUnits(cere);
+      const signer = createDdcSigner(getSigner).describing('Add a DDC deposit');
+      return chain.deposit(value, signer);
+    },
+    onSuccess: () => {
+      if (address) void qc.invalidateQueries({ queryKey: storageKeys.deposit(address) });
+    },
+  });
+}
+
 /**
  * Create a bucket on chain (an extrinsic -- raises the wallet's consent screen).
  * `getSigner` is the session's `CefSigner` resolver; the consent string is

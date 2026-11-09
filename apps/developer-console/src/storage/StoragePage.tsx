@@ -6,7 +6,7 @@ import { short } from '../lib/format';
 import { createBucketStorage } from './ddc/bucketStorage';
 import { gatewayPubKeyToSs58 } from './ddc/gatewayCredential';
 import type { Acl } from './ddc/types';
-import { useAuthorizeGateway, useCreateBucket, useDeposit, useGatewayInfo, useOwnerBuckets } from './queries';
+import { useAuthorizeGateway, useCreateBucket, useDeposit, useGatewayInfo, useMakeDeposit, useOwnerBuckets } from './queries';
 
 /**
  * Developer Console -- Storage (Phase 0 slice).
@@ -21,6 +21,8 @@ export function StoragePage() {
   // The chain reads the deposit by SS58 address, not the hex public key the
   // index/gateway key accounts by.
   const deposit = useDeposit(s.address);
+  const makeDeposit = useMakeDeposit(s.getSigner, s.address);
+  const [depositAmount, setDepositAmount] = useState('');
 
   // `s.getSigner` is a fresh closure on every session-value recompute, so build
   // storage once and always read the current signer through a ref -- otherwise the
@@ -121,6 +123,33 @@ export function StoragePage() {
               <Mono>{deposit.data.toString()}</Mono> raw chain units in the configured cluster.
             </>
           )}
+        </p>
+
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+          <label style={{ display: 'grid', gap: 4, font: '500 12px/1 var(--font-sans)', color: 'var(--b-tx2)' }}>
+            Add deposit (CERE)
+            <input
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              placeholder="e.g. 10"
+              inputMode="decimal"
+              style={{ padding: '8px 10px', border: '1px solid var(--b-line)', borderRadius: 8, font: '400 14px/1 var(--font-mono)', width: 140 }}
+            />
+          </label>
+          <Btn
+            variant="primary"
+            size="sm"
+            onClick={() => makeDeposit.mutate(depositAmount)}
+            disabled={makeDeposit.isPending || !depositAmount.trim()}
+          >
+            {makeDeposit.isPending ? 'Depositing…' : 'Deposit'}
+          </Btn>
+        </div>
+        <p style={{ margin: '6px 0 0', font: '400 12px/1.4 var(--font-sans)' }}>
+          {makeDeposit.isError && (
+            <span style={{ color: 'var(--b-err-tx)' }}>Deposit failed: {(makeDeposit.error as Error)?.message ?? 'unknown'}</span>
+          )}
+          {makeDeposit.isSuccess && <span style={{ color: 'var(--b-ok-tx)' }}>Deposit submitted.</span>}
         </p>
       </Card>
 

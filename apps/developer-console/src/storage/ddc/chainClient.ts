@@ -47,6 +47,14 @@ export function createChainClient(): ChainClient {
       return BigInt(info?.active ?? 0n);
     },
 
+    async deposit(value: bigint, signer: Signer) {
+      // Lock `value` (chain's smallest unit) from the signer's balance as a
+      // new/topped-up deposit in the configured cluster. Extrinsic -> the signer
+      // must carry a consent description.
+      const tx = await client().customers.deposit(clusterId(), value, {});
+      await client().tx.send(tx, { signer });
+    },
+
     async getBucket(bucketId) {
       const b = await client().customers.getBucket(bucketId);
       return b ? toBucketInfo(b) : undefined;

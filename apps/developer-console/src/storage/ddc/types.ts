@@ -24,6 +24,8 @@ export type Acl = 'public-read' | 'private';
 export interface ChainClient {
   /** Active DDC deposit for `address` in the configured cluster, in the chain's smallest unit. */
   getDeposit(address: string): Promise<bigint>;
+  /** Lock `value` (smallest unit) as a new/topped-up deposit in the configured cluster. */
+  deposit(value: bigint, signer: Signer): Promise<void>;
   /** Create a bucket in the configured cluster; resolves to the new bucket id. */
   createBucket(signer: Signer, options?: { isPublic?: boolean }): Promise<bigint>;
   /** Hydrate one bucket, or undefined if it does not exist. */
