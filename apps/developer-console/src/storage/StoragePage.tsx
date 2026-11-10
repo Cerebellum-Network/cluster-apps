@@ -9,6 +9,21 @@ import type { Acl } from './ddc/types';
 import { useAuthorizeGateway, useCreateBucket, useDeposit, useGatewayInfo, useMakeDeposit, useOwnerBuckets } from './queries';
 
 /**
+ * Message for a failed extrinsic. The embed-wallet transport can stop waiting
+ * for the signature and surface "request timed out" even though the extrinsic
+ * was already submitted and lands on chain (the deposit is debited the fee), so
+ * a bare timeout here is misleading. Tell the user the write may have gone
+ * through and to reload, rather than implying it failed.
+ */
+function txErrorMessage(e: unknown): string {
+  const msg = (e as Error)?.message ?? 'unknown';
+  if (/tim(e|ed)\s?-?\s?out|timeout/i.test(msg)) {
+    return `${msg} — the wallet stopped waiting for the signature, but the transaction may already have been submitted. Wait ~15s and reload to check before retrying.`;
+  }
+  return msg;
+}
+
+/**
  * Developer Console -- Storage (Phase 0 slice).
  *
  * On the current DDC SDK (v3) against Dragon 1, reusing this console's CEF wallet:
@@ -147,7 +162,7 @@ export function StoragePage() {
         </div>
         <p style={{ margin: '6px 0 0', font: '400 12px/1.4 var(--font-sans)' }}>
           {makeDeposit.isError && (
-            <span style={{ color: 'var(--b-err-tx)' }}>Deposit failed: {(makeDeposit.error as Error)?.message ?? 'unknown'}</span>
+            <span style={{ color: 'var(--b-err-tx)' }}>Deposit failed: {txErrorMessage(makeDeposit.error)}</span>
           )}
           {makeDeposit.isSuccess && <span style={{ color: 'var(--b-ok-tx)' }}>Deposit submitted.</span>}
         </p>
@@ -170,7 +185,7 @@ export function StoragePage() {
         )}
         {createBucket.isError && (
           <p style={{ margin: '8px 0 0', color: 'var(--b-err-tx)' }}>
-            Create failed: {(createBucket.error as Error)?.message ?? 'unknown error'}
+            Create failed: {txErrorMessage(createBucket.error)}
           </p>
         )}
 
@@ -253,12 +268,12 @@ export function StoragePage() {
           )}
           {authorizeGateway.isError && (
             <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>
-              Authorize failed: {(authorizeGateway.error as Error)?.message ?? 'unknown'}
+              Authorize failed: {txErrorMessage(authorizeGateway.error)}
             </p>
           )}
           {createGwBucket.isError && (
             <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>
-              Gateway bucket failed: {(createGwBucket.error as Error)?.message ?? 'unknown'}
+              Gateway bucket failed: {txErrorMessage(createGwBucket.error)}
             </p>
           )}
           {createGwBucket.isSuccess && (
@@ -311,7 +326,7 @@ export function StoragePage() {
               Uploaded <Mono>{uploaded.key}</Mono>{' '}
               {uploaded.acl === 'public-read' ? (
                 <>
-                  — <TextLink href={uploaded.url} target="_blank" rel="noreferrer">CDN link</TextLink>
+                  — <TextLink href={uploaded.url} target="_blank" rel="noreferrer">Public link</TextLink>
                 </>
               ) : (
                 '— private (use Download)'

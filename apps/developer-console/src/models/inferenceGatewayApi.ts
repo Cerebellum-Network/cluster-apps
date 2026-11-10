@@ -61,19 +61,23 @@ export interface InferenceModelRef {
 }
 
 /**
- * POST an inference request to the gateway. Body: `{ model, inputs }` where
- * `inputs` is an object keyed by the model's tensor/param names. `apiKey` (a
- * COMPUTE bearer scoped to a bucket) is required for non-public models. Returns
- * parsed JSON, or raw text when the body isn't JSON.
+ * POST an inference request to the gateway. Body: `{ model, input }` where
+ * `input` is an object keyed by the model's param names (e.g. `{ text: "..." }`).
+ * `apiKey` (a COMPUTE bearer scoped to a bucket) is required for non-public
+ * models. Returns parsed JSON, or raw text when the body isn't JSON.
+ *
+ * The field is `input` (singular): verified live against the DEV gateway, which
+ * rejects `inputs` (plural) with 400 `{"error":"input is required"}`. This also
+ * matches the envelope ROC's runtime client (modelRuntimeApi.ts) actually sends.
  */
-export async function runInference(model: InferenceModelRef, inputs: unknown, apiKey?: string): Promise<unknown> {
+export async function runInference(model: InferenceModelRef, input: unknown, apiKey?: string): Promise<unknown> {
   const res = await fetch(`${inferenceConfig.gatewayUrl}/api/v1/inference`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
-    body: JSON.stringify({ model, inputs }),
+    body: JSON.stringify({ model, input }),
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`Inference failed: ${res.status}${text ? ` — ${text.slice(0, 300)}` : ''}`);
