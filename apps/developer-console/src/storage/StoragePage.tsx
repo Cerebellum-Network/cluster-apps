@@ -82,6 +82,12 @@ export function StoragePage() {
   const createBucket = useCreateBucket(s.getSigner, s.account, (id) => setBucketId(id.toString()));
 
   const [files, setFiles] = useState<string[] | null>(null);
+  // Current folder within the bucket ('' = root). Keys use '/' as the separator.
+  const [prefix, setPrefix] = useState('');
+  // Back to root whenever the target bucket changes.
+  useEffect(() => {
+    setPrefix('');
+  }, [bucketId]);
 
   // Credentials are cached after the first gateway call, so refreshing the list
   // after an upload/delete needs no extra wallet signature.
@@ -90,15 +96,45 @@ export function StoragePage() {
     onSuccess: (keys) => setFiles(keys),
   });
 
+  // Fold the gateway's flat key list into the current folder view: the immediate
+  // sub-folders and the files directly under `prefix`.
+  const view = useMemo(() => {
+    const folders = new Set<string>();
+    const leaves: string[] = [];
+    for (const k of files ?? []) {
+      if (!k.startsWith(prefix)) continue;
+      const rest = k.slice(prefix.length);
+      if (rest === '') continue;
+      const slash = rest.indexOf('/');
+      if (slash === -1) leaves.push(k);
+      else folders.add(rest.slice(0, slash + 1));
+    }
+    return { folders: [...folders].sort(), files: leaves.sort() };
+  }, [files, prefix]);
+
+  // Clickable breadcrumb segments for the current prefix (each path ends in '/').
+  const crumbs = useMemo(() => {
+    let acc = '';
+    return prefix
+      .split('/')
+      .filter(Boolean)
+      .map((p) => {
+        acc += `${p}/`;
+        return { label: p, path: acc };
+      });
+  }, [prefix]);
+
   const upload = useMutation({
     mutationFn: async () => {
       const bucket = bucketId.trim();
       if (!bucket) throw new Error('Enter a bucket id.');
       if (!file) throw new Error('Pick a file.');
-      await storage.uploadObject({ bucketName: bucket, key: file.name, body: file, acl });
+      // Upload into the current folder, so the file lands where the user is browsing.
+      const key = prefix + file.name;
+      await storage.uploadObject({ bucketName: bucket, key, body: file, acl });
       // Capture the bucket used, so the public link points at it even if the field changes.
-      const url = acl === 'public-read' ? storage.publicUrl(bucket, file.name) : '';
-      return { bucket, key: file.name, url, acl };
+      const url = acl === 'public-read' ? storage.publicUrl(bucket, key) : '';
+      return { bucket, key, url, acl };
     },
     onSuccess: (r) => {
       setUploaded(r);
@@ -113,7 +149,7 @@ export function StoragePage() {
       const href = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = href;
-      a.download = key;
+      a.download = key.split('/').pop() || key;
       a.click();
       URL.revokeObjectURL(href);
     },
@@ -422,32 +458,76 @@ export function StoragePage() {
             <p style={{ margin: 0, color: 'var(--b-tx2)' }}>No files in this bucket.</p>
           )}
           {files && files.length > 0 && (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
-              {files.map((k) => (
-                <li
-                  key={k}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 10,
-                    padding: '8px 10px',
-                    border: '1px solid var(--b-line)',
-                    borderRadius: 8,
-                  }}
-                >
-                  <Mono style={{ fontSize: 12, wordBreak: 'break-all' }}>{k}</Mono>
-                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                    <Btn variant="outline" size="xs" onClick={() => download.mutate(k)} disabled={download.isPending}>
-                      Download
-                    </Btn>
-                    <Btn variant="tertiary" size="xs" onClick={() => deleteFile.mutate(k)} disabled={deleteFile.isPending}>
-                      Delete
-                    </Btn>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              {/* Breadcrumb: root + each folder segment, click to jump up. */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 4, font: '400 12px/1.4 var(--font-mono)' }}>
+                <TextLink href="#" onClick={(e) => { e.preventDefault(); setPrefix(''); }}>
+                  root
+                </TextLink>
+                {crumbs.map((c) => (
+                  <span key={c.path}>
+                    <span style={{ color: 'var(--b-tx3)' }}> / </span>
+                    <TextLink href="#" onClick={(e) => { e.preventDefault(); setPrefix(c.path); }}>
+                      {c.label}
+                    </TextLink>
+                  </span>
+                ))}
+              </div>
+
+              {view.folders.length === 0 && view.files.length === 0 && (
+                <p style={{ margin: 0, color: 'var(--b-tx2)' }}>This folder is empty.</p>
+              )}
+
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+                {view.folders.map((folder) => (
+                  <li key={`d:${folder}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPrefix(prefix + folder)}
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        padding: '8px 10px',
+                        border: '1px solid var(--b-line)',
+                        borderRadius: 8,
+                      }}
+                    >
+                      <span aria-hidden>📁</span>
+                      <Mono style={{ fontSize: 12, wordBreak: 'break-all' }}>{folder}</Mono>
+                    </button>
+                  </li>
+                ))}
+                {view.files.map((k) => (
+                  <li
+                    key={k}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      padding: '8px 10px',
+                      border: '1px solid var(--b-line)',
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Mono style={{ fontSize: 12, wordBreak: 'break-all' }}>{k.slice(prefix.length)}</Mono>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <Btn variant="outline" size="xs" onClick={() => download.mutate(k)} disabled={download.isPending}>
+                        Download
+                      </Btn>
+                      <Btn variant="tertiary" size="xs" onClick={() => deleteFile.mutate(k)} disabled={deleteFile.isPending}>
+                        Delete
+                      </Btn>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </Card>
