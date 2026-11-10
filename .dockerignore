@@ -1,0 +1,11 @@
+# Keep the Docker build context small and reproducible (install happens in-image
+# via `npm ci` off the committed lockfile).
+**/node_modules
+**/dist
+**/.vite
+.git
+.github
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example

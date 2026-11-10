@@ -1,0 +1,72 @@
+name: Build developer console image
+
+# Builds and pushes the Developer Console SPA (cerebellumnetwork/developer-console)
+# from apps/developer-console, built with the monorepo root as the Docker context.
+# The dragon-ansible pin `version_developer_console` expects a v-prefixed semver
+# tag such as v0.1.0.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to push (v-prefixed semver, e.g. v0.1.0).'
+        required: true
+        type: string
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: cerebellumnetwork/developer-console
+
+jobs:
+  build:
+    name: Build & push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check image tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::Refusing to push image tag '$TAG'. Expected a v-prefixed semver such as v0.1.0."
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Tags are immutable. The chart pulls with imagePullPolicy: IfNotPresent,
+      # so an overwritten tag keeps serving the old image on any node that
+      # already has it. Release a fix under a new tag instead.
+      - name: Refuse to overwrite an existing tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if docker manifest inspect "$IMAGE:$TAG" >/dev/null 2>&1; then
+            echo "::error::$IMAGE:$TAG already exists. Tags are immutable: bump the version instead."
+            exit 1
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/developer-console/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ inputs.tag }}
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
