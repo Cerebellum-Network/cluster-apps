@@ -15,6 +15,9 @@ import { MessageCard } from './components/ui';
 // weigh down the main bundle. Loaded only when their route is opened.
 const StoragePage = lazy(() => import('./storage/StoragePage').then((m) => ({ default: m.StoragePage })));
 const ModelsPage = lazy(() => import('./models/ModelsPage').then((m) => ({ default: m.ModelsPage })));
+// Billing tab (Phase 3): the whole billing slice is one chunk; it pulls the
+// Manykind-boundary clients (reconciliation / payment / orchestrator).
+const BillingSection = lazy(() => import('./billing/BillingSection'));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
@@ -55,6 +58,14 @@ function Themed() {
                 element={
                   <Suspense fallback={<div style={{ padding: 24, color: 'var(--b-tx2)' }}>Loading…</div>}>
                     <ModelsPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/billing/*"
+                element={
+                  <Suspense fallback={<div style={{ padding: 24, color: 'var(--b-tx2)' }}>Loading…</div>}>
+                    <BillingSection />
                   </Suspense>
                 }
               />

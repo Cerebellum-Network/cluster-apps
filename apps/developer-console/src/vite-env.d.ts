@@ -13,6 +13,13 @@ interface ImportMetaEnv {
   // Models slice (src/models/inferenceConfig.ts)
   readonly VITE_INFERENCE_GATEWAY_URL?: string;
   readonly VITE_MODELS_CDN_URL?: string;
+  // Billing slice (src/billing/billingConfig.ts) -- Manykind-boundary services
+  readonly VITE_RECON_URL?: string;
+  readonly VITE_PAYMENT_URL?: string;
+  readonly VITE_ORCHESTRATOR_URL?: string;
+  readonly VITE_FEATURE_CHAIN_DEPOSIT?: string;
+  readonly VITE_FEATURE_CHAIN_STATUS?: string;
+  readonly VITE_FEATURE_DECLINED_BANNER?: string;
 }
 
 interface ImportMeta {
@@ -36,6 +43,17 @@ interface RuntimeConfig {
   inference?: {
     gatewayUrl?: string;
     modelsCdnUrl?: string;
+  };
+  /** Billing slice (src/billing/billingConfig.ts) -- Manykind-boundary services. */
+  billing?: {
+    reconUrl?: string;
+    paymentUrl?: string;
+    orchestratorUrl?: string;
+    features?: {
+      chainDeposit?: boolean;
+      chainStatus?: boolean;
+      declinedBanner?: boolean;
+    };
   };
 }
 

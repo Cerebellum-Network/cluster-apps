@@ -1,15 +1,18 @@
 import type { ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { config } from '../config';
-import { short } from '../lib/format';
+import { runway, short } from '../lib/format';
 import { useIsMobile } from '../lib/useIsMobile';
 import { useThemeMode } from '../theme/ThemeMode';
 import { useSession } from '../wallet/session';
-import { Btn, CereMark, Mono, TagPill } from '../components/ui';
+import { Alert, Btn, CereMark, Mono, TagPill } from '../components/ui';
+import { burnPerDay } from '../billing/model';
+import { useBalance, useBills, useProfile } from '../billing/queries';
 
 const TABS = [
   ['/storage', 'Storage'],
   ['/models', 'Models'],
+  ['/billing', 'Billing'],
 ] as const;
 
 /** Content column: max 960px, 16px side padding, 24px gap, 48px bottom padding. */
@@ -88,7 +91,7 @@ function Header() {
         <nav
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(2,minmax(0,1fr))',
+            gridTemplateColumns: 'repeat(3,minmax(0,1fr))',
             border: '1px solid var(--b-line)',
             borderRadius: 999,
             padding: 3,
@@ -175,12 +178,50 @@ function Header() {
   );
 }
 
-/** Header + nav around an authenticated page. */
+/**
+ * Low-balance banner (billing): `low` when the runway is under ~7 days and auto
+ * top-up is off. Renders nothing until bills + balance + profile have loaded, so
+ * a cell with no billing backend (or a developer with no billing data) shows no
+ * banner. Ported from the billing-console shell.
+ */
+function Banners() {
+  const s = useSession();
+  const navigate = useNavigate();
+  const bills = useBills(s.account);
+  const balance = useBalance(s.account);
+  const profile = useProfile(s.account);
+  if (!bills.data || balance.data == null || !profile.data) return null;
+
+  const autoOn = profile.data.auto_recharge_threshold_usd != null;
+  const days = runway(balance.data, burnPerDay(bills.data)).days;
+  if (autoOn || days >= 7) return null;
+
+  return (
+    <Alert
+      tone="warn"
+      action={
+        <>
+          <Btn variant="banner" size="xs" onClick={() => navigate('/billing/payments#auto-top-up')}>
+            Turn on auto top-up
+          </Btn>
+          <Btn variant="primary" size="xs" onClick={() => navigate('/billing/payments#top-up')}>
+            Top up
+          </Btn>
+        </>
+      }
+    >
+      Your balance covers {days < 1 ? 'less than a day' : `about ${Math.round(days)} day${Math.round(days) === 1 ? '' : 's'}`}. Top up or turn on auto top-up.
+    </Alert>
+  );
+}
+
+/** Header + nav + banners around an authenticated page. */
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <Page>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Header />
+        <Banners />
       </div>
       {children}
     </Page>
