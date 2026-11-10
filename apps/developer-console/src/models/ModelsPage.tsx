@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Btn, Card, MessageCard, Mono, Overline, Skel, TagPill } from '../components/ui';
 import { useSession } from '../wallet/session';
-import type { GatewayModel } from './inferenceGatewayApi';
+import { runInferenceStream, type GatewayModel, type SchemaProperty } from './inferenceGatewayApi';
 import { useLimits, useMintApiKey, useModelCatalog, useModelManifest, useRunInference } from './queries';
 
 const TTL_OPTIONS: { label: string; ms: number }[] = [
@@ -255,6 +255,91 @@ function ApiKeyField({ apiKey, setApiKey }: { apiKey: string; setApiKey: (k: str
   );
 }
 
+/** Coerce a form field's raw string to the type its schema declares. */
+function coerceField(raw: string, type?: string): unknown {
+  const t = (type ?? 'string').toLowerCase();
+  if (t === 'number' || t === 'integer') {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) throw new Error('not a number');
+    return t === 'integer' ? Math.trunc(n) : n;
+  }
+  if (t === 'boolean') return raw === 'true' || raw === '1';
+  if (t === 'array' || t === 'object') return JSON.parse(raw);
+  return raw;
+}
+
+const resultPreStyle = {
+  margin: 0,
+  padding: '10px 12px',
+  background: 'var(--b-card)',
+  border: '1px solid var(--b-line)',
+  borderRadius: 8,
+  font: '400 12px/1.4 var(--font-mono)',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  maxHeight: 280,
+  overflow: 'auto',
+} as const;
+
+/** One schema-driven input field (enum → select, boolean → select, else text/area). */
+function SchemaField({
+  name,
+  prop,
+  required,
+  value,
+  onChange,
+}: {
+  name: string;
+  prop: SchemaProperty;
+  required: boolean;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const type = (prop.type ?? 'string').toLowerCase();
+  const label = (
+    <>
+      {name}
+      {required && <span style={{ color: 'var(--b-err-tx)' }}> *</span>}
+      <span style={{ color: 'var(--b-tx3)', fontWeight: 400 }}> · {prop.type ?? 'string'}</span>
+    </>
+  );
+  let control;
+  if (prop.enum && prop.enum.length > 0) {
+    control = (
+      <select value={value} onChange={(e) => onChange(e.target.value)} style={{ ...fieldStyle, font: '400 13px/1 var(--font-sans)' }}>
+        <option value="">—</option>
+        {prop.enum.map((o) => (
+          <option key={String(o)} value={String(o)}>
+            {String(o)}
+          </option>
+        ))}
+      </select>
+    );
+  } else if (type === 'boolean') {
+    control = (
+      <select value={value} onChange={(e) => onChange(e.target.value)} style={{ ...fieldStyle, font: '400 13px/1 var(--font-sans)' }}>
+        <option value="">—</option>
+        <option value="true">true</option>
+        <option value="false">false</option>
+      </select>
+    );
+  } else if (type === 'number' || type === 'integer') {
+    control = (
+      <input value={value} onChange={(e) => onChange(e.target.value)} inputMode="decimal" style={{ ...fieldStyle, font: '400 13px/1 var(--font-mono)' }} />
+    );
+  } else {
+    control = (
+      <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} style={{ ...fieldStyle, font: '400 12px/1.4 var(--font-mono)', resize: 'vertical' }} />
+    );
+  }
+  return (
+    <label style={labelStyle} title={prop.description}>
+      {label}
+      {control}
+    </label>
+  );
+}
+
 function PlaygroundCard({
   models,
   apiKey,
@@ -270,23 +355,83 @@ function PlaygroundCard({
     [models],
   );
   const [sel, setSel] = useState('');
-  const [inputs, setInputs] = useState('{\n  "prompt": "Hello"\n}');
-  const [parseErr, setParseErr] = useState<string | null>(null);
   const effectiveSel = sel || options.find((o) => o.available)?.value || options[0]?.value || '';
+  const [selBucket, selName, selVersion] = effectiveSel ? effectiveSel.split('|') : ['', '', ''];
 
-  const execute = () => {
+  // The selected model's manifest drives the form fields and whether streaming is
+  // offered. Shares its query cache with the catalog cards (same bucket/name/version).
+  const manifest = useModelManifest(Number(selBucket), selName, selVersion, !!effectiveSel);
+  const inputSchema = manifest.data?.schema?.inputs;
+  const propEntries = useMemo(() => Object.entries(inputSchema?.properties ?? {}), [inputSchema]);
+  const required = inputSchema?.required ?? [];
+  const hasSchema = propEntries.length > 0;
+  const canStream = manifest.data?.stream === true;
+
+  // `null` = follow the model's own default (form when it has a schema; stream when
+  // it supports it); a non-null value is the user's explicit override.
+  const [userMode, setUserMode] = useState<'form' | 'json' | null>(null);
+  const mode: 'form' | 'json' = userMode ?? (hasSchema ? 'form' : 'json');
+  const [userStream, setUserStream] = useState<boolean | null>(null);
+  const streamOn = canStream && (userStream ?? true);
+
+  const [jsonInputs, setJsonInputs] = useState('{\n  "prompt": "Hello"\n}');
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [parseErr, setParseErr] = useState<string | null>(null);
+
+  const [streamOut, setStreamOut] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [streamErr, setStreamErr] = useState<string | null>(null);
+
+  const buildInput = (): unknown => {
+    if (mode === 'json') return JSON.parse(jsonInputs);
+    const out: Record<string, unknown> = {};
+    for (const [k, prop] of propEntries) {
+      const raw = form[k] ?? '';
+      if (raw === '' && !required.includes(k)) continue;
+      try {
+        out[k] = coerceField(raw, prop.type);
+      } catch {
+        throw new Error(`Field "${k}" is not a valid ${prop.type ?? 'value'}.`);
+      }
+    }
+    return out;
+  };
+
+  const execute = async () => {
     setParseErr(null);
-    let parsed: unknown;
+    setStreamErr(null);
+    let input: unknown;
     try {
-      parsed = JSON.parse(inputs);
+      input = buildInput();
     } catch (e) {
       setParseErr((e as Error).message);
       return;
     }
-    const [bucket, name, version] = effectiveSel.split('|');
-    run.mutate({ model: { bucket: Number(bucket), name, version }, inputs: parsed, apiKey: apiKey.trim() || undefined });
+    const model = { bucket: Number(selBucket), name: selName, version: selVersion };
+    const key = apiKey.trim() || undefined;
+    if (streamOn) {
+      setStreamOut('');
+      setStreaming(true);
+      try {
+        await runInferenceStream(
+          model,
+          input,
+          (chunk) => setStreamOut((prev) => (prev ?? '') + (typeof chunk === 'string' ? chunk : JSON.stringify(chunk))),
+          key,
+        );
+      } catch (e) {
+        setStreamErr((e as Error).message);
+      } finally {
+        setStreaming(false);
+      }
+    } else {
+      setStreamOut(null);
+      run.mutate({ model, inputs: input, apiKey: key });
+    }
   };
 
+  const busy = run.isPending || streaming;
+  const showStream = streamOut !== null;
   const result = run.data;
   return (
     <Card style={{ marginTop: 12, padding: 20 }}>
@@ -295,7 +440,7 @@ function PlaygroundCard({
         <TagPill>inference</TagPill>
       </div>
       <p style={{ margin: '6px 0 0', color: 'var(--b-tx2)', font: '400 13px/1.5 var(--font-sans)' }}>
-        Run a model with raw JSON inputs (keyed by the model&apos;s params). Compute models need an API key.
+        Run a model from its declared inputs (or raw JSON). Compute models need an API key.
       </p>
 
       <div style={{ display: 'grid', gap: 10, marginTop: 14, maxWidth: 560 }}>
@@ -312,43 +457,74 @@ function PlaygroundCard({
           </select>
         </label>
 
-        <label style={labelStyle}>
-          Inputs (JSON)
+        {/* Inputs: form (from the manifest schema) or raw JSON. */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ font: '500 12px/1 var(--font-sans)', color: 'var(--b-tx2)' }}>Inputs</span>
+          {hasSchema && (
+            <div style={{ display: 'inline-flex', gap: 6 }}>
+              <Btn variant={mode === 'form' ? 'secondary' : 'outline'} size="xs" onClick={() => setUserMode('form')}>
+                Form
+              </Btn>
+              <Btn variant={mode === 'json' ? 'secondary' : 'outline'} size="xs" onClick={() => setUserMode('json')}>
+                JSON
+              </Btn>
+            </div>
+          )}
+        </div>
+
+        {mode === 'form' ? (
+          propEntries.length === 0 ? (
+            <p style={{ margin: 0, color: 'var(--b-tx2)', font: '400 12px/1.4 var(--font-sans)' }}>
+              {manifest.isLoading ? 'Loading the model’s input schema…' : 'No input schema published — switch to JSON.'}
+            </p>
+          ) : (
+            propEntries.map(([k, prop]) => (
+              <SchemaField
+                key={k}
+                name={k}
+                prop={prop}
+                required={required.includes(k)}
+                value={form[k] ?? (prop.default !== undefined ? String(prop.default) : '')}
+                onChange={(v) => setForm((f) => ({ ...f, [k]: v }))}
+              />
+            ))
+          )
+        ) : (
           <textarea
-            value={inputs}
-            onChange={(e) => setInputs(e.target.value)}
+            value={jsonInputs}
+            onChange={(e) => setJsonInputs(e.target.value)}
             rows={5}
             style={{ ...fieldStyle, font: '400 12px/1.4 var(--font-mono)', resize: 'vertical' }}
           />
-        </label>
+        )}
 
         <ApiKeyField apiKey={apiKey} setApiKey={setApiKey} />
 
-        <div>
-          <Btn variant="primary" size="sm" onClick={execute} disabled={run.isPending || !effectiveSel}>
-            {run.isPending ? 'Running…' : 'Run'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Btn variant="primary" size="sm" onClick={execute} disabled={busy || !effectiveSel}>
+            {busy ? (streaming ? 'Streaming…' : 'Running…') : 'Run'}
           </Btn>
+          {canStream && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, font: '400 13px/1 var(--font-sans)', color: 'var(--b-tx2)' }}>
+              <input type="checkbox" checked={streamOn} onChange={(e) => setUserStream(e.target.checked)} />
+              Stream response
+            </label>
+          )}
         </div>
 
-        {parseErr && <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>Inputs are not valid JSON: {parseErr}</p>}
-        {run.isError && <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>{(run.error as Error)?.message ?? 'Inference failed'}</p>}
-        {result !== undefined && (
-          <pre
-            style={{
-              margin: 0,
-              padding: '10px 12px',
-              background: 'var(--b-card)',
-              border: '1px solid var(--b-line)',
-              borderRadius: 8,
-              font: '400 12px/1.4 var(--font-mono)',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              maxHeight: 280,
-              overflow: 'auto',
-            }}
-          >
-            {typeof result === 'string' ? result : JSON.stringify(result, null, 2)}
+        {parseErr && <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>{mode === 'json' ? `Inputs are not valid JSON: ${parseErr}` : parseErr}</p>}
+        {streamErr && <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>{streamErr}</p>}
+        {run.isError && !showStream && <p style={{ margin: 0, color: 'var(--b-err-tx)' }}>{(run.error as Error)?.message ?? 'Inference failed'}</p>}
+
+        {showStream ? (
+          <pre style={resultPreStyle}>
+            {streamOut}
+            {streaming && <span style={{ color: 'var(--b-tx3)' }}>▋</span>}
           </pre>
+        ) : (
+          result !== undefined && (
+            <pre style={resultPreStyle}>{typeof result === 'string' ? result : JSON.stringify(result, null, 2)}</pre>
+          )
         )}
       </div>
     </Card>

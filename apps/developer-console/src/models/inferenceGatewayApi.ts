@@ -39,6 +39,20 @@ export interface ModelCatalog {
   maxWaitSeconds?: number;
 }
 
+/** One property of a manifest input/output schema (JSON-Schema-ish subset). */
+export interface SchemaProperty {
+  type?: string;
+  description?: string;
+  enum?: unknown[];
+  default?: unknown;
+}
+/** A manifest `schema.inputs` / `schema.outputs` object. */
+export interface ManifestSchema {
+  type?: string;
+  required?: string[];
+  properties?: Record<string, SchemaProperty>;
+}
+
 /** The published `model.json` manifest (best-effort -- most fields optional). */
 export interface ModelManifest {
   name: string;
@@ -52,6 +66,8 @@ export interface ModelManifest {
   max_input_tokens?: number;
   max_output_tokens?: number;
   sovereign?: boolean;
+  /** Declared input/output shapes; drives the playground's form fields. */
+  schema?: { inputs?: ManifestSchema; outputs?: ManifestSchema };
 }
 
 export interface InferenceModelRef {
@@ -86,6 +102,65 @@ export async function runInference(model: InferenceModelRef, input: unknown, api
   } catch {
     return text;
   }
+}
+
+/**
+ * Stream an inference request (`POST /api/v1/inference?stream=true`), parsing the
+ * SSE stream: each `data:` block carries a chunk (its `.output` when present),
+ * and a final `event: done` block carries `{ metrics }`. `onChunk` receives each
+ * chunk's output as it arrives. Same `{ model, input }` body as `runInference`.
+ * Throws with the response body on a non-OK status (or when the model streams no
+ * body). Resolves once the stream ends.
+ */
+export async function runInferenceStream(
+  model: InferenceModelRef,
+  input: unknown,
+  onChunk: (output: unknown) => void,
+  apiKey?: string,
+): Promise<void> {
+  const res = await fetch(`${inferenceConfig.gatewayUrl}/api/v1/inference?stream=true`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    },
+    body: JSON.stringify({ model, input }),
+  });
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Inference failed: ${res.status}${text ? ` — ${text.slice(0, 300)}` : ''}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  const handleEvent = (block: string) => {
+    let event = 'message';
+    let data = '';
+    for (const line of block.split('\n')) {
+      if (line.startsWith('event:')) event = line.slice(6).trim();
+      else if (line.startsWith('data:')) data += line.slice(5).trim();
+    }
+    if (!data || event === 'done') return;
+    let parsed: unknown = data;
+    try { parsed = JSON.parse(data); } catch { /* keep the raw string */ }
+    const p = parsed as { output?: unknown } | null;
+    onChunk(p && typeof p === 'object' && 'output' in p ? p.output : parsed);
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx: number;
+    while ((idx = buffer.indexOf('\n\n')) >= 0) {
+      handleEvent(buffer.slice(0, idx));
+      buffer = buffer.slice(idx + 2);
+    }
+  }
+  if (buffer.trim()) handleEvent(buffer);
 }
 
 // ── Usage & limits ──────────────────────────────────────────────────────────
