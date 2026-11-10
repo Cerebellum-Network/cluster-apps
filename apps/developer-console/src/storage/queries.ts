@@ -4,6 +4,7 @@ import { createChainClient } from './ddc/chainClient';
 import { createGatewayClient } from './ddc/gatewayClient';
 import { createDdcSigner } from './ddc/signer';
 import { listOwnerBuckets } from './ddc/ownerBuckets';
+import { getBucketsStats, statsConfigured } from './ddc/statsApi';
 
 // One chain client per tab; the WS underneath is a module singleton (see
 // chainClient.ts), so re-creating the wrapper object is cheap.
@@ -13,7 +14,24 @@ export const storageKeys = {
   buckets: (a: string) => ['storage', 'buckets', a] as const,
   deposit: (a: string) => ['storage', 'deposit', a] as const,
   gatewayInfo: () => ['storage', 'gatewayInfo'] as const,
+  usage: (ids: bigint[]) => ['storage', 'usage', ids.map(String).join(',')] as const,
 };
+
+/** True when a DAC stats endpoint is configured; the usage view gates on it. */
+export const storageUsageAvailable = statsConfigured;
+
+/**
+ * Per-bucket storage usage (stored bytes, traffic, ops) from the DAC stats API.
+ * Enabled only when a stats endpoint is configured AND there are buckets -- so
+ * no request fires on networks where the DAC stats host is not yet known.
+ */
+export const useBucketsStats = (bucketIds: bigint[]) =>
+  useQuery({
+    queryKey: storageKeys.usage(bucketIds),
+    enabled: statsConfigured() && bucketIds.length > 0,
+    queryFn: () => getBucketsStats(bucketIds),
+    staleTime: 60_000,
+  });
 
 /**
  * The gateway's public key / region (`GET /auth/info`). Prefetched so the

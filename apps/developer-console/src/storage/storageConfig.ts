@@ -39,6 +39,15 @@ export const storageConfig = {
   ddcCdnUrl: trim(pick('ddcCdnUrl', env.VITE_DDC_CDN_URL, 'https://cdn.testnet.dragon-1.xyz')),
   /** Cluster the console creates buckets in / deposits to (Dragon testnet). */
   clusterId: pick('clusterId', env.VITE_DDC_CLUSTER_ID, '0x825c4b2352850de9986d9d28568db6f0c023a1e3'),
+  /**
+   * DAC statistics HTTP API (`GET /statistics/*`) for per-bucket / per-account
+   * storage usage (stored bytes, traffic, ops). Empty by default: there is no
+   * known-good Dragon-1 host yet -- ROC + the dragon-ansible inventory point at
+   * the retired `dac.devnet.ddc-dragon.com`, and the live `dac*.compute.*`
+   * hosts 404 `/statistics`. The usage view degrades gracefully when this is
+   * unset; set it (env/Helm) once ops confirm the host for a network.
+   */
+  statsEndpoint: trim(pick('statsEndpoint', env.VITE_STATS_ENDPOINT, '')),
 };
 
 export type StorageConfig = typeof storageConfig;

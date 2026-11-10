@@ -6,7 +6,20 @@ import { short } from '../lib/format';
 import { createBucketStorage } from './ddc/bucketStorage';
 import { gatewayPubKeyToSs58 } from './ddc/gatewayCredential';
 import type { Acl } from './ddc/types';
-import { useAuthorizeGateway, useCreateBucket, useDeposit, useGatewayInfo, useMakeDeposit, useOwnerBuckets } from './queries';
+import { useAuthorizeGateway, useBucketsStats, useCreateBucket, useDeposit, useGatewayInfo, useMakeDeposit, useOwnerBuckets, storageUsageAvailable } from './queries';
+
+/** Human-readable byte size (binary units). */
+function formatBytes(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  let v = n;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i += 1;
+  }
+  return `${v.toFixed(i === 0 || v >= 100 ? 0 : 1)} ${units[i]}`;
+}
 
 /**
  * Message for a failed extrinsic. The embed-wallet transport can stop waiting
@@ -33,6 +46,13 @@ function txErrorMessage(e: unknown): string {
 export function StoragePage() {
   const s = useSession();
   const buckets = useOwnerBuckets(s.account);
+  // Per-bucket storage usage from the DAC stats API (empty endpoint → disabled).
+  const bucketIds = useMemo(() => (buckets.data ?? []).map((b) => BigInt(b.id)), [buckets.data]);
+  const usage = useBucketsStats(bucketIds);
+  const usageTotal = useMemo(
+    () => (usage.data ?? []).reduce((t, u) => t + (u.storedBytes || 0), 0),
+    [usage.data],
+  );
   // The chain reads the deposit by SS58 address, not the hex public key the
   // index/gateway key accounts by.
   const deposit = useDeposit(s.address);
@@ -234,6 +254,61 @@ export function StoragePage() {
               </li>
             ))}
           </ul>
+        )}
+      </Card>
+
+      <Card style={{ marginTop: 12, padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <strong>Storage usage</strong>
+          <TagPill>via activity / metrics</TagPill>
+        </div>
+        {!storageUsageAvailable() && (
+          <p style={{ margin: '8px 0 0', color: 'var(--b-tx2)' }}>
+            Storage usage isn’t available for this network yet — the DAC stats endpoint is not configured.
+          </p>
+        )}
+        {storageUsageAvailable() && bucketIds.length === 0 && (
+          <p style={{ margin: '8px 0 0', color: 'var(--b-tx2)' }}>No buckets to report usage for.</p>
+        )}
+        {storageUsageAvailable() && bucketIds.length > 0 && usage.isLoading && (
+          <p style={{ margin: '8px 0 0', color: 'var(--b-tx2)' }}>Loading usage…</p>
+        )}
+        {storageUsageAvailable() && usage.isError && (
+          <p style={{ margin: '8px 0 0', color: 'var(--b-err-tx)' }}>
+            Could not load usage: {(usage.error as Error)?.message ?? 'unknown'}
+          </p>
+        )}
+        {storageUsageAvailable() && usage.data && usage.data.length > 0 && (
+          <>
+            <p style={{ margin: '8px 0 0', color: 'var(--b-tx2)' }}>
+              <Mono>{formatBytes(usageTotal)}</Mono> stored across {usage.data.length} bucket
+              {usage.data.length === 1 ? '' : 's'}.
+            </p>
+            <ul style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 8 }}>
+              {usage.data.map((u) => (
+                <li
+                  key={u.bucketId.toString()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: '10px 12px',
+                    border: '1px solid var(--b-line)',
+                    borderRadius: 8,
+                  }}
+                >
+                  <Mono>#{u.bucketId.toString()}</Mono>
+                  <span style={{ color: 'var(--b-tx2)', font: '400 12px/1.4 var(--font-sans)' }}>
+                    {formatBytes(u.storedBytes)} stored · {formatBytes(u.transferredBytes)} out · {u.puts} puts · {u.gets} gets
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {storageUsageAvailable() && usage.data && usage.data.length === 0 && bucketIds.length > 0 && !usage.isLoading && (
+          <p style={{ margin: '8px 0 0', color: 'var(--b-tx2)' }}>No usage recorded for your buckets yet.</p>
         )}
       </Card>
 
