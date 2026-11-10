@@ -1,0 +1,5 @@
+# developer-console has its own toolchain (oxlint + its own tsconfig/vite) and is
+# deployed independently (k8s image), so it is excluded from the root ESLint run.
+# It self-lints via its own `lint` script (oxlint); the root `check-types`/`build`
+# still cover its types through `tsc -b && vite build`.
+apps/developer-console
