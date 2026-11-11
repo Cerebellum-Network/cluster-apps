@@ -1,0 +1,4 @@
+# developer-console has its own toolchain (its own tsconfig/vite) and is deployed
+# independently (k8s image), so it is excluded from the root ESLint run. Its types
+# are still covered by the root `check-types`/`build` through `tsc && vite build`.
+apps/developer-console
