@@ -17,9 +17,27 @@
  */
 
 const env = import.meta.env;
+/**
+ * Runtime storage shape, declared locally rather than reading the app-wide
+ * ambient `RuntimeConfig` (src/vite-env.d.ts). Keeping it self-contained lets
+ * this module compile in a consumer that does not include dev-console's ambient
+ * types -- node-provider imports `DDC_CLUSTER_ID` from `constants.ts`, which
+ * pulls this file into its `tsc` without dev-console's `vite-env.d.ts`.
+ */
+type StorageRuntime = {
+  blockchainIndexUrl?: string;
+  ddcS3GatewayUrl?: string;
+  ddcCdnUrl?: string;
+  clusterId?: string;
+  statsEndpoint?: string;
+};
+
 const trim = (v: string) => v.replace(/\/$/, '');
-const runtime = (typeof window !== 'undefined' && window.__RUNTIME_CONFIG__) || {};
-const pick = (key: keyof NonNullable<RuntimeConfig['storage']>, fromEnv: string | undefined, fallback: string) =>
+const runtime =
+  (typeof window !== 'undefined' &&
+    (window as { __RUNTIME_CONFIG__?: { storage?: StorageRuntime } }).__RUNTIME_CONFIG__) ||
+  {};
+const pick = (key: keyof StorageRuntime, fromEnv: string | undefined, fallback: string) =>
   (runtime.storage?.[key] as string | undefined) || fromEnv || fallback;
 
 export const storageConfig = {

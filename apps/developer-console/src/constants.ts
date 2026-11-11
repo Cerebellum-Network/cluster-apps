@@ -1,3 +1,5 @@
+import { ClusterId } from '@cere-ddc-sdk/blockchain';
+
 import npmPackage from '../package.json';
 
 import { storageConfig } from './storage/storageConfig';
@@ -16,9 +18,12 @@ export const APP_VERSION = npmPackage.version;
 /**
  * DDC configuration. The cluster id + endpoints now live in
  * `src/storage/storageConfig.ts` (runtime config). The SDK v3 chain client
- * resolves the blockchain WS endpoint from `config.network`.
+ * resolves the blockchain WS endpoint from `config.network`. Kept as the branded
+ * `ClusterId` (`0x${string}`) that the chain calls expect -- node-provider
+ * imports this symbol and feeds it to v2 `ddcStaking`/`ddcClusters` APIs, which
+ * reject a plain `string`.
  */
-export const DDC_CLUSTER_ID = storageConfig.clusterId;
+export const DDC_CLUSTER_ID = storageConfig.clusterId as ClusterId;
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
 
 /**

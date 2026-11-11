@@ -14,7 +14,7 @@ jobs:
   build-and-deploy:
     uses: Cerebellum-Network/reusable-workflows/.github/workflows/deploy-to-cloudfront.yaml@master
     with:
-      build_container: 'node:18-buster'
+      build_container: 'node:22-bookworm'
       install_packages_command: 'cp .env.stage .env; npm ci'
       build_command: 'npm run build'
       path_to_static_files_to_upload: 'dist'

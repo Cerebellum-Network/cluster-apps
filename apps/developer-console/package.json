@@ -9,6 +9,12 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1033.0",
+    "@cef-ai/wallet": "^4.1.0",
+    "@cef-ai/wallet-react": "^3.1.0",
+    "@cere-ddc-sdk/blockchain": "^3.0.0",
+    "@cere-ddc-sdk/ddc": "^3.0.0",
+    "@cere-ddc-sdk/ddc-client": "^3.0.0",
     "recharts": "^2.15.3"
   }
 }
