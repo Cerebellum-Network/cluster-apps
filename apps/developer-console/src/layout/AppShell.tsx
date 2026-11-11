@@ -148,7 +148,7 @@ function Sidebar() {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 2,
-                  margin: '2px 0 2px 15px',
+                  margin: '10px 0 4px 15px',
                   paddingLeft: 11,
                   borderLeft: '1px solid var(--b-line2)',
                 }}
