@@ -15,6 +15,9 @@ interface ImportMetaEnv {
   readonly VITE_DDC_CDN_URL?: string;
   readonly VITE_DDC_CLUSTER_ID?: string;
   readonly VITE_STATS_ENDPOINT?: string;
+  // Inference / Models slice (src/models/inferenceConfig.ts)
+  readonly VITE_INFERENCE_GATEWAY_URL?: string;
+  readonly VITE_MODELS_CDN_URL?: string;
 }
 
 interface ImportMeta {
@@ -33,6 +36,11 @@ interface RuntimeConfig {
     ddcCdnUrl?: string;
     clusterId?: string;
     statsEndpoint?: string;
+  };
+  /** Inference / Models slice (src/models/inferenceConfig.ts). */
+  inference?: {
+    gatewayUrl?: string;
+    modelsCdnUrl?: string;
   };
 }
 

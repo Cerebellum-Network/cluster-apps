@@ -1,0 +1,113 @@
+/* Design tokens from the Dragon Billing handoff (README "Design tokens").
+   The prototypes alias the Cere Design System colours as --b-* so the app can
+   switch themes; [data-theme] on <html> picks the set. */
+
+:root {
+  /* Human Sans for UI text, Inconsolata for every number (handoff "Type"). */
+  --font-sans: 'HumanSans', 'Human Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-mono: 'Inconsolata', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root,
+:root[data-theme='light'] {
+  --b-bg: #f5f1f7;
+  --b-card: #ffffff;
+  --b-line: #e6e0e9;
+  --b-line2: #dad1e0;
+  --b-tx: #1d1b20;
+  --b-tx2: #5f5c64;
+  --b-tx3: #938f99;
+  --b-acc: #aa44f2;
+  --b-acc-soft: #f0e0fb;
+  --b-acc-tx: #7c59ac;
+  --b-s1: #7c59ac;
+  --b-s2: #aa44f2;
+  --b-s3: #be9ae0;
+  --b-s4: #d0bcff;
+  --b-prev: #c4b9cb;
+  --b-chip: #f5f1f7;
+  --b-skel: #ece6f0;
+  --b-warn-bg: #fef8e8;
+  --b-warn-bd: #f6e7b6;
+  --b-warn-tx: #7a5f05;
+  --b-err-bg: #f9dedc;
+  --b-err-bd: #f2c4c1;
+  --b-err-tx: #8c1d18;
+  --b-ok-bg: #e1f2e6;
+  --b-ok-tx: #2e4d39;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --b-bg: #0d0627;
+  --b-card: #160e36;
+  --b-line: #2a2155;
+  --b-line2: #3b3070;
+  --b-tx: #f5f1f7;
+  --b-tx2: #c4b9cb;
+  --b-tx3: #948b99;
+  --b-acc: #aa44f2;
+  --b-acc-soft: #2a1550;
+  --b-acc-tx: #d399fc;
+  --b-s1: #d399fc;
+  --b-s2: #aa44f2;
+  --b-s3: #7c59ac;
+  --b-s4: #531584;
+  --b-prev: #4e4953;
+  --b-chip: #23194b;
+  --b-skel: #23194b;
+  --b-warn-bg: #2b2208;
+  --b-warn-bd: #5a4810;
+  --b-warn-tx: #fdf1d7;
+  --b-err-bg: #3a1216;
+  --b-err-bd: #6b232a;
+  --b-err-tx: #fde1e4;
+  --b-ok-bg: #12301c;
+  --b-ok-tx: #a8e0b5;
+  color-scheme: dark;
+}
+
+/* Fixed fills (handoff "Icon fills"): the same in both themes. */
+:root {
+  --b-fill-warn: #ffb800;
+  --b-fill-err: #ff4f59;
+  --b-fill-ok: #49bf63;
+  --b-switch-on: #53b96a;
+  --b-acc-hover: #7c59ac;
+}
+
+@keyframes bslide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+
+@keyframes bshimmer {
+  0% { opacity: 0.55; }
+  50% { opacity: 1; }
+  100% { opacity: 0.55; }
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--b-bg);
+  color: var(--b-tx);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}

@@ -90,9 +90,12 @@ const TopUp = () => {
         <Divider />
 
         <Typography variant="subtitle1">
-          Transfer funds from Cere Wallet to DDC Account to keep your buckets running.
+          Transfer funds from Cere Wallet to DDC Account to keep your storage and inference running.
         </Typography>
         <Typography variant="body1">Funds will be charged from the DDC account directly.</Typography>
+        <Typography variant="body2" color="text.secondary">
+          The same DDC balance pays for both storage and inference. If it runs out, inference stops until you top up.
+        </Typography>
 
         <Stack direction="row" spacing={2}>
           <TextField
