@@ -8,7 +8,6 @@ import {
   DocsSection,
   Stack,
   Typography,
-  BucketSelect,
   BucketAccess,
   BucketAccessProps,
   LoadingButton,
@@ -16,6 +15,7 @@ import {
   Button,
   GithubLogoIcon,
 } from '@cluster-apps/ui';
+import { MenuItem, TextField } from '@mui/material';
 
 import { CdnDocsIcon } from './icons';
 import { DDC_CLUSTER_NAME } from '~/constants';
@@ -32,36 +32,32 @@ import { useAccount } from '~/hooks';
 const ContentDelivery = () => {
   const account = useAccount();
   const { showMessage } = useMessages();
-  const [isSaving] = useState(false);
-  const [bucketId, setBucketId] = useState<bigint>();
+  const [isSaving, setSaving] = useState(false);
+  const [bucketName, setBucketName] = useState<string>('');
   const [access, setAccess] = useState<BucketAccessProps['value']>();
-  const currentBucket = account.buckets?.find((bucket) => bucket.id === bucketId) ?? account.buckets?.[0];
-  const currentBucketAccess = access || (currentBucket?.isPublic ? 'public' : 'private');
 
-  // The bucket list carries no public/private flag (the REST index omits it), so
-  // resolve the real on-chain ACL when a bucket is selected.
+  const options = account.buckets ?? [];
+  const currentBucket = options.find((b) => b.name === bucketName);
+  const currentBucketAccess = access ?? (currentBucket?.isPublic ? 'public' : 'private');
+
+  // When the selected bucket changes, reflect its tracked access.
   useEffect(() => {
-    if (bucketId == null) return;
-    let active = true;
-    account
-      .getBucketInfo(bucketId)
-      .then((info) => {
-        if (active && info) setAccess(info.isPublic ? 'public' : 'private');
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [account, bucketId]);
+    setAccess(undefined);
+  }, [bucketName]);
 
-  // Read-only phase: viewing a bucket's access is live, but saving a change is
-  // deferred with the rest of the storage write path (gateway integration).
   const handleSaveAccess = useCallback(async () => {
-    showMessage({
-      appearance: 'info',
-      message: 'Changing bucket access is pending the storage-gateway integration — coming in the next phase.',
-    });
-  }, [showMessage]);
+    if (!currentBucket) return;
+    setSaving(true);
+    try {
+      await account.saveBucket(currentBucket.name, { isPublic: currentBucketAccess === 'public' });
+      showMessage({ message: 'Bucket access has been saved', appearance: 'success' });
+    } catch (e) {
+      showMessage({ message: 'Could not save bucket access. Please try again.', appearance: 'error' });
+      throw e;
+    } finally {
+      setSaving(false);
+    }
+  }, [account, currentBucket, currentBucketAccess, showMessage]);
 
   return (
     <Stack spacing={2}>
@@ -69,17 +65,34 @@ const ContentDelivery = () => {
 
       <Paper component={Stack} direction="row" alignItems="center" justifyContent="space-between" padding={2}>
         <Typography variant="h4">Please select one of your buckets</Typography>
-        <BucketSelect
-          value={bucketId}
-          label="Bucket"
-          options={(account.buckets ?? []).map((bucket) => ({ ...bucket, storedBytes: bucket.storedBytes }))}
-          onChange={(bucketId) => setBucketId(bucketId)}
-        />
+        <TextField
+          select
+          label="Select Your Bucket"
+          value={bucketName}
+          onChange={(e) => setBucketName(e.target.value)}
+          sx={{ minWidth: 300 }}
+          InputLabelProps={{ shrink: true }}
+          SelectProps={{ displayEmpty: true }}
+        >
+          <MenuItem value="" disabled>
+            Select Your Bucket
+          </MenuItem>
+          {options.length === 0 && (
+            <MenuItem value="-" disabled>
+              No buckets
+            </MenuItem>
+          )}
+          {options.map((bucket) => (
+            <MenuItem key={bucket.name} value={bucket.name}>
+              {bucket.name} · {bucket.isPublic ? 'Public' : 'Private'}
+            </MenuItem>
+          ))}
+        </TextField>
       </Paper>
 
-      {!!bucketId && (
+      {!!bucketName && (
         <>
-          <Typography variant="h4">Bucket ID: {`${bucketId}`} CDN Options</Typography>
+          <Typography variant="h4">Bucket {bucketName} CDN Options</Typography>
 
           <Paper component={Stack} padding={2} spacing={2}>
             <Typography variant="subtitle1">File Access Control</Typography>

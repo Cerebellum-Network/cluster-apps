@@ -1,13 +1,16 @@
 import type { CefSigner } from '@cef-ai/wallet';
-import type { BucketInfo, BucketStorage } from '~/storage/ddc/types';
+import type { BucketStorage } from '~/storage/ddc/types';
 
 /** Mirrors the wallet session states exposed by the React SessionProvider. */
 export type AccountStatus = 'idle' | 'connecting' | 'waiting' | 'connected' | 'error' | 'expired';
 
+/**
+ * A gateway bucket, addressed by its string name (the DDC S3 gateway resolves by
+ * name). Tracked client-side since the gateway has no "list my buckets".
+ */
 export type Bucket = {
-  id: bigint;
+  name: string;
   isPublic: boolean;
-  isRemoved: boolean;
   storedBytes?: number;
 };
 
@@ -41,16 +44,11 @@ export interface Account {
   readonly status: AccountStatus;
 
   isReady(): this is ReadyAccount;
-  createBucket(params: { isPublic?: boolean }): Promise<bigint>;
-  saveBucket(bucketId: bigint, params: { isPublic: boolean }): Promise<void>;
+  /** Create a gateway bucket (authorizing the gateway first if needed); returns its name. */
+  createBucket(): Promise<string>;
+  saveBucket(name: string, params: { isPublic: boolean }): Promise<void>;
   topUp(amount: number): Promise<void>;
-  /** A GET AuthToken string for a private object, to append as `?token=`. */
-  createAuthToken(bucketId: bigint, pieceCid: string): Promise<string>;
-  /** Read one bucket's on-chain record (for its public/private flag). */
-  getBucketInfo(bucketId: bigint): Promise<BucketInfo | undefined>;
-  /** Authorize the DDC storage gateway to act for this wallet (once per account). */
-  authorizeGateway(): Promise<void>;
-  refreshBuckets(): Promise<void>;
+  refreshBuckets(): void;
 }
 
 export type ReadyAccount = Account & {

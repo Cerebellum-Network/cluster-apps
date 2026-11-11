@@ -1,28 +1,33 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import { AuthToken, AuthTokenOperation } from '@cere-ddc-sdk/ddc';
 import Reporting from '@cluster-apps/reporting';
 
 import { CERE_DECIMALS } from '~/constants';
 import { createChainClient } from '~/storage/ddc/chainClient';
 import { createBucketStorage } from '~/storage/ddc/bucketStorage';
 import { createDdcSigner } from '~/storage/ddc/signer';
-import { listOwnerBuckets } from '~/storage/ddc/ownerBuckets';
 import { createGatewayClient } from '~/storage/ddc/gatewayClient';
 import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
+import {
+  addTrackedBucket,
+  generateBucketName,
+  isGatewayAuthorized,
+  listTrackedBuckets,
+  setGatewayAuthorized,
+  updateTrackedBucket,
+} from '~/storage/gatewayBuckets';
 import type { CefSigner } from '@cef-ai/wallet';
-import type { BucketInfo, BucketStorage } from '~/storage/ddc/types';
+import type { BucketStorage } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
 
 const toCere = (units: bigint | null | undefined) =>
   units == null ? undefined : parseFloat((Number(units) / 10 ** CERE_DECIMALS).toFixed(2));
 
 /**
- * The account store, revived on the current stack. The CEF wallet is hook-based
- * and lives in the React `SessionProvider`; this MobX store receives the
- * connected identity + signer/token accessors through `setSession` (the bridge
- * in App.tsx) and does all storage/chain work through the SDK-v3 ddc layer
- * (`~/storage/ddc/*`) -- the DDC S3 gateway for objects, the REST index for the
- * bucket list, the chain for deposit + bucket create/params.
+ * The account store, on the current stack. The CEF wallet is bridged in via
+ * `setSession` (App.tsx). Storage goes through the DDC S3 gateway: buckets are
+ * created through the gateway (addressed by name, after a one-time Proxy
+ * authorization) and tracked client-side (`~/storage/gatewayBuckets`) because the
+ * gateway has no "list my buckets". Deposit is read from chain.
  */
 export class AccountStore implements Account {
   private chain = createChainClient();
@@ -31,7 +36,6 @@ export class AccountStore implements Account {
 
   private session: SessionInput | null = null;
   private _buckets?: Bucket[];
-  private _bucketsLoading = false;
   private _deposit?: bigint;
   private _balance?: bigint;
 
@@ -57,19 +61,23 @@ export class AccountStore implements Account {
     return this.session.getSigner();
   }
 
+  private requireAccount(): string {
+    const acc = this.session?.account;
+    if (!acc) throw new Error('Account is not ready');
+    return acc;
+  }
+
   /** The connected wallet as a DDC signer carrying a consent description. */
   private consentSigner(consent: string) {
     return createDdcSigner(() => this.requireSigner()).describing(consent);
   }
 
-  /**
-   * Kept for `AppStore.init()`: the wallet connects through the React
-   * SessionProvider, so there is nothing to initialise in the store.
-   */
+  /** Kept for AppStore.init(): the wallet connects through the React SessionProvider. */
   async init(): Promise<void> {}
 
   private async bootstrap() {
-    await Promise.all([this.refreshBuckets(), this.refreshDeposit(), this.refreshBalance()]);
+    this.refreshBuckets();
+    await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
   }
 
   private cleanup() {
@@ -77,7 +85,6 @@ export class AccountStore implements Account {
       this._buckets = undefined;
       this._deposit = undefined;
       this._balance = undefined;
-      this._bucketsLoading = false;
     });
   }
 
@@ -107,29 +114,17 @@ export class AccountStore implements Account {
     return this._buckets;
   }
   get bucketsLoading() {
-    return this._bucketsLoading;
+    return false;
   }
 
-  async refreshBuckets() {
-    const owner = this.session?.account;
-    if (!owner) return;
+  /** Load the account's gateway buckets from the client-side track record. */
+  refreshBuckets() {
+    const acc = this.session?.account;
     runInAction(() => {
-      this._bucketsLoading = true;
+      this._buckets = acc
+        ? listTrackedBuckets(acc).map<Bucket>((b) => ({ name: b.name, isPublic: b.isPublic }))
+        : undefined;
     });
-    try {
-      // REST index (GET /v1/buckets?owner=), not the old full-chain getBucketList
-      // scan. isPublic is not in the index; resolved on demand via getBucketInfo.
-      const list = await listOwnerBuckets(owner);
-      runInAction(() => {
-        this._buckets = list.map<Bucket>((b) => ({ id: BigInt(b.id), isPublic: false, isRemoved: b.isRemoved }));
-      });
-    } catch (e) {
-      Reporting.error(e);
-    } finally {
-      runInAction(() => {
-        this._bucketsLoading = false;
-      });
-    }
   }
 
   private async refreshDeposit() {
@@ -158,55 +153,36 @@ export class AccountStore implements Account {
     }
   }
 
-  async getBucketInfo(bucketId: bigint): Promise<BucketInfo | undefined> {
-    return this.chain.getBucket(bucketId);
+  /** Authorize the DDC storage gateway to act for this wallet (addProxy, once). */
+  async authorizeGateway() {
+    const acc = this.requireAccount();
+    if (isGatewayAuthorized(acc)) return;
+    const info = await this.gateway.getInfo();
+    const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
+    await this.chain.addProxy(ss58, this.consentSigner('Authorize the DDC storage gateway'));
+    setGatewayAuthorized(acc);
   }
 
-  async createBucket(params: { isPublic?: boolean }) {
-    const bucketId = await this.chain.createBucket(this.consentSigner('Create a storage bucket'), {
-      isPublic: params.isPublic ?? true,
-    });
-    // Register the new bucket at the gateway so objects can be put to it.
-    try {
-      await this.storage.createBucket(bucketId.toString());
-    } catch (e) {
-      Reporting.error(e);
-    }
-    await this.refreshBuckets();
-    return bucketId;
+  /** Create a gateway bucket (authorizing the gateway first if needed). Returns its name. */
+  async createBucket(): Promise<string> {
+    const acc = this.requireAccount();
+    await this.authorizeGateway();
+    const name = generateBucketName();
+    await this.storage.createBucket(name);
+    addTrackedBucket(acc, name, false);
+    this.refreshBuckets();
+    return name;
   }
 
-  async saveBucket(bucketId: bigint, params: { isPublic: boolean }) {
-    await this.chain.setBucketAccess(bucketId, params.isPublic, this.consentSigner('Change bucket access'));
-    // Mirror the on-chain flag at the gateway so object reads match.
-    try {
-      await this.storage.setBucketAcl(bucketId.toString(), params.isPublic ? 'public-read' : 'private');
-    } catch (e) {
-      Reporting.error(e);
-    }
+  async saveBucket(name: string, params: { isPublic: boolean }) {
+    await this.storage.setBucketAcl(name, params.isPublic ? 'public-read' : 'private');
+    updateTrackedBucket(this.requireAccount(), name, { isPublic: params.isPublic });
+    this.refreshBuckets();
   }
 
   async topUp(amount: number) {
     const value = BigInt(Math.round(amount * 10 ** CERE_DECIMALS));
     await this.chain.deposit(value, this.consentSigner('Add a DDC deposit'));
     await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
-  }
-
-  async createAuthToken(bucketId: bigint, pieceCid: string): Promise<string> {
-    const token = new AuthToken({
-      bucketId,
-      pieceCid,
-      operations: [AuthTokenOperation.GET],
-      ...(this.address ? { subject: this.address } : {}),
-    });
-    await token.sign(createDdcSigner(() => this.requireSigner()));
-    return token.toString();
-  }
-
-  /** Authorize the DDC storage gateway to act for this wallet (once per account). */
-  async authorizeGateway() {
-    const info = await this.gateway.getInfo();
-    const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
-    await this.chain.addProxy(ss58, this.consentSigner('Authorize the DDC storage gateway'));
   }
 }

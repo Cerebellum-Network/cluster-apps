@@ -1,4 +1,5 @@
 import { AnalyticsId } from '@cluster-apps/analytics';
+import Reporting from '@cluster-apps/reporting';
 import {
   Docs,
   DocsGroup,
@@ -10,16 +11,20 @@ import {
   Typography,
   Alert,
   AlertProps,
+  AddCircleOutlinedIcon,
   useMessages,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { useCallback, useEffect, useState } from 'react';
+import { NavLink } from 'react-router-dom';
 
 import { useAccount, useFetchDirs } from '~/hooks';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
+import { EMPTY_FILE_NAME, DEFAULT_FOLDER_NAME } from '~/constants.ts';
+import type { Acl } from '~/storage/ddc/types';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -30,25 +35,21 @@ const StyledAlert = styled(Alert)<AlertProps>(() => ({
   alignItems: 'center',
 }));
 
-/** Shown wherever a storage write is attempted while the write path is deferred. */
-const PENDING_MESSAGE =
-  'Creating buckets and uploading files is pending the storage-gateway integration — coming in the next phase.';
-
 /**
- * Content Storage — Phase 0 (read-only revival). Sign-in, the on-chain deposit
- * and the account's bucket list are live; creating buckets and uploading files
- * are deferred to the gateway-integration phase (the DDC S3 gateway only serves
- * buckets created through it, which the old per-bucket UI predates). The write
- * controls surface a "coming next" notice instead of acting.
+ * Content Storage on the DDC S3 gateway. Buckets are created through the gateway
+ * (named, after a one-time Proxy authorization) and tracked client-side; the file
+ * manager lists/uploads/downloads objects by bucket name. The old UI is unchanged.
  */
 const ContentStorage = () => {
   const account = useAccount();
   const { showMessage } = useMessages();
 
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [uploadType, setUploadType] = useState<'file' | 'folder' | 'emptyFolder'>('file');
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
+  const [bucketInProgress, setBucketInProgress] = useState<string>();
+  const [isBucketCreating, setIsBucketCreating] = useState(false);
 
-  const isBucketsLoading = account.bucketsLoading ?? false;
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
   useEffect(() => {
     if (account.buckets !== undefined) {
@@ -56,15 +57,89 @@ const ContentStorage = () => {
     }
   }, [account.buckets]);
 
-  const { dirs, loading } = useFetchDirs(buckets);
+  const { dirs, loading, defaultDirIndices, setDefaultFolderIndex, refetchBucket } = useFetchDirs(
+    buckets,
+    account.storage,
+  );
 
-  const notifyPending = useCallback(() => {
-    showMessage({
-      appearance: 'info',
-      message: PENDING_MESSAGE,
-      placement: { vertical: 'top', horizontal: 'right' },
-    });
-  }, [showMessage]);
+  // Storage is paid from the DDC deposit; keep the "top up first" gate.
+  const isAccountReady = (account.deposit ?? 0) > 0;
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (uploadStatus === 'success' || uploadStatus === 'error') {
+      timer = setTimeout(() => {
+        setUploadStatus('idle');
+        setBucketInProgress(undefined);
+      }, 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [uploadStatus]);
+
+  const aclForBucket = useCallback(
+    (bucketName: string): Acl =>
+      account.buckets?.find((b) => b.name === bucketName)?.isPublic ? 'public-read' : 'private',
+    [account.buckets],
+  );
+
+  const onBucketCreation = useCallback(async () => {
+    setIsBucketCreating(true);
+    try {
+      // First create authorizes the gateway (one wallet consent), then mints the bucket.
+      const name = await account.createBucket();
+      await refetchBucket(name);
+      setSelectedBucket(name);
+      showMessage({ appearance: 'success', message: 'Bucket created.' });
+    } catch (e) {
+      Reporting.error(e);
+      showMessage({
+        appearance: 'error',
+        message: 'Could not create the bucket. Please try again.',
+        placement: { vertical: 'top', horizontal: 'right' },
+      });
+    }
+    setIsBucketCreating(false);
+  }, [account, refetchBucket, showMessage]);
+
+  const handleUpload = useCallback(
+    async ({
+      acceptedFiles,
+      bucketId,
+      isFolder,
+      filePath,
+      emptyFolder = false,
+    }: {
+      acceptedFiles: File[];
+      bucketId: string;
+      cnsName: string;
+      isFolder: boolean;
+      filePath?: string;
+      skipQuests?: boolean;
+      emptyFolder?: boolean;
+    }) => {
+      setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
+      setBucketInProgress(bucketId);
+      setUploadStatus('uploading');
+      try {
+        const acl = aclForBucket(bucketId);
+        await Promise.all(
+          acceptedFiles.map((file) => {
+            const rel =
+              file.webkitRelativePath && file.webkitRelativePath !== '' ? file.webkitRelativePath : file.name;
+            const key = `${filePath ?? ''}${isFolder ? rel : file.name}`;
+            return account.storage.uploadObject({ bucketName: bucketId, key, body: file, contentType: file.type, acl });
+          }),
+        );
+        await refetchBucket(bucketId);
+        setUploadStatus('success');
+      } catch (error) {
+        Reporting.error(error);
+        setUploadStatus('error');
+        return null;
+      }
+    },
+    [account.storage, aclForBucket, refetchBucket],
+  );
 
   const handleCloseStatus = () => setUploadStatus('idle');
 
@@ -76,13 +151,21 @@ const ContentStorage = () => {
     [buckets.length],
   );
 
-  // Write actions are deferred this phase: surface the notice, do nothing else.
-  const onBucketCreation = useCallback(async () => notifyPending(), [notifyPending]);
-  const handleUpload = useCallback(async () => {
-    notifyPending();
-    return null;
-  }, [notifyPending]);
-  const handleCreateEmptyFolder = useCallback(async () => notifyPending(), [notifyPending]);
+  const handleCreateEmptyFolder = useCallback(
+    async (bucketId: string, name: string = '') => {
+      const currentDefaultFolderIdx = defaultDirIndices[bucketId] || 0;
+      const folderName = name !== '' ? name : `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}`;
+      const blob = new Blob([' '], { type: 'text/plain' });
+      const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${folderName}/${EMPTY_FILE_NAME}`,
+        writable: false,
+      });
+      await handleUpload({ acceptedFiles: [file], bucketId, cnsName: 'fs', isFolder: true, emptyFolder: true });
+      setDefaultFolderIndex(bucketId, currentDefaultFolderIdx + 1);
+    },
+    [defaultDirIndices, handleUpload, setDefaultFolderIndex],
+  );
 
   return (
     <>
@@ -97,29 +180,37 @@ const ContentStorage = () => {
           <Typography variant="h3">Content Storage</Typography>
         </Box>
         <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
-          <StyledAlert severity="info" sx={{ marginBottom: 2 }}>
-            Read-only preview: browsing your buckets is live. Creating buckets and uploading files is pending the
-            storage-gateway integration (next phase).
-          </StyledAlert>
+          {!isAccountReady && (
+            <StyledAlert
+              severity="info"
+              action={
+                <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
+                  Top Up
+                </Button>
+              }
+            >
+              Your DDC Wallet balance is 0. Please top it up before creating a bucket.
+            </StyledAlert>
+          )}
           <FileManager
             data={dirs || []}
             userHasBuckets={buckets.length > 0 || false}
             isLoading={loading}
-            isBucketsLoading={isBucketsLoading}
+            isBucketsLoading={false}
             onCreateBucket={onBucketCreation}
             onUpload={handleUpload}
-            uploadType="file"
+            uploadType={uploadType}
             uploadStatus={uploadStatus}
             setUploadStatus={handleCloseStatus}
-            isBucketCreating={false}
+            isBucketCreating={isBucketCreating}
             firstBucketLocked={buckets.length === 0}
             lockUi={false}
             onUnlockFirstBucket={onBucketCreation}
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
             onFolderCreate={handleCreateEmptyFolder}
-            isAccountReady
-            bucketInProgress={undefined}
+            isAccountReady={isAccountReady}
+            bucketInProgress={bucketInProgress}
           />
         </Container>
       </Box>
