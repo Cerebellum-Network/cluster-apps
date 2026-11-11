@@ -112,5 +112,19 @@ export function createChainClient(): ChainClient {
       const result = await client().tx.send(tx, { signer });
       return result.txHash;
     },
+
+    async removeProxy(delegateSs58: string, signer: Signer) {
+      // Revoke the gateway's proxy. `remove_proxy` matches on the full triple
+      // (delegate, proxy_type, delay), so these MUST equal what addProxy sent or
+      // the chain finds no proxy to remove (NotFound). Extrinsic -> the signer
+      // must carry a consent description.
+      const tx = client().api.tx.Proxy.remove_proxy({
+        delegate: { type: 'Id', value: delegateSs58 },
+        proxy_type: { type: 'NonTransfer', value: undefined },
+        delay: 0,
+      });
+      const result = await client().tx.send(tx, { signer });
+      return result.txHash;
+    },
   };
 }

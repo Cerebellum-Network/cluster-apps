@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { isWalletError, type CefSigner } from '@cef-ai/wallet';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { type CefSigner } from '@cef-ai/wallet';
 import { useWalletConnect } from '@cef-ai/wallet-react';
 import { config } from '../config';
 
@@ -25,8 +25,6 @@ interface Session {
   createWallet: () => void;
   cancel: () => void;
   signOut: () => void;
-  /** A read-only (`ddc-read`) wallet-api delegation token, cached until near expiry. */
-  getToken: () => Promise<string>;
   /**
    * The connected wallet as a DDC `CefSigner`, for the storage slice (the DDC SDK
    * and the S3-gateway credential registration sign through it). Throws when
@@ -69,31 +67,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [w.wallet, w.status]);
 
-  const delegation = useRef<{ token: string; expiresAt: number } | null>(null);
-  useEffect(() => {
-    delegation.current = null;
-  }, [w.wallet]);
-
-  const getToken = useCallback(async () => {
-    if (!w.wallet) throw new Error('not signed in');
-    const cached = delegation.current;
-    if (cached && cached.expiresAt - Date.now() > 60_000) return cached.token;
-    const request = { capabilities: ['ddc-read' as const], ttl: '24h' };
-    let minted;
-    try {
-      minted = await w.wallet.requestDelegation(request);
-    } catch (e) {
-      // On http the wallet runs in a popup. A popup the user closed is reopened
-      // signed out, and answers `unauthorized`; connect() resumes the live
-      // session silently, after which one retry succeeds.
-      if (!isWalletError(e) || e.code !== 'unauthorized') throw e;
-      const again = await w.connect();
-      minted = await again.requestDelegation(request);
-    }
-    delegation.current = { token: minted.token, expiresAt: Date.parse(minted.expiresAt) };
-    return minted.token;
-  }, [w]);
-
   const value = useMemo<Session>(() => {
     let state: SessionState;
     if (override) state = 'connected';
@@ -132,13 +105,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setLastAccount(null);
         void w.logout().catch(() => {});
       },
-      getToken,
       getSigner: () => {
         if (!w.wallet) throw new Error('not signed in');
         return w.wallet.signer;
       },
     };
-  }, [w, override, expired, cancelled, getToken, lastAccount]);
+  }, [w, override, expired, cancelled, lastAccount]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

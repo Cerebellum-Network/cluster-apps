@@ -62,6 +62,15 @@ export function setGatewayAuthorized(account: string): void {
   write(authorizedKey(account), true);
 }
 
+/** Clear the "gateway authorized" flag (after revoking the gateway's proxy). */
+export function clearGatewayAuthorized(account: string): void {
+  try {
+    localStorage.removeItem(authorizedKey(account));
+  } catch {
+    // Ignore: private mode. The flag is a convenience, not a source of truth.
+  }
+}
+
 /**
  * A fresh, S3-valid bucket name: lowercase, 3–63 chars, `[a-z0-9-]`, starts/ends
  * alphanumeric, no `_`. `dc-<base36 time>-<random>` is unique enough per account.

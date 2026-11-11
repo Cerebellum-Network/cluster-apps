@@ -9,6 +9,7 @@ import { createGatewayClient } from '~/storage/ddc/gatewayClient';
 import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
 import {
   addTrackedBucket,
+  clearGatewayAuthorized,
   generateBucketName,
   isGatewayAuthorized,
   listTrackedBuckets,
@@ -38,6 +39,7 @@ export class AccountStore implements Account {
   private _buckets?: Bucket[];
   private _deposit?: bigint;
   private _balance?: bigint;
+  private _gatewayAuthorized = false;
 
   constructor() {
     makeAutoObservable<AccountStore, 'chain' | 'gateway'>(this, { storage: false, chain: false, gateway: false });
@@ -78,6 +80,10 @@ export class AccountStore implements Account {
   async init(): Promise<void> {}
 
   private async bootstrap() {
+    const acc = this.session?.account;
+    runInAction(() => {
+      this._gatewayAuthorized = acc ? isGatewayAuthorized(acc) : false;
+    });
     this.refreshBuckets();
     await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
   }
@@ -87,6 +93,7 @@ export class AccountStore implements Account {
       this._buckets = undefined;
       this._deposit = undefined;
       this._balance = undefined;
+      this._gatewayAuthorized = false;
     });
   }
 
@@ -117,6 +124,10 @@ export class AccountStore implements Account {
   }
   get bucketsLoading() {
     return false;
+  }
+  /** Whether this wallet has authorized the storage gateway (observable). */
+  get gatewayAuthorized() {
+    return this._gatewayAuthorized;
   }
 
   /** Load the account's gateway buckets from the client-side track record. */
@@ -162,13 +173,42 @@ export class AccountStore implements Account {
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
     try {
-      await this.chain.addProxy(ss58, this.consentSigner('Authorize the DDC storage gateway'));
+      await this.chain.addProxy(
+        ss58,
+        this.consentSigner('Authorize the DDC storage gateway to create and manage storage buckets on your behalf'),
+      );
     } catch (e) {
       // `Proxy.Duplicate` means the gateway is already a proxy for this wallet,
       // i.e. already authorized — not an error. Anything else is real.
       if (!/duplicate/i.test((e as Error)?.message ?? '')) throw e;
     }
     setGatewayAuthorized(acc);
+    runInAction(() => {
+      this._gatewayAuthorized = true;
+    });
+  }
+
+  /**
+   * Revoke the storage gateway's authorization: remove its on-chain proxy and
+   * drop the local authorized flag + cached credential. After this the gateway
+   * can no longer act for the wallet; the next create re-authorizes.
+   */
+  async revokeGateway() {
+    const acc = this.requireAccount();
+    const info = await this.gateway.getInfo();
+    const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
+    try {
+      await this.chain.removeProxy(ss58, this.consentSigner('Revoke the DDC storage gateway authorization'));
+    } catch (e) {
+      // `NotFound` means there is no such proxy -- already revoked. Treat as done;
+      // anything else is real.
+      if (!/not ?found/i.test((e as Error)?.message ?? '')) throw e;
+    }
+    clearGatewayAuthorized(acc);
+    this.storage.resetCredentials();
+    runInAction(() => {
+      this._gatewayAuthorized = false;
+    });
   }
 
   /** Create a gateway bucket (authorizing the gateway first if needed). Returns its name. */
@@ -190,7 +230,9 @@ export class AccountStore implements Account {
 
   async topUp(amount: number) {
     const value = BigInt(Math.round(amount * 10 ** CERE_DECIMALS));
-    await this.chain.deposit(value, this.consentSigner('Add a DDC deposit'));
+    // Name the amount in the wallet consent so the user approves a known figure,
+    // not an opaque "add a deposit" (#185 review).
+    await this.chain.deposit(value, this.consentSigner(`Add a ${amount} CERE deposit to DDC`));
     await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
   }
 }

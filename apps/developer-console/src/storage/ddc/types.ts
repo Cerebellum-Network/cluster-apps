@@ -36,6 +36,8 @@ export interface ChainClient {
   setBucketAccess(bucketId: bigint, isPublic: boolean, signer: Signer): Promise<void>;
   /** Add `delegateSs58` as a NonTransfer proxy (e.g. the storage gateway). Returns the tx hash. */
   addProxy(delegateSs58: string, signer: Signer): Promise<string>;
+  /** Remove `delegateSs58` as a NonTransfer proxy (revoke the gateway). Returns the tx hash. */
+  removeProxy(delegateSs58: string, signer: Signer): Promise<string>;
 }
 
 export interface BucketInfo {

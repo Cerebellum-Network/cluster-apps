@@ -23,6 +23,16 @@ import { createDdcSigner } from './signer';
 const CREDENTIAL_LABEL = 'developer-console';
 
 /**
+ * Lifetime of the wallet-wide gateway delegation token. The SDK default is 30
+ * days (`AUTH_TOKEN_EXPIRATION_TIME`); a full-access, delegable token that lives
+ * that long is a broad bearer credential, so bound it to 24h (#185 review). The
+ * token is re-minted transparently on next use once it lapses; `bucketStorage`
+ * refreshes the S3 credential near expiry. Per-bucket scoping is not available —
+ * the gateway credential is wallet-wide — so a short lifetime is the mitigation.
+ */
+const DELEGATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
  * SDK 3.x decodes an AuthToken subject as SS58 only; the gateway advertises its
  * key as hex, so convert. A value that is already an address passes through.
  * (Ported from ROC's accountPubKeyToSs58.)
@@ -37,10 +47,18 @@ export async function registerGatewayCredential(
   getSigner: () => CefSigner,
   gateway: GatewayClient,
 ): Promise<GatewayCredentials> {
-  const signer = createDdcSigner(getSigner);
+  // `.describing(...)` labels what the signature authorizes. The token/data
+  // signing intents used below do not raise the wallet's consent screen (only
+  // 'extrinsic' does -- see cefDdcSigner), so this is for self-documentation and
+  // in case the wallet ever surfaces token-sign consent; it is not a popup.
+  const signer = createDdcSigner(getSigner).describing('Authorize a DDC storage gateway credential');
   const info = await gateway.getInfo();
 
-  const token = AuthToken.fullAccess({ subject: gatewayPubKeyToSs58(info.gatewayPublicKey), canDelegate: true });
+  const token = AuthToken.fullAccess({
+    subject: gatewayPubKeyToSs58(info.gatewayPublicKey),
+    canDelegate: true,
+    expiresIn: DELEGATION_TOKEN_TTL_MS,
+  });
   await token.sign(signer);
   const delegationToken = token.toString();
 

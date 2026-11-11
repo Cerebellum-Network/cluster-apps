@@ -121,9 +121,11 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
     },
 
     publicUrl(bucketName: string, key: string): string {
-      // Public-read objects are served path-style off the gateway origin (as ROC's
-      // gatewayClient.getPublicObjectUrl does), NOT off a separate CDN host.
-      const base = storageConfig.ddcS3GatewayUrl.replace(/\/+$/, '');
+      // Public-read objects are read back off the CDN host (per #185 review), not
+      // the authenticated S3 gateway: the gateway is the write/signed-read path,
+      // while the CDN is the public, cacheable edge for public-read objects.
+      // Path-style `{cdn}/{bucket}/{key}`, same shape the gateway serves.
+      const base = storageConfig.ddcCdnUrl.replace(/\/+$/, '');
       return `${base}/${encodeURIComponent(bucketName)}/${key.split('/').map(encodeURIComponent).join('/')}`;
     },
 

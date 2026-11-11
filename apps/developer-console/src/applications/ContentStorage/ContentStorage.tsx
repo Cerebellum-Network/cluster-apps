@@ -12,6 +12,7 @@ import {
   Alert,
   AlertProps,
   AddCircleOutlinedIcon,
+  LoadingButton,
   useMessages,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
@@ -49,6 +50,7 @@ const ContentStorage = () => {
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [bucketInProgress, setBucketInProgress] = useState<string>();
   const [isBucketCreating, setIsBucketCreating] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
 
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
   useEffect(() => {
@@ -141,6 +143,25 @@ const ContentStorage = () => {
     [account.storage, aclForBucket, refetchBucket],
   );
 
+  const handleRevokeGateway = useCallback(async () => {
+    if (
+      !window.confirm(
+        "Revoke the storage gateway's access to your wallet? You'll re-authorize it the next time you create a bucket.",
+      )
+    ) {
+      return;
+    }
+    setIsRevoking(true);
+    try {
+      await account.revokeGateway();
+      showMessage({ appearance: 'success', message: 'Storage gateway access revoked.' });
+    } catch (e) {
+      Reporting.error(e);
+      showMessage({ appearance: 'error', message: 'Could not revoke gateway access. Please try again.' });
+    }
+    setIsRevoking(false);
+  }, [account, showMessage]);
+
   const handleCloseStatus = () => setUploadStatus('idle');
 
   const handleRowClick = useCallback(
@@ -214,6 +235,14 @@ const ContentStorage = () => {
           />
         </Container>
       </Box>
+
+      {account.gatewayAuthorized && (
+        <Box display="flex" justifyContent="flex-end" marginBottom="20px">
+          <LoadingButton variant="text" color="secondary" size="small" loading={isRevoking} onClick={handleRevokeGateway}>
+            Revoke storage gateway access
+          </LoadingButton>
+        </Box>
+      )}
 
       <Docs
         icon={<DataStorageDocsIcon />}

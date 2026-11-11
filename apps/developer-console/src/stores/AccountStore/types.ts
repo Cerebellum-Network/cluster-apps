@@ -17,7 +17,7 @@ export type Bucket = {
 /**
  * What the React wallet SessionProvider pushes into the MobX AccountStore. The
  * CEF wallet is hook-based, so the store cannot own it directly; the session
- * bridge (see App.tsx) injects the connected identity + signer/token accessors.
+ * bridge (see App.tsx) injects the connected identity + signer accessor.
  */
 export interface SessionInput {
   state: AccountStatus;
@@ -27,7 +27,6 @@ export interface SessionInput {
   address: string | null;
   email: string | null;
   getSigner: () => CefSigner;
-  getToken: () => Promise<string>;
 }
 
 export interface Account {
@@ -42,11 +41,15 @@ export interface Account {
   readonly buckets?: Bucket[];
   readonly bucketsLoading?: boolean;
   readonly status: AccountStatus;
+  /** Whether this wallet has authorized the storage gateway (gates the revoke control). */
+  readonly gatewayAuthorized?: boolean;
 
   isReady(): this is ReadyAccount;
   /** Create a gateway bucket (authorizing the gateway first if needed); returns its name. */
   createBucket(): Promise<string>;
   saveBucket(name: string, params: { isPublic: boolean }): Promise<void>;
+  /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
+  revokeGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;
   refreshBuckets(): void;
 }
