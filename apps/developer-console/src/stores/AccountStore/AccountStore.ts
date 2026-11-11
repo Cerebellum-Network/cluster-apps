@@ -159,7 +159,13 @@ export class AccountStore implements Account {
     if (isGatewayAuthorized(acc)) return;
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
-    await this.chain.addProxy(ss58, this.consentSigner('Authorize the DDC storage gateway'));
+    try {
+      await this.chain.addProxy(ss58, this.consentSigner('Authorize the DDC storage gateway'));
+    } catch (e) {
+      // `Proxy.Duplicate` means the gateway is already a proxy for this wallet,
+      // i.e. already authorized — not an error. Anything else is real.
+      if (!/duplicate/i.test((e as Error)?.message ?? '')) throw e;
+    }
     setGatewayAuthorized(acc);
   }
 
