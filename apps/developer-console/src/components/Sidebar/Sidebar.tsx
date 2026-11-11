@@ -1,38 +1,21 @@
-import { observer } from 'mobx-react-lite';
-
 import { BytesSize, ChartWidget, Stack, Typography } from '@cluster-apps/ui';
-import { useAccountStore } from '~/hooks';
 
 export type SidebarProps = {};
 
+/**
+ * Account-usage widget. Usage figures come from the DAC stats API, for which
+ * there is no confirmed Dragon-1 host yet, so the values are shown as empty
+ * (0) until a data source is wired in a later phase.
+ */
 const Sidebar = () => {
-  const { metrics } = useAccountStore();
-  const titleCere = 0; // TODO: get real data
-
   return (
     <Stack padding={2} spacing={3}>
       <Typography variant="subtitle2">Account Usage</Typography>
-      <ChartWidget
-        title="Total Storage"
-        value={<BytesSize bytes={metrics?.total.storedBytes || 0} />}
-        history={metrics?.history.map((item) => ({
-          value: item.storedBytes,
-          date: item.recordTime,
-        }))}
-      />
-
-      <ChartWidget title="Total CERE Consumption" value={`${titleCere} CERE`} formatValue={(value) => `${value}`} />
-
-      <ChartWidget
-        title="Network Traffic"
-        value={<BytesSize bytes={metrics?.total.transferredBytes || 0} />}
-        history={metrics?.history.map((item) => ({
-          value: item.transferredBytes,
-          date: item.recordTime,
-        }))}
-      />
+      <ChartWidget title="Total Storage" value={<BytesSize bytes={0} />} />
+      <ChartWidget title="Total CERE Consumption" value="0 CERE" formatValue={(value) => `${value}`} />
+      <ChartWidget title="Network Traffic" value={<BytesSize bytes={0} />} />
     </Stack>
   );
 };
 
-export default observer(Sidebar);
+export default Sidebar;

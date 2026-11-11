@@ -9,21 +9,21 @@ import {
   Button,
   styled,
   Typography,
-  MetricsChart,
   Alert,
   AlertProps,
   AddCircleOutlinedIcon,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useAccount, useFetchDirs, useQuestsStore } from '~/hooks';
 import { useCallback, useEffect, useState } from 'react';
-import { DagNode, DagNodeUri, Link, File as DdcFile, Tag, FileContent } from '@cere-ddc-sdk/ddc-client';
+import { NavLink } from 'react-router-dom';
+
+import { useAccount, useFetchDirs } from '~/hooks';
 import { DataStorageDocsIcon } from './icons';
 import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { DEFAULT_FOLDER_NAME, EMPTY_FILE_NAME } from '~/constants.ts';
-import { NavLink } from 'react-router-dom';
+import type { Acl } from '~/storage/ddc/types';
 
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
@@ -34,42 +34,41 @@ const StyledAlert = styled(Alert)<AlertProps>(() => ({
   alignItems: 'center',
 }));
 
+/**
+ * Content Storage, revived on the DDC S3 gateway. Objects are stored by key
+ * (folder prefixes are just `/`-separated keys), replacing the old `fs` DAG-node
+ * layout. The file-manager UI and its tree are unchanged; only the data layer
+ * (list/upload/download/share) moved to the gateway.
+ */
 const ContentStorage = () => {
-  const questsStore = useQuestsStore();
+  const account = useAccount();
+
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [uploadType, setUploadType] = useState<'file' | 'folder' | 'emptyFolder'>('file');
   const [bucketInProgress, setBucketInProgress] = useState<string>();
   const [isBucketCreating, setIsBucketCreating] = useState(false);
-  const [firstBucketLocked, setFirstBucketLocked] = useState(true);
-  const [lockUi, setLockUi] = useState<boolean>(true);
-  const [isAccountReady, setIsAccountReady] = useState<boolean>(false);
-
-  const account = useAccount();
-
-  const ddcClient = account.ddc;
 
   const isBucketsLoading = account.bucketsLoading ?? false;
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
-
   useEffect(() => {
     if (account.buckets !== undefined) {
       setBuckets(account.buckets);
     }
   }, [account.buckets]);
 
-  const { dirs, loading, defaultDirIndices, setDefaultFolderIndex, refetchBucket } = useFetchDirs(buckets, ddcClient);
+  const { dirs, loading, defaultDirIndices, setDefaultFolderIndex, refetchBucket } = useFetchDirs(
+    buckets,
+    account.storage,
+  );
+
+  const firstBucketLocked = buckets.length === 0;
+  // A deposit is required before a bucket can be created (storage is paid for from
+  // the DDC deposit). Keep the old "top up first" gate.
+  const isAccountReady = (account.deposit ?? 0) > 0;
 
   useEffect(() => {
-    if (buckets.length <= 1 && dirs.filter((s) => !!s.cid).length === 0 && account.deposit === 0) {
-      setIsAccountReady(false);
-    } else {
-      setIsAccountReady(true);
-    }
-  }, [account.deposit, buckets.length, dirs]);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (uploadStatus === 'success' || uploadStatus === 'error') {
       timer = setTimeout(() => {
         setUploadStatus('idle');
@@ -79,140 +78,34 @@ const ContentStorage = () => {
     return () => clearTimeout(timer);
   }, [uploadStatus]);
 
-  useEffect(() => {
-    // Previous condition: buckets.length === 0 || dirs.filter((s) => !!s.cid).length === 0;
-    const firstBucketLocked = buckets.length === 0;
-    setFirstBucketLocked(firstBucketLocked);
-    setLockUi(firstBucketLocked);
-  }, [buckets.length, dirs, dirs.length, questsStore]);
-
-  useEffect(() => {
-    if (
-      buckets.length === 1 &&
-      dirs.filter((s) => !!s.cid).length === 0 &&
-      questsStore.isStepDone('uploadFile', 'createBucket')
-    ) {
-      setSelectedBucket(buckets[0].id.toString());
-      setLockUi(false);
-    }
-  }, [buckets, dirs, questsStore]);
-
-  const handleFirstBucketUnlock = useCallback(async () => {
-    questsStore.markStepDone('uploadFile', 'createBucket');
-
-    setIsBucketCreating(true);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    if (buckets.length > 0) {
-      setSelectedBucket(buckets[0].id.toString());
-    }
-
-    setIsBucketCreating(false);
-    setLockUi(false);
-  }, [buckets, questsStore]);
+  const aclForBucket = useCallback(
+    async (bucketId: string): Promise<Acl> => {
+      const known = account.buckets?.find((b) => b.id.toString() === bucketId);
+      if (known?.isPublic) return 'public-read';
+      const info = await account.getBucketInfo(BigInt(bucketId)).catch(() => undefined);
+      return info?.isPublic ? 'public-read' : 'private';
+    },
+    [account],
+  );
 
   const onBucketCreation = useCallback(async () => {
-    if (!ddcClient) return;
-
-    questsStore.markStepDone('uploadFile', 'createBucket');
     setIsBucketCreating(true);
-    const createdBucketId = await account.createBucket({ isPublic: true });
-    const bucketInfo = await ddcClient.getBucket(createdBucketId);
-    if (bucketInfo) {
-      setBuckets((prevState) => {
-        return [
-          ...prevState,
-          {
-            id: bucketInfo.bucketId,
-            isPublic: bucketInfo.isPublic,
-            isRemoved: bucketInfo.isRemoved,
-            storedBytes: 0,
-            stats: undefined,
-          },
-        ];
-      });
-
-      await refetchBucket(createdBucketId, bucketInfo.isPublic);
+    try {
+      const createdBucketId = await account.createBucket({ isPublic: true });
+      await refetchBucket(createdBucketId, true);
       setSelectedBucket(createdBucketId.toString());
+    } catch (e) {
+      Reporting.error(e);
     }
     setIsBucketCreating(false);
-    setLockUi(false);
-  }, [account, ddcClient, questsStore, refetchBucket]);
-
-  const singleFileUpload = useCallback(
-    async ({
-      acceptedFile,
-      cnsName,
-      bucketId,
-      isFolder,
-      filePath,
-    }: {
-      acceptedFile: File;
-      bucketId: string;
-      cnsName: string;
-      isFolder: boolean;
-      filePath?: string;
-    }) => {
-      const dagNodeData = JSON.stringify({ createTime: Date.now() });
-      const existingDagNode = await ddcClient!
-        .read(new DagNodeUri(BigInt(bucketId), cnsName), {
-          cacheControl: 'no-cache',
-        })
-        .catch(() => new DagNode(dagNodeData));
-
-      let defaultDirIndex = 0;
-      if (filePath) {
-        const match = filePath.match(/default(\d*)/);
-        if (match) {
-          defaultDirIndex = match[1] ? parseInt(match[1], 10) : 0;
-        }
-      }
-
-      const existingDagNodeLinks = existingDagNode.links.filter(
-        (link: Link) =>
-          link.name !== `${DEFAULT_FOLDER_NAME}${defaultDirIndex === 0 ? '' : defaultDirIndex}/${EMPTY_FILE_NAME}`,
-      );
-
-      const file = new DdcFile(acceptedFile.stream() as FileContent, { size: acceptedFile.size });
-      const uri = await ddcClient!.store(BigInt(bucketId!), file);
-
-      Reporting.fileUploaded({
-        bucketId: BigInt(bucketId),
-        cid: uri.cid,
-        name: acceptedFile.name,
-        type: acceptedFile.type,
-        size: acceptedFile.size,
-      });
-
-      const fileLink = new Link(
-        uri.cid,
-        acceptedFile.size,
-        isFolder
-          ? `${filePath || ''}${acceptedFile.webkitRelativePath !== '' ? acceptedFile.webkitRelativePath : acceptedFile.name}`
-          : `${filePath ? filePath : ''}${acceptedFile.name}`,
-      );
-
-      const dagNode = new DagNode(dagNodeData, [...existingDagNodeLinks, fileLink]);
-
-      await ddcClient!.store(BigInt(bucketId), dagNode, { name: cnsName });
-
-      return {
-        cid: uri.cid,
-        path: `${filePath || ''}${acceptedFile.webkitRelativePath || acceptedFile.name}`,
-        contentType: acceptedFile.type,
-        size: acceptedFile.size,
-      };
-    },
-    [ddcClient],
-  );
+  }, [account, refetchBucket]);
 
   const handleUpload = useCallback(
     async ({
       acceptedFiles,
       bucketId,
-      cnsName,
       isFolder,
       filePath,
-      skipQuests = false,
       emptyFolder = false,
     }: {
       acceptedFiles: File[];
@@ -223,87 +116,28 @@ const ContentStorage = () => {
       skipQuests?: boolean;
       emptyFolder?: boolean;
     }) => {
-      const currentBucket = account.buckets?.find((bucket) => bucket.id.toString() === bucketId.toString());
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
-      questsStore.markStepDone('uploadFile', 'startUploading');
       setBucketInProgress(bucketId);
-
-      if (!isFolder) {
-        setUploadStatus('uploading');
-        try {
-          const acceptedFile = acceptedFiles[0];
-          await singleFileUpload({ acceptedFile, bucketId, cnsName, filePath, isFolder: false });
-          await new Promise((resolve) => setTimeout(resolve, 5000));
-          await refetchBucket(BigInt(bucketId), currentBucket?.isPublic);
-
-          if (!skipQuests) {
-            /**
-             * Mark the file upload quest as completed
-             */
-            questsStore.markCompleted('uploadFile');
-            setUploadStatus('success');
-          }
-
-          return;
-        } catch (err) {
-          Reporting.error(err);
-          setUploadStatus('error');
-
-          return null;
-        }
-      }
+      setUploadStatus('uploading');
       try {
-        setUploadStatus('uploading');
-
-        const dagNodeData = JSON.stringify({ createTime: Date.now() });
-
-        const existingDagNode = await ddcClient!
-          .read(new DagNodeUri(BigInt(bucketId), cnsName), {
-            cacheControl: 'no-cache',
-          })
-          .catch(() => new DagNode(dagNodeData));
-
-        const uploadedFiles = await Promise.all(
-          acceptedFiles.map(
-            async (acceptedFile) =>
-              await singleFileUpload({ acceptedFile, cnsName, bucketId, filePath, isFolder: true }),
-          ),
+        const acl = await aclForBucket(bucketId);
+        await Promise.all(
+          acceptedFiles.map((file) => {
+            const rel =
+              file.webkitRelativePath && file.webkitRelativePath !== '' ? file.webkitRelativePath : file.name;
+            const key = `${filePath ?? ''}${isFolder ? rel : file.name}`;
+            return account.storage.uploadObject({ bucketName: bucketId, key, body: file, contentType: file.type, acl });
+          }),
         );
-
-        const validUploadedFiles = uploadedFiles.filter(
-          (file): file is { path: string; cid: string; size: number; contentType: string } =>
-            file !== null && file !== undefined,
-        );
-
-        const appDagNode = new DagNode(
-          JSON.stringify({ createTime: Date.now() }),
-          [...existingDagNode.links, ...validUploadedFiles.map(({ path, cid, size }) => new Link(cid, size, path))],
-          validUploadedFiles.map(({ contentType }) => new Tag('content-type', contentType)),
-        );
-
-        const appDagNodeUri = await ddcClient.store(BigInt(bucketId), appDagNode, cnsName ? { name: cnsName } : {});
-
-        await new Promise((resolve) => setTimeout(resolve, 5000));
-
-        await refetchBucket(BigInt(bucketId), currentBucket?.isPublic);
-
-        if (!skipQuests) {
-          /**
-           * Mark the file upload quest as completed
-           */
-          questsStore.markCompleted('uploadFile');
-        }
+        await refetchBucket(BigInt(bucketId), acl === 'public-read');
         setUploadStatus('success');
-
-        return appDagNodeUri.cid;
       } catch (error) {
         Reporting.error(error);
         setUploadStatus('error');
-
         return null;
       }
     },
-    [account.buckets, ddcClient, questsStore, refetchBucket, singleFileUpload],
+    [account.storage, aclForBucket, refetchBucket],
   );
 
   const handleCloseStatus = () => {
@@ -312,42 +146,28 @@ const ContentStorage = () => {
 
   const handleRowClick = useCallback(
     (bucketId: string) => {
-      if (firstBucketLocked || buckets.length === 0) {
-        return;
-      }
+      if (buckets.length === 0) return;
       setSelectedBucket((prev) => (prev === bucketId ? null : bucketId));
     },
-    [buckets.length, firstBucketLocked],
+    [buckets.length],
   );
 
   const handleCreateEmptyFolder = useCallback(
     async (bucketId: string, name: string = '') => {
-      const text = ' ';
-      const blob = new Blob([text], { type: 'text/plain' });
-      const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
-
-      const dataTransfer = new DataTransfer();
       const currentDefaultFolderIdx = defaultDirIndices[bucketId] || 0;
-
       const folderName = name !== '' ? name : `${DEFAULT_FOLDER_NAME}${currentDefaultFolderIdx + 1}`;
-
-      const fileWithPath = new File([blob], `${folderName}/${file.name}`, { type: 'text/plain' });
-
-      Object.defineProperty(fileWithPath, 'webkitRelativePath', {
-        value: `${folderName}/${file.name}`,
+      const blob = new Blob([' '], { type: 'text/plain' });
+      const file = new File([blob], EMPTY_FILE_NAME, { type: 'text/plain' });
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${folderName}/${EMPTY_FILE_NAME}`,
         writable: false,
       });
 
-      dataTransfer.items.add(fileWithPath);
-
-      const files = dataTransfer.files;
-
       await handleUpload({
-        acceptedFiles: Array.from(files),
+        acceptedFiles: [file],
         bucketId,
         cnsName: 'fs',
         isFolder: true,
-        skipQuests: true,
         emptyFolder: true,
       });
 
@@ -393,8 +213,8 @@ const ContentStorage = () => {
             setUploadStatus={handleCloseStatus}
             isBucketCreating={isBucketCreating}
             firstBucketLocked={firstBucketLocked}
-            lockUi={lockUi}
-            onUnlockFirstBucket={handleFirstBucketUnlock}
+            lockUi={false}
+            onUnlockFirstBucket={onBucketCreation}
             onRowClick={handleRowClick}
             selectedBucket={selectedBucket}
             onFolderCreate={handleCreateEmptyFolder}
@@ -402,10 +222,6 @@ const ContentStorage = () => {
             bucketInProgress={bucketInProgress}
           />
         </Container>
-      </Box>
-
-      <Box marginBottom={2}>
-        <MetricsChart history={account.metrics?.history} />
       </Box>
 
       <Docs

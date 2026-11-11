@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { DagNodeUri, Link } from '@cere-ddc-sdk/ddc-client';
-import { IndexedBucket } from '@cluster-apps/api';
 import Reporting from '@cluster-apps/reporting';
 
 import { DirectoryType } from '~/applications/ContentStorage/FileManager';
+import type { Bucket } from '~/stores';
+import type { BucketStorage } from '~/storage/ddc/types';
 
 interface UseFetchDirsResult {
   dirs: DirectoryType[];
@@ -14,7 +14,20 @@ interface UseFetchDirsResult {
   setDefaultFolderIndex: (bucketId: string, index: number) => void;
 }
 
-export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetchDirsResult => {
+/** Highest `default<N>` top-level folder index seen among a bucket's object keys. */
+const indexFromKeys = (keys: string[]): number =>
+  keys.reduce((max, key) => {
+    const match = key.split('/')[0]?.match(/^default(\d*)$/);
+    if (!match) return max;
+    return Math.max(max, match[1] ? parseInt(match[1], 10) : 0);
+  }, 0);
+
+/**
+ * Lists each bucket's objects through the DDC S3 gateway (replacing the old
+ * `fs` DAG-node read). Each object key becomes one `DirectoryType`; the
+ * file-manager's `transformData` rebuilds the folder tree from the key paths.
+ */
+export const useFetchDirs = (buckets: Bucket[], storage: BucketStorage): UseFetchDirsResult => {
   const [dirs, setDirs] = useState<DirectoryType[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,132 +35,70 @@ export const useFetchDirs = (buckets: IndexedBucket[], ddcClient: any): UseFetch
 
   const fetchedBucketIds = useRef(new Set<string>());
 
-  const fetchDirs = useCallback(async () => {
-    if (!ddcClient) {
-      return;
-    }
+  const listBucket = useCallback(
+    async (bucket: Bucket): Promise<{ dirs: DirectoryType[]; index: number }> => {
+      const bucketId = bucket.id.toString();
+      try {
+        const keys = (await storage.listObjects(bucketId)).filter(Boolean);
+        return {
+          dirs: keys.map<DirectoryType>((key) => ({
+            bucketId,
+            isPublic: bucket.isPublic,
+            name: key,
+            cid: key,
+            size: 0,
+          })),
+          index: indexFromKeys(keys),
+        };
+      } catch (e) {
+        // An empty / not-yet-authorized bucket lists nothing; keep the row.
+        Reporting.error(e);
+        return { dirs: [], index: 0 };
+      }
+    },
+    [storage],
+  );
 
+  const fetchDirs = useCallback(async () => {
     const newBuckets = buckets.filter((b) => !fetchedBucketIds.current.has(b.id.toString()));
-    if (newBuckets.length === 0) {
-      return;
-    }
+    if (newBuckets.length === 0) return;
 
     setLoading(true);
     setError(null);
-
     try {
-      const newDirs: DirectoryType[] = [];
+      const results = await Promise.all(newBuckets.map(listBucket));
+      const newDirs = results.flatMap((r) => r.dirs);
       const indices: Record<string, number> = {};
-      console.log(`[useFetchDirs] Starting to fetch ${newBuckets.length} new buckets`);
-
-      for (const bucket of newBuckets) {
-        const dagUri = new DagNodeUri(BigInt(bucket.id), 'fs');
-
-        try {
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 секунд
-          });
-
-          const readPromise = ddcClient.read(dagUri, {
-            cacheControl: 'no-cache',
-          });
-
-          const dir = await Promise.race([readPromise, timeoutPromise]);
-
-          if (dir) {
-            const links: Link[] = dir.links;
-            for (const link of links) {
-              newDirs.push({ bucketId: bucket.id.toString(), isPublic: bucket.isPublic, ...link });
-              const match = link.name.match(/^default(\d*)/);
-              if (match) {
-                const index = match[1] ? parseInt(match[1], 10) : 0;
-                indices[bucket.id.toString()] = Math.max(indices[bucket.id.toString()] || 0, index);
-              }
-            }
-          }
-        } catch (dirError) {
-          const error = dirError as Error;
-          console.warn(`[useFetchDirs] Bucket ${bucket.id} not accessible, adding placeholder:`, error.message);
-
-          // Добавляем placeholder вместо пустого объекта
-          newDirs.push({
-            bucketId: bucket.id.toString(),
-            isPublic: bucket.isPublic,
-            name: 'default',
-            size: 0,
-            cid: '',
-          });
-
-          Reporting.error(dirError);
-        }
-      }
-      newBuckets.forEach((b) => fetchedBucketIds.current.add(b.id.toString()));
-      setDirs((prevState) => [...prevState, ...newDirs]);
-      setDefaultDirIndices(indices);
+      newBuckets.forEach((b, i) => {
+        indices[b.id.toString()] = results[i].index;
+        fetchedBucketIds.current.add(b.id.toString());
+      });
+      setDirs((prev) => [...prev, ...newDirs]);
+      setDefaultDirIndices((prev) => ({ ...prev, ...indices }));
     } catch (e) {
-      console.error('[useFetchDirs] General error:', e);
       setError((e as Error).message);
     } finally {
       setLoading(false);
     }
-  }, [buckets, ddcClient]);
+  }, [buckets, listBucket]);
 
   useEffect(() => {
-    fetchDirs();
+    void fetchDirs();
   }, [fetchDirs]);
 
   const refetchBucket = useCallback(
-    async (bucketId: bigint, isPublic: boolean = true) => {
-      if (!ddcClient) {
-        return;
-      }
-
+    async (bucketId: bigint, isPublic: boolean = false) => {
+      const id = bucketId.toString();
       try {
-        const dagUri = new DagNodeUri(bucketId, 'fs');
-        const newDirs: DirectoryType[] = [];
-        const indices: Record<string, number> = {};
-
-        try {
-          // Добавляем таймаут для предотвращения бесконечных попыток
-          const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Request timeout')), 30000); // 30 секунд
-          });
-
-          const readPromise = ddcClient.read(dagUri, {
-            cacheControl: 'no-cache',
-          });
-
-          const dir = await Promise.race([readPromise, timeoutPromise]);
-
-          if (dir) {
-            const links: Link[] = dir.links;
-            for (const link of links) {
-              newDirs.push({ bucketId: bucketId.toString(), isPublic, ...link });
-
-              const match = link.name.match(/^default(\d*)/);
-              if (match) {
-                const index = match[1] ? parseInt(match[1], 10) : 0;
-                indices[bucketId.toString()] = Math.max(indices[bucketId.toString()] || 0, index);
-              }
-            }
-          }
-        } catch (dirError) {
-          Reporting.error(dirError);
-
-          console.error(`Error reading directory for bucket ${bucketId}:`, dirError);
-          newDirs.push({ bucketId: bucketId.toString(), isPublic, ...({} as Link) });
-        }
-
-        setDirs((prevDirs) => [...prevDirs.filter((dir) => dir.bucketId !== bucketId.toString()), ...newDirs]);
-        setDefaultDirIndices((prevIndices) => ({ ...prevIndices, ...indices }));
-      } catch (error) {
-        console.error('[refetchBucket] General error:', error);
-        setError((error as Error).message);
-      } finally {
-        setLoading(false);
+        const { dirs: newDirs, index } = await listBucket({ id: bucketId, isPublic, isRemoved: false });
+        fetchedBucketIds.current.add(id);
+        setDirs((prev) => [...prev.filter((d) => d.bucketId !== id), ...newDirs]);
+        setDefaultDirIndices((prev) => ({ ...prev, [id]: index }));
+      } catch (e) {
+        setError((e as Error).message);
       }
     },
-    [ddcClient],
+    [listBucket],
   );
 
   const setDefaultFolderIndex = (bucketId: string, index: number) => {

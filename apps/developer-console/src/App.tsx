@@ -7,6 +7,8 @@ import { Router } from './routes';
 import { AppStore } from './stores';
 import { AppStoreContext } from './hooks';
 import { ApplicationTourProvider } from '~/components/ApplicationTour';
+import { SessionProvider } from '~/wallet/session';
+import { SessionBridge } from '~/wallet/SessionBridge';
 
 const App = () => {
   const [store] = useState(() => new AppStore());
@@ -15,11 +17,14 @@ const App = () => {
     <UIProvider>
       <ErrorBoundary>
         <AppStoreContext.Provider value={store}>
-          <ApplicationTourProvider>
-            <OnboardingProvider>
-              <Router />
-            </OnboardingProvider>
-          </ApplicationTourProvider>
+          <SessionProvider>
+            <SessionBridge />
+            <ApplicationTourProvider>
+              <OnboardingProvider>
+                <Router />
+              </OnboardingProvider>
+            </ApplicationTourProvider>
+          </SessionProvider>
         </AppStoreContext.Provider>
       </ErrorBoundary>
     </UIProvider>

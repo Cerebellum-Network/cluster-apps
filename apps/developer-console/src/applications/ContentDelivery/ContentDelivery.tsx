@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { AnalyticsId } from '@cluster-apps/analytics';
 import {
@@ -15,7 +15,6 @@ import {
   useMessages,
   Button,
   GithubLogoIcon,
-  MetricsChart,
 } from '@cluster-apps/ui';
 
 import { CdnDocsIcon } from './icons';
@@ -39,6 +38,22 @@ const ContentDelivery = () => {
   const currentBucket = account.buckets?.find((bucket) => bucket.id === bucketId) ?? account.buckets?.[0];
   const currentBucketAccess = access || (currentBucket?.isPublic ? 'public' : 'private');
 
+  // The bucket list carries no public/private flag (the REST index omits it), so
+  // resolve the real on-chain ACL when a bucket is selected.
+  useEffect(() => {
+    if (bucketId == null) return;
+    let active = true;
+    account
+      .getBucketInfo(bucketId)
+      .then((info) => {
+        if (active && info) setAccess(info.isPublic ? 'public' : 'private');
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [account, bucketId]);
+
   const handleSaveAccess = useCallback(async () => {
     if (!currentBucket) {
       return;
@@ -60,7 +75,7 @@ const ContentDelivery = () => {
         <BucketSelect
           value={bucketId}
           label="Bucket"
-          options={(account.buckets ?? []).map((bucket) => ({ ...bucket, storedBytes: bucket.stats?.storedBytes }))}
+          options={(account.buckets ?? []).map((bucket) => ({ ...bucket, storedBytes: bucket.storedBytes }))}
           onChange={(bucketId) => setBucketId(bucketId)}
         />
       </Paper>
@@ -98,7 +113,6 @@ const ContentDelivery = () => {
               Save
             </LoadingButton>
           </Paper>
-          <MetricsChart history={account.metrics?.history} />
         </>
       )}
       <Docs

@@ -17,12 +17,14 @@ import {
 } from '@cluster-apps/ui';
 
 import { useAccountStore } from '~/hooks';
+import { useSession } from '~/wallet/session';
 import { elementsRendered } from '../ApplicationTour';
 
 export type AccountDropdownProps = {};
 
 const AccountDropdown = () => {
   const account = useAccountStore();
+  const session = useSession();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -60,11 +62,6 @@ const AccountDropdown = () => {
           <CardHeader avatar={<InfoOutlinedIcon />} title="DDC Wallet" />
           <CardContent>
             <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
-            {account.clusterDeposit !== undefined && account.clusterDeposit !== account.deposit && (
-              <Typography variant="body2" color="text.secondary">
-                Cluster balance: {account.clusterDeposit} CERE
-              </Typography>
-            )}
           </CardContent>
           <CardActions>
             <Button component={NavLink} fullWidth variant="outlined" to="/top-up" onClick={handleClose}>
@@ -90,7 +87,7 @@ const AccountDropdown = () => {
           variant="outlined"
           color="secondary"
           onClick={() => {
-            account.disconnect();
+            session.signOut();
             handleClose();
           }}
         >
