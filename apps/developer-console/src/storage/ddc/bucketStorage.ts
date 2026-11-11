@@ -20,6 +20,45 @@ import type { BucketStorage, UploadInput } from './types';
 /** A credential within this margin of expiry is replaced before use. */
 const REFRESH_MARGIN_MS = 60_000;
 
+/**
+ * The gateway credential is wallet-wide, so cache it in sessionStorage keyed by
+ * the gateway origin. Without this, a page reload drops the in-memory credential
+ * and the next list/upload needs a fresh wallet signature — which silently fails
+ * when the wallet handshake is flaky, so previously-uploaded objects stop showing.
+ * sessionStorage is per-tab and cleared on close; every access is guarded.
+ */
+const credKey = `dc:gwCred:${storageConfig.ddcS3GatewayUrl}`;
+
+function isFresh(c: GatewayCredentials | null): c is GatewayCredentials {
+  return !!c && (c.expiresAt === undefined || c.expiresAt - Date.now() > REFRESH_MARGIN_MS);
+}
+
+function readCachedCreds(): GatewayCredentials | null {
+  try {
+    const raw = sessionStorage.getItem(credKey);
+    return raw ? (JSON.parse(raw) as GatewayCredentials) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCreds(c: GatewayCredentials): void {
+  try {
+    sessionStorage.setItem(credKey, JSON.stringify(c));
+  } catch {
+    // Ignore: private mode / quota. The in-memory copy still serves this session.
+  }
+}
+
+/** Drop the cached gateway credential (on sign-out / account switch). */
+export function clearCachedGatewayCreds(): void {
+  try {
+    sessionStorage.removeItem(credKey);
+  } catch {
+    // Ignore.
+  }
+}
+
 function contentTypeOf(input: UploadInput): string {
   if (input.contentType) return input.contentType;
   if (input.body instanceof Blob && input.body.type) return input.body.type;
@@ -31,9 +70,15 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
   let creds: GatewayCredentials | null = null;
 
   async function ensureCreds(): Promise<GatewayCredentials> {
-    const fresh = creds && (creds.expiresAt === undefined || creds.expiresAt - Date.now() > REFRESH_MARGIN_MS);
-    if (fresh) return creds!;
+    if (isFresh(creds)) return creds;
+    // Reuse a credential cached from an earlier page load before signing again.
+    const cached = readCachedCreds();
+    if (isFresh(cached)) {
+      creds = cached;
+      return creds;
+    }
     creds = await registerGatewayCredential(getSigner, gateway);
+    writeCachedCreds(creds);
     return creds;
   }
 
@@ -80,6 +125,11 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
       // gatewayClient.getPublicObjectUrl does), NOT off a separate CDN host.
       const base = storageConfig.ddcS3GatewayUrl.replace(/\/+$/, '');
       return `${base}/${encodeURIComponent(bucketName)}/${key.split('/').map(encodeURIComponent).join('/')}`;
+    },
+
+    resetCredentials(): void {
+      creds = null;
+      clearCachedGatewayCreds();
     },
   };
 }

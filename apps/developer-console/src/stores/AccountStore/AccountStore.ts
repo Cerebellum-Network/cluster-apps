@@ -49,6 +49,8 @@ export class AccountStore implements Account {
     this.session = next;
     const connected = next?.state === 'connected' && !!next.account;
     const changedAccount = prev?.account !== next?.account;
+    // A different (or no) account must not reuse the previous wallet's gateway credential.
+    if (changedAccount) this.storage.resetCredentials();
     if (connected && changedAccount) {
       void this.bootstrap();
     } else if (!connected) {

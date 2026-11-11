@@ -67,4 +67,6 @@ export interface BucketStorage {
   deleteObject(bucketName: string, key: string): Promise<void>;
   /** Public CDN URL for a `public-read` object. */
   publicUrl(bucketName: string, key: string): string;
+  /** Drop the cached gateway credential (in-memory + sessionStorage), e.g. on account switch. */
+  resetCredentials(): void;
 }
