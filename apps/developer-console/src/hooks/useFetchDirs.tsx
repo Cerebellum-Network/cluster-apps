@@ -1,9 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import Reporting from '@cluster-apps/reporting';
+import { useEffect, useState } from 'react';
 
 import { DirectoryType } from '~/applications/ContentStorage/FileManager';
 import type { Bucket } from '~/stores';
-import type { BucketStorage } from '~/storage/ddc/types';
 
 interface UseFetchDirsResult {
   dirs: DirectoryType[];
@@ -14,92 +12,35 @@ interface UseFetchDirsResult {
   setDefaultFolderIndex: (bucketId: string, index: number) => void;
 }
 
-/** Highest `default<N>` top-level folder index seen among a bucket's object keys. */
-const indexFromKeys = (keys: string[]): number =>
-  keys.reduce((max, key) => {
-    const match = key.split('/')[0]?.match(/^default(\d*)$/);
-    if (!match) return max;
-    return Math.max(max, match[1] ? parseInt(match[1], 10) : 0);
-  }, 0);
-
 /**
- * Lists each bucket's objects through the DDC S3 gateway (replacing the old
- * `fs` DAG-node read). Each object key becomes one `DirectoryType`; the
- * file-manager's `transformData` rebuilds the folder tree from the key paths.
+ * Phase 0 is a read-only revival: the console lists the account's buckets (from
+ * the blockchain index) but does not list their objects. Object listing/upload
+ * go through the DDC S3 gateway, which only serves buckets created through it --
+ * that write path is deferred to the gateway-integration phase. So here we emit
+ * one placeholder entry per bucket, which the file manager renders as a bucket
+ * row with an (empty) contents tree.
  */
-export const useFetchDirs = (buckets: Bucket[], storage: BucketStorage): UseFetchDirsResult => {
+export const useFetchDirs = (buckets: Bucket[]): UseFetchDirsResult => {
   const [dirs, setDirs] = useState<DirectoryType[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [defaultDirIndices, setDefaultDirIndices] = useState<Record<string, number>>({});
 
-  const fetchedBucketIds = useRef(new Set<string>());
-
-  const listBucket = useCallback(
-    async (bucket: Bucket): Promise<{ dirs: DirectoryType[]; index: number }> => {
-      const bucketId = bucket.id.toString();
-      let keys: string[] = [];
-      try {
-        keys = (await storage.listObjects(bucketId)).filter(Boolean);
-      } catch (e) {
-        // An empty / not-yet-authorized bucket lists nothing; still show the row.
-        Reporting.error(e);
-      }
-      // One sentinel (empty name) per bucket with no objects, so every bucket
-      // renders as a row in the file manager (like the old per-bucket placeholder).
-      const dirs: DirectoryType[] = keys.length
-        ? keys.map((key) => ({ bucketId, isPublic: bucket.isPublic, name: key, cid: key, size: 0 }))
-        : [{ bucketId, isPublic: bucket.isPublic, name: '', cid: '', size: 0 }];
-      return { dirs, index: indexFromKeys(keys) };
-    },
-    [storage],
-  );
-
-  const fetchDirs = useCallback(async () => {
-    const newBuckets = buckets.filter((b) => !fetchedBucketIds.current.has(b.id.toString()));
-    if (newBuckets.length === 0) return;
-
-    setLoading(true);
-    setError(null);
-    try {
-      const results = await Promise.all(newBuckets.map(listBucket));
-      const newDirs = results.flatMap((r) => r.dirs);
-      const indices: Record<string, number> = {};
-      newBuckets.forEach((b, i) => {
-        indices[b.id.toString()] = results[i].index;
-        fetchedBucketIds.current.add(b.id.toString());
-      });
-      setDirs((prev) => [...prev, ...newDirs]);
-      setDefaultDirIndices((prev) => ({ ...prev, ...indices }));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [buckets, listBucket]);
-
   useEffect(() => {
-    void fetchDirs();
-  }, [fetchDirs]);
+    setDirs(
+      buckets.map((bucket) => ({
+        bucketId: bucket.id.toString(),
+        isPublic: bucket.isPublic,
+        name: '',
+        cid: '',
+        size: 0,
+      })),
+    );
+  }, [buckets]);
 
-  const refetchBucket = useCallback(
-    async (bucketId: bigint, isPublic: boolean = false) => {
-      const id = bucketId.toString();
-      try {
-        const { dirs: newDirs, index } = await listBucket({ id: bucketId, isPublic, isRemoved: false });
-        fetchedBucketIds.current.add(id);
-        setDirs((prev) => [...prev.filter((d) => d.bucketId !== id), ...newDirs]);
-        setDefaultDirIndices((prev) => ({ ...prev, [id]: index }));
-      } catch (e) {
-        setError((e as Error).message);
-      }
-    },
-    [listBucket],
-  );
-
+  // No-ops in the read-only phase (kept so the file-manager contract is stable).
+  const refetchBucket = () => {};
   const setDefaultFolderIndex = (bucketId: string, index: number) => {
-    setDefaultDirIndices((prevIndices) => ({ ...prevIndices, [bucketId]: index }));
+    setDefaultDirIndices((prev) => ({ ...prev, [bucketId]: index }));
   };
 
-  return { dirs, loading, error, refetchBucket, defaultDirIndices, setDefaultFolderIndex };
+  return { dirs, loading: false, error: null, refetchBucket, defaultDirIndices, setDefaultFolderIndex };
 };

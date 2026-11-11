@@ -32,7 +32,7 @@ import { useAccount } from '~/hooks';
 const ContentDelivery = () => {
   const account = useAccount();
   const { showMessage } = useMessages();
-  const [isSaving, setSaving] = useState(false);
+  const [isSaving] = useState(false);
   const [bucketId, setBucketId] = useState<bigint>();
   const [access, setAccess] = useState<BucketAccessProps['value']>();
   const currentBucket = account.buckets?.find((bucket) => bucket.id === bucketId) ?? account.buckets?.[0];
@@ -54,17 +54,14 @@ const ContentDelivery = () => {
     };
   }, [account, bucketId]);
 
+  // Read-only phase: viewing a bucket's access is live, but saving a change is
+  // deferred with the rest of the storage write path (gateway integration).
   const handleSaveAccess = useCallback(async () => {
-    if (!currentBucket) {
-      return;
-    }
-
-    setSaving(true);
-    await account.saveBucket(currentBucket.id, { isPublic: currentBucketAccess === 'public' });
-
-    setSaving(false);
-    showMessage({ message: 'Bucket access has been saved', appearance: 'success' });
-  }, [account, currentBucket, currentBucketAccess, showMessage]);
+    showMessage({
+      appearance: 'info',
+      message: 'Changing bucket access is pending the storage-gateway integration — coming in the next phase.',
+    });
+  }, [showMessage]);
 
   return (
     <Stack spacing={2}>

@@ -246,10 +246,18 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     },
 
     async listObjects(creds, bucket, prefix, maxKeys = 1000): Promise<string[]> {
-      const out = await createS3Client(baseUrl, creds).send(
-        new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix || undefined, MaxKeys: maxKeys }),
-      );
-      return (out.Contents ?? []).map((o) => o.Key).filter((k): k is string => !!k);
+      try {
+        const out = await createS3Client(baseUrl, creds).send(
+          new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix || undefined, MaxKeys: maxKeys }),
+        );
+        return (out.Contents ?? []).map((o) => o.Key).filter((k): k is string => !!k);
+      } catch (e) {
+        // A bucket the gateway has no row for (e.g. a chain-only bucket created
+        // outside the gateway) answers NoSuchBucket. That is "no objects to show"
+        // for listing, not an error worth surfacing.
+        if ((e as { name?: string })?.name === 'NoSuchBucket') return [];
+        throw e;
+      }
     },
 
     async deleteObject(creds, bucket, key): Promise<void> {
