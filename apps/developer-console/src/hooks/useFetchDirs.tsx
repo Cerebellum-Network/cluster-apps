@@ -38,23 +38,19 @@ export const useFetchDirs = (buckets: Bucket[], storage: BucketStorage): UseFetc
   const listBucket = useCallback(
     async (bucket: Bucket): Promise<{ dirs: DirectoryType[]; index: number }> => {
       const bucketId = bucket.id.toString();
+      let keys: string[] = [];
       try {
-        const keys = (await storage.listObjects(bucketId)).filter(Boolean);
-        return {
-          dirs: keys.map<DirectoryType>((key) => ({
-            bucketId,
-            isPublic: bucket.isPublic,
-            name: key,
-            cid: key,
-            size: 0,
-          })),
-          index: indexFromKeys(keys),
-        };
+        keys = (await storage.listObjects(bucketId)).filter(Boolean);
       } catch (e) {
-        // An empty / not-yet-authorized bucket lists nothing; keep the row.
+        // An empty / not-yet-authorized bucket lists nothing; still show the row.
         Reporting.error(e);
-        return { dirs: [], index: 0 };
       }
+      // One sentinel (empty name) per bucket with no objects, so every bucket
+      // renders as a row in the file manager (like the old per-bucket placeholder).
+      const dirs: DirectoryType[] = keys.length
+        ? keys.map((key) => ({ bucketId, isPublic: bucket.isPublic, name: key, cid: key, size: 0 }))
+        : [{ bucketId, isPublic: bucket.isPublic, name: '', cid: '', size: 0 }];
+      return { dirs, index: indexFromKeys(keys) };
     },
     [storage],
   );
