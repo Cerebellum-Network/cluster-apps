@@ -67,11 +67,20 @@ export async function registerGatewayCredential(
   // MultiSignature variant byte) -- the gateway verifies raw bytes.
   const signature = bytesToHex(await signer.sign(new TextEncoder().encode(body), 'data'));
 
-  return gateway.registerCredentials({
+  const tokenExpiresAt = Date.now() + DELEGATION_TOKEN_TTL_MS;
+  const creds = await gateway.registerCredentials({
     publicKey: hexWithPrefix(signer.publicKey),
     signature,
     signatureType: signer.type,
     delegationToken,
     label: CREDENTIAL_LABEL,
   });
+  // The S3 credential can outlive -- or carry no expiry at all, in which case it
+  // would read as "fresh forever" -- but the delegation token it rides on lapses
+  // at DELEGATION_TOKEN_TTL_MS. Cap the effective expiry to the token's lifetime
+  // so the credential is re-minted before the token dies (#188 review).
+  return {
+    ...creds,
+    expiresAt: creds.expiresAt === undefined ? tokenExpiresAt : Math.min(creds.expiresAt, tokenExpiresAt),
+  };
 }

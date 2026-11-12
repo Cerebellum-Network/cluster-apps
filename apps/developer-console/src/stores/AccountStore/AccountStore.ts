@@ -175,7 +175,7 @@ export class AccountStore implements Account {
     try {
       await this.chain.addProxy(
         ss58,
-        this.consentSigner('Authorize the DDC storage gateway to create and manage storage buckets on your behalf'),
+        this.consentSigner('Allow Cere to manage your storage for you. You can turn this off anytime in Settings.'),
       );
     } catch (e) {
       // `Proxy.Duplicate` means the gateway is already a proxy for this wallet,

@@ -5,6 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Developer Console</title>
+    <!-- Runtime config: the Helm chart mounts /config.js, which sets
+         window.__RUNTIME_CONFIG__ before the bundle loads (see src/storage/
+         storageConfig.ts). A classic, non-module script so it runs first; a 404
+         in local dev is harmless (the app falls back to VITE_* / defaults). -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <div id="root"></div>

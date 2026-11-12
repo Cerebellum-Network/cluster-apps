@@ -121,11 +121,13 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
     },
 
     publicUrl(bucketName: string, key: string): string {
-      // Public-read objects are read back off the CDN host (per #185 review), not
-      // the authenticated S3 gateway: the gateway is the write/signed-read path,
-      // while the CDN is the public, cacheable edge for public-read objects.
-      // Path-style `{cdn}/{bucket}/{key}`, same shape the gateway serves.
-      const base = storageConfig.ddcCdnUrl.replace(/\/+$/, '');
+      // Public-read objects are served path-style off the gateway origin
+      // (anonymous GET `{gateway}/{bucket}/{key}`). The CDN cannot serve gateway
+      // objects -- `cdn/<bucket>/<key>` answers 400 "Invalid bucketId" and the
+      // gateway writes raw pieces with chain IsPublic=false -- so the gateway
+      // origin is the correct public read path (#188 review; reverts the earlier
+      // CDN change, which the #185 review had wrongly requested).
+      const base = storageConfig.ddcS3GatewayUrl.replace(/\/+$/, '');
       return `${base}/${encodeURIComponent(bucketName)}/${key.split('/').map(encodeURIComponent).join('/')}`;
     },
 
