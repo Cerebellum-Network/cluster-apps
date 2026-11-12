@@ -169,7 +169,7 @@ export const Row = ({
   return (
     <>
       <StyledRow locked={lockUi} open={isOpen} onClick={onRowClick}>
-        <Typography variant="subtitle1" flex={1}>
+        <Typography variant="subtitle1" flex={1} sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
           {row.bucketId}
         </Typography>
         <Box display="flex" alignItems="center" flex={1.5} justifyContent="end">
