@@ -368,19 +368,25 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
 
     async getAuthStatus(publicKey): Promise<boolean> {
       // Whether the gateway already holds the on-chain proxy for this wallet, so a
-      // returning device skips a needless add_proxy prompt + fee. Unauthenticated
-      // read keyed by the wallet public key. NOT runtime-verified yet -- confirm
-      // the field name against the live gateway (#188 review).
+      // returning device can skip a needless add_proxy prompt + fee.
+      //
+      // Live finding (#188): /auth/status is a SIGNED request -- it wants
+      // `X-Public-Key` (0x-prefixed) AND an `X-Signature` over a canonical message.
+      // The exact signed message needs the ddc-s3-gateway source, which is not
+      // accessible, so for now we send the identity header only; the gateway
+      // answers 401 ("missing X-Signature") and we return false. That is safe:
+      // the caller falls through to addProxy, which is idempotent (Proxy.Duplicate
+      // is caught), so authorization stays correct -- the only thing deferred is
+      // the "skip the prompt on a returning device" optimization.
+      // TODO(#188): sign the request once the gateway's signed-message contract is
+      // known, so this can return true without prompting.
+      const hex = publicKey.startsWith('0x') ? publicKey : `0x${publicKey}`;
       try {
-        const res = await fetch(`${baseUrl}/auth/status?publicKey=${encodeURIComponent(publicKey)}`, {
-          cache: 'no-store',
-        });
+        const res = await fetch(`${baseUrl}/auth/status`, { cache: 'no-store', headers: { 'X-Public-Key': hex } });
         if (!res.ok) return false;
         const data = (await res.json()) as { authorized?: boolean; proxy?: boolean; hasProxy?: boolean };
         return data.authorized ?? data.proxy ?? data.hasProxy ?? false;
       } catch {
-        // A status read that fails must not block the user: fall back to attempting
-        // authorization (addProxy is idempotent -- Proxy.Duplicate is caught).
         return false;
       }
     },
