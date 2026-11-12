@@ -36,18 +36,22 @@ export const useFetchDirs = (buckets: Bucket[], storage: BucketStorage): UseFetc
   const fetchedNames = useRef(new Set<string>());
 
   const listBucket = useCallback(
-    async (bucket: Bucket): Promise<{ dirs: DirectoryType[]; index: number }> => {
+    async (bucket: Bucket): Promise<{ dirs: DirectoryType[]; index: number; ok: boolean }> => {
       const name = bucket.name;
-      let keys: string[] = [];
       try {
-        keys = (await storage.listObjects(name)).filter(Boolean);
+        const objects = await storage.listObjects(name);
+        const keys = objects.map((o) => o.key);
+        const entries: DirectoryType[] = objects.length
+          ? objects.map((o) => ({ bucketId: name, isPublic: bucket.isPublic, name: o.key, cid: o.key, size: o.size }))
+          : [{ bucketId: name, isPublic: bucket.isPublic, name: '', cid: '', size: 0 }];
+        return { dirs: entries, index: indexFromKeys(keys), ok: true };
       } catch (e) {
+        // Surface the failure instead of caching an empty "fetched" bucket. Keep a
+        // sentinel so the row still renders, and leave the bucket un-fetched so a
+        // refetch retries it.
         Reporting.error(e);
+        return { dirs: [{ bucketId: name, isPublic: bucket.isPublic, name: '', cid: '', size: 0 }], index: 0, ok: false };
       }
-      const entries: DirectoryType[] = keys.length
-        ? keys.map((key) => ({ bucketId: name, isPublic: bucket.isPublic, name: key, cid: key, size: 0 }))
-        : [{ bucketId: name, isPublic: bucket.isPublic, name: '', cid: '', size: 0 }];
-      return { dirs: entries, index: indexFromKeys(keys) };
     },
     [storage],
   );
@@ -62,10 +66,13 @@ export const useFetchDirs = (buckets: Bucket[], storage: BucketStorage): UseFetc
       const indices: Record<string, number> = {};
       newBuckets.forEach((b, i) => {
         indices[b.name] = results[i].index;
-        fetchedNames.current.add(b.name);
+        // Only mark a bucket "fetched" when its listing actually succeeded, so a
+        // failed list is retried rather than stuck showing empty.
+        if (results[i].ok) fetchedNames.current.add(b.name);
       });
       setDirs((prev) => [...prev, ...results.flatMap((r) => r.dirs)]);
       setDefaultDirIndices((prev) => ({ ...prev, ...indices }));
+      if (results.some((r) => !r.ok)) setError("Couldn't list some buckets. Please retry.");
     } catch (e) {
       setError((e as Error).message);
     } finally {

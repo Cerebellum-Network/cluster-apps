@@ -68,7 +68,7 @@ export async function registerGatewayCredential(
   const signature = bytesToHex(await signer.sign(new TextEncoder().encode(body), 'data'));
 
   const tokenExpiresAt = Date.now() + DELEGATION_TOKEN_TTL_MS;
-  const creds = await gateway.registerCredentials({
+  const creds: GatewayCredentials = await gateway.registerCredentials({
     publicKey: hexWithPrefix(signer.publicKey),
     signature,
     signatureType: signer.type,
@@ -83,4 +83,24 @@ export async function registerGatewayCredential(
     ...creds,
     expiresAt: creds.expiresAt === undefined ? tokenExpiresAt : Math.min(creds.expiresAt, tokenExpiresAt),
   };
+}
+
+/**
+ * Revoke this wallet's gateway credentials (DELETE /auth/credentials), so they
+ * stop working at once rather than lapsing in up to 24h. Signed by the wallet
+ * ('data' intent: a plain message signature, no consent screen), mirroring the
+ * X-Public-Key / X-Signature auth that registration uses.
+ *
+ * NOT runtime-verified yet: confirm the exact signed message + method against the
+ * live gateway (#188 review). The signed message here is the credential label; a
+ * replay-protected scheme is a gateway-side TODO.
+ */
+export async function revokeGatewayCredential(getSigner: () => CefSigner, gateway: GatewayClient): Promise<void> {
+  const signer = createDdcSigner(getSigner).describing('Revoke the DDC storage gateway credential');
+  const signature = bytesToHex(await signer.sign(new TextEncoder().encode(CREDENTIAL_LABEL), 'data'));
+  await gateway.deleteCredentials({
+    publicKey: hexWithPrefix(signer.publicKey),
+    signature,
+    signatureType: signer.type,
+  });
 }

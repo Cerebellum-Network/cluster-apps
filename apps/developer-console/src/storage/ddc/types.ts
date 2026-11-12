@@ -56,6 +56,12 @@ export interface UploadInput {
   acl?: Acl;
 }
 
+/** One object in a bucket listing: its key and real byte size. */
+export interface StorageObject {
+  key: string;
+  size: number;
+}
+
 /** Object upload/download/ACL through the DDC S3 gateway. */
 export interface BucketStorage {
   /** Create the bucket at the gateway (mints on-chain + the gateway row). Idempotent. */
@@ -64,11 +70,19 @@ export interface BucketStorage {
   /** Download object bytes (private objects require the wallet's gateway credential). */
   readObject(bucketName: string, key: string): Promise<Blob>;
   setBucketAcl(bucketName: string, acl: Acl): Promise<void>;
-  /** Object keys in the bucket (optionally under `prefix`). */
-  listObjects(bucketName: string, prefix?: string): Promise<string[]>;
+  /** Read a bucket's ACL (public/private) from the gateway. */
+  getBucketAcl(bucketName: string): Promise<Acl>;
+  /** Every bucket this wallet owns, as the gateway enumerates them. */
+  listBuckets(): Promise<string[]>;
+  /** Every object in the bucket (optionally under `prefix`), paginated, with real sizes. */
+  listObjects(bucketName: string, prefix?: string): Promise<StorageObject[]>;
   deleteObject(bucketName: string, key: string): Promise<void>;
-  /** Public CDN URL for a `public-read` object. */
+  /** Public URL for a `public-read` object (anonymous GET off the gateway origin). */
   publicUrl(bucketName: string, key: string): string;
-  /** Drop the cached gateway credential (in-memory + sessionStorage), e.g. on account switch. */
+  /** Whether the gateway holds the on-chain proxy for `publicKey` (skip a needless re-grant). */
+  isGatewayAuthorized(publicKey: string): Promise<boolean>;
+  /** Revoke the wallet's gateway credentials (DELETE /auth/credentials). */
+  revokeCredentials(): Promise<void>;
+  /** Drop the cached gateway credential (in-memory + persisted), e.g. on account switch. */
   resetCredentials(): void;
 }

@@ -15,7 +15,9 @@
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
+  GetBucketAclCommand,
   GetObjectCommand,
+  ListBucketsCommand,
   ListObjectsV2Command,
   PutBucketAclCommand,
   PutObjectCommand,
@@ -24,6 +26,18 @@ import {
 } from '@aws-sdk/client-s3';
 import { storageConfig } from '../storageConfig';
 import type { Acl } from './types';
+
+/** One object in a bucket listing: its key and real byte size. */
+export interface GatewayObject {
+  key: string;
+  size: number;
+}
+
+/** A bucket as the gateway enumerates it (ListBuckets), with its ACL. */
+export interface GatewayBucket {
+  name: string;
+  isPublic: boolean;
+}
 
 export interface GatewayInfo {
   gatewayPublicKey: string;
@@ -174,9 +188,16 @@ export interface GatewayClient {
   putObject(creds: GatewayCredentials, bucket: string, key: string, body: Blob | Uint8Array | string, contentType: string, acl?: Acl): Promise<void>;
   getObject(creds: GatewayCredentials, bucket: string, key: string): Promise<Blob>;
   setBucketAcl(creds: GatewayCredentials, bucket: string, acl: Acl): Promise<void>;
-  /** Object keys under `prefix` (one page, up to `maxKeys`). */
-  listObjects(creds: GatewayCredentials, bucket: string, prefix?: string, maxKeys?: number): Promise<string[]>;
+  getBucketAcl(creds: GatewayCredentials, bucket: string): Promise<Acl>;
+  /** Every bucket this wallet owns, as the gateway enumerates them (ListBuckets). */
+  listBuckets(creds: GatewayCredentials): Promise<string[]>;
+  /** Every object under `prefix`, following ContinuationToken to exhaustion; keys + real sizes. */
+  listObjects(creds: GatewayCredentials, bucket: string, prefix?: string): Promise<GatewayObject[]>;
   deleteObject(creds: GatewayCredentials, bucket: string, key: string): Promise<void>;
+  /** Whether the gateway is authorized to act for `publicKey` (on-chain proxy present). */
+  getAuthStatus(publicKey: string): Promise<boolean>;
+  /** Revoke this wallet's gateway credentials (so they stop working at once, not in 24h). */
+  deleteCredentials(input: { publicKey: string; signature: string; signatureType: string }): Promise<void>;
 }
 
 export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3GatewayUrl): GatewayClient {
@@ -245,16 +266,48 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
       await createS3Client(baseUrl, creds).send(new PutBucketAclCommand({ Bucket: bucket, ACL: acl }));
     },
 
-    async listObjects(creds, bucket, prefix, maxKeys = 1000): Promise<string[]> {
+    async getBucketAcl(creds, bucket): Promise<Acl> {
+      // The bucket is public when a grant gives the AllUsers group READ. Anything
+      // else -- including no ACL grants -- is private.
+      const out = await createS3Client(baseUrl, creds).send(new GetBucketAclCommand({ Bucket: bucket }));
+      const publicRead = (out.Grants ?? []).some(
+        (g) =>
+          (g.Permission === 'READ' || g.Permission === 'FULL_CONTROL') &&
+          /AllUsers/i.test(g.Grantee?.URI ?? ''),
+      );
+      return publicRead ? 'public-read' : 'private';
+    },
+
+    async listBuckets(creds): Promise<string[]> {
+      const out = await createS3Client(baseUrl, creds).send(new ListBucketsCommand({}));
+      return (out.Buckets ?? []).map((b) => b.Name).filter((n): n is string => !!n);
+    },
+
+    async listObjects(creds, bucket, prefix): Promise<GatewayObject[]> {
+      const client = createS3Client(baseUrl, creds);
+      const objects: GatewayObject[] = [];
+      let token: string | undefined;
       try {
-        const out = await createS3Client(baseUrl, creds).send(
-          new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix || undefined, MaxKeys: maxKeys }),
-        );
-        return (out.Contents ?? []).map((o) => o.Key).filter((k): k is string => !!k);
+        do {
+          const out = await client.send(
+            new ListObjectsV2Command({
+              Bucket: bucket,
+              Prefix: prefix || undefined,
+              MaxKeys: 1000,
+              ContinuationToken: token,
+            }),
+          );
+          for (const o of out.Contents ?? []) {
+            if (o.Key) objects.push({ key: o.Key, size: o.Size ?? 0 });
+          }
+          token = out.IsTruncated ? out.NextContinuationToken : undefined;
+        } while (token);
+        return objects;
       } catch (e) {
         // A bucket the gateway has no row for (e.g. a chain-only bucket created
-        // outside the gateway) answers NoSuchBucket. That is "no objects to show"
-        // for listing, not an error worth surfacing.
+        // outside the gateway) answers NoSuchBucket -- "no objects", not an error.
+        // Any other failure is real and must surface (not be cached as an empty,
+        // "fetched" bucket), so re-throw it.
         if ((e as { name?: string })?.name === 'NoSuchBucket') return [];
         throw e;
       }
@@ -262,6 +315,43 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
 
     async deleteObject(creds, bucket, key): Promise<void> {
       await createS3Client(baseUrl, creds).send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    },
+
+    async getAuthStatus(publicKey): Promise<boolean> {
+      // Whether the gateway already holds the on-chain proxy for this wallet, so a
+      // returning device skips a needless add_proxy prompt + fee. Unauthenticated
+      // read keyed by the wallet public key. NOT runtime-verified yet -- confirm
+      // the field name against the live gateway (#188 review).
+      try {
+        const res = await fetch(`${baseUrl}/auth/status?publicKey=${encodeURIComponent(publicKey)}`, {
+          cache: 'no-store',
+        });
+        if (!res.ok) return false;
+        const data = (await res.json()) as { authorized?: boolean; proxy?: boolean; hasProxy?: boolean };
+        return data.authorized ?? data.proxy ?? data.hasProxy ?? false;
+      } catch {
+        // A status read that fails must not block the user: fall back to attempting
+        // authorization (addProxy is idempotent -- Proxy.Duplicate is caught).
+        return false;
+      }
+    },
+
+    async deleteCredentials(input): Promise<void> {
+      // Signed like registerCredentials (X-Public-Key / X-Signature over the label
+      // body). NOT runtime-verified yet -- confirm the signed message + method
+      // against the live gateway (#188 review).
+      const res = await fetch(`${baseUrl}/auth/credentials`, {
+        method: 'DELETE',
+        headers: {
+          'X-Public-Key': input.publicKey,
+          'X-Signature': input.signature,
+          'X-Signature-Type': input.signatureType,
+        },
+      });
+      // 404 = already gone; treat as success.
+      if (!res.ok && res.status !== 404) {
+        throw new Error(`Failed to revoke DDC S3 Gateway credentials: ${res.status}`);
+      }
     },
   };
 }
