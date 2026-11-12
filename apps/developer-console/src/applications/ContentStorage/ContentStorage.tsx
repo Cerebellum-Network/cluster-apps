@@ -196,7 +196,7 @@ const ContentStorage = () => {
   const handleRevokeGateway = useCallback(async () => {
     if (
       !window.confirm(
-        "Revoke the storage gateway's access to your wallet? You'll re-authorize it the next time you create a bucket.",
+        "Stop Cere from managing your storage? You'll allow it again the next time you create a bucket.",
       )
     ) {
       return;
@@ -204,10 +204,10 @@ const ContentStorage = () => {
     setIsRevoking(true);
     try {
       await account.revokeGateway();
-      showMessage({ appearance: 'success', message: 'Storage gateway access revoked.' });
+      showMessage({ appearance: 'success', message: 'Cere no longer manages your storage.' });
     } catch (e) {
       Reporting.error(e);
-      showMessage({ appearance: 'error', message: 'Could not revoke gateway access. Please try again.' });
+      showMessage({ appearance: 'error', message: 'Could not update storage management. Please try again.' });
     }
     setIsRevoking(false);
   }, [account, showMessage]);
@@ -289,7 +289,7 @@ const ContentStorage = () => {
       {account.gatewayAuthorized && (
         <Box display="flex" justifyContent="flex-end" marginBottom="20px">
           <LoadingButton variant="text" color="secondary" size="small" loading={isRevoking} onClick={handleRevokeGateway}>
-            Revoke storage gateway access
+            Stop Cere from managing your storage
           </LoadingButton>
         </Box>
       )}

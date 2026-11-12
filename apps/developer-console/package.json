@@ -18,7 +18,6 @@
     "@cef-ai/wallet-react": "^3.1.0",
     "@cere-ddc-sdk/blockchain": "^3.0.0",
     "@cere-ddc-sdk/ddc": "^3.0.0",
-    "@cere-ddc-sdk/ddc-client": "^3.0.0",
     "recharts": "^2.15.3"
   }
 }

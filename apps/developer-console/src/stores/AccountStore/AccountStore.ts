@@ -215,7 +215,9 @@ export class AccountStore implements Account {
     try {
       await this.chain.addProxy(
         ss58,
-        this.consentSigner('Allow Cere to manage your storage for you. You can turn this off anytime in Settings.'),
+        this.consentSigner(
+          'Allow Cere to manage your storage for you. You can turn this off anytime on the Content Storage page.',
+        ),
       );
     } catch (e) {
       // `Proxy.Duplicate` means the gateway is already a proxy for this wallet,
@@ -237,7 +239,7 @@ export class AccountStore implements Account {
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
     try {
-      await this.chain.removeProxy(ss58, this.consentSigner('Revoke the DDC storage gateway authorization'));
+      await this.chain.removeProxy(ss58, this.consentSigner('Stop Cere from managing your storage'));
     } catch (e) {
       // `NotFound` means there is no such proxy -- already revoked. Treat as done;
       // anything else is real.

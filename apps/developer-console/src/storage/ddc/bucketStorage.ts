@@ -57,16 +57,17 @@ function clearCachedCreds(account: string): void {
   }
 }
 
-/** An S3/gateway error that means the credential is stale and must be re-minted. */
+/**
+ * An S3/gateway error that means the CREDENTIAL itself is stale and must be
+ * re-minted. Deliberately narrow: only InvalidAccessKeyId / ExpiredToken /
+ * SignatureDoesNotMatch. NOT a plain 403 / AccessDenied -- that is a real
+ * permission denial (e.g. a bucket this wallet does not own), and re-registering
+ * on it would mint a fresh credential row on every retry (#188 review).
+ */
 function isAuthError(e: unknown): boolean {
   const name = (e as { name?: string })?.name ?? '';
-  const status = (e as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
   const msg = (e as Error)?.message ?? '';
-  return (
-    status === 403 ||
-    /InvalidAccessKeyId|ExpiredToken|AccessDenied|SignatureDoesNotMatch|Forbidden/i.test(name) ||
-    /InvalidAccessKeyId|ExpiredToken|AccessDenied|403/i.test(msg)
-  );
+  return /InvalidAccessKeyId|ExpiredToken|SignatureDoesNotMatch/i.test(name + ' ' + msg);
 }
 
 function contentTypeOf(input: UploadInput): string {
