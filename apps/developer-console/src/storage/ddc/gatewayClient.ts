@@ -392,9 +392,12 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     },
 
     async deleteCredentials(input): Promise<void> {
-      // Signed like registerCredentials (X-Public-Key / X-Signature over the label
-      // body). NOT runtime-verified yet -- confirm the signed message + method
-      // against the live gateway (#188 review).
+      // Signed like registerCredentials (X-Public-Key / X-Signature over a canonical
+      // message). Live finding (#188): the live gateway returns 401 for the guessed
+      // message -- it wants the same signed contract as /auth/status, which needs
+      // the ddc-s3-gateway source (not accessible). The caller (revokeGateway)
+      // treats this as best-effort (the proxy removal is the main effect), so a 401
+      // is logged, not fatal. TODO(#188): sign the exact message once known.
       const res = await fetch(`${baseUrl}/auth/credentials`, {
         method: 'DELETE',
         headers: {
