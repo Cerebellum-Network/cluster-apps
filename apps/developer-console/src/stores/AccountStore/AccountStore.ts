@@ -83,7 +83,7 @@ export class AccountStore implements Account {
       // Read the proxy state from the gateway, not a local flag, so a returning
       // device doesn't get a needless re-grant prompt.
       this.storage
-        .isGatewayAuthorized(acc)
+        .isGatewayAuthorized()
         .then((ok) => runInAction(() => (this._gatewayAuthorized = ok)))
         .catch((e) => Reporting.error(e));
     }
@@ -201,10 +201,10 @@ export class AccountStore implements Account {
 
   /** Authorize the DDC storage gateway to act for this wallet (addProxy, once). */
   async authorizeGateway() {
-    const acc = this.requireAccount();
+    this.requireAccount();
     // Ask the gateway whether the proxy already exists (new device, or a prior
     // grant) before prompting -- avoids a needless add_proxy popup and fee.
-    if (await this.storage.isGatewayAuthorized(acc)) {
+    if (await this.storage.isGatewayAuthorized()) {
       runInAction(() => {
         this._gatewayAuthorized = true;
       });

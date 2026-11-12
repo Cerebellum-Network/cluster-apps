@@ -79,8 +79,8 @@ export interface BucketStorage {
   deleteObject(bucketName: string, key: string): Promise<void>;
   /** Public URL for a `public-read` object (anonymous GET off the gateway origin). */
   publicUrl(bucketName: string, key: string): string;
-  /** Whether the gateway holds the on-chain proxy for `publicKey` (skip a needless re-grant). */
-  isGatewayAuthorized(publicKey: string): Promise<boolean>;
+  /** Whether the gateway holds this wallet's on-chain proxy (skip a needless re-grant). */
+  isGatewayAuthorized(): Promise<boolean>;
   /** Revoke the wallet's gateway credentials (DELETE /auth/credentials). */
   revokeCredentials(): Promise<void>;
   /** Drop the cached gateway credential (in-memory + persisted), e.g. on account switch. */

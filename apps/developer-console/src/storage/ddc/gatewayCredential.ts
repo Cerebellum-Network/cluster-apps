@@ -86,21 +86,43 @@ export async function registerGatewayCredential(
 }
 
 /**
- * Revoke this wallet's gateway credentials (DELETE /auth/credentials), so they
- * stop working at once rather than lapsing in up to 24h. Signed by the wallet
- * ('data' intent: a plain message signature, no consent screen), mirroring the
- * X-Public-Key / X-Signature auth that registration uses.
- *
- * NOT runtime-verified yet: confirm the exact signed message + method against the
- * live gateway (#188 review). The signed message here is the credential label; a
- * replay-protected scheme is a gateway-side TODO.
+ * Whether the gateway is registered as this wallet's on-chain proxy. Signed GET
+ * /auth/status over an EMPTY body ('data' intent: a plain message signature, no
+ * consent screen) -- the gateway verifies the signature over the raw (empty) body.
+ * Reads `gateway_proxy_registered`, so a returning device can skip a needless
+ * add_proxy prompt.
  */
-export async function revokeGatewayCredential(getSigner: () => CefSigner, gateway: GatewayClient): Promise<void> {
-  const signer = createDdcSigner(getSigner).describing('Revoke the DDC storage gateway credential');
-  const signature = bytesToHex(await signer.sign(new TextEncoder().encode(CREDENTIAL_LABEL), 'data'));
+export async function fetchGatewayProxyRegistered(
+  getSigner: () => CefSigner,
+  gateway: GatewayClient,
+): Promise<boolean> {
+  const signer = createDdcSigner(getSigner);
+  const signature = bytesToHex(await signer.sign(new Uint8Array(0), 'data'));
+  return gateway.getAuthStatus({
+    publicKey: hexWithPrefix(signer.publicKey),
+    signature,
+    signatureType: signer.type,
+  });
+}
+
+/**
+ * Revoke a specific gateway credential (DELETE /auth/credentials), so it stops
+ * working at once rather than lapsing in up to 24h. Signed by the wallet ('data'
+ * intent: a plain message signature, no consent screen); the signature covers the
+ * exact `{"access_key_id":...}` body bytes, which the gateway binds to the wallet.
+ */
+export async function revokeGatewayCredential(
+  getSigner: () => CefSigner,
+  gateway: GatewayClient,
+  accessKeyId: string,
+): Promise<void> {
+  const signer = createDdcSigner(getSigner);
+  const body = JSON.stringify({ access_key_id: accessKeyId });
+  const signature = bytesToHex(await signer.sign(new TextEncoder().encode(body), 'data'));
   await gateway.deleteCredentials({
     publicKey: hexWithPrefix(signer.publicKey),
     signature,
     signatureType: signer.type,
+    body,
   });
 }

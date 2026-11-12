@@ -15,7 +15,7 @@
 import type { CefSigner } from '@cef-ai/wallet';
 import { storageConfig } from '../storageConfig';
 import { createGatewayClient, type GatewayCredentials } from './gatewayClient';
-import { registerGatewayCredential, revokeGatewayCredential } from './gatewayCredential';
+import { fetchGatewayProxyRegistered, registerGatewayCredential, revokeGatewayCredential } from './gatewayCredential';
 import { bytesToHex } from './hex';
 import type { Acl, BucketStorage, StorageObject, UploadInput } from './types';
 
@@ -179,12 +179,15 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
       return `${base}/${encodeURIComponent(bucketName)}/${key.split('/').map(encodeURIComponent).join('/')}`;
     },
 
-    isGatewayAuthorized(publicKey: string): Promise<boolean> {
-      return gateway.getAuthStatus(publicKey);
+    isGatewayAuthorized(): Promise<boolean> {
+      return fetchGatewayProxyRegistered(getSigner, gateway);
     },
 
     async revokeCredentials(): Promise<void> {
-      await revokeGatewayCredential(getSigner, gateway);
+      // Revoke the specific credential this wallet holds (its access key id), then
+      // drop it locally.
+      const c = await ensureCreds();
+      await revokeGatewayCredential(getSigner, gateway, c.accessKeyId);
       try {
         clearCachedCreds(accountHex());
       } catch {

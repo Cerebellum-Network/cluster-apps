@@ -203,10 +203,18 @@ export interface GatewayClient {
   /** Every object under `prefix`, following ContinuationToken to exhaustion; keys + real sizes. */
   listObjects(creds: GatewayCredentials, bucket: string, prefix?: string): Promise<GatewayObject[]>;
   deleteObject(creds: GatewayCredentials, bucket: string, key: string): Promise<void>;
-  /** Whether the gateway is authorized to act for `publicKey` (on-chain proxy present). */
-  getAuthStatus(publicKey: string): Promise<boolean>;
-  /** Revoke this wallet's gateway credentials (so they stop working at once, not in 24h). */
-  deleteCredentials(input: { publicKey: string; signature: string; signatureType: string }): Promise<void>;
+  /**
+   * Whether the gateway is registered as the wallet's on-chain proxy. Signed GET
+   * (`/auth/status`) over an EMPTY body; reads `gateway_proxy_registered`.
+   */
+  getAuthStatus(input: { publicKey: string; signature: string; signatureType: string }): Promise<boolean>;
+  /**
+   * Revoke this wallet's gateway credentials (so they stop working at once, not in
+   * up to 24h). Signed DELETE (`/auth/credentials`) over `body`
+   * (`{"access_key_id":"<key>"}` for a specific credential, or empty for the
+   * legacy row). The signature must cover these exact `body` bytes.
+   */
+  deleteCredentials(input: { publicKey: string; signature: string; signatureType: string; body: string }): Promise<void>;
 }
 
 export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3GatewayUrl): GatewayClient {
@@ -366,45 +374,43 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
       await createS3Client(baseUrl, creds).send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
 
-    async getAuthStatus(publicKey): Promise<boolean> {
-      // Whether the gateway already holds the on-chain proxy for this wallet, so a
-      // returning device can skip a needless add_proxy prompt + fee.
-      //
-      // Live finding (#188): /auth/status is a SIGNED request -- it wants
-      // `X-Public-Key` (0x-prefixed) AND an `X-Signature` over a canonical message.
-      // The exact signed message needs the ddc-s3-gateway source, which is not
-      // accessible, so for now we send the identity header only; the gateway
-      // answers 401 ("missing X-Signature") and we return false. That is safe:
-      // the caller falls through to addProxy, which is idempotent (Proxy.Duplicate
-      // is caught), so authorization stays correct -- the only thing deferred is
-      // the "skip the prompt on a returning device" optimization.
-      // TODO(#188): sign the request once the gateway's signed-message contract is
-      // known, so this can return true without prompting.
-      const hex = publicKey.startsWith('0x') ? publicKey : `0x${publicKey}`;
+    async getAuthStatus(input): Promise<boolean> {
+      // Signed GET /auth/status over an EMPTY body (the gateway's
+      // verifyWalletRequest checks the signature over the raw body, which is empty
+      // for GET). Reads `gateway_proxy_registered` -- whether the gateway already
+      // holds the wallet's on-chain proxy, so a returning device can skip a
+      // needless add_proxy prompt + fee. A non-OK response is treated as "not
+      // registered" (the caller then falls through to addProxy, which is idempotent).
       try {
-        const res = await fetch(`${baseUrl}/auth/status`, { cache: 'no-store', headers: { 'X-Public-Key': hex } });
+        const res = await fetch(`${baseUrl}/auth/status`, {
+          cache: 'no-store',
+          headers: {
+            'X-Public-Key': input.publicKey,
+            'X-Signature': input.signature,
+            'X-Signature-Type': input.signatureType,
+          },
+        });
         if (!res.ok) return false;
-        const data = (await res.json()) as { authorized?: boolean; proxy?: boolean; hasProxy?: boolean };
-        return data.authorized ?? data.proxy ?? data.hasProxy ?? false;
+        const data = (await res.json()) as { gateway_proxy_registered?: boolean };
+        return data.gateway_proxy_registered === true;
       } catch {
         return false;
       }
     },
 
     async deleteCredentials(input): Promise<void> {
-      // Signed like registerCredentials (X-Public-Key / X-Signature over a canonical
-      // message). Live finding (#188): the live gateway returns 401 for the guessed
-      // message -- it wants the same signed contract as /auth/status, which needs
-      // the ddc-s3-gateway source (not accessible). The caller (revokeGateway)
-      // treats this as best-effort (the proxy removal is the main effect), so a 401
-      // is logged, not fatal. TODO(#188): sign the exact message once known.
+      // Signed DELETE /auth/credentials. The signature covers the exact `body`
+      // bytes (`{"access_key_id":"<key>"}` to target a specific credential), which
+      // the gateway binds to the wallet signature.
       const res = await fetch(`${baseUrl}/auth/credentials`, {
         method: 'DELETE',
         headers: {
           'X-Public-Key': input.publicKey,
           'X-Signature': input.signature,
           'X-Signature-Type': input.signatureType,
+          ...(input.body ? { 'Content-Type': 'application/json' } : {}),
         },
+        body: input.body || undefined,
       });
       // 404 = already gone; treat as success.
       if (!res.ok && res.status !== 404) {
