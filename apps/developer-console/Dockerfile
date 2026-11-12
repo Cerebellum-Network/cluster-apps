@@ -24,6 +24,9 @@ RUN npm ci && npm run build -w @cluster-apps/developer-console
 # ---- Runtime stage ---------------------------------------------------------
 FROM nginx:1.27-alpine AS runtime
 COPY apps/developer-console/nginx.conf /etc/nginx/conf.d/default.conf
+# Baked default CSP/security-headers snippet (nginx.conf includes it). The
+# cef-developer-console Helm chart mounts a per-env copy over /etc/nginx/csp.conf.
+COPY apps/developer-console/csp.conf /etc/nginx/csp.conf
 COPY --from=build /app/dist/developer-console /usr/share/nginx/html
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
