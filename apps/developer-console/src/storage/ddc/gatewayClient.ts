@@ -68,6 +68,14 @@ export interface RegisterCredentialsInput {
   signatureType: string;
   delegationToken: string;
   label?: string;
+  /**
+   * Stable per-device id. When sent, the gateway makes registration idempotent
+   * per device (returns this device's existing credential instead of minting a
+   * new row). An older gateway without the field ignores it, so it is always safe
+   * to send. The SIGNED body must include it, so signer and sender both pass it
+   * through `buildRegistrationBody`.
+   */
+  deviceId?: string;
 }
 
 // ── byte / hash helpers (ported from ROC @/utils + browserBucketStorage) ────
@@ -123,8 +131,12 @@ async function parseJson<T>(res: Response, msg: string): Promise<T> {
  * over the exact raw body bytes, so the signer and the sender MUST build
  * byte-identical JSON -- both go through this helper.
  */
-export function buildRegistrationBody(delegationToken: string, label?: string): string {
-  return JSON.stringify({ delegation_token: delegationToken, ...(label ? { label } : {}) });
+export function buildRegistrationBody(delegationToken: string, label?: string, deviceId?: string): string {
+  return JSON.stringify({
+    delegation_token: delegationToken,
+    ...(label ? { label } : {}),
+    ...(deviceId ? { device_id: deviceId } : {}),
+  });
 }
 
 // ── S3 client wired for the DDC gateway ─────────────────────────────────────
@@ -232,7 +244,7 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     },
 
     async registerCredentials(input: RegisterCredentialsInput): Promise<GatewayCredentials> {
-      const body = buildRegistrationBody(input.delegationToken, input.label);
+      const body = buildRegistrationBody(input.delegationToken, input.label, input.deviceId);
       const res = await fetch(`${baseUrl}/auth/credentials`, {
         method: 'POST',
         headers: {

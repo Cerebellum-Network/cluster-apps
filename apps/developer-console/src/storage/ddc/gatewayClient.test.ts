@@ -27,4 +27,20 @@ describe('buildRegistrationBody', () => {
     // And it round-trips to the original value.
     expect(JSON.parse(body).delegation_token).toBe('a"b\\c');
   });
+
+  it('appends device_id after the label when given (fixed key order)', () => {
+    expect(buildRegistrationBody('tok-123', 'developer-console', 'dev-abc')).toBe(
+      '{"delegation_token":"tok-123","label":"developer-console","device_id":"dev-abc"}',
+    );
+  });
+
+  it('includes device_id even without a label, so signer and sender match byte-for-byte', () => {
+    expect(buildRegistrationBody('tok-123', undefined, 'dev-abc')).toBe(
+      '{"delegation_token":"tok-123","device_id":"dev-abc"}',
+    );
+  });
+
+  it('omits device_id when absent', () => {
+    expect(buildRegistrationBody('tok-123', 'l')).toBe('{"delegation_token":"tok-123","label":"l"}');
+  });
 });

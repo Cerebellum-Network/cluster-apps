@@ -22,6 +22,28 @@ import { createDdcSigner } from './signer';
 
 const CREDENTIAL_LABEL = 'developer-console';
 
+/** localStorage key holding this browser's stable device id. */
+const DEVICE_ID_KEY = 'dc:deviceId';
+
+/**
+ * A stable per-device id so credential registration is idempotent per device:
+ * the gateway returns this device's existing credential instead of minting a new
+ * row on every reload. Persisted in localStorage; regenerated only if cleared.
+ * Private-mode / blocked storage falls back to a fresh ephemeral id (still valid,
+ * just not deduplicated across reloads).
+ */
+export function getOrCreateDeviceId(): string {
+  try {
+    const existing = localStorage.getItem(DEVICE_ID_KEY);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
 /**
  * Lifetime of the wallet-wide gateway delegation token. The SDK default is 30
  * days (`AUTH_TOKEN_EXPIRATION_TIME`); a full-access, delegable token that lives
@@ -62,7 +84,11 @@ export async function registerGatewayCredential(
   await token.sign(signer);
   const delegationToken = token.toString();
 
-  const body = buildRegistrationBody(delegationToken, CREDENTIAL_LABEL);
+  // device_id makes re-registration from this browser idempotent at the gateway.
+  // It must be inside the SIGNED body, so the signer below and the sender (the
+  // gateway client) both build the body through buildRegistrationBody with it.
+  const deviceId = getOrCreateDeviceId();
+  const body = buildRegistrationBody(delegationToken, CREDENTIAL_LABEL, deviceId);
   // 'data' intent: a plain message signature (no wallet consent screen, no
   // MultiSignature variant byte) -- the gateway verifies raw bytes.
   const signature = bytesToHex(await signer.sign(new TextEncoder().encode(body), 'data'));
@@ -74,6 +100,7 @@ export async function registerGatewayCredential(
     signatureType: signer.type,
     delegationToken,
     label: CREDENTIAL_LABEL,
+    deviceId,
   });
   // The S3 credential can outlive -- or carry no expiry at all, in which case it
   // would read as "fresh forever" -- but the delegation token it rides on lapses
