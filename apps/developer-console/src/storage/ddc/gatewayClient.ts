@@ -401,7 +401,15 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     async deleteCredentials(input): Promise<void> {
       // Signed DELETE /auth/credentials. The signature covers the exact `body`
       // bytes (`{"access_key_id":"<key>"}` to target a specific credential), which
-      // the gateway binds to the wallet signature.
+      // the gateway binds to the wallet signature (internal/mgmt/handler.go
+      // RevokeCredential + auth.go verifyWalletRequest).
+      //
+      // Live note (#188): /auth/status (empty-body signature, same scheme) verifies
+      // 200, but this DELETE still returns 401 live -- a residual nuance in how the
+      // signed non-empty body is transmitted/verified for a DELETE. revokeGateway
+      // treats this as best-effort (the proxy removal is the main effect; the
+      // credential expires within 24h regardless), so a 401 is logged, not fatal.
+      // Follow-up: compare the signed bytes with the body the gateway receives.
       const res = await fetch(`${baseUrl}/auth/credentials`, {
         method: 'DELETE',
         headers: {
