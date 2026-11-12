@@ -27,6 +27,10 @@ import { Bucket } from '~/stores';
 import { EMPTY_FILE_NAME, DEFAULT_FOLDER_NAME } from '~/constants.ts';
 import type { Acl } from '~/storage/ddc/types';
 
+/** Folder-upload tuning: a bounded worker pool, with a couple of retries per file. */
+const UPLOAD_CONCURRENCY = 4;
+const UPLOAD_MAX_RETRIES = 2;
+
 const Container = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
@@ -122,25 +126,71 @@ const ContentStorage = () => {
       setUploadType(isFolder ? (emptyFolder ? 'emptyFolder' : 'folder') : 'file');
       setBucketInProgress(bucketId);
       setUploadStatus('uploading');
-      try {
-        const acl = aclForBucket(bucketId);
-        await Promise.all(
-          acceptedFiles.map((file) => {
-            const rel =
-              file.webkitRelativePath && file.webkitRelativePath !== '' ? file.webkitRelativePath : file.name;
-            const key = `${filePath ?? ''}${isFolder ? rel : file.name}`;
-            return account.storage.uploadObject({ bucketName: bucketId, key, body: file, contentType: file.type, acl });
-          }),
-        );
-        await refetchBucket(bucketId);
+
+      const acl = aclForBucket(bucketId);
+      const keyFor = (file: File) => {
+        const rel = file.webkitRelativePath && file.webkitRelativePath !== '' ? file.webkitRelativePath : file.name;
+        return `${filePath ?? ''}${isFolder ? rel : file.name}`;
+      };
+      // Upload one file, retrying transient failures a couple of times. The gateway
+      // client uses multipart for large bodies (see gatewayClient.putObject).
+      const uploadOne = async (file: File) => {
+        let lastErr: unknown;
+        for (let attempt = 0; attempt <= UPLOAD_MAX_RETRIES; attempt++) {
+          try {
+            await account.storage.uploadObject({
+              bucketName: bucketId,
+              key: keyFor(file),
+              body: file,
+              contentType: file.type,
+              acl,
+            });
+            return;
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        throw lastErr;
+      };
+
+      // Bounded concurrency: a fixed pool of workers drains the file queue, so a
+      // large folder does not open hundreds of parallel requests. Failures are
+      // collected, not fatal, so a partial upload is reported rather than lost.
+      const failures: string[] = [];
+      let next = 0;
+      const worker = async () => {
+        while (next < acceptedFiles.length) {
+          const file = acceptedFiles[next++];
+          try {
+            await uploadOne(file);
+          } catch (e) {
+            Reporting.error(e);
+            failures.push(file.name);
+          }
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(UPLOAD_CONCURRENCY, acceptedFiles.length) }, worker),
+      );
+
+      await refetchBucket(bucketId);
+
+      if (failures.length === 0) {
         setUploadStatus('success');
-      } catch (error) {
-        Reporting.error(error);
+      } else {
         setUploadStatus('error');
-        return null;
+        const ok = acceptedFiles.length - failures.length;
+        showMessage({
+          appearance: 'error',
+          message:
+            ok > 0
+              ? `Uploaded ${ok} of ${acceptedFiles.length}. Failed: ${failures.slice(0, 3).join(', ')}${failures.length > 3 ? '…' : ''}`
+              : 'Upload failed. Please try again.',
+          placement: { vertical: 'top', horizontal: 'right' },
+        });
       }
     },
-    [account.storage, aclForBucket, refetchBucket],
+    [account.storage, aclForBucket, refetchBucket, showMessage],
   );
 
   const handleRevokeGateway = useCallback(async () => {

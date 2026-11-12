@@ -13,7 +13,10 @@
  * allows -- see STORAGE-SLICE.md). Faithful to ROC's proven shape.
  */
 import {
+  AbortMultipartUploadCommand,
+  CompleteMultipartUploadCommand,
   CreateBucketCommand,
+  CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetBucketAclCommand,
   GetObjectCommand,
@@ -22,8 +25,14 @@ import {
   PutBucketAclCommand,
   PutObjectCommand,
   S3Client,
+  UploadPartCommand,
   type PutObjectCommandInput,
 } from '@aws-sdk/client-s3';
+
+/** Bodies larger than this are uploaded with S3 multipart; smaller ones in one PUT. */
+const MULTIPART_THRESHOLD = 10 * 1024 * 1024;
+/** Multipart part size (S3 minimum is 5 MiB, except the last part). */
+const MULTIPART_PART_SIZE = 5 * 1024 * 1024;
 import { storageConfig } from '../storageConfig';
 import type { Acl } from './types';
 
@@ -248,11 +257,51 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     },
 
     async putObject(creds, bucket, key, body, contentType, acl): Promise<void> {
-      const uploadBody: PutObjectCommandInput['Body'] =
+      const client = createS3Client(baseUrl, creds);
+      const blob: Blob =
         body instanceof Blob ? body : new Blob([body instanceof Uint8Array ? toArrayBuffer(body) : body], { type: contentType });
-      await createS3Client(baseUrl, creds).send(
-        new PutObjectCommand({ Bucket: bucket, Key: key, Body: uploadBody, ContentType: contentType, ACL: acl }),
+
+      if (blob.size <= MULTIPART_THRESHOLD) {
+        const single: PutObjectCommandInput['Body'] = blob;
+        await client.send(
+          new PutObjectCommand({ Bucket: bucket, Key: key, Body: single, ContentType: contentType, ACL: acl }),
+        );
+        return;
+      }
+
+      // Large file: S3 multipart. Upload 5 MiB parts, then complete; abort on any
+      // failure so the gateway does not keep orphaned parts.
+      const created = await client.send(
+        new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType, ACL: acl }),
       );
+      const uploadId = created.UploadId;
+      if (!uploadId) throw new Error('Gateway did not return an upload id for the multipart upload.');
+      try {
+        const parts: { ETag: string; PartNumber: number }[] = [];
+        let partNumber = 1;
+        for (let offset = 0; offset < blob.size; offset += MULTIPART_PART_SIZE) {
+          const chunk = blob.slice(offset, Math.min(offset + MULTIPART_PART_SIZE, blob.size));
+          const res = await client.send(
+            new UploadPartCommand({ Bucket: bucket, Key: key, UploadId: uploadId, PartNumber: partNumber, Body: chunk }),
+          );
+          if (!res.ETag) throw new Error(`Gateway did not return an ETag for part ${partNumber}.`);
+          parts.push({ ETag: res.ETag, PartNumber: partNumber });
+          partNumber += 1;
+        }
+        await client.send(
+          new CompleteMultipartUploadCommand({
+            Bucket: bucket,
+            Key: key,
+            UploadId: uploadId,
+            MultipartUpload: { Parts: parts },
+          }),
+        );
+      } catch (e) {
+        await client
+          .send(new AbortMultipartUploadCommand({ Bucket: bucket, Key: key, UploadId: uploadId }))
+          .catch(() => undefined);
+        throw e;
+      }
     },
 
     async getObject(creds, bucket, key): Promise<Blob> {
