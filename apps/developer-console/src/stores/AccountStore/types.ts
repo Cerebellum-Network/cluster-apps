@@ -5,8 +5,8 @@ import type { BucketStorage } from '~/storage/ddc/types';
 export type AccountStatus = 'idle' | 'connecting' | 'waiting' | 'connected' | 'error' | 'expired';
 
 /**
- * A gateway bucket, addressed by its string name (the DDC S3 gateway resolves by
- * name). Tracked client-side since the gateway has no "list my buckets".
+ * A gateway bucket, addressed by its string name. Sourced from the gateway
+ * (ListBuckets for the names, GetBucketAcl for the public flag).
  */
 export type Bucket = {
   name: string;
@@ -51,7 +51,7 @@ export interface Account {
   /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
   revokeGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;
-  refreshBuckets(): void;
+  refreshBuckets(): Promise<void>;
 }
 
 export type ReadyAccount = Account & {

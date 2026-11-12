@@ -7,15 +7,7 @@ import { createBucketStorage } from '~/storage/ddc/bucketStorage';
 import { createDdcSigner } from '~/storage/ddc/signer';
 import { createGatewayClient } from '~/storage/ddc/gatewayClient';
 import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
-import {
-  addTrackedBucket,
-  clearGatewayAuthorized,
-  generateBucketName,
-  isGatewayAuthorized,
-  listTrackedBuckets,
-  setGatewayAuthorized,
-  updateTrackedBucket,
-} from '~/storage/gatewayBuckets';
+import { generateBucketName } from '~/storage/gatewayBuckets';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
@@ -27,8 +19,9 @@ const toCere = (units: bigint | null | undefined) =>
  * The account store, on the current stack. The CEF wallet is bridged in via
  * `setSession` (App.tsx). Storage goes through the DDC S3 gateway: buckets are
  * created through the gateway (addressed by name, after a one-time Proxy
- * authorization) and tracked client-side (`~/storage/gatewayBuckets`) because the
- * gateway has no "list my buckets". Deposit is read from chain.
+ * authorization). The bucket list and each bucket's public/private flag are read
+ * from the gateway itself (ListBuckets / GetBucketAcl), and the proxy state from
+ * `/auth/status` -- nothing is tracked in localStorage. Deposit is read from chain.
  */
 export class AccountStore implements Account {
   private chain = createChainClient();
@@ -37,6 +30,7 @@ export class AccountStore implements Account {
 
   private session: SessionInput | null = null;
   private _buckets?: Bucket[];
+  private _bucketsLoading = false;
   private _deposit?: bigint;
   private _balance?: bigint;
   private _gatewayAuthorized = false;
@@ -49,11 +43,15 @@ export class AccountStore implements Account {
   setSession(next: SessionInput | null) {
     const prev = this.session;
     this.session = next;
-    const connected = next?.state === 'connected' && !!next.account;
-    const changedAccount = prev?.account !== next?.account;
-    // A different (or no) account must not reuse the previous wallet's gateway credential.
-    if (changedAccount) this.storage.resetCredentials();
-    if (connected && changedAccount) {
+    const prevAcc = prev?.account ?? null;
+    const nextAcc = next?.account ?? null;
+    const connected = next?.state === 'connected' && !!nextAcc;
+    // Only a genuine switch to a DIFFERENT wallet must drop the in-memory
+    // credential -- NOT the initial connect (null -> x) or a transient resume
+    // (x -> null), which previously wiped it and forced a fresh signature on every
+    // reload (#188 review). The persisted per-account credential is kept either way.
+    if (prevAcc && nextAcc && prevAcc !== nextAcc) this.storage.resetCredentials();
+    if (connected && prevAcc !== nextAcc) {
       void this.bootstrap();
     } else if (!connected) {
       this.cleanup();
@@ -81,16 +79,21 @@ export class AccountStore implements Account {
 
   private async bootstrap() {
     const acc = this.session?.account;
-    runInAction(() => {
-      this._gatewayAuthorized = acc ? isGatewayAuthorized(acc) : false;
-    });
-    this.refreshBuckets();
-    await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
+    if (acc) {
+      // Read the proxy state from the gateway, not a local flag, so a returning
+      // device doesn't get a needless re-grant prompt.
+      this.storage
+        .isGatewayAuthorized(acc)
+        .then((ok) => runInAction(() => (this._gatewayAuthorized = ok)))
+        .catch((e) => Reporting.error(e));
+    }
+    await Promise.all([this.refreshBuckets(), this.refreshDeposit(), this.refreshBalance()]);
   }
 
   private cleanup() {
     runInAction(() => {
       this._buckets = undefined;
+      this._bucketsLoading = false;
       this._deposit = undefined;
       this._balance = undefined;
       this._gatewayAuthorized = false;
@@ -123,21 +126,51 @@ export class AccountStore implements Account {
     return this._buckets;
   }
   get bucketsLoading() {
-    return false;
+    return this._bucketsLoading;
   }
   /** Whether this wallet has authorized the storage gateway (observable). */
   get gatewayAuthorized() {
     return this._gatewayAuthorized;
   }
 
-  /** Load the account's gateway buckets from the client-side track record. */
-  refreshBuckets() {
-    const acc = this.session?.account;
+  /** Load the account's buckets from the gateway (ListBuckets + GetBucketAcl). */
+  async refreshBuckets() {
+    if (!this.session?.account) {
+      runInAction(() => {
+        this._buckets = undefined;
+      });
+      return;
+    }
     runInAction(() => {
-      this._buckets = acc
-        ? listTrackedBuckets(acc).map<Bucket>((b) => ({ name: b.name, isPublic: b.isPublic }))
-        : undefined;
+      this._bucketsLoading = true;
     });
+    try {
+      const names = await this.storage.listBuckets();
+      const buckets = await Promise.all(
+        names.map(async (name) => {
+          let isPublic = false;
+          try {
+            isPublic = (await this.storage.getBucketAcl(name)) === 'public-read';
+          } catch (e) {
+            Reporting.error(e); // an ACL read failure defaults to private, not a broken list
+          }
+          return { name, isPublic } satisfies Bucket;
+        }),
+      );
+      runInAction(() => {
+        this._buckets = buckets;
+      });
+    } catch (e) {
+      Reporting.error(e);
+      // Keep whatever we had rather than flipping a populated list to empty.
+      runInAction(() => {
+        this._buckets = this._buckets ?? [];
+      });
+    } finally {
+      runInAction(() => {
+        this._bucketsLoading = false;
+      });
+    }
   }
 
   private async refreshDeposit() {
@@ -169,7 +202,14 @@ export class AccountStore implements Account {
   /** Authorize the DDC storage gateway to act for this wallet (addProxy, once). */
   async authorizeGateway() {
     const acc = this.requireAccount();
-    if (isGatewayAuthorized(acc)) return;
+    // Ask the gateway whether the proxy already exists (new device, or a prior
+    // grant) before prompting -- avoids a needless add_proxy popup and fee.
+    if (await this.storage.isGatewayAuthorized(acc)) {
+      runInAction(() => {
+        this._gatewayAuthorized = true;
+      });
+      return;
+    }
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
     try {
@@ -182,19 +222,18 @@ export class AccountStore implements Account {
       // i.e. already authorized — not an error. Anything else is real.
       if (!/duplicate/i.test((e as Error)?.message ?? '')) throw e;
     }
-    setGatewayAuthorized(acc);
     runInAction(() => {
       this._gatewayAuthorized = true;
     });
   }
 
   /**
-   * Revoke the storage gateway's authorization: remove its on-chain proxy and
-   * drop the local authorized flag + cached credential. After this the gateway
-   * can no longer act for the wallet; the next create re-authorizes.
+   * Revoke the storage gateway's authorization: remove its on-chain proxy AND
+   * delete the gateway credential (removeProxy alone leaves the credential working
+   * -- data ops for up to 24h, index ops indefinitely). After this the gateway can
+   * no longer act for the wallet; the next create re-authorizes.
    */
   async revokeGateway() {
-    const acc = this.requireAccount();
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
     try {
@@ -204,8 +243,11 @@ export class AccountStore implements Account {
       // anything else is real.
       if (!/not ?found/i.test((e as Error)?.message ?? '')) throw e;
     }
-    clearGatewayAuthorized(acc);
-    this.storage.resetCredentials();
+    try {
+      await this.storage.revokeCredentials();
+    } catch (e) {
+      Reporting.error(e); // best-effort: the proxy is already gone, which is the main effect
+    }
     runInAction(() => {
       this._gatewayAuthorized = false;
     });
@@ -213,19 +255,17 @@ export class AccountStore implements Account {
 
   /** Create a gateway bucket (authorizing the gateway first if needed). Returns its name. */
   async createBucket(): Promise<string> {
-    const acc = this.requireAccount();
+    this.requireAccount();
     await this.authorizeGateway();
     const name = generateBucketName();
     await this.storage.createBucket(name);
-    addTrackedBucket(acc, name, false);
-    this.refreshBuckets();
+    await this.refreshBuckets();
     return name;
   }
 
   async saveBucket(name: string, params: { isPublic: boolean }) {
     await this.storage.setBucketAcl(name, params.isPublic ? 'public-read' : 'private');
-    updateTrackedBucket(this.requireAccount(), name, { isPublic: params.isPublic });
-    this.refreshBuckets();
+    await this.refreshBuckets();
   }
 
   async topUp(amount: number) {
