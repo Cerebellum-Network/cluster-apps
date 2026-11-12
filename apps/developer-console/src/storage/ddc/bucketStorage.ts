@@ -184,10 +184,14 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
     },
 
     async revokeCredentials(): Promise<void> {
-      // Revoke the specific credential this wallet holds (its access key id), then
-      // drop it locally.
-      const c = await ensureCreds();
-      await revokeGatewayCredential(getSigner, gateway, c.accessKeyId);
+      // Revoke the credential this wallet ALREADY holds (in-memory or persisted) --
+      // never register a fresh one just to revoke it, which would add a second
+      // back-to-back wallet signature (the flaky-handshake cause of an earlier
+      // revoke 401). If there is no credential, there is nothing to revoke.
+      const existing = creds ?? readCachedCreds(accountHex());
+      if (existing?.accessKeyId) {
+        await revokeGatewayCredential(getSigner, gateway, existing.accessKeyId);
+      }
       try {
         clearCachedCreds(accountHex());
       } catch {
