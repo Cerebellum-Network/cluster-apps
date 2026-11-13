@@ -1,8 +1,12 @@
-import { Link } from '@cere-ddc-sdk/ddc-client';
-
-export type DirectoryType = Link & {
+/** One object entry in a bucket, as the file-manager tree consumes it. */
+export type DirectoryType = {
   bucketId: string;
   isPublic: boolean;
+  /** Object key (the full path within the bucket). */
+  name: string;
+  /** Object key again — kept as `cid` for the tree's "Copy CID"/URL building. */
+  cid: string;
+  size: number;
   _syncError?: boolean; // Flag to indicate bucket sync issues
   _networkError?: boolean; // Flag to indicate network issues
   _unknownError?: boolean; // Flag to indicate unknown errors

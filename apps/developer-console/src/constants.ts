@@ -1,16 +1,13 @@
-import { DEVNET, MAINNET, TESTNET } from '@cere-ddc-sdk/ddc-client';
 import { ClusterId } from '@cere-ddc-sdk/blockchain';
 
 import npmPackage from '../package.json';
 
-const ddcPresets = {
-  testnet: TESTNET,
-  devnet: DEVNET,
-  mainnet: MAINNET,
-};
+import { storageConfig } from './storage/storageConfig';
 
 /**
- * Cere Wallet app configuration
+ * App identity (analytics / wallet labelling). The wallet + network identity
+ * proper lives in `src/config.ts`; these remain for the few UI call-sites that
+ * still read them.
  */
 export const APP_ID = import.meta.env.VITE_APP_ID || 'developer-console';
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Developer Console';
@@ -19,20 +16,15 @@ export const APP_EMAIL = import.meta.env.VITE_APP_EMAIL || 'team@cere.network';
 export const APP_VERSION = npmPackage.version;
 
 /**
- * DDC configuration
+ * DDC configuration. The cluster id + endpoints now live in
+ * `src/storage/storageConfig.ts` (runtime config). The SDK v3 chain client
+ * resolves the blockchain WS endpoint from `config.network`. Kept as the branded
+ * `ClusterId` (`0x${string}`) that the chain calls expect -- node-provider
+ * imports this symbol and feeds it to v2 `ddcStaking`/`ddcClusters` APIs, which
+ * reject a plain `string`.
  */
-const ddcPreset = (import.meta.env.VITE_DDC_NETWORK || 'testnet') as keyof typeof ddcPresets;
-export const DDC_PRESET = ddcPresets[ddcPreset];
-export const DDC_CLUSTER_ID = (import.meta.env.VITE_DDC_CLUSTER_ID || '0x0') as ClusterId;
+export const DDC_CLUSTER_ID = storageConfig.clusterId as ClusterId;
 export const DDC_CLUSTER_NAME = import.meta.env.VITE_DDC_CLUSTER_NAME || 'Dragon 1';
-export const DDC_STORAGE_NODE_URL = import.meta.env.VITE_DDC_STORAGE_NODE_URL || '';
-export const DDC_SDK_LOG_LEVEL = import.meta.env.VITE_DDC_SDK_LOG_LEVEL || 'info';
-
-/**
- * DDC Blockchain Retry Configuration
- */
-export const DDC_BLOCKCHAIN_MAX_RETRIES = parseInt(import.meta.env.VITE_DDC_BLOCKCHAIN_MAX_RETRIES || '5');
-export const DDC_BLOCKCHAIN_RETRY_DELAY = parseInt(import.meta.env.VITE_DDC_BLOCKCHAIN_RETRY_DELAY || '2000');
 
 /**
  * Cere blockchain configuration
@@ -40,16 +32,8 @@ export const DDC_BLOCKCHAIN_RETRY_DELAY = parseInt(import.meta.env.VITE_DDC_BLOC
 export const CERE_DECIMALS = Number(import.meta.env.VITE_CERE_DECIMALS || 10);
 
 /**
- * Onboarding configuration
- */
-export const ONBOARDIN_REWARD_AMOUNT = Number(import.meta.env.VITE_ONBOARDIN_REWARD_AMOUNT || 50);
-export const ONBOARDIN_DEPOSIT_AMOUNT = Number(import.meta.env.VITE_ONBOARDIN_DEPOSIT_AMOUNT || 40);
-export const ONBOARDIN_PUBLIC_BUCKET = true;
-
-/**
  * Project Links
  */
-
 export const DISCORD_LINK = 'https://discord.gg/HtkRSgUCMB';
 export const DEVELOPER_DOCS_LINK = 'https://www.developer.cere.network/get-started';
 export const TERMS_AND_CONDITIONS_LINK =
@@ -61,8 +45,3 @@ export const PRIVACY_POLICY = 'https://www.notion.so/cere/Privacy-policy-520cc63
  */
 export const EMPTY_FILE_NAME = '.ddc-empty';
 export const DEFAULT_FOLDER_NAME = 'default';
-
-/**
- * Feature flags
- */
-export const FEATURE_USER_ONBOARDING = import.meta.env.VITE_FEATURE_USER_ONBOARDING !== 'false';

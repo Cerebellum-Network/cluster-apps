@@ -25,3 +25,5 @@ dist-ssr
 
 # Project specific
 .env
+# Local-only env overrides (e.g. .env.local for running against the DEV stack).
+*.local

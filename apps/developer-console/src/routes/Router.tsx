@@ -3,10 +3,8 @@ import { createBrowserRouter, Navigate, RouteObject, RouterProvider } from 'reac
 import applications, { Application } from '~/applications';
 
 import { App } from './App';
-import { Onboarding } from './Onboarding';
 import { Home } from './Home';
 import { Login } from './Login';
-import { OnboardingRoot } from './OnboardingRoot';
 import { TopUp } from './TopUp';
 
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
@@ -44,17 +42,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'login',
-        element: <OnboardingRoot />,
-        children: [
-          {
-            index: true,
-            element: <Login />,
-          },
-          {
-            path: 'onboarding',
-            element: <Onboarding />,
-          },
-        ],
+        Component: Login,
       },
     ],
   },

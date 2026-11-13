@@ -17,7 +17,7 @@ import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } fr
 import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
 import { bytesToSize } from './helpers.ts';
-import { DDC_STORAGE_NODE_URL, EMPTY_FILE_NAME } from '~/constants.ts';
+import { EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
 import { useAccount } from '~/hooks';
@@ -94,7 +94,6 @@ export const Row = ({
 }) => {
   const account = useAccount();
 
-  const ddcClient = account.ddc;
   const { showMessage } = useMessages();
 
   const isDesktop = useIsDesktop();
@@ -103,22 +102,15 @@ export const Row = ({
 
   const [downloadingNodeId, setDownloadingNodeId] = useState<INode['id'] | null>(null);
 
+  /** The object key (full path within the bucket) for a tree node. */
+  const keyOf = (element: INode) => (element.metadata?.fullPath as string) || element.name;
+
   const handleDownload = async ({ bucketId, element }: { bucketId: string; element: INode }) => {
     try {
-      const cid = (await resolveCid(bucketId))?.toString();
-      const tokenCid = cid; // TODO: use file seed instead when DDC supports it: element.metadata?.cid as string;
-      const token = element.metadata?.isPublic ? undefined : await account.createAuthToken(BigInt(bucketId), tokenCid);
-
-      const downloadUrl = getUrl({ bucketId, cid, element, token: token?.toString() });
-      const response = await fetch(downloadUrl);
-
-      if (!response.ok) {
-        console.error(`Failed to fetch file: ${response.statusText}`);
-      }
-
       setDownloadingNodeId(element.id);
-
-      const blob = await response.blob();
+      // Reads through the gateway with the wallet's credential, so it works for
+      // both public and private objects.
+      const blob = await account.storage.readObject(bucketId, keyOf(element));
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');
@@ -133,6 +125,11 @@ export const Row = ({
       }, 100);
     } catch (error) {
       console.error('Download error:', error);
+      showMessage({
+        appearance: 'error',
+        message: 'Failed to download the file. Please try again.',
+        placement: { vertical: 'top', horizontal: 'right' },
+      });
     } finally {
       setDownloadingNodeId(null);
     }
@@ -140,19 +137,10 @@ export const Row = ({
 
   const handleCopyLink = async ({ row, element }: { row: RowData; element: INode }) => {
     try {
-      const cid = (await resolveCid(row.bucketId))?.toString();
-      const tokenCid = cid; // TODO: use file seed instead when DDC supports it: element.metadata?.cid as string;
-      const token = element.metadata?.isPublic
-        ? undefined
-        : await account.createAuthToken(BigInt(row.bucketId), tokenCid);
-
-      await copyToClipboard({
-        bucketId: row.bucketId,
-        cid,
-        element,
-        token: token?.toString(),
-      });
-
+      // Public CDN/gateway URL. For a private object the link resolves only for a
+      // holder of the bucket's credential; share is primarily for public buckets.
+      const url = account.storage.publicUrl(row.bucketId, keyOf(element));
+      await navigator.clipboard.writeText(url);
       showLinkCopiedMessage();
     } catch (error) {
       console.error('Failed to copy link:', error);
@@ -166,30 +154,6 @@ export const Row = ({
       });
     }
   };
-
-  const resolveCid = async (bucketId: string) => {
-    return await ddcClient.resolveName(BigInt(bucketId), 'fs', {
-      cacheControl: 'no-cache',
-    });
-  };
-
-  const copyToClipboard = async (params: { bucketId: string; cid: string; element: INode; token?: string }) => {
-    const url = getUrl(params);
-    await navigator.clipboard.writeText(url);
-  };
-
-  const getUrl = ({
-    bucketId,
-    cid,
-    element,
-    token,
-  }: {
-    bucketId: string;
-    cid: string;
-    element: INode;
-    token?: string;
-  }) =>
-    `${DDC_STORAGE_NODE_URL}/${bucketId}/${cid}/${element.metadata?.fullPath}?source=developer-console${token ? `&token=${token}` : ''}`;
 
   const showLinkCopiedMessage = () => {
     showMessage({
@@ -205,7 +169,7 @@ export const Row = ({
   return (
     <>
       <StyledRow locked={lockUi} open={isOpen} onClick={onRowClick}>
-        <Typography variant="subtitle1" flex={1}>
+        <Typography variant="subtitle1" flex={1} sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
           {row.bucketId}
         </Typography>
         <Box display="flex" alignItems="center" flex={1.5} justifyContent="end">

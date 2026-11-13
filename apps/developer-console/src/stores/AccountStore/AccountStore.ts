@@ -1,368 +1,280 @@
-import { action, makeAutoObservable, reaction, when } from 'mobx';
-import { fromPromise, IPromiseBasedObservable, IResource, keepAlive } from 'mobx-utils';
-import { EmbedWallet, UserInfo } from '@cere/embed-wallet';
-import { AuthToken, AuthTokenOperation, CereWalletSigner, DdcClient } from '@cere-ddc-sdk/ddc-client';
-import { AuthTokenParams } from '@cere-ddc-sdk/ddc';
-import { Blockchain, Bucket as BlockchainBucket, BucketParams } from '@cere-ddc-sdk/blockchain';
-import { BucketStats, IndexedAccount } from '@cluster-apps/api';
+import { makeAutoObservable, runInAction } from 'mobx';
 import Reporting from '@cluster-apps/reporting';
 
-import {
-  APP_ENV,
-  APP_ID,
-  CERE_DECIMALS,
-  DDC_CLUSTER_ID,
-  DDC_PRESET,
-  DDC_SDK_LOG_LEVEL,
-  DDC_BLOCKCHAIN_MAX_RETRIES,
-  DDC_BLOCKCHAIN_RETRY_DELAY,
-} from '~/constants';
-import { WALLET_INIT_OPTIONS, WALLET_PERMISSIONS } from './walletConfig';
-import { Account, ReadyAccount, ConnectOptions, AccountMetrics, Bucket } from './types';
-import {
-  createAccountResource,
-  createAccountMetricsResource,
-  createAddressResource,
-  createStatusResource,
-  createBucketStatsResource,
-  createClusterAccountResource,
-  createBalanceResource,
-  createDepositResource,
-  createBucketListResource,
-} from './resources';
+import { CERE_DECIMALS } from '~/constants';
+import { createChainClient } from '~/storage/ddc/chainClient';
+import { createBucketStorage } from '~/storage/ddc/bucketStorage';
+import { createDdcSigner } from '~/storage/ddc/signer';
+import { createGatewayClient } from '~/storage/ddc/gatewayClient';
+import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
+import { generateBucketName } from '~/storage/gatewayBuckets';
+import type { CefSigner } from '@cef-ai/wallet';
+import type { BucketStorage } from '~/storage/ddc/types';
+import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
 
+const toCere = (units: bigint | null | undefined) =>
+  units == null ? undefined : parseFloat((Number(units) / 10 ** CERE_DECIMALS).toFixed(2));
+
+/**
+ * The account store, on the current stack. The CEF wallet is bridged in via
+ * `setSession` (App.tsx). Storage goes through the DDC S3 gateway: buckets are
+ * created through the gateway (addressed by name, after a one-time Proxy
+ * authorization). The bucket list and each bucket's public/private flag are read
+ * from the gateway itself (ListBuckets / GetBucketAcl), and the proxy state from
+ * `/auth/status` -- nothing is tracked in localStorage. Deposit is read from chain.
+ */
 export class AccountStore implements Account {
-  readonly blockchain = new Blockchain({ wsEndpoint: DDC_PRESET.blockchain });
-  readonly wallet = new EmbedWallet({ appId: APP_ID, env: APP_ENV });
-  readonly signer = new CereWalletSigner(this.wallet, { autoConnect: false });
-  readonly ddc = new DdcClient(this.signer, {
-    blockchain: this.blockchain,
-    logLevel: DDC_SDK_LOG_LEVEL,
-    blockchainRetryConfig: {
-      maxRetries: DDC_BLOCKCHAIN_MAX_RETRIES,
-      retryDelay: DDC_BLOCKCHAIN_RETRY_DELAY,
-    },
-  });
+  private chain = createChainClient();
+  private gateway = createGatewayClient();
+  readonly storage: BucketStorage = createBucketStorage(() => this.requireSigner());
 
-  private bcReadyPromise = fromPromise(Promise.all([this.blockchain.isReady(), this.signer.isReady()]));
-  private statusResource = createStatusResource(this);
-  private addressResource = createAddressResource(this);
-  private accountResource?: IResource<IndexedAccount | null | undefined>;
-  private clusterAccountResource?: IResource<IndexedAccount | null | undefined>;
-  private bucketListResource?: IResource<BlockchainBucket[] | null | undefined>;
+  private session: SessionInput | null = null;
+  private _buckets?: Bucket[];
   private _bucketsLoading = false;
-  private balanceResource?: IResource<bigint | null | undefined>;
-  private depositResource?: IResource<bigint | null | undefined>;
-  private userInfoPromise?: IPromiseBasedObservable<UserInfo>;
-  private accountMetricsResource?: IResource<AccountMetrics | null | undefined>;
-  private bucketsStatsResource?: IResource<BucketStats[] | undefined>;
+  private _deposit?: bigint;
+  private _balance?: bigint;
+  private _gatewayAuthorized = false;
 
   constructor() {
-    makeAutoObservable(this, {
-      wallet: false,
-      blockchain: false,
-    });
-    this.startAutoCacheCleaning();
-
-    keepAlive(this, 'status');
-    keepAlive(this, 'address');
-
-    reaction(
-      () => this.address && this.status === 'connected',
-      (isConnected) => (isConnected ? this.bootstrap() : this.cleanup()),
-    );
-
-    reaction(
-      () => this.buckets?.length,
-      () => {
-        this.bucketsStatsResource = createBucketStatsResource(this);
-      },
-    );
-
-    /**
-     * Track user changes and update the user in the reporting
-     */
-    reaction(
-      () => this.userInfo,
-      (userInfo: UserInfo | undefined) =>
-        !userInfo
-          ? Reporting.clearUser()
-          : Reporting.setUser({ id: this.address!, email: userInfo.email, username: userInfo.name }),
-    );
-
-    /**
-     * Report an error if the blockchain is not ready after 30s
-     */
-    when(() => this.bcReadyPromise.state === 'fulfilled', { timeout: 30000 }).catch(() => {
-      Reporting.message(`Blockchain is not ready after 30s`, 'warning');
-    });
+    makeAutoObservable<AccountStore, 'chain' | 'gateway'>(this, { storage: false, chain: false, gateway: false });
   }
+
+  /** Bridge: the React wallet SessionProvider pushes session changes here. */
+  setSession(next: SessionInput | null) {
+    const prev = this.session;
+    this.session = next;
+    const prevAcc = prev?.account ?? null;
+    const nextAcc = next?.account ?? null;
+    const connected = next?.state === 'connected' && !!nextAcc;
+    // Only a genuine switch to a DIFFERENT wallet must drop the in-memory
+    // credential -- NOT the initial connect (null -> x) or a transient resume
+    // (x -> null), which previously wiped it and forced a fresh signature on every
+    // reload (#188 review). The persisted per-account credential is kept either way.
+    if (prevAcc && nextAcc && prevAcc !== nextAcc) this.storage.resetCredentials();
+    if (connected && prevAcc !== nextAcc) {
+      void this.bootstrap();
+    } else if (!connected) {
+      this.cleanup();
+    }
+  }
+
+  private requireSigner(): CefSigner {
+    if (!this.session) throw new Error('Account is not ready');
+    return this.session.getSigner();
+  }
+
+  private requireAccount(): string {
+    const acc = this.session?.account;
+    if (!acc) throw new Error('Account is not ready');
+    return acc;
+  }
+
+  /** The connected wallet as a DDC signer carrying a consent description. */
+  private consentSigner(consent: string) {
+    return createDdcSigner(() => this.requireSigner()).describing(consent);
+  }
+
+  /** Kept for AppStore.init(): the wallet connects through the React SessionProvider. */
+  async init(): Promise<void> {}
 
   private async bootstrap() {
-    this._bucketsLoading = true;
-    this.accountResource = createAccountResource(this);
-    this.clusterAccountResource = createClusterAccountResource(this);
-    this.bucketListResource = createBucketListResource(
-      this,
-      action(() => {
-        this._bucketsLoading = false;
-      }),
-    );
-    this.balanceResource = createBalanceResource(this);
-    this.depositResource = createDepositResource(this);
-    this.accountMetricsResource = createAccountMetricsResource(this);
-    this.userInfoPromise = fromPromise(this.wallet.getUserInfo());
+    const acc = this.session?.account;
+    if (acc) {
+      // Read the proxy state from the gateway, not a local flag, so a returning
+      // device doesn't get a needless re-grant prompt.
+      this.storage
+        .isGatewayAuthorized()
+        .then((ok) => runInAction(() => (this._gatewayAuthorized = ok)))
+        .catch((e) => Reporting.error(e));
+    }
+    await Promise.all([this.refreshBuckets(), this.refreshDeposit(), this.refreshBalance()]);
   }
 
-  private async cleanup() {
-    this._bucketsLoading = false;
-    this.userInfoPromise = undefined;
-    this.accountResource = undefined;
-    this.clusterAccountResource = undefined;
-    this.bucketListResource = undefined;
-    this.balanceResource = undefined;
-    this.depositResource = undefined;
-    this.accountMetricsResource = undefined;
+  private cleanup() {
+    runInAction(() => {
+      this._buckets = undefined;
+      this._bucketsLoading = false;
+      this._deposit = undefined;
+      this._balance = undefined;
+      this._gatewayAuthorized = false;
+    });
   }
 
-  /**
-   * Start automatic cache clearing to prevent stale data issues
-   */
-  private startAutoCacheCleaning() {
-    const CACHE_CLEAR_INTERVAL = 2 * 60 * 1000; // 2 minutes
-
-    // Clear cache every 2 minutes
-    setInterval(() => {
-      try {
-        if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
-          this.ddc.clearPingCache();
-          console.log('[AutoCache] Ping cache cleared automatically');
-        }
-
-        // Also expose manual clearing functions to window for debugging
-        if (typeof window !== 'undefined') {
-          (window as any).clearDdcCache = () => {
-            if (this.ddc && typeof this.ddc.clearPingCache === 'function') {
-              this.ddc.clearPingCache();
-              console.log('[Manual] DDC cache cleared');
-            }
-          };
-
-          (window as any).getCacheInfo = () => {
-            if (this.ddc && typeof this.ddc.getPingCacheInfo === 'function') {
-              const info = this.ddc.getPingCacheInfo();
-              console.log('[CacheInfo] Current cache state:', info);
-              return info;
-            }
-            return null;
-          };
-        }
-      } catch (error) {
-        console.warn('[AutoCache] Failed to clear cache:', error);
-      }
-    }, CACHE_CLEAR_INTERVAL);
+  get status(): AccountStatus {
+    return this.session?.state ?? 'idle';
   }
-
-  private getBucketStats(bucketId: bigint) {
-    const stats = this.bucketsStatsResource?.current();
-
-    return (
-      stats &&
-      (stats.find((stats: { bucketId: bigint }) => stats.bucketId === bucketId) || {
-        bucketId,
-        gets: 0,
-        puts: 0,
-        storedBytes: 0,
-        transferredBytes: 0,
-      })
-    );
+  get account() {
+    return this.session?.account ?? undefined;
   }
-
-  isReady(): this is ReadyAccount {
-    return !!this.userInfo;
-  }
-
-  get status() {
-    return this.statusResource.current();
-  }
-
-  get metrics() {
-    return this.accountMetricsResource?.current() ?? undefined;
-  }
-
   get address() {
-    return this.addressResource.current();
+    return this.session?.address ?? undefined;
   }
-
-  get balance() {
-    const balance = this.balanceResource?.current();
-
-    return balance == null ? undefined : parseFloat((Number(balance) / 10 ** CERE_DECIMALS).toFixed(2));
+  get email() {
+    return this.session?.email ?? undefined;
+  }
+  isReady(): this is ReadyAccount {
+    return this.status === 'connected' && !!this.account;
   }
 
   get deposit() {
-    const deposit = this.depositResource?.current();
-
-    return deposit == null ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
+    return toCere(this._deposit);
   }
-
+  get balance() {
+    return toCere(this._balance);
+  }
   get buckets() {
-    const allBuckets = this.bucketListResource?.current();
-
-    if (!allBuckets) {
-      return undefined;
-    }
-
-    // Prefer cluster-specific buckets if available
-    const clusterBuckets = allBuckets.filter((bucket) => bucket.clusterId === DDC_CLUSTER_ID);
-    const source = clusterBuckets.length > 0 ? clusterBuckets : allBuckets;
-
-    return source.map<Bucket>((bucket) => ({
-      id: bucket.bucketId,
-      isPublic: bucket.isPublic,
-      isRemoved: false,
-      storedBytes: 0,
-      stats: this.getBucketStats(bucket.bucketId),
-    }));
+    return this._buckets;
   }
-
   get bucketsLoading() {
     return this._bucketsLoading;
   }
-
-  // Add method to get cluster-specific deposit
-  get clusterDeposit() {
-    const deposit = this.clusterAccountResource?.current()?.deposit;
-    return deposit == null ? undefined : parseFloat((Number(deposit) / 10 ** CERE_DECIMALS).toFixed(2));
+  /** Whether this wallet has authorized the storage gateway (observable). */
+  get gatewayAuthorized() {
+    return this._gatewayAuthorized;
   }
 
-  // Add method to get all deposits (legacy and cluster-specific)
-  get allDeposits() {
-    const account = this.accountResource?.current();
-    return account?.buckets || [];
-  }
-
-  get userInfo() {
-    return this.userInfoPromise?.case({
-      fulfilled: (userInfo) => userInfo,
+  /** Load the account's buckets from the gateway (ListBuckets + GetBucketAcl). */
+  async refreshBuckets() {
+    if (!this.session?.account) {
+      runInAction(() => {
+        this._buckets = undefined;
+      });
+      return;
+    }
+    runInAction(() => {
+      this._bucketsLoading = true;
     });
-  }
-
-  async connect({ email }: ConnectOptions) {
-    /**
-     * If the user is already connected - disconnect first
-     */
-    if (this.status === 'connected') {
-      await this.disconnect();
-
-      /**
-       * Wait for the wallet to disconnect
-       * TODO: Figure out a better way to handle this on Cere Wallet side
-       */
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    await this.signer.connect({
-      email,
-      permissions: WALLET_PERMISSIONS,
-    });
-
-    const userInfo = await this.wallet.getUserInfo();
-
-    if (userInfo.isNewUser && this.address) {
-      Reporting.userSignedUp(this.address);
-    }
-
-    return userInfo;
-  }
-
-  async init() {
-    if (this.wallet.status !== 'not-ready') {
-      return this.status;
-    }
-
-    await this.wallet.init(WALLET_INIT_OPTIONS);
-
-    return this.status;
-  }
-
-  async disconnect() {
-    await this.wallet.disconnect();
-  }
-
-  async signMessage(message: string) {
-    if (!this.address) {
-      throw new Error('Account is not ready');
-    }
-
-    await this.signer.isReady();
-
-    const signer = await this.signer.getSigner();
-    const sigResult = await signer.signRaw?.({
-      type: 'bytes',
-      address: this.address,
-      data: message,
-    });
-
-    return sigResult?.signature as string;
-  }
-
-  async createBucket(params: BucketParams) {
-    await this.bcReadyPromise;
-
     try {
-      const bucketId = await this.ddc.createBucket(DDC_CLUSTER_ID, params);
-      console.log('Bucket created successfully with ID:', bucketId.toString());
-      try {
-        const bucketInfo = await this.ddc.getBucket(bucketId);
-        console.log('Created bucket info:', bucketInfo);
-      } catch (getBucketError) {
-        console.warn('️Could not fetch bucket info immediately after creation:', getBucketError);
-      }
-
-      return bucketId;
-    } catch (error) {
-      console.error('Failed to create bucket:', error);
-      throw error;
+      const names = await this.storage.listBuckets();
+      const buckets = await Promise.all(
+        names.map(async (name) => {
+          let isPublic = false;
+          try {
+            isPublic = (await this.storage.getBucketAcl(name)) === 'public-read';
+          } catch (e) {
+            Reporting.error(e); // an ACL read failure defaults to private, not a broken list
+          }
+          return { name, isPublic } satisfies Bucket;
+        }),
+      );
+      runInAction(() => {
+        this._buckets = buckets;
+      });
+    } catch (e) {
+      Reporting.error(e);
+      // Keep whatever we had rather than flipping a populated list to empty.
+      runInAction(() => {
+        this._buckets = this._buckets ?? [];
+      });
+    } finally {
+      runInAction(() => {
+        this._bucketsLoading = false;
+      });
     }
   }
 
-  async saveBucket(bucketId: bigint, params: BucketParams) {
-    await this.bcReadyPromise;
+  private async refreshDeposit() {
+    const addr = this.session?.address;
+    if (!addr) return;
+    try {
+      const d = await this.chain.getDeposit(addr);
+      runInAction(() => {
+        this._deposit = d;
+      });
+    } catch (e) {
+      Reporting.error(e);
+    }
+  }
 
-    await this.blockchain.send(this.blockchain.ddcCustomers.setBucketParams(bucketId, params), {
-      account: this.signer,
+  private async refreshBalance() {
+    const addr = this.session?.address;
+    if (!addr) return;
+    try {
+      const b = await this.chain.getBalance(addr);
+      runInAction(() => {
+        this._balance = b;
+      });
+    } catch (e) {
+      Reporting.error(e);
+    }
+  }
+
+  /** Authorize the DDC storage gateway to act for this wallet (addProxy, once). */
+  async authorizeGateway() {
+    this.requireAccount();
+    // Ask the gateway whether the proxy already exists (new device, or a prior
+    // grant) before prompting -- avoids a needless add_proxy popup and fee.
+    if (await this.storage.isGatewayAuthorized()) {
+      runInAction(() => {
+        this._gatewayAuthorized = true;
+      });
+      return;
+    }
+    const info = await this.gateway.getInfo();
+    const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
+    try {
+      await this.chain.addProxy(
+        ss58,
+        this.consentSigner(
+          'Allow Cere to manage your storage for you. You can turn this off anytime on the Content Storage page.',
+        ),
+      );
+    } catch (e) {
+      // `Proxy.Duplicate` means the gateway is already a proxy for this wallet,
+      // i.e. already authorized — not an error. Anything else is real.
+      if (!/duplicate/i.test((e as Error)?.message ?? '')) throw e;
+    }
+    runInAction(() => {
+      this._gatewayAuthorized = true;
     });
+  }
+
+  /**
+   * Revoke the storage gateway's authorization: remove its on-chain proxy AND
+   * delete the gateway credential (removeProxy alone leaves the credential working
+   * -- data ops for up to 24h, index ops indefinitely). After this the gateway can
+   * no longer act for the wallet; the next create re-authorizes.
+   */
+  async revokeGateway() {
+    const info = await this.gateway.getInfo();
+    const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
+    try {
+      await this.chain.removeProxy(ss58, this.consentSigner('Stop Cere from managing your storage'));
+    } catch (e) {
+      // `NotFound` means there is no such proxy -- already revoked. Treat as done;
+      // anything else is real.
+      if (!/not ?found/i.test((e as Error)?.message ?? '')) throw e;
+    }
+    try {
+      await this.storage.revokeCredentials();
+    } catch (e) {
+      Reporting.error(e); // best-effort: the proxy is already gone, which is the main effect
+    }
+    runInAction(() => {
+      this._gatewayAuthorized = false;
+    });
+  }
+
+  /** Create a gateway bucket (authorizing the gateway first if needed). Returns its name. */
+  async createBucket(): Promise<string> {
+    this.requireAccount();
+    await this.authorizeGateway();
+    const name = generateBucketName();
+    await this.storage.createBucket(name);
+    await this.refreshBuckets();
+    return name;
+  }
+
+  async saveBucket(name: string, params: { isPublic: boolean }) {
+    await this.storage.setBucketAcl(name, params.isPublic ? 'public-read' : 'private');
+    await this.refreshBuckets();
   }
 
   async topUp(amount: number) {
-    await this.bcReadyPromise;
-
-    await this.ddc.depositBalance(DDC_CLUSTER_ID, BigInt(amount) * BigInt(10 ** CERE_DECIMALS));
-
-    // Refresh resources to get updated balances
-    this.accountResource = undefined;
-    this.accountResource = createAccountResource(this);
-    this.clusterAccountResource = undefined;
-    this.clusterAccountResource = createClusterAccountResource(this);
-    this.balanceResource = undefined;
-    this.balanceResource = createBalanceResource(this);
-    this.depositResource = undefined;
-    this.depositResource = createDepositResource(this);
-
-    if (this.address) {
-      Reporting.topUp(this.address, amount);
-    }
-  }
-
-  async createAuthToken(bucketId: bigint, pieceCid: string) {
-    const params: AuthTokenParams = {
-      subject: this.address!,
-      bucketId,
-      pieceCid,
-      operations: [AuthTokenOperation.GET],
-    };
-
-    return new AuthToken(params).sign(this.signer);
+    const value = BigInt(Math.round(amount * 10 ** CERE_DECIMALS));
+    // Name the amount in the wallet consent so the user approves a known figure,
+    // not an opaque "add a deposit" (#185 review).
+    await this.chain.deposit(value, this.consentSigner(`Add a ${amount} CERE deposit to DDC`));
+    await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
   }
 }

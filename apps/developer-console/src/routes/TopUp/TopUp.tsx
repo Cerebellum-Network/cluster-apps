@@ -56,7 +56,7 @@ const TopUp = () => {
     });
   });
 
-  const maxValue = Math.max(account.balance - 2, 0);
+  const maxValue = Math.max((account.balance ?? 0) - 2, 0);
 
   const endAdornment = (
     <>
