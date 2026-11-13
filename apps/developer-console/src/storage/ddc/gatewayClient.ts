@@ -76,6 +76,14 @@ export interface RegisterCredentialsInput {
    * through `buildRegistrationBody`.
    */
   deviceId?: string;
+  /**
+   * Credential TTL in seconds. For a proxy-backed credential (empty
+   * delegationToken) there is no 24h delegation token to bound it, so an explicit
+   * TTL gives the credential an expiry the client can refresh against. Included in
+   * the signed body, so signer and sender both pass it through
+   * `buildRegistrationBody`.
+   */
+  expiresInSeconds?: number;
 }
 
 // ── byte / hash helpers (ported from ROC @/utils + browserBucketStorage) ────
@@ -131,11 +139,17 @@ async function parseJson<T>(res: Response, msg: string): Promise<T> {
  * over the exact raw body bytes, so the signer and the sender MUST build
  * byte-identical JSON -- both go through this helper.
  */
-export function buildRegistrationBody(delegationToken: string, label?: string, deviceId?: string): string {
+export function buildRegistrationBody(
+  delegationToken: string,
+  label?: string,
+  deviceId?: string,
+  expiresInSeconds?: number,
+): string {
   return JSON.stringify({
     delegation_token: delegationToken,
     ...(label ? { label } : {}),
     ...(deviceId ? { device_id: deviceId } : {}),
+    ...(expiresInSeconds && expiresInSeconds > 0 ? { expires_in_seconds: expiresInSeconds } : {}),
   });
 }
 
@@ -244,7 +258,7 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     },
 
     async registerCredentials(input: RegisterCredentialsInput): Promise<GatewayCredentials> {
-      const body = buildRegistrationBody(input.delegationToken, input.label, input.deviceId);
+      const body = buildRegistrationBody(input.delegationToken, input.label, input.deviceId, input.expiresInSeconds);
       const res = await fetch(`${baseUrl}/auth/credentials`, {
         method: 'POST',
         headers: {

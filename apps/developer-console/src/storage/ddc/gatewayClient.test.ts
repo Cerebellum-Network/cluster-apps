@@ -43,4 +43,15 @@ describe('buildRegistrationBody', () => {
   it('omits device_id when absent', () => {
     expect(buildRegistrationBody('tok-123', 'l')).toBe('{"delegation_token":"tok-123","label":"l"}');
   });
+
+  it('builds a proxy-backed body: empty delegation_token + device_id + expires_in_seconds', () => {
+    expect(buildRegistrationBody('', 'developer-console', 'dev-abc', 2592000)).toBe(
+      '{"delegation_token":"","label":"developer-console","device_id":"dev-abc","expires_in_seconds":2592000}',
+    );
+  });
+
+  it('omits expires_in_seconds when zero or absent', () => {
+    expect(buildRegistrationBody('tok', 'l', 'd', 0)).toBe('{"delegation_token":"tok","label":"l","device_id":"d"}');
+    expect(buildRegistrationBody('tok', 'l', 'd')).toBe('{"delegation_token":"tok","label":"l","device_id":"d"}');
+  });
 });
