@@ -13,7 +13,6 @@
  * NOT runtime-verified yet (needs the live gateway on an https origin the wallet
  * allows -- see STORAGE-SLICE.md).
  */
-import { AuthToken } from '@cere-ddc-sdk/ddc';
 import { encodeAddress } from '@cere-ddc-sdk/blockchain';
 import type { CefSigner } from '@cef-ai/wallet';
 import { bytesToHex, hexToBytes, hexWithPrefix } from './hex';
@@ -22,15 +21,36 @@ import { createDdcSigner } from './signer';
 
 const CREDENTIAL_LABEL = 'developer-console';
 
+/** localStorage key holding this browser's stable device id. */
+const DEVICE_ID_KEY = 'dc:deviceId';
+
 /**
- * Lifetime of the wallet-wide gateway delegation token. The SDK default is 30
- * days (`AUTH_TOKEN_EXPIRATION_TIME`); a full-access, delegable token that lives
- * that long is a broad bearer credential, so bound it to 24h (#185 review). The
- * token is re-minted transparently on next use once it lapses; `bucketStorage`
- * refreshes the S3 credential near expiry. Per-bucket scoping is not available —
- * the gateway credential is wallet-wide — so a short lifetime is the mitigation.
+ * A stable per-device id so credential registration is idempotent per device:
+ * the gateway returns this device's existing credential instead of minting a new
+ * row on every reload. Persisted in localStorage; regenerated only if cleared.
+ * Private-mode / blocked storage falls back to a fresh ephemeral id (still valid,
+ * just not deduplicated across reloads).
  */
-const DELEGATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+export function getOrCreateDeviceId(): string {
+  try {
+    const existing = localStorage.getItem(DEVICE_ID_KEY);
+    if (existing) return existing;
+    const id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_ID_KEY, id);
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+/**
+ * TTL of the proxy-backed S3 credential. There is no 24h delegation token to
+ * bound it any more — the gateway mints DDC tokens off the wallet's on-chain proxy
+ * grant — so this is just the cadence at which the S3 credential is silently
+ * re-minted (a 'data' signature, no wallet popup; `bucketStorage` refreshes near
+ * expiry). 30 days.
+ */
+const CREDENTIAL_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * SDK 3.x decodes an AuthToken subject as SS58 only; the gateway advertises its
@@ -47,42 +67,34 @@ export async function registerGatewayCredential(
   getSigner: () => CefSigner,
   gateway: GatewayClient,
 ): Promise<GatewayCredentials> {
-  // `.describing(...)` labels what the signature authorizes. The token/data
-  // signing intents used below do not raise the wallet's consent screen (only
-  // 'extrinsic' does -- see cefDdcSigner), so this is for self-documentation and
-  // in case the wallet ever surfaces token-sign consent; it is not a popup.
+  // `.describing(...)` labels what the signature authorizes. The 'data' signing
+  // intent used below does not raise the wallet's consent screen (only 'extrinsic'
+  // does -- see cefDdcSigner), so this is for self-documentation; it is not a popup.
   const signer = createDdcSigner(getSigner).describing('Authorize a DDC storage gateway credential');
-  const info = await gateway.getInfo();
 
-  const token = AuthToken.fullAccess({
-    subject: gatewayPubKeyToSs58(info.gatewayPublicKey),
-    canDelegate: true,
-    expiresIn: DELEGATION_TOKEN_TTL_MS,
-  });
-  await token.sign(signer);
-  const delegationToken = token.toString();
-
-  const body = buildRegistrationBody(delegationToken, CREDENTIAL_LABEL);
-  // 'data' intent: a plain message signature (no wallet consent screen, no
-  // MultiSignature variant byte) -- the gateway verifies raw bytes.
+  // Proxy-backed registration: the wallet has added the gateway as its on-chain
+  // proxy (addProxy, done in AccountStore.authorizeGateway before the first
+  // bucket), so the gateway mints DDC tokens off that grant — no client-minted
+  // 24h delegation token. We register with an EMPTY delegation_token and a
+  // credential TTL; the storage node authorizes the gateway's prev-less token via
+  // the owner's honored proxy delegates. The S3 credential is re-minted silently
+  // (a 'data' signature, no popup) before it lapses, with no new on-chain grant.
+  const deviceId = getOrCreateDeviceId();
+  const expiresInSeconds = Math.floor(CREDENTIAL_TTL_MS / 1000);
+  // device_id (idempotent per device) and expires_in_seconds must be inside the
+  // SIGNED body, so signer and sender both build it through buildRegistrationBody.
+  const body = buildRegistrationBody('', CREDENTIAL_LABEL, deviceId, expiresInSeconds);
   const signature = bytesToHex(await signer.sign(new TextEncoder().encode(body), 'data'));
 
-  const tokenExpiresAt = Date.now() + DELEGATION_TOKEN_TTL_MS;
-  const creds: GatewayCredentials = await gateway.registerCredentials({
+  return gateway.registerCredentials({
     publicKey: hexWithPrefix(signer.publicKey),
     signature,
     signatureType: signer.type,
-    delegationToken,
+    delegationToken: '',
     label: CREDENTIAL_LABEL,
+    deviceId,
+    expiresInSeconds,
   });
-  // The S3 credential can outlive -- or carry no expiry at all, in which case it
-  // would read as "fresh forever" -- but the delegation token it rides on lapses
-  // at DELEGATION_TOKEN_TTL_MS. Cap the effective expiry to the token's lifetime
-  // so the credential is re-minted before the token dies (#188 review).
-  return {
-    ...creds,
-    expiresAt: creds.expiresAt === undefined ? tokenExpiresAt : Math.min(creds.expiresAt, tokenExpiresAt),
-  };
 }
 
 /**
