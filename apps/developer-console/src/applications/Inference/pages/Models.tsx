@@ -198,14 +198,23 @@ const Models = () => {
           No models available.
         </Typography>
       ) : (
-        <TableContainer sx={{ border: (theme) => `1px solid ${theme.palette.divider}`, borderRadius: '12px' }}>
+        <TableContainer
+          sx={{
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            borderRadius: '12px',
+            // Airier rows, matching the board.
+            '& td': { paddingTop: '16px', paddingBottom: '16px' },
+          }}
+        >
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell colSpan={2}>{cards.length} models</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Price</TableCell>
-                <TableCell align="right">Status is live</TableCell>
+                <TableCell colSpan={4} sx={{ color: 'text.secondary' }}>
+                  {cards.length} models
+                </TableCell>
+                <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                  Status is live
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
