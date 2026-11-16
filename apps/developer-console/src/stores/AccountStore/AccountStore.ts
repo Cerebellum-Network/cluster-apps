@@ -81,11 +81,15 @@ export class AccountStore implements Account {
     const acc = this.session?.account;
     if (acc) {
       // Read the proxy state from the gateway, not a local flag, so a returning
-      // device doesn't get a needless re-grant prompt.
-      this.storage
-        .isGatewayAuthorized()
-        .then((ok) => runInAction(() => (this._gatewayAuthorized = ok)))
-        .catch((e) => Reporting.error(e));
+      // device doesn't get a needless re-grant prompt. Awaited before the loads
+      // below because refreshBuckets() keys off it: an unauthorized wallet must
+      // skip ListBuckets (which would 400) and show the empty state.
+      try {
+        const ok = await this.storage.isGatewayAuthorized();
+        runInAction(() => (this._gatewayAuthorized = ok));
+      } catch (e) {
+        Reporting.error(e);
+      }
     }
     await Promise.all([this.refreshBuckets(), this.refreshDeposit(), this.refreshBalance()]);
   }
@@ -138,6 +142,17 @@ export class AccountStore implements Account {
     if (!this.session?.account) {
       runInAction(() => {
         this._buckets = undefined;
+      });
+      return;
+    }
+    // A wallet that hasn't authorized the gateway has no proxy, so ListBuckets ->
+    // ensureCreds would register a proxy-backed credential and 400. Skip the call
+    // and show the empty state (Create bucket authorizes on first use; a revoked
+    // wallet re-authorizes via "Allow Cere to manage your storage").
+    if (!this._gatewayAuthorized) {
+      runInAction(() => {
+        this._buckets = [];
+        this._bucketsLoading = false;
       });
       return;
     }

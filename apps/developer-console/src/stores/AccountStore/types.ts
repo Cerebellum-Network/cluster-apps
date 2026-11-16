@@ -48,6 +48,8 @@ export interface Account {
   /** Create a gateway bucket (authorizing the gateway first if needed); returns its name. */
   createBucket(): Promise<string>;
   saveBucket(name: string, params: { isPublic: boolean }): Promise<void>;
+  /** Authorize the storage gateway (addProxy); lets an unauthorized wallet list without creating. */
+  authorizeGateway(): Promise<void>;
   /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
   revokeGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;

@@ -212,6 +212,23 @@ const ContentStorage = () => {
     setIsRevoking(false);
   }, [account, showMessage]);
 
+  // A wallet that hasn't authorized the gateway (a new user, or one who revoked)
+  // sees an empty list — let it authorize and list existing buckets without
+  // having to create one first (reviewer: "Allow Cere to manage your storage").
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const handleAuthorizeGateway = useCallback(async () => {
+    setIsAuthorizing(true);
+    try {
+      await account.authorizeGateway();
+      await account.refreshBuckets();
+      showMessage({ appearance: 'success', message: 'Cere now manages your storage.' });
+    } catch (e) {
+      Reporting.error(e);
+      showMessage({ appearance: 'error', message: 'Could not authorize storage. Please try again.' });
+    }
+    setIsAuthorizing(false);
+  }, [account, showMessage]);
+
   const handleCloseStatus = () => setUploadStatus('idle');
 
   const handleRowClick = useCallback(
@@ -261,6 +278,18 @@ const ContentStorage = () => {
               }
             >
               Your DDC Wallet balance is 0. Please top it up before creating a bucket.
+            </StyledAlert>
+          )}
+          {isAccountReady && account.gatewayAuthorized === false && (
+            <StyledAlert
+              severity="info"
+              action={
+                <LoadingButton loading={isAuthorizing} onClick={handleAuthorizeGateway}>
+                  Allow Cere to manage your storage
+                </LoadingButton>
+              }
+            >
+              Cere isn’t managing your storage yet. Allow it to list your existing buckets, or just create one below.
             </StyledAlert>
           )}
           <FileManager
