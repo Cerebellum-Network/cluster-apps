@@ -1,62 +1,89 @@
 import { ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Link, LinkProps, useMatch } from 'react-router-dom';
+import { Link, NavLink, useMatch } from 'react-router-dom';
 
-import { Button, ButtonProps, Stack, styled, Typography } from '@cluster-apps/ui';
+import { Box, Stack, styled, Typography } from '@cluster-apps/ui';
 
-type StyleProps = {
-  active?: boolean;
-};
+import type { SubNavItem } from '~/applications';
 
 export type NavigationItemProps = {
   title: string;
+  navLabel?: string;
   rootPath: string;
   description: string;
   icon: ReactNode;
+  subNav?: SubNavItem[];
   widget?: ReactNode;
 };
 
-const NavButton = (props: ButtonProps & LinkProps) => <Button component={Link} {...props} />;
-const Item = styled(NavButton, {
-  shouldForwardProp: (prop) => prop !== 'active',
-})<StyleProps>(({ theme, active }) => ({
-  padding: theme.spacing(2),
-  borderRadius: 0,
-  outlineStyle: 'solid',
-  outlineWidth: active ? 2 : 1,
-  outlineColor: active ? theme.palette.primary.main : theme.palette.divider,
-  backgroundColor: active ? theme.palette.background.paper : 'transparent',
-  borderTopLeftRadius: theme.shape.borderRadius,
-  borderBottomLeftRadius: theme.shape.borderRadius,
+type ItemStyle = { active: boolean; filled: boolean };
 
-  '&:hover': {
-    backgroundColor: active ? theme.palette.background.paper : theme.palette.action.hover,
-  },
+const Item = styled(Link, { shouldForwardProp: (p) => p !== 'active' && p !== 'filled' })<ItemStyle>(
+  ({ theme, active, filled }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: theme.spacing(1.5),
+    padding: theme.spacing(1, 1.5),
+    borderRadius: theme.shape.borderRadius,
+    textDecoration: 'none',
+    color: active ? theme.palette.text.primary : theme.palette.text.secondary,
+    backgroundColor: filled ? theme.palette.action.selected : 'transparent',
+    fontWeight: active ? 600 : 500,
 
-  '& .MuiSvgIcon-root': {
-    fontSize: 35,
-    color: active ? theme.palette.primary.main : theme.palette.text.secondary,
+    '&:hover': {
+      backgroundColor: filled ? theme.palette.action.selected : theme.palette.action.hover,
+    },
+
+    '& .MuiSvgIcon-root': {
+      fontSize: 20,
+      color: active ? theme.palette.text.primary : theme.palette.text.secondary,
+    },
+  }),
+);
+
+const SubLink = styled(NavLink)(({ theme }) => ({
+  display: 'block',
+  padding: theme.spacing(0.75, 1.5),
+  borderRadius: theme.shape.borderRadius,
+  textDecoration: 'none',
+  fontSize: '0.8125rem',
+  color: theme.palette.text.secondary,
+
+  '&:hover': { backgroundColor: theme.palette.action.hover },
+  '&.active': {
+    color: theme.palette.text.primary,
+    fontWeight: 600,
+    backgroundColor: theme.palette.action.selected,
   },
 }));
 
-const NavigationItem = ({ rootPath, title, description, icon, widget }: NavigationItemProps) => {
-  const active = !!useMatch(rootPath);
+const NavigationItem = ({ rootPath, title, navLabel, icon, subNav }: NavigationItemProps) => {
+  const hasSub = !!subNav?.length;
+  // Active for the item (and its sub-pages): matches `rootPath` and anything under it.
+  const active = !!useMatch(`${rootPath}/*`);
+  const label = navLabel ?? title;
 
   return (
-    <Item disableRipple active={active} variant="text" color="inherit" to={rootPath}>
-      <Stack spacing={2}>
-        <Stack direction="row" spacing={2}>
-          {icon}
+    <Box>
+      {/* A parent with sub-nav highlights by weight only; its sub-items carry the fill.
+          A leaf item carries the fill itself. */}
+      <Item active={active} filled={active && !hasSub} to={rootPath}>
+        {icon}
+        <Typography variant="body2" sx={{ fontWeight: 'inherit', color: 'inherit' }}>
+          {label}
+        </Typography>
+      </Item>
 
-          <Stack flex={1}>
-            <Typography variant="subtitle1">{title}</Typography>
-            <Typography variant="body2">{description}</Typography>
-          </Stack>
+      {active && hasSub && (
+        <Stack spacing={0.25} marginTop={0.25} paddingLeft={4.5}>
+          {subNav!.map((s) => (
+            <SubLink key={s.path || 'index'} to={s.path ? `${rootPath}/${s.path}` : rootPath} end>
+              {s.label}
+            </SubLink>
+          ))}
         </Stack>
-
-        {widget}
-      </Stack>
-    </Item>
+      )}
+    </Box>
   );
 };
 

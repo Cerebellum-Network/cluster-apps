@@ -1,0 +1,22 @@
+/*
+ * Developer-console redesign tokens + the warm app canvas, scoped to this app's
+ * bundle. The MUI theme (theme.ts) carries the palette/type; these cover the
+ * plain-CSS surfaces (code blocks, warm borders) and the full-bleed background.
+ */
+body {
+  background: #faf9f5;
+}
+
+.dc-root {
+  --dc-bg: #faf9f5;
+  --dc-surface: #ffffff;
+  --dc-border: #e8e5dd;
+  --dc-tx: #1f1e1d;
+  --dc-tx-dim: #6b6a68;
+  --dc-primary: #5b57f5;
+  --dc-code-bg: #0f1729;
+  --dc-code-tx: #e2e8f0;
+
+  min-height: 100vh;
+  background: var(--dc-bg);
+}

@@ -1,11 +1,7 @@
-import { AnalyticsId } from '@cluster-apps/analytics';
 import Reporting from '@cluster-apps/reporting';
 import {
-  Docs,
-  DocsGroup,
-  DocsSection,
-  GithubLogoIcon,
   Box,
+  Stack,
   Button,
   styled,
   Typography,
@@ -20,8 +16,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useAccount, useFetchDirs } from '~/hooks';
-import { DataStorageDocsIcon } from './icons';
-import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { EMPTY_FILE_NAME, DEFAULT_FOLDER_NAME } from '~/constants.ts';
@@ -30,10 +24,6 @@ import type { Acl } from '~/storage/ddc/types';
 /** Folder-upload tuning: a bounded worker pool, with a couple of retries per file. */
 const UPLOAD_CONCURRENCY = 4;
 const UPLOAD_MAX_RETRIES = 2;
-
-const Container = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-}));
 
 const StyledAlert = styled(Alert)<AlertProps>(() => ({
   display: 'flex',
@@ -239,89 +229,79 @@ const ContentStorage = () => {
   );
 
   return (
-    <>
-      <Box
-        display="flex"
-        flexDirection="column"
-        border={(theme) => `1px solid ${theme.palette.divider}`}
-        borderRadius="12px"
-        marginBottom="20px"
-      >
-        <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
-          <Typography variant="h3">Content Storage</Typography>
-        </Box>
-        <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
-          {!isAccountReady && (
-            <StyledAlert
-              severity="info"
-              action={
-                <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
-                  Top Up
-                </Button>
-              }
-            >
-              Your DDC Wallet balance is 0. Please top it up before creating a bucket.
-            </StyledAlert>
-          )}
-          <FileManager
-            data={dirs || []}
-            userHasBuckets={buckets.length > 0 || false}
-            isLoading={loading}
-            isBucketsLoading={false}
-            onCreateBucket={onBucketCreation}
-            onUpload={handleUpload}
-            uploadType={uploadType}
-            uploadStatus={uploadStatus}
-            setUploadStatus={handleCloseStatus}
-            isBucketCreating={isBucketCreating}
-            firstBucketLocked={buckets.length === 0}
-            lockUi={false}
-            onUnlockFirstBucket={onBucketCreation}
-            onRowClick={handleRowClick}
-            selectedBucket={selectedBucket}
-            onFolderCreate={handleCreateEmptyFolder}
-            isAccountReady={isAccountReady}
-            bucketInProgress={bucketInProgress}
-          />
-        </Container>
-      </Box>
-
-      {account.gatewayAuthorized && (
-        <Box display="flex" justifyContent="flex-end" marginBottom="20px">
-          <LoadingButton variant="text" color="secondary" size="small" loading={isRevoking} onClick={handleRevokeGateway}>
-            Stop Cere from managing your storage
+    <Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="20px">
+        <Typography variant="h3">Storage</Typography>
+        {account.gatewayAuthorized && (
+          <LoadingButton variant="outlined" color="secondary" loading={isRevoking} onClick={handleRevokeGateway}>
+            S3 access
           </LoadingButton>
-        </Box>
+        )}
+      </Stack>
+
+      {!isAccountReady && (
+        <StyledAlert
+          severity="info"
+          sx={{ marginBottom: '20px' }}
+          action={
+            <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
+              Top Up
+            </Button>
+          }
+        >
+          Your DDC Wallet balance is 0. Please top it up before creating a bucket.
+        </StyledAlert>
       )}
 
-      <Docs
-        icon={<DataStorageDocsIcon />}
-        title="Get started with Decentralised cloud storage "
-        description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
+      {/* Buckets — from the S3 gateway. */}
+      <Box
+        border={(theme) => `1px solid ${theme.palette.divider}`}
+        borderRadius="12px"
+        padding="24px"
+        marginBottom="20px"
       >
-        <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection analyticId={AnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
-            <StepByStepUploadDoc />
-          </DocsSection>
-          <DocsSection
-            title="Quick start guide in Github"
-            rightSection={
-              <Button
-                variant="contained"
-                color="secondary"
-                className={AnalyticsId.repoCereDdcSdkJsBtn}
-                href={GITHUB_GUIDE_LINK}
-                startIcon={<GithubLogoIcon />}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open in Github
-              </Button>
-            }
-          />
-        </DocsGroup>
-      </Docs>
-    </>
+        <Typography variant="caption" color="text.secondary" display="block" marginBottom="12px">
+          Usage against your plan’s quota appears here with billing.
+        </Typography>
+        <FileManager
+          data={dirs || []}
+          userHasBuckets={buckets.length > 0 || false}
+          isLoading={loading}
+          isBucketsLoading={false}
+          onCreateBucket={onBucketCreation}
+          onUpload={handleUpload}
+          uploadType={uploadType}
+          uploadStatus={uploadStatus}
+          setUploadStatus={handleCloseStatus}
+          isBucketCreating={isBucketCreating}
+          firstBucketLocked={buckets.length === 0}
+          lockUi={false}
+          onUnlockFirstBucket={onBucketCreation}
+          onRowClick={handleRowClick}
+          selectedBucket={selectedBucket}
+          onFolderCreate={handleCreateEmptyFolder}
+          isAccountReady={isAccountReady}
+          bucketInProgress={bucketInProgress}
+        />
+      </Box>
+
+      {/* GET / PUT requests — needs the bills feed (deferred). */}
+      <Box border={(theme) => `1px solid ${theme.palette.divider}`} borderRadius="12px" padding="24px">
+        <Typography variant="subtitle1" marginBottom="16px">
+          GET / PUT requests
+        </Typography>
+        <Box
+          padding="48px 24px"
+          borderRadius="10px"
+          textAlign="center"
+          sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, marginX: 'auto' }}>
+            Request counts and data served appear here once the bills feed is wired.
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

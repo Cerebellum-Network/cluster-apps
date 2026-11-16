@@ -7,8 +7,10 @@ const application: Application = {
   rootComponent: ContentDelivery,
   rootPath: 'content-delivery',
   title: 'Content Delivery',
+  navLabel: 'Delivery',
   description: `Deliver content with low latency and high transfer speeds`,
   icon: <CdnAppIcon />,
+  group: 'services',
 };
 
 export default application;

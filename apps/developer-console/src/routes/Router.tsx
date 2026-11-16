@@ -10,9 +10,11 @@ import { TopUp } from './TopUp';
 export type ApplicationHandle = Omit<Application, 'rootComponent' | 'rootPath'>;
 
 const [defaultApp] = applications;
-const mapAppToRoute = ({ rootComponent, rootPath, ...handle }: Application, index: number): RouteObject => ({
-  index: index === 0,
-  path: rootPath,
+// Apps with sub-navigation (e.g. Inference → Models/Show me how/API keys) host
+// their own nested <Routes>, so their route must be a splat. The `/` index child
+// below redirects to the default app, so no app route is itself an index route.
+const mapAppToRoute = ({ rootComponent, rootPath, ...handle }: Application): RouteObject => ({
+  path: handle.subNav?.length ? `${rootPath}/*` : rootPath,
   Component: rootComponent,
   handle,
 });

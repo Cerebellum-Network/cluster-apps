@@ -6,7 +6,7 @@ import { AnalyticsId } from '@cluster-apps/analytics';
 import { Application } from '~/applications';
 import { HomeLayout, Navigation } from '~/components';
 import { useAccountStore } from '~/hooks';
-import { DISCORD_LINK } from '~/constants.ts';
+import { DISCORD_LINK, DEVELOPER_DOCS_LINK } from '~/constants.ts';
 import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeProps = {
@@ -41,14 +41,20 @@ const Home = ({ apps }: HomeProps) => {
         <Navigation
           items={apps}
           footer={
-            <Stack spacing={2}>
-              <DiscordButton text="Join Cere Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
-              <Button onClick={onProductTourClick}>Product tour</Button>
-            </Stack>
+            <Button variant="text" color="secondary" size="small" onClick={onProductTourClick}>
+              Product tour
+            </Button>
           }
         />
       }
-      headerRight={<DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />}
+      headerRight={
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button variant="text" color="secondary" component="a" href={DEVELOPER_DOCS_LINK} target="_blank">
+            Docs
+          </Button>
+          <DiscordButton text="Discord" link={DISCORD_LINK} className={AnalyticsId.joinDiscordBtn} />
+        </Stack>
+      }
     >
       {account.isReady() ? (
         <Outlet />
