@@ -8,6 +8,7 @@ import { createDdcSigner } from '~/storage/ddc/signer';
 import { createGatewayClient } from '~/storage/ddc/gatewayClient';
 import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
 import { generateBucketName } from '~/storage/gatewayBuckets';
+import { buildInferenceApiKey } from '~/inference/inferenceKey';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
@@ -268,6 +269,17 @@ export class AccountStore implements Account {
   async saveBucket(name: string, params: { isPublic: boolean }) {
     await this.storage.setBucketAcl(name, params.isPublic ? 'public-read' : 'private');
     await this.refreshBuckets();
+  }
+
+  /**
+   * Mint a COMPUTE-only Inference API key (a base58 DDC bearer token) scoped to
+   * `bucketId`, signed by this wallet (which must own the bucket). Shown once;
+   * stateless, so it only expires. Signs, so call from a user gesture.
+   */
+  async createInferenceApiKey(bucketId: bigint, ttlMs: number): Promise<string> {
+    this.requireAccount();
+    const signer = createDdcSigner(() => this.requireSigner());
+    return buildInferenceApiKey(signer, { bucketId, expiresInMs: ttlMs });
   }
 
   async topUp(amount: number) {
