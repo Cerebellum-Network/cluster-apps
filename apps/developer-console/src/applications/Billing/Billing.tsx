@@ -81,8 +81,17 @@ const Billing = () => {
         borderRadius="12px"
         marginBottom="20px"
       >
-        <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
+        <Box
+          padding="34px 32px"
+          borderBottom={(theme) => `1px solid ${theme.palette.divider}`}
+          display="flex"
+          alignItems="baseline"
+          justifyContent="space-between"
+        >
           <Typography variant="h3">Billing</Typography>
+          <Typography variant="body2" color="text.secondary">
+            US dollars
+          </Typography>
         </Box>
 
         <Box padding="24px">
