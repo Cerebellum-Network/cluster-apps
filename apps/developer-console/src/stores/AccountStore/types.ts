@@ -1,5 +1,5 @@
 import type { CefSigner } from '@cef-ai/wallet';
-import type { BucketStorage } from '~/storage/ddc/types';
+import type { BucketStorage, GatewayAuthStatus } from '~/storage/ddc/types';
 
 /** Mirrors the wallet session states exposed by the React SessionProvider. */
 export type AccountStatus = 'idle' | 'connecting' | 'waiting' | 'connected' | 'error' | 'expired';
@@ -43,6 +43,12 @@ export interface Account {
   readonly status: AccountStatus;
   /** Whether this wallet has authorized the storage gateway (gates the revoke control). */
   readonly gatewayAuthorized?: boolean;
+  /**
+   * Tri-state gateway proxy status: 'authorized' | 'unauthorized' | 'unknown'.
+   * 'unknown' means the gateway didn't answer (a blip) — the page shows Retry
+   * rather than the "not authorized" banner (#189 review).
+   */
+  readonly gatewayAuthStatus?: GatewayAuthStatus;
 
   isReady(): this is ReadyAccount;
   /** Create a gateway bucket (authorizing the gateway first if needed); returns its name. */
@@ -52,6 +58,8 @@ export interface Account {
   authorizeGateway(): Promise<void>;
   /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
   revokeGateway(): Promise<void>;
+  /** Re-probe the gateway proxy state and reload buckets (the "Retry" on 'unknown'). */
+  retryGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;
   refreshBuckets(): Promise<void>;
 }

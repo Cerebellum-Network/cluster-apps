@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { buildRegistrationBody } from './gatewayClient';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { buildRegistrationBody, createGatewayClient } from './gatewayClient';
 
 /**
  * The gateway verifies `X-Signature` over the EXACT raw bytes of this body, so
@@ -53,5 +53,44 @@ describe('buildRegistrationBody', () => {
   it('omits expires_in_seconds when zero or absent', () => {
     expect(buildRegistrationBody('tok', 'l', 'd', 0)).toBe('{"delegation_token":"tok","label":"l","device_id":"d"}');
     expect(buildRegistrationBody('tok', 'l', 'd')).toBe('{"delegation_token":"tok","label":"l","device_id":"d"}');
+  });
+});
+
+/**
+ * /auth/status is tri-state (#189 review): only an explicit
+ * `gateway_proxy_registered: false` is "not authorized". Any failure to read the
+ * gateway is 'unknown' (a blip), so the caller never mistakes it for a revoke and
+ * never blanks an authorized wallet's bucket list.
+ */
+describe('getAuthStatus (tri-state)', () => {
+  const gateway = createGatewayClient('https://gw.test');
+  const input = { publicKey: '0xpub', signature: 'sig', signatureType: 'ed25519' };
+  const okJson = (body: unknown) => ({ ok: true, json: async () => body }) as unknown as Response;
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("returns 'authorized' on explicit gateway_proxy_registered: true", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okJson({ gateway_proxy_registered: true })));
+    await expect(gateway.getAuthStatus(input)).resolves.toBe('authorized');
+  });
+
+  it("returns 'unauthorized' only on explicit gateway_proxy_registered: false", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okJson({ gateway_proxy_registered: false })));
+    await expect(gateway.getAuthStatus(input)).resolves.toBe('unauthorized');
+  });
+
+  it("returns 'unknown' on a non-OK response (a blip, not a revoke)", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) } as unknown as Response));
+    await expect(gateway.getAuthStatus(input)).resolves.toBe('unknown');
+  });
+
+  it("returns 'unknown' on a network error", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network down')));
+    await expect(gateway.getAuthStatus(input)).resolves.toBe('unknown');
+  });
+
+  it("returns 'unknown' on a malformed body with the field missing", async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(okJson({})));
+    await expect(gateway.getAuthStatus(input)).resolves.toBe('unknown');
   });
 });

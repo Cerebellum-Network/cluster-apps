@@ -14,7 +14,7 @@
  */
 import type { CefSigner } from '@cef-ai/wallet';
 import { storageConfig } from '../storageConfig';
-import { createGatewayClient, type GatewayCredentials } from './gatewayClient';
+import { createGatewayClient, type GatewayAuthStatus, type GatewayCredentials } from './gatewayClient';
 import { fetchGatewayProxyRegistered, registerGatewayCredential, revokeGatewayCredential } from './gatewayCredential';
 import { bytesToHex } from './hex';
 import type { Acl, BucketStorage, StorageObject, UploadInput } from './types';
@@ -180,7 +180,7 @@ export function createBucketStorage(getSigner: () => CefSigner): BucketStorage {
       return `${base}/${encodeURIComponent(bucketName)}/${key.split('/').map(encodeURIComponent).join('/')}`;
     },
 
-    isGatewayAuthorized(): Promise<boolean> {
+    isGatewayAuthorized(): Promise<GatewayAuthStatus> {
       return fetchGatewayProxyRegistered(getSigner, gateway);
     },
 

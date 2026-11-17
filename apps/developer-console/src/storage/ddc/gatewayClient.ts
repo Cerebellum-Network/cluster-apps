@@ -209,6 +209,18 @@ function createS3Client(baseUrl: string, creds: GatewayCredentials): S3Client {
   return client;
 }
 
+/**
+ * Tri-state result of the gateway proxy check (`/auth/status`):
+ * - `authorized`   — the gateway holds the wallet's on-chain proxy (explicit true).
+ * - `unauthorized` — it does not (explicit `gateway_proxy_registered: false`).
+ * - `unknown`      — the gateway didn't answer (non-OK response or network error).
+ *
+ * Only `unauthorized` means "not authorized". `unknown` is a blip, not a revoke,
+ * so callers must leave the bucket list and the banner untouched and offer Retry
+ * (a gateway hiccup must not look like data loss — #189 review).
+ */
+export type GatewayAuthStatus = 'authorized' | 'unauthorized' | 'unknown';
+
 export interface GatewayClient {
   getInfo(): Promise<GatewayInfo>;
   registerCredentials(input: RegisterCredentialsInput): Promise<GatewayCredentials>;
@@ -233,7 +245,7 @@ export interface GatewayClient {
    * Whether the gateway is registered as the wallet's on-chain proxy. Signed GET
    * (`/auth/status`) over an EMPTY body; reads `gateway_proxy_registered`.
    */
-  getAuthStatus(input: { publicKey: string; signature: string; signatureType: string }): Promise<boolean>;
+  getAuthStatus(input: { publicKey: string; signature: string; signatureType: string }): Promise<GatewayAuthStatus>;
   /**
    * Revoke this wallet's gateway credentials (so they stop working at once, not in
    * up to 24h). Signed DELETE (`/auth/credentials`) over `body`
@@ -400,13 +412,18 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
       await createS3Client(baseUrl, creds).send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
 
-    async getAuthStatus(input): Promise<boolean> {
+    async getAuthStatus(input): Promise<GatewayAuthStatus> {
       // Signed GET /auth/status over an EMPTY body (the gateway's
       // verifyWalletRequest checks the signature over the raw body, which is empty
       // for GET). Reads `gateway_proxy_registered` -- whether the gateway already
       // holds the wallet's on-chain proxy, so a returning device can skip a
-      // needless add_proxy prompt + fee. A non-OK response is treated as "not
-      // registered" (the caller then falls through to addProxy, which is idempotent).
+      // needless add_proxy prompt + fee.
+      //
+      // Tri-state on purpose (#189 review): only an explicit
+      // `gateway_proxy_registered: false` means "not authorized". A non-OK
+      // response, a network error, or a malformed body is 'unknown' -- a gateway
+      // blip must not look like a revoked wallet (which would blank the list and
+      // push a needless add_proxy fee). The caller shows Retry on 'unknown'.
       try {
         const res = await fetch(`${baseUrl}/auth/status`, {
           cache: 'no-store',
@@ -416,11 +433,13 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
             'X-Signature-Type': input.signatureType,
           },
         });
-        if (!res.ok) return false;
+        if (!res.ok) return 'unknown';
         const data = (await res.json()) as { gateway_proxy_registered?: boolean };
-        return data.gateway_proxy_registered === true;
+        if (data.gateway_proxy_registered === true) return 'authorized';
+        if (data.gateway_proxy_registered === false) return 'unauthorized';
+        return 'unknown'; // field missing -> can't tell, treat as a blip
       } catch {
-        return false;
+        return 'unknown';
       }
     },
 

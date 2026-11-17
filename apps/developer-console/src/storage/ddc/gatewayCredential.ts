@@ -16,7 +16,7 @@
 import { encodeAddress } from '@cere-ddc-sdk/blockchain';
 import type { CefSigner } from '@cef-ai/wallet';
 import { bytesToHex, hexToBytes, hexWithPrefix } from './hex';
-import { buildRegistrationBody, type GatewayClient, type GatewayCredentials } from './gatewayClient';
+import { buildRegistrationBody, type GatewayAuthStatus, type GatewayClient, type GatewayCredentials } from './gatewayClient';
 import { createDdcSigner } from './signer';
 
 const CREDENTIAL_LABEL = 'developer-console';
@@ -107,7 +107,7 @@ export async function registerGatewayCredential(
 export async function fetchGatewayProxyRegistered(
   getSigner: () => CefSigner,
   gateway: GatewayClient,
-): Promise<boolean> {
+): Promise<GatewayAuthStatus> {
   const signer = createDdcSigner(getSigner);
   const signature = bytesToHex(await signer.sign(new Uint8Array(0), 'data'));
   return gateway.getAuthStatus({

@@ -9,7 +9,7 @@ import { createGatewayClient } from '~/storage/ddc/gatewayClient';
 import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
 import { generateBucketName } from '~/storage/gatewayBuckets';
 import type { CefSigner } from '@cef-ai/wallet';
-import type { BucketStorage } from '~/storage/ddc/types';
+import type { BucketStorage, GatewayAuthStatus } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
 
 const toCere = (units: bigint | null | undefined) =>
@@ -33,7 +33,7 @@ export class AccountStore implements Account {
   private _bucketsLoading = false;
   private _deposit?: bigint;
   private _balance?: bigint;
-  private _gatewayAuthorized = false;
+  private _gatewayAuthStatus: GatewayAuthStatus = 'unknown';
 
   constructor() {
     makeAutoObservable<AccountStore, 'chain' | 'gateway'>(this, { storage: false, chain: false, gateway: false });
@@ -84,14 +84,25 @@ export class AccountStore implements Account {
       // device doesn't get a needless re-grant prompt. Awaited before the loads
       // below because refreshBuckets() keys off it: an unauthorized wallet must
       // skip ListBuckets (which would 400) and show the empty state.
-      try {
-        const ok = await this.storage.isGatewayAuthorized();
-        runInAction(() => (this._gatewayAuthorized = ok));
-      } catch (e) {
-        Reporting.error(e);
-      }
+      await this.loadGatewayStatus();
     }
     await Promise.all([this.refreshBuckets(), this.refreshDeposit(), this.refreshBalance()]);
+  }
+
+  /**
+   * Probe the gateway proxy state (tri-state). A failed probe is 'unknown', not
+   * 'unauthorized', so a gateway blip doesn't blank an authorized wallet's bucket
+   * list or push a needless add_proxy fee (#189 review). Shared by bootstrap and
+   * the "Retry" action.
+   */
+  private async loadGatewayStatus() {
+    try {
+      const status = await this.storage.isGatewayAuthorized();
+      runInAction(() => (this._gatewayAuthStatus = status));
+    } catch (e) {
+      Reporting.error(e);
+      runInAction(() => (this._gatewayAuthStatus = 'unknown'));
+    }
   }
 
   private cleanup() {
@@ -100,7 +111,7 @@ export class AccountStore implements Account {
       this._bucketsLoading = false;
       this._deposit = undefined;
       this._balance = undefined;
-      this._gatewayAuthorized = false;
+      this._gatewayAuthStatus = 'unknown';
     });
   }
 
@@ -134,7 +145,14 @@ export class AccountStore implements Account {
   }
   /** Whether this wallet has authorized the storage gateway (observable). */
   get gatewayAuthorized() {
-    return this._gatewayAuthorized;
+    return this._gatewayAuthStatus === 'authorized';
+  }
+  /**
+   * Tri-state gateway proxy status (observable). 'unknown' = the gateway didn't
+   * answer; the UI shows a Retry rather than treating it as "not authorized".
+   */
+  get gatewayAuthStatus() {
+    return this._gatewayAuthStatus;
   }
 
   /** Load the account's buckets from the gateway (ListBuckets + GetBucketAcl). */
@@ -149,9 +167,19 @@ export class AccountStore implements Account {
     // ensureCreds would register a proxy-backed credential and 400. Skip the call
     // and show the empty state (Create bucket authorizes on first use; a revoked
     // wallet re-authorizes via "Allow Cere to manage your storage").
-    if (!this._gatewayAuthorized) {
+    if (this._gatewayAuthStatus === 'unauthorized') {
       runInAction(() => {
         this._buckets = [];
+        this._bucketsLoading = false;
+      });
+      return;
+    }
+    // Couldn't determine the proxy state (a gateway blip). Don't call ListBuckets
+    // and -- crucially -- don't blank a populated list or flip the "not authorized"
+    // banner on; the page shows "Couldn't load your buckets. Retry" instead, so a
+    // hiccup never looks like data loss or pushes a needless add_proxy (#189 review).
+    if (this._gatewayAuthStatus === 'unknown') {
+      runInAction(() => {
         this._bucketsLoading = false;
       });
       return;
@@ -218,10 +246,12 @@ export class AccountStore implements Account {
   async authorizeGateway() {
     this.requireAccount();
     // Ask the gateway whether the proxy already exists (new device, or a prior
-    // grant) before prompting -- avoids a needless add_proxy popup and fee.
-    if (await this.storage.isGatewayAuthorized()) {
+    // grant) before prompting -- avoids a needless add_proxy popup and fee. Only a
+    // definite 'authorized' skips addProxy; on 'unauthorized' or 'unknown' we go
+    // ahead (addProxy is idempotent -- Proxy.Duplicate is swallowed below).
+    if ((await this.storage.isGatewayAuthorized()) === 'authorized') {
       runInAction(() => {
-        this._gatewayAuthorized = true;
+        this._gatewayAuthStatus = 'authorized';
       });
       return;
     }
@@ -240,7 +270,7 @@ export class AccountStore implements Account {
       if (!/duplicate/i.test((e as Error)?.message ?? '')) throw e;
     }
     runInAction(() => {
-      this._gatewayAuthorized = true;
+      this._gatewayAuthStatus = 'authorized';
     });
   }
 
@@ -266,8 +296,18 @@ export class AccountStore implements Account {
       Reporting.error(e); // best-effort: the proxy is already gone, which is the main effect
     }
     runInAction(() => {
-      this._gatewayAuthorized = false;
+      this._gatewayAuthStatus = 'unauthorized';
     });
+  }
+
+  /**
+   * Re-probe the gateway proxy state and reload buckets. Backs the "Retry" action
+   * the storage page shows when the status is 'unknown' (a gateway blip).
+   */
+  async retryGateway() {
+    if (!this.session?.account) return;
+    await this.loadGatewayStatus();
+    await this.refreshBuckets();
   }
 
   /** Create a gateway bucket (authorizing the gateway first if needed). Returns its name. */

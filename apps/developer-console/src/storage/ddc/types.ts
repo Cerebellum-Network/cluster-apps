@@ -14,8 +14,10 @@
  * cefDdcSigner.ts), re-exported here so call sites take one type.
  */
 import type { Signer } from '@cere-ddc-sdk/blockchain';
+import type { GatewayAuthStatus } from './gatewayClient';
 
 export type { Signer };
+export type { GatewayAuthStatus };
 
 /** ACL a bucket/object is stored under. `public-read` is readable via the CDN. */
 export type Acl = 'public-read' | 'private';
@@ -79,8 +81,12 @@ export interface BucketStorage {
   deleteObject(bucketName: string, key: string): Promise<void>;
   /** Public URL for a `public-read` object (anonymous GET off the gateway origin). */
   publicUrl(bucketName: string, key: string): string;
-  /** Whether the gateway holds this wallet's on-chain proxy (skip a needless re-grant). */
-  isGatewayAuthorized(): Promise<boolean>;
+  /**
+   * Whether the gateway holds this wallet's on-chain proxy (skip a needless
+   * re-grant). Tri-state: `unknown` means the gateway didn't answer — a blip, not
+   * a revoke — so the caller must not blank the bucket list (#189 review).
+   */
+  isGatewayAuthorized(): Promise<GatewayAuthStatus>;
   /** Revoke the wallet's gateway credentials (DELETE /auth/credentials). */
   revokeCredentials(): Promise<void>;
   /** Drop the cached gateway credential (in-memory + persisted), e.g. on account switch. */
