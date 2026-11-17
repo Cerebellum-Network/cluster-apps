@@ -1,14 +1,15 @@
-import { Box, Typography, Stack, TextField, MenuItem, styled } from '@cluster-apps/ui';
-import { useState } from 'react';
+import { Box, Typography, Stack, Alert, styled } from '@cluster-apps/ui';
+
+import { useBills } from '~/billing/useBilling';
+import { inferenceUsage } from '~/billing/model';
 
 /**
- * Inference → Usage (mockup: "a month later" — requests at once vs the plan
- * limit, refusals by cause, use by model). The per-model usage/limit feed is not
- * wired yet (it reads from the bills + a limits service), so this is the page
- * shell with an honest empty state; the charts and table land with that data.
+ * Inference → Usage (mockup: "a month later"). B-lite: the developer-scope feed
+ * that actually exists today — compute (inference) spend and the GPU/CPU/RAM units
+ * from recon's bills, per month. The mockup's per-model breakdown, requests-vs-plan
+ * and refusals-by-cause need per-agent (orchestrator) or the deferred plan/limits
+ * service, so they are called out as "with plans" rather than faked.
  */
-const PERIODS = ['Last 7 days', 'Last 30 days', 'This month'];
-
 const Empty = styled(Box)(({ theme }) => ({
   border: `1px dashed ${theme.palette.divider}`,
   borderRadius: 12,
@@ -16,38 +17,118 @@ const Empty = styled(Box)(({ theme }) => ({
   textAlign: 'center',
 }));
 
+const Tile = styled(Box)(({ theme }) => ({
+  flex: 1,
+  minWidth: 160,
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: 12,
+  backgroundColor: '#fff',
+  padding: theme.spacing(2.5),
+}));
+
+const Card = styled(Box)(({ theme }) => ({
+  border: `1px solid ${theme.palette.divider}`,
+  borderRadius: 12,
+  backgroundColor: '#fff',
+  padding: theme.spacing(3),
+}));
+
+const BarTrack = styled(Box)(({ theme }) => ({
+  flex: 1,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: theme.palette.action.hover,
+  overflow: 'hidden',
+}));
+
 const Usage = () => {
-  const [period, setPeriod] = useState(PERIODS[1]);
+  const bills = useBills();
+  const usage = inferenceUsage(bills.data);
 
   return (
     <Box>
       <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="20px">
         <Typography variant="h3">Usage</Typography>
-        <TextField
-          select
-          label="Period"
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          size="small"
-          sx={{ minWidth: 170 }}
-        >
-          {PERIODS.map((p) => (
-            <MenuItem key={p} value={p}>
-              {p}
-            </MenuItem>
-          ))}
-        </TextField>
+        {usage?.hasData && (
+          <Typography variant="body2" color="text.secondary">
+            {usage.note}
+          </Typography>
+        )}
       </Stack>
 
-      <Empty>
-        <Typography variant="subtitle1" marginBottom="8px">
-          No usage to show yet
+      {bills.error ? (
+        <Alert severity="error">{bills.error}</Alert>
+      ) : bills.loading && !bills.data ? (
+        <Typography variant="body2" color="text.secondary">
+          Loading…
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 460, marginX: 'auto' }}>
-          Requests at once against your limit, refusals by cause and use by model will appear here once your account has a
-          month of activity.
-        </Typography>
-      </Empty>
+      ) : !usage || !usage.hasData ? (
+        <Empty>
+          <Typography variant="subtitle1" marginBottom="8px">
+            No usage to show yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 460, marginX: 'auto' }}>
+            Your inference spend and the compute it used will appear here once you start calling models.
+          </Typography>
+        </Empty>
+      ) : (
+        <Stack spacing="20px">
+          {/* Headline tiles — the figures recon actually reports at developer scope */}
+          <Stack direction="row" spacing="16px" flexWrap="wrap" useFlexGap>
+            <Tile>
+              <Typography variant="body2" color="text.secondary">
+                Compute spend
+              </Typography>
+              <Typography variant="h4" marginTop="4px">
+                {usage.computeSpend}
+              </Typography>
+            </Tile>
+            <Tile>
+              <Typography variant="body2" color="text.secondary">
+                GPU units
+              </Typography>
+              <Typography variant="h4" marginTop="4px">
+                {usage.gpuUnits}
+              </Typography>
+            </Tile>
+            <Tile>
+              <Typography variant="body2" color="text.secondary">
+                CPU units
+              </Typography>
+              <Typography variant="h4" marginTop="4px">
+                {usage.cpuUnits}
+              </Typography>
+            </Tile>
+          </Stack>
+
+          {/* Compute spend per month */}
+          <Card>
+            <Typography variant="subtitle1" marginBottom="16px">
+              Compute spend by month
+            </Typography>
+            <Stack spacing="12px">
+              {usage.monthly.map((m) => (
+                <Stack key={m.month} direction="row" alignItems="center" spacing="12px">
+                  <Typography variant="body2" sx={{ width: 96, flexShrink: 0 }} color="text.secondary">
+                    {m.month}
+                  </Typography>
+                  <BarTrack>
+                    <Box sx={{ width: m.width, height: '100%', backgroundColor: 'primary.main' }} />
+                  </BarTrack>
+                  <Typography variant="body2" sx={{ width: 88, flexShrink: 0, textAlign: 'right' }}>
+                    {m.computeUsd}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Card>
+
+          {/* Honest note on what needs plans / per-agent data */}
+          <Alert severity="info">
+            Per-model breakdown, requests against your plan limit, and refusals by cause appear once plans ship.
+          </Alert>
+        </Stack>
+      )}
     </Box>
   );
 };

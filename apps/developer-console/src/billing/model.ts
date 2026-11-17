@@ -386,3 +386,73 @@ export function billSections(b: MonthBill, rates: Rates | null): BillSection[] {
     },
   ];
 }
+
+// ── Inference → Usage (console-local, NOT from the billing-console prototype) ──
+// The developer-scope feed the Inference Usage page can honestly show today: the
+// compute (inference) line and the GPU/CPU/RAM units from recon's bills. There is
+// no developer-wide per-model breakdown or inference request count — those live
+// per-agent (orchestrator /api/v1/usage) or wait on the deferred plan/limits
+// service — so the page labels them "with plans", it does not fabricate them.
+
+export interface InferenceUsageMonth {
+  /** Short month label, e.g. "November". */
+  month: string;
+  /** Compute spend that month, formatted. */
+  computeUsd: string;
+  /** Bar width relative to the largest month in the window. */
+  width: string;
+}
+
+export interface InferenceUsage {
+  /** Headline note for the active month (month-to-date vs latest with usage). */
+  note: string;
+  /** Compute spend for the active month, formatted. */
+  computeSpend: string;
+  gpuUnits: string;
+  cpuUnits: string;
+  ramUnits: string;
+  /** Up to the last 6 months, oldest→newest, for the trend. */
+  monthly: InferenceUsageMonth[];
+  /** False when nothing to show (no compute spend and no GPU units anywhere). */
+  hasData: boolean;
+}
+
+export function inferenceUsage(bills: Bills | null): InferenceUsage | null {
+  if (!bills) return null;
+  const cur = bills.current_month;
+  const thisMonth = bills.months.find((m) => m.month === cur.month);
+  // Prefer the current month when it already has compute; else the latest month
+  // that does; else just the current (which may be all-zero → empty state).
+  const active =
+    (thisMonth && n(thisMonth.lines.compute_usd) > 0 ? thisMonth : null) ??
+    [...bills.months].reverse().find((m) => n(m.lines.compute_usd) > 0) ??
+    thisMonth ??
+    bills.months[bills.months.length - 1] ??
+    null;
+  if (!active) return null;
+
+  const asc = [...bills.months].sort((a, b) => a.month.localeCompare(b.month));
+  const recent = asc.slice(-6);
+  const max = Math.max(0, ...recent.map((m) => n(m.lines.compute_usd)));
+  const monthly: InferenceUsageMonth[] = recent.map((m) => {
+    const v = n(m.lines.compute_usd);
+    return {
+      month: monthName(m.month),
+      computeUsd: usd(v),
+      width: v <= 0 || max <= 0 ? '0%' : `${Math.max(1.5, (v / max) * 100)}%`,
+    };
+  });
+
+  const isCurrent = active.month === cur.month;
+  return {
+    note: isCurrent
+      ? `${monthLabel(active.month)}, month to date`
+      : `${monthLabel(active.month)} · latest month with compute usage`,
+    computeSpend: usd(n(active.lines.compute_usd)),
+    gpuUnits: num(active.usage.gpu_units),
+    cpuUnits: num(active.usage.cpu_units),
+    ramUnits: num(active.usage.ram_units),
+    monthly,
+    hasData: recent.some((m) => n(m.lines.compute_usd) > 0) || n(active.usage.gpu_units) > 0,
+  };
+}
