@@ -15,6 +15,7 @@ import {
 
 import { useAccount } from '~/hooks';
 import { storageConfig } from '~/storage/storageConfig';
+import { PageHeader, Section, ComingSoon } from '~/components';
 
 /**
  * Content Delivery (mockup): per-bucket read access (public / private), the
@@ -23,13 +24,6 @@ import { storageConfig } from '~/storage/storageConfig';
  * an empty state for now.
  */
 type Access = 'public' | 'private';
-
-const Card = styled(Box)(({ theme }) => ({
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 12,
-  backgroundColor: theme.palette.background.paper,
-  padding: theme.spacing(3),
-}));
 
 const AccessCard = styled(Box, { shouldForwardProp: (p) => p !== 'selected' })<{ selected: boolean }>(
   ({ theme, selected }) => ({
@@ -88,13 +82,11 @@ const ContentDelivery = () => {
   };
 
   return (
-    <Box>
-      <Typography variant="h3" marginBottom="20px">
-        Delivery
-      </Typography>
+    <Stack spacing="20px">
+      <PageHeader title="Delivery" />
 
       {/* Access */}
-      <Card marginBottom="20px">
+      <Section>
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} marginBottom="20px">
           <Typography variant="subtitle1">
             {currentBucket ? `Who can read bucket ${currentBucket.name}` : 'Pick a bucket to manage delivery'}
@@ -160,7 +152,8 @@ const ContentDelivery = () => {
               <Button variant="outlined" color="secondary" onClick={copyLink} sx={{ flexShrink: 0 }}>
                 {copied ? 'Copied' : 'Copy link'}
               </Button>
-              <LoadingButton loading={isSaving} onClick={handleSave} sx={{ flexShrink: 0 }}>
+              {/* Save is the primary action, so it's the one filled button (#192 review). */}
+              <LoadingButton variant="contained" loading={isSaving} onClick={handleSave} sx={{ flexShrink: 0 }}>
                 Save
               </LoadingButton>
             </Stack>
@@ -170,28 +163,16 @@ const ContentDelivery = () => {
             Select a bucket to set who can read it and get its link.
           </Typography>
         )}
-      </Card>
+      </Section>
 
-      {/* Data served — needs the bills feed (deferred). */}
-      <Card>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="16px">
-          <Typography variant="subtitle1">Data served</Typography>
-          <TextField select label="Period" value="1 week" size="small" sx={{ minWidth: 140 }} disabled>
-            <MenuItem value="1 week">1 week</MenuItem>
-          </TextField>
-        </Stack>
-        <Box
-          padding="48px 24px"
-          borderRadius="10px"
-          textAlign="center"
-          sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}
-        >
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, marginX: 'auto' }}>
-            Data served per day, against the plan’s monthly allowance, appears here once the bills feed is wired.
-          </Typography>
-        </Box>
-      </Card>
-    </Box>
+      {/* Data served — needs the bills feed, so the section holds its place with a
+          Coming soon badge rather than a developer note. */}
+      <Section title="Data served" actions={<ComingSoon />}>
+        <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+          Data served per day, against your plan’s monthly allowance, will show here once your plan is active.
+        </Typography>
+      </Section>
+    </Stack>
   );
 };
 

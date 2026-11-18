@@ -119,14 +119,14 @@ export const FileManager = ({
         alignItems="center"
         padding={(theme) => theme.spacing(1, 1.5)}
       >
-        <Typography variant="body1" color="secondary" flex={1}>
-          Bucket ID
+        <Typography flex={2} sx={{ fontSize: 12, color: '#818083' }}>
+          Bucket
         </Typography>
-        <Typography variant="body1" color="secondary" flex={1.5} textAlign="right">
-          Used Storage
+        <Typography flex={1.4} textAlign="right" sx={{ fontSize: 12, color: '#818083' }}>
+          Stored
         </Typography>
-        <Typography variant="body1" color="secondary" flex={1} textAlign="center">
-          ACL
+        <Typography flex={1} textAlign="center" sx={{ fontSize: 12, color: '#818083' }}>
+          Access
         </Typography>
         <Box flex={1}></Box>
       </StyledBox>

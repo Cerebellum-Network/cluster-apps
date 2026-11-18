@@ -8,6 +8,7 @@ import {
   Alert,
   AlertProps,
   AddCircleOutlinedIcon,
+  IconButton,
   LoadingButton,
   useMessages,
 } from '@cluster-apps/ui';
@@ -15,9 +16,14 @@ import { observer } from 'mobx-react-lite';
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { ContentCopy } from '@mui/icons-material';
+
 import { useAccount, useFetchDirs } from '~/hooks';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
+import { PageHeader, Section, ComingSoon } from '~/components';
+import { storageConfig } from '~/storage/storageConfig';
 import { EMPTY_FILE_NAME, DEFAULT_FOLDER_NAME } from '~/constants.ts';
 import type { Acl } from '~/storage/ddc/types';
 
@@ -45,6 +51,7 @@ const ContentStorage = () => {
   const [bucketInProgress, setBucketInProgress] = useState<string>();
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [s3Open, setS3Open] = useState(false);
 
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
   useEffect(() => {
@@ -228,41 +235,51 @@ const ContentStorage = () => {
     [defaultDirIndices, handleUpload, setDefaultFolderIndex],
   );
 
+  const s3Endpoint = storageConfig.ddcS3GatewayUrl ?? '';
+
   return (
-    <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="20px">
-        <Typography variant="h3">Storage</Typography>
-        {account.gatewayAuthorized && (
-          <LoadingButton variant="outlined" color="secondary" loading={isRevoking} onClick={handleRevokeGateway}>
-            S3 access
-          </LoadingButton>
-        )}
-      </Stack>
+    <Stack spacing="20px">
+      <PageHeader
+        title="Storage"
+        actions={
+          account.gatewayAuthorized && (
+            <>
+              <Button variant="outlined" color="secondary" onClick={() => setS3Open(true)}>
+                S3 access
+              </Button>
+              <LoadingButton variant="text" color="secondary" loading={isRevoking} onClick={handleRevokeGateway}>
+                Disconnect S3
+              </LoadingButton>
+            </>
+          )
+        }
+      />
 
       {!isAccountReady && (
         <StyledAlert
           severity="info"
-          sx={{ marginBottom: '20px' }}
           action={
-            <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
-              Top Up
+            <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/billing">
+              Add funds
             </Button>
           }
         >
-          Your DDC Wallet balance is 0. Please top it up before creating a bucket.
+          Your deposit is empty. Add funds in Billing before creating a bucket.
         </StyledAlert>
       )}
 
-      {/* Buckets — from the S3 gateway. */}
-      <Box
-        border={(theme) => `1px solid ${theme.palette.divider}`}
-        borderRadius="12px"
-        padding="24px"
-        marginBottom="20px"
+      {/* Buckets — from the S3 gateway. The plan quota belongs here (mockup) but
+          needs the plan/limits backend, so the slot shows "Coming soon". */}
+      <Section
+        title="Buckets"
+        actions={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Plan quota</Typography>
+            <ComingSoon />
+          </Stack>
+        }
+        flush
       >
-        <Typography variant="caption" color="text.secondary" display="block" marginBottom="12px">
-          Usage against your plan’s quota appears here with billing.
-        </Typography>
         <FileManager
           data={dirs || []}
           userHasBuckets={buckets.length > 0 || false}
@@ -283,25 +300,60 @@ const ContentStorage = () => {
           isAccountReady={isAccountReady}
           bucketInProgress={bucketInProgress}
         />
-      </Box>
+      </Section>
 
-      {/* GET / PUT requests — needs the bills feed (deferred). */}
-      <Box border={(theme) => `1px solid ${theme.palette.divider}`} borderRadius="12px" padding="24px">
-        <Typography variant="subtitle1" marginBottom="16px">
-          GET / PUT requests
+      {/* GET / PUT requests — needs the bills feed, so the section holds its place
+          with a Coming soon badge rather than a developer note. */}
+      <Section title="GET / PUT requests" actions={<ComingSoon />}>
+        <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+          Request counts and data served will show here once your plan is active.
         </Typography>
-        <Box
-          padding="48px 24px"
-          borderRadius="10px"
-          textAlign="center"
-          sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}
-        >
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 440, marginX: 'auto' }}>
-            Request counts and data served appear here once the bills feed is wired.
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+      </Section>
+
+      {/* S3 access: the endpoint to point an S3 client at. Access keys are not
+          issued yet, so they read "Coming soon". */}
+      <Dialog open={s3Open} onClose={() => setS3Open(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>S3 access</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} paddingTop={1}>
+            <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+              Point any S3-compatible client at this endpoint. Address buckets by the names shown above.
+            </Typography>
+            <Box>
+              <Typography sx={{ fontSize: 12, color: '#818083', marginBottom: 0.5 }}>Endpoint</Typography>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ border: '1px solid #E3E4EE', borderRadius: '8px', padding: '8px 12px' }}
+              >
+                <Typography sx={{ fontFamily: 'monospace', fontSize: 13, flex: 1, wordBreak: 'break-all' }}>
+                  {s3Endpoint}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    navigator.clipboard.writeText(s3Endpoint);
+                    showMessage({ appearance: 'success', message: 'Endpoint copied.' });
+                  }}
+                >
+                  <ContentCopy sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Stack>
+            </Box>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Access key &amp; secret</Typography>
+              <ComingSoon />
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" color="secondary" onClick={() => setS3Open(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   );
 };
 
