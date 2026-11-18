@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Link, NavLink, useMatch } from 'react-router-dom';
+import { KeyboardArrowDown } from '@mui/icons-material';
 
 import { Box, Stack, styled, Typography } from '@cluster-apps/ui';
 
@@ -16,44 +17,61 @@ export type NavigationItemProps = {
   widget?: ReactNode;
 };
 
+// Mockup nav item (#192 review): 36px tall, 14.5px / weight 500, #1D1B20 text with
+// grey icons. Active: weight 700 on #ECEDF3. One hover grey, not two.
+const ACTIVE_BG = '#ECEDF3';
+const HOVER_BG = '#F3F4F8';
+
 type ItemStyle = { active: boolean; filled: boolean };
 
 const Item = styled(Link, { shouldForwardProp: (p) => p !== 'active' && p !== 'filled' })<ItemStyle>(
   ({ theme, active, filled }) => ({
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(1.5),
-    padding: theme.spacing(1, 1.5),
-    borderRadius: theme.shape.borderRadius,
+    gap: theme.spacing(1.25),
+    height: 36,
+    padding: theme.spacing(0, 1.5),
+    borderRadius: 8,
     textDecoration: 'none',
-    color: active ? theme.palette.text.primary : theme.palette.text.secondary,
-    backgroundColor: filled ? theme.palette.action.selected : 'transparent',
-    fontWeight: active ? 600 : 500,
+    color: '#1D1B20',
+    backgroundColor: filled ? ACTIVE_BG : 'transparent',
+    fontWeight: active ? 700 : 500,
 
     '&:hover': {
-      backgroundColor: filled ? theme.palette.action.selected : theme.palette.action.hover,
+      backgroundColor: filled ? ACTIVE_BG : HOVER_BG,
     },
 
     '& .MuiSvgIcon-root': {
       fontSize: 20,
-      color: active ? theme.palette.text.primary : theme.palette.text.secondary,
+      color: active ? '#1D1B20' : '#818083',
     },
   }),
 );
 
-const SubLink = styled(NavLink)(({ theme }) => ({
-  display: 'block',
-  padding: theme.spacing(0.75, 1.5),
-  borderRadius: theme.shape.borderRadius,
-  textDecoration: 'none',
-  fontSize: '0.8125rem',
-  color: theme.palette.text.secondary,
+const Chevron = styled(KeyboardArrowDown, { shouldForwardProp: (p) => p !== 'open' })<{ open: boolean }>(
+  ({ open }) => ({
+    marginLeft: 'auto',
+    fontSize: 18,
+    transition: 'transform 120ms ease',
+    transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+  }),
+);
 
-  '&:hover': { backgroundColor: theme.palette.action.hover },
+const SubLink = styled(NavLink)(() => ({
+  display: 'block',
+  height: 32,
+  lineHeight: '32px',
+  padding: '0 12px',
+  borderRadius: 8,
+  textDecoration: 'none',
+  fontSize: 13,
+  color: '#5E5C6B',
+
+  '&:hover': { backgroundColor: HOVER_BG },
   '&.active': {
-    color: theme.palette.text.primary,
-    fontWeight: 600,
-    backgroundColor: theme.palette.action.selected,
+    color: '#1D1B20',
+    fontWeight: 700,
+    backgroundColor: ACTIVE_BG,
   },
 }));
 
@@ -69,9 +87,8 @@ const NavigationItem = ({ rootPath, title, navLabel, icon, subNav }: NavigationI
           A leaf item carries the fill itself. */}
       <Item active={active} filled={active && !hasSub} to={rootPath}>
         {icon}
-        <Typography variant="body2" sx={{ fontWeight: 'inherit', color: 'inherit' }}>
-          {label}
-        </Typography>
+        <Typography sx={{ fontSize: 14.5, fontWeight: 'inherit', color: 'inherit' }}>{label}</Typography>
+        {hasSub && <Chevron open={active} />}
       </Item>
 
       {active && hasSub && (

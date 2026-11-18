@@ -1,46 +1,11 @@
 import { createTheme as createBaseTheme } from '@cluster-apps/ui';
-import { createTheme } from '@mui/material';
 
 /**
- * Developer-console-local theme: the mockup's warm, bold look layered on top of
- * the shared @cluster-apps/ui theme. We extend the shared theme — MUI's
- * `createTheme(base, overrides)` deep-merges the second argument onto the first —
- * rather than editing the shared package, so the other cluster-apps are
- * unaffected. Plain-CSS bits (code surfaces, warm borders) live in theme.css as
- * `--dc-*` tokens, the same scoped-token pattern as billing.css / inference.css.
+ * Developer-console theme. The mockup is built on the shared @cluster-apps/ui
+ * theme AS-IS (HumanSans, primary #5865F2, page background #F5F7FA, text #1D1B20,
+ * 8px/36px buttons), so we use that theme unchanged rather than overriding its
+ * palette, font or button shape (#192 review). Anything the shared theme doesn't
+ * set is a per-component default and lives in the shared layout components
+ * (PageHeader / Section / ComingSoon), not here, so pages can't drift.
  */
-const base = createBaseTheme();
-
-const SYSTEM_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-
-export const developerConsoleTheme = createTheme(base, {
-  palette: {
-    primary: { main: '#5b57f5' },
-    background: { default: '#faf9f5', paper: '#ffffff' },
-    text: { primary: '#1f1e1d', secondary: '#6b6a68' },
-    divider: '#e4e1d8',
-    action: { selected: '#eceaf6', hover: '#f3f1ec' },
-  },
-
-  shape: { borderRadius: 10 },
-
-  typography: {
-    fontFamily: SYSTEM_FONT,
-    h1: { fontWeight: 800, letterSpacing: '-0.02em' },
-    h2: { fontWeight: 800, letterSpacing: '-0.015em' },
-    h3: { fontWeight: 700, letterSpacing: '-0.01em' },
-    h4: { fontWeight: 700 },
-  },
-
-  components: {
-    // Pill buttons, as in the mockup.
-    MuiButton: {
-      styleOverrides: {
-        root: { borderRadius: 999, paddingLeft: 18, paddingRight: 18 },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: { root: { backgroundImage: 'none' } },
-    },
-  },
-});
+export const developerConsoleTheme = createBaseTheme();

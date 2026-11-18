@@ -1,4 +1,4 @@
-import { Box, Button, DiscordButton, LoadingAnimation, styled, useOnboarding, Stack } from '@cluster-apps/ui';
+import { Box, Button, DiscordButton, LoadingAnimation, styled, Stack } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { Navigate, Outlet } from 'react-router-dom';
 
@@ -7,7 +7,6 @@ import { Application } from '~/applications';
 import { HomeLayout, Navigation } from '~/components';
 import { useAccountStore } from '~/hooks';
 import { DISCORD_LINK, DEVELOPER_DOCS_LINK } from '~/constants.ts';
-import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeProps = {
   apps: Application[];
@@ -23,30 +22,15 @@ const Loading = styled(LoadingAnimation)({
 
 const Home = ({ apps }: HomeProps) => {
   const account = useAccountStore();
-  const { restartOnboarding } = useOnboarding();
-  const { showTour } = useApplicationTour();
 
   if (account.status !== 'connected') {
     return <Navigate to="/login" />;
   }
 
-  const onProductTourClick = () => {
-    restartOnboarding();
-    showTour();
-  };
-
   return (
     <HomeLayout
-      rightElement={
-        <Navigation
-          items={apps}
-          footer={
-            <Button variant="text" color="secondary" size="small" onClick={onProductTourClick}>
-              Product tour
-            </Button>
-          }
-        />
-      }
+      // "Product tour" is not in the mockup (#192 review), so the sidebar has no footer.
+      rightElement={<Navigation items={apps} />}
       headerRight={
         <Stack direction="row" spacing={1} alignItems="center">
           <Button variant="text" color="secondary" component="a" href={DEVELOPER_DOCS_LINK} target="_blank">

@@ -70,8 +70,21 @@ const AccountDropdown = () => {
         <Stack spacing={1} padding={1.5} border={(theme) => `1px solid ${theme.palette.divider}`} borderRadius={2}>
           <Row label="Wallet balance" value={cere} />
           <Row label="DDC balance" value={ddc} />
-          <Button component={NavLink} fullWidth to="/top-up" onClick={handleClose}>
+          {/* One funding path (#192 review): "Add funds" goes to Billing (USD);
+              a direct CERE deposit stays as a minor link. */}
+          <Button component={NavLink} fullWidth to="/billing" onClick={handleClose}>
             Add funds
+          </Button>
+          <Button
+            component={NavLink}
+            size="small"
+            variant="text"
+            color="secondary"
+            to="/top-up"
+            onClick={handleClose}
+            sx={{ alignSelf: 'center', textTransform: 'none' }}
+          >
+            Add CERE directly
           </Button>
         </Stack>
 

@@ -4,7 +4,7 @@ import { isMobile } from 'react-device-detect';
 import { Box, Stack, styled, MobileOverlay } from '@cluster-apps/ui';
 
 import { Layout } from '../Layout';
-import { AccountDropdown } from '../AccountDropdown';
+import { AppHeader } from '../AppHeader';
 import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeLayoutProps = PropsWithChildren<{
@@ -14,24 +14,25 @@ export type HomeLayoutProps = PropsWithChildren<{
   headerRight?: ReactNode;
 }>;
 
-/** White app sheet below the 72px header. */
-const Sheet = styled(Stack)(({ theme }) => ({
+/** Content row below the 56px header: grouped sidebar + page canvas. */
+const Sheet = styled(Stack)(() => ({
   flexDirection: 'row',
-  backgroundColor: theme.palette.background.paper,
-  minHeight: 'calc(100vh - 72px)',
+  minHeight: 'calc(100vh - 56px)',
 }));
 
-const SidebarNav = styled(Box)(({ theme }) => ({
-  width: 240,
+const SidebarNav = styled(Box)(() => ({
+  width: 248,
   flexShrink: 0,
-  borderRight: `1px solid ${theme.palette.divider}`,
-  padding: theme.spacing(3, 2),
+  backgroundColor: '#FAFAFC',
+  borderRight: '1px solid #E3E4EE',
+  padding: '20px 12px',
 }));
 
-const Content = styled(Box)(({ theme }) => ({
+const Content = styled(Box)(() => ({
   flex: 1,
   minWidth: 0,
-  padding: theme.spacing(4),
+  backgroundColor: '#F5F7FA',
+  padding: '24px 32px',
 }));
 
 const HomeLayout = ({ children, rightElement, headerRight }: HomeLayoutProps) => {
@@ -41,11 +42,10 @@ const HomeLayout = ({ children, rightElement, headerRight }: HomeLayoutProps) =>
     <Layout
       disablePaddings
       fullPage
-      headerRight={
-        <Stack data-tour="account" direction="row" spacing={2} alignItems="center" onClick={hideTour}>
-          {headerRight}
-          <AccountDropdown />
-        </Stack>
+      header={
+        <Box data-tour="account" onClick={hideTour}>
+          <AppHeader right={headerRight} />
+        </Box>
       }
     >
       <Sheet>
