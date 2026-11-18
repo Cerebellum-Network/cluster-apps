@@ -4,10 +4,56 @@
 // Ported verbatim from billing-console (src/lib/model.ts). The `var(--b-*)`
 // colour tokens it returns are defined in billing.css.
 
-import type { Bills, MonthBill, Rates } from './api';
+import type { Bills, MonthBill, Rates, LedgerEntry } from './api';
 import { GIB, money, monthLabel, monthName, num, runway, usd } from './format';
 
 export const n = (s: string | null | undefined) => (s == null ? 0 : Number(s));
+
+/** A month's balance movement, read from the ledger (#190 review: the balance box). */
+export type BalanceBox = { opening: number; topups: number; usage: number; closing: number };
+
+/** Opening → top-ups → usage → closing for `month` (YYYY-MM), or null if no entries. */
+export function balanceBox(ledger: LedgerEntry[] | null | undefined, month: string): BalanceBox | null {
+  if (!ledger || ledger.length === 0) return null;
+  const inMonth = ledger.filter((e) => (e.created_at ?? '').slice(0, 7) === month);
+  if (inMonth.length === 0) return null;
+  const asc = [...inMonth].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+  const first = asc[0];
+  const last = asc[asc.length - 1];
+  const closing = n(last.running_balance_usd);
+  const opening = n(first.running_balance_usd) - n(first.amount_usd);
+  let topups = 0;
+  let usage = 0;
+  for (const e of asc) {
+    const amt = n(e.amount_usd);
+    if (amt >= 0) topups += amt;
+    else usage += amt; // debits are negative
+  }
+  return { opening, topups, usage, closing };
+}
+
+/** The whole ledger as CSV (#190 review: Download CSV for the history). */
+export function ledgerToCsv(ledger: LedgerEntry[] | null | undefined): string {
+  const header = ['Date', 'Type', 'Amount (USD)', 'Balance (USD)', 'Era', 'Reference'];
+  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const rows = (ledger ?? []).map((e) =>
+    [e.created_at, e.entry_type, e.amount_usd, e.running_balance_usd, e.era_id ?? '', e.origin_ref ?? ''].map((c) =>
+      esc(String(c)),
+    ),
+  );
+  return [header.map(esc), ...rows].map((r) => r.join(',')).join('\n');
+}
+
+/** How a settled month's cost was covered: card top-ups that month vs the balance. */
+export function monthFunding(
+  ledger: LedgerEntry[] | null | undefined,
+  month: string,
+  costUsd: number,
+): { card: number; fromBalance: number } {
+  const box = balanceBox(ledger, month);
+  const card = Math.min(box ? box.topups : 0, costUsd);
+  return { card, fromBalance: Math.max(costUsd - card, 0) };
+}
 
 export function requestsUsd(b: MonthBill): number {
   return n(b.lines.put_usd) + n(b.lines.get_usd);

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 
 import { usd, usdBalance, money, signedMoney, monthLabel, brandName, runway } from './format';
-import { kpis, services, burnPerDay, billSections } from './model';
-import type { Bills, Rates } from './api';
+import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding } from './model';
+import type { Bills, Rates, LedgerEntry } from './api';
 
 /**
  * These pin the billing port's pure layer (format + model), copied byte-for-byte
@@ -137,5 +137,31 @@ describe('model', () => {
     const secs = billSections(bills.months[1], rates);
     // With a chain price, the rate reads "<price> / <unit>" rather than "—".
     expect(secs[3].rows[0].rate).toContain('/ M'); // writes priced per million requests
+  });
+});
+
+const ledger: LedgerEntry[] = [
+  // newest-first, as the endpoint returns it
+  { id: '2', entry_type: 'usage_charge', amount_usd: '-2', running_balance_usd: '8', era_id: '1', origin_ref: '', created_at: '2026-11-20T00:00:00Z' },
+  { id: '1', entry_type: 'manual_topup', amount_usd: '10', running_balance_usd: '10', era_id: null, origin_ref: '', created_at: '2026-11-05T00:00:00Z' },
+];
+
+describe('balanceBox / monthFunding (ledger → balance box)', () => {
+  it('opening → top-ups → usage → closing for the month', () => {
+    const box = balanceBox(ledger, '2026-11')!;
+    expect(box.opening).toBe(0); // 10 (first running balance) − 10 (its amount)
+    expect(box.topups).toBe(10);
+    expect(box.usage).toBe(-2);
+    expect(box.closing).toBe(8);
+  });
+
+  it('null for a month with no entries, and for no ledger', () => {
+    expect(balanceBox(ledger, '2026-10')).toBeNull();
+    expect(balanceBox(null, '2026-11')).toBeNull();
+  });
+
+  it('monthFunding splits cost into card vs balance', () => {
+    expect(monthFunding(ledger, '2026-11', 2)).toEqual({ card: 2, fromBalance: 0 }); // card covers it
+    expect(monthFunding(ledger, '2026-11', 15)).toEqual({ card: 10, fromBalance: 5 }); // card + balance
   });
 });
