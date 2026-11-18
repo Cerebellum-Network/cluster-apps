@@ -2,7 +2,10 @@
 // change is the config source — this app reads billing endpoints from
 // `billingConfig` (runtime config → VITE_* → devnet defaults) rather than the
 // prototype's single `config`. Keep the shapes byte-identical to the prototype
-// so recon/payment/orchestrator responses parse the same way.
+// so recon/payment responses parse the same way. The console stays on the Cere
+// (DDC-billing) side only: recon (bills) + payment-service (USD). It deliberately
+// does NOT call the Manykind orchestrator's /api/v1/usage — per-call inference
+// usage comes from recon/the usage ledger, not a Manykind dependency.
 import { billingConfig as config } from './billingConfig';
 
 // ── Shapes ────────────────────────────────────────────────────────────────
@@ -79,17 +82,6 @@ export interface TopupResult {
   balance_usd: string;
   chain_funding: 'pending' | 'sent' | 'dry_run' | 'failed' | 'disabled' | 'awaiting_settlement' | 'not_recorded' | string;
   replayed: boolean;
-}
-
-// orchestrator GET /api/v1/usage
-export interface AgentUsage {
-  total: {
-    executions: number;
-    succeeded: number;
-    failed: number;
-    metrics: { cpuUnits: number; memoryUnits: number; gpuUnits: number };
-  };
-  modelBreakdown?: { model: string; unit: string; input: number; output: number; gpuUnits: number }[];
 }
 
 // ── Transport ─────────────────────────────────────────────────────────────
@@ -206,15 +198,4 @@ export const payment = {
       method: 'PATCH',
       ...json({ auto_recharge_enabled: false }),
     }),
-};
-
-// ── orchestrator ──────────────────────────────────────────────────────────
-/** One agent's measured usage, read with the person's wallet delegation token. */
-export const orchestrator = {
-  usage: (agentId: string, from: Date, to: Date, token: string) => {
-    const q = new URLSearchParams({ agentId, from: from.toISOString(), to: to.toISOString(), models: 'true' });
-    return call<AgentUsage>(`${config.orchestratorUrl}/api/v1/usage?${q}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  },
 };

@@ -18,7 +18,6 @@ interface ImportMetaEnv {
   // Billing slice (src/billing/billingConfig.ts)
   readonly VITE_RECON_URL?: string;
   readonly VITE_PAYMENT_URL?: string;
-  readonly VITE_ORCHESTRATOR_URL?: string;
 }
 
 interface ImportMeta {
@@ -42,7 +41,6 @@ interface RuntimeConfig {
   billing?: {
     reconUrl?: string;
     paymentUrl?: string;
-    orchestratorUrl?: string;
   };
 }
 

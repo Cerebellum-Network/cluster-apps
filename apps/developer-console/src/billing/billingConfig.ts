@@ -5,19 +5,18 @@
  * build reads these from `/config.js` (`window.__RUNTIME_CONFIG__.billing`,
  * mounted by the Helm chart), a local `npm run dev` falls back to `VITE_*` env,
  * then to the Dragon **devnet** defaults below (matching the dragon-ansible
- * dragon1-devnet inventory's `developer_console_recon_url` / `_payment_url` /
- * `_orchestrator_url`). A real deploy overrides all of these per env.
+ * dragon1-devnet inventory's `developer_console_recon_url` / `_payment_url`).
+ * A real deploy overrides all of these per env.
  *
+ * Cere (DDC-billing) side only — no Manykind orchestrator dependency:
  *   - reconUrl         reconciliation-service: bills + poll-targets (agents)
  *   - paymentUrl       payment-service: USD balance, ledger, top-ups, cards
- *   - orchestratorUrl  orchestrator: per-agent usage (bearer = wallet token)
  */
 const env = import.meta.env;
 
 type BillingRuntime = {
   reconUrl?: string;
   paymentUrl?: string;
-  orchestratorUrl?: string;
 };
 
 const trim = (v: string) => v.replace(/\/+$/, '');
@@ -33,8 +32,6 @@ export const billingConfig = {
   reconUrl: trim(pick('reconUrl', env.VITE_RECON_URL, 'https://reconciliation-service.compute.dev.ddcdragon.com')),
   /** payment-service: USD balance / ledger / top-ups / cards. */
   paymentUrl: trim(pick('paymentUrl', env.VITE_PAYMENT_URL, 'https://payment-service.compute.dev.ddcdragon.com')),
-  /** orchestrator: per-agent usage (`GET /api/v1/usage`, bearer = wallet delegation token). */
-  orchestratorUrl: trim(pick('orchestratorUrl', env.VITE_ORCHESTRATOR_URL, 'https://orchestrator.compute.dev.ddcdragon.com')),
 };
 
 export type BillingConfig = typeof billingConfig;
