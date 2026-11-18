@@ -283,10 +283,13 @@ export class AccountStore implements Account {
   }
 
   async topUp(amount: number) {
+    const addr = this.session?.address;
+    if (!addr) throw new Error('Account is not ready');
     const value = BigInt(Math.round(amount * 10 ** CERE_DECIMALS));
     // Name the amount in the wallet consent so the user approves a known figure,
-    // not an opaque "add a deposit" (#185 review).
-    await this.chain.deposit(value, this.consentSigner(`Add a ${amount} CERE deposit to DDC`));
+    // not an opaque "add a deposit" (#185 review). `addr` is the depositor: the
+    // deposit is credited to it and funded from it.
+    await this.chain.deposit(value, this.consentSigner(`Add a ${amount} CERE deposit to DDC`), addr);
     await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
   }
 }

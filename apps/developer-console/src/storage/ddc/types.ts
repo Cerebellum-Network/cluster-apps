@@ -26,8 +26,13 @@ export interface ChainClient {
   getDeposit(address: string): Promise<bigint>;
   /** Free (spendable) CERE balance of `address`, smallest unit; 0 if it can't be read. */
   getBalance(address: string): Promise<bigint>;
-  /** Lock `value` (smallest unit) as a new/topped-up deposit in the configured cluster. */
-  deposit(value: bigint, signer: Signer): Promise<void>;
+  /**
+   * Lock `value` (smallest unit) as a new/topped-up deposit in the configured
+   * cluster. `caller` is the depositor's address -- the account the deposit is
+   * credited to and the one whose balance funds it (needed to size the contract
+   * call); it is the same wallet that `signer` signs with.
+   */
+  deposit(value: bigint, signer: Signer, caller: string): Promise<void>;
   /** Create a bucket in the configured cluster; resolves to the new bucket id. */
   createBucket(signer: Signer, options?: { isPublic?: boolean }): Promise<bigint>;
   /** Hydrate one bucket, or undefined if it does not exist. */

@@ -99,10 +99,29 @@ export function createChainClient(): ChainClient {
       await client().tx.send(client().customers.setBucketParams(bucketId, { isPublic }), { signer });
     },
 
-    async deposit(value: bigint, signer: Signer) {
-      // Lock `value` (chain's smallest unit) from the signer's balance as a
-      // new/topped-up deposit in the configured cluster. Extrinsic -> the signer
-      // must carry a consent description.
+    async deposit(value: bigint, signer: Signer, caller: string) {
+      // Lock `value` (chain's smallest unit) from the caller's balance as a
+      // new/topped-up deposit. Extrinsic -> the signer must carry a consent
+      // description.
+      const contractAddr = await customerDeposit().resolve(clusterId());
+      if (contractAddr) {
+        // Deposit into the customer-deposit CONTRACT -- where DAC debits and where
+        // `getDeposit` now reads, so a CERE top-up lands in the same place a card
+        // top-up does (and not in the pallet ledger the console no longer reads).
+        // `sizeCall` dry-runs to size gas AND an explicit storage-deposit ceiling
+        // (never None: devnet reads None as a zero ceiling and rejects the
+        // ledger-creating first deposit). It never throws -- it degrades to a
+        // generous sizing. One dry-run precedes signing; on the default iframe
+        // transport that is within the user-activation window (popup transport is
+        // the tight case -- see addProxy). The message takes no args; `value`
+        // carries the deposit.
+        const MSG = 'DdcBalancesDepositor::deposit';
+        const sizing = await customerDeposit().sizeCall(contractAddr, MSG, caller, value, {});
+        const sendable = customerDeposit().buildContractCall(contractAddr, MSG, value, {}, sizing);
+        await client().tx.send(sendable, { signer });
+        return;
+      }
+      // No deposit contract on this cluster -> legacy pallet deposit.
       const tx = await client().customers.deposit(clusterId(), value, {});
       await client().tx.send(tx, { signer });
     },
