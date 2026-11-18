@@ -5,7 +5,7 @@
 // colour tokens it returns are defined in billing.css.
 
 import type { Bills, MonthBill, Rates } from './api';
-import { GIB, monthLabel, monthName, num, runway, usd } from './format';
+import { GIB, money, monthLabel, monthName, num, runway, usd } from './format';
 
 export const n = (s: string | null | undefined) => (s == null ? 0 : Number(s));
 
@@ -268,9 +268,9 @@ function computeRows(b: MonthBill, rates: Rates | null): LineRow[] {
   const used = res.filter((r) => r.units > 0);
   return res.map((r, i) => {
     let amount: string;
-    if (sum != null && sum > 0) amount = usd((compute * weights[i]!) / sum);
+    if (sum != null && sum > 0) amount = money((compute * weights[i]!) / sum);
     else if (r.units === 0) amount = '$0.00';
-    else if (used.length === 1) amount = usd(compute);
+    else if (used.length === 1) amount = money(compute);
     else amount = '—';
     const alone = used.length === 1 && used[0] === r;
     return {
@@ -300,42 +300,42 @@ export function billSections(b: MonthBill, rates: Rates | null): BillSection[] {
   return [
     {
       title: 'Compute',
-      amount: usd(compute),
+      amount: money(compute),
       note: 'Includes inference: models turn tokens into GPU units, and the cluster prices GPU units.',
       rows: computeRows(b, rates),
     },
     {
       title: 'Storage',
-      amount: usd(storage),
+      amount: money(storage),
       rows: [
         {
           item: 'Held',
           sub: 'bytes held × the fraction of the month held',
           used: `${num(gibMonths)} GiB-month`,
           rate: rate(chain(rates?.storage_usd_per_mib_month, 1024), storage, gibMonths, 'GiB-month'),
-          amount: usd(storage),
+          amount: money(storage),
         },
       ],
     },
     {
       title: 'Data transfer',
-      amount: usd(transfer),
+      amount: money(transfer),
       rows: [
         {
           item: 'Out',
           sub: '',
           used: `${num(gib)} GiB`,
           rate: rate(chain(rates?.transfer_usd_per_mib, 1024), transfer, gib, 'GiB'),
-          amount: usd(transfer),
+          amount: money(transfer),
         },
       ],
     },
     {
       title: 'Requests',
-      amount: usd(requestsUsd(b)),
+      amount: money(requestsUsd(b)),
       rows: [
-        { item: 'Writes', sub: '', used: num(writes, 0), rate: rate(chain(rates?.put_usd_per_request), put, writes, 'M', 1e6), amount: usd(put) },
-        { item: 'Reads', sub: '', used: num(reads, 0), rate: rate(chain(rates?.get_usd_per_request), get, reads, 'M', 1e6), amount: usd(get) },
+        { item: 'Writes', sub: '', used: num(writes, 0), rate: rate(chain(rates?.put_usd_per_request), put, writes, 'M', 1e6), amount: money(put) },
+        { item: 'Reads', sub: '', used: num(reads, 0), rate: rate(chain(rates?.get_usd_per_request), get, reads, 'M', 1e6), amount: money(get) },
       ],
     },
   ];

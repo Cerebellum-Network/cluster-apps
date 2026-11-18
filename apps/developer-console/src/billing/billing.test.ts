@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { usd, usdBalance, monthLabel, brandName, runway } from './format';
+import { usd, usdBalance, money, signedMoney, monthLabel, brandName, runway } from './format';
 import { kpis, services, burnPerDay, billSections } from './model';
 import type { Bills, Rates } from './api';
 
@@ -21,6 +21,25 @@ describe('format', () => {
   it('usdBalance keeps sub-cent precision', () => {
     expect(usdBalance(236.5)).toBe('$236.50');
     expect(usdBalance(199.997914)).toBe('$199.997914');
+  });
+
+  it('money: cents, "< $0.01" below a cent, zero, negative, null', () => {
+    expect(money('12.5')).toBe('$12.50');
+    expect(money(0)).toBe('$0.00');
+    expect(money(null)).toBe('—');
+    expect(money(0.00342)).toBe('< $0.01'); // sub-cent is not shown as "$0.00342"
+    expect(money(0.004)).toBe('< $0.01');
+    expect(money(0.01)).toBe('$0.01');
+    expect(money(-1.2)).toBe('−$1.20');
+    expect(money(1234.5)).toBe('$1,234.50');
+  });
+
+  it('signedMoney: credit/debit signs incl. sub-cent', () => {
+    expect(signedMoney(20)).toBe('+$20.00');
+    expect(signedMoney(-0.81)).toBe('−$0.81');
+    expect(signedMoney(0.003)).toBe('+< $0.01');
+    expect(signedMoney(-0.003)).toBe('−< $0.01');
+    expect(signedMoney(0)).toBe('$0.00');
   });
 
   it('monthLabel / brandName', () => {

@@ -39,6 +39,31 @@ export function signedUsd(v: number): string {
   return v > 0 ? '+' + usd(v) : usd(v);
 }
 
+/**
+ * A human amount for display — balances, bill totals, line amounts, the balance
+ * box: whole cents, with "< $0.01" for a nonzero amount under a cent. Full
+ * sub-cent precision ("$0.00000248") is unreadable here and belongs in the Rate
+ * column (`usd`) or the PDF (#190 review).
+ */
+export function money(v: number | string | null | undefined): string {
+  if (v === null || v === undefined || v === '') return '—';
+  const n = typeof v === 'string' ? Number(v) : v;
+  if (!Number.isFinite(n)) return '—';
+  if (n === 0) return '$0.00';
+  const a = Math.abs(n);
+  if (a < 0.01) return '< $0.01';
+  const sign = n < 0 ? '−' : '';
+  return sign + '$' + a.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Signed display amount for the balance box: "+$20.00", "−$0.81", "+< $0.01". */
+export function signedMoney(v: number | string | null | undefined): string {
+  const n = typeof v === 'string' ? Number(v) : v;
+  if (n == null || !Number.isFinite(n) || n === 0) return '$0.00';
+  if (Math.abs(n) < 0.01) return n > 0 ? '+< $0.01' : '−< $0.01';
+  return n > 0 ? '+' + money(n) : money(n);
+}
+
 /** First 8 + "…" + last 8 characters (keys and addresses alike). */
 export function short(s: string | null | undefined, head = 8, tail = 8): string {
   if (!s) return '';
