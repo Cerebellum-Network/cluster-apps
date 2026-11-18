@@ -148,7 +148,7 @@ const Models = () => {
           <Typography variant="body2">
             Add a card or CERE to start: you get $10 to try, then pay only for what you use.
           </Typography>
-          <Button component={NavLink} to="/top-up" sx={{ flexShrink: 0 }}>
+          <Button component={NavLink} to="/billing" sx={{ flexShrink: 0 }}>
             Add funds
           </Button>
         </Stack>

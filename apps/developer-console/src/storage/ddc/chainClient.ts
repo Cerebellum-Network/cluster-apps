@@ -17,8 +17,15 @@
  * description (e.g. `createDdcSigner(session.getSigner).describing('Create a
  * storage bucket')`), or CefDdcSigner.sign refuses it.
  */
-import { connect } from '@cere-ddc-sdk/blockchain';
-import type { Bucket, BucketParams, CereClient, CereNetwork, ClusterId } from '@cere-ddc-sdk/blockchain';
+import { connect, createCustomerDepositContract } from '@cere-ddc-sdk/blockchain';
+import type {
+  Bucket,
+  BucketParams,
+  CereClient,
+  CereNetwork,
+  ClusterId,
+  CustomerDepositContract,
+} from '@cere-ddc-sdk/blockchain';
 import { config } from '../../config';
 import { storageConfig } from '../storageConfig';
 import type { BucketInfo, ChainClient, Signer } from './types';
@@ -36,6 +43,20 @@ function client(): CereClient {
 
 const clusterId = (): ClusterId => storageConfig.clusterId as ClusterId;
 
+// Customer-deposit ink! contract reader (SDK v3). On devnet/testnet (and mainnet)
+// DAC debits the account's deposit from THIS contract, and the fiat bridge's
+// `deposit_for` funds it -- NOT the legacy `ddcCustomers` pallet. So the deposit
+// the console gates on must be read from the contract; a card top-up lands here,
+// while `getStackingInfo` (the pallet) would read an unrelated, usually-empty
+// ledger. The contract address is resolved from the cluster's gov params and
+// cached by the SDK. The pallet read stays only as a fallback for a cluster that
+// has no deposit contract configured.
+let depositContract: CustomerDepositContract | null = null;
+function customerDeposit(): CustomerDepositContract {
+  if (!depositContract) depositContract = createCustomerDepositContract(client().api);
+  return depositContract;
+}
+
 function toBucketInfo(b: Bucket): BucketInfo {
   return { bucketId: b.bucketId, ownerId: b.ownerId, isPublic: b.isPublic, isRemoved: b.isRemoved };
 }
@@ -43,6 +64,16 @@ function toBucketInfo(b: Bucket): BucketInfo {
 export function createChainClient(): ChainClient {
   return {
     async getDeposit(address) {
+      // Prefer the deposit CONTRACT (where fiat top-ups land and DAC debits).
+      // `resolve` is cached; `readBalance` returns undefined for an account with
+      // no deposit (clean 0) and throws only on a failed dry run, which the
+      // caller already treats as "deposit unknown" rather than zero.
+      const contractAddr = await customerDeposit().resolve(clusterId());
+      if (contractAddr) {
+        const info = await customerDeposit().readBalance(contractAddr, address);
+        return BigInt(info?.active ?? 0n);
+      }
+      // No deposit contract on this cluster -> legacy pallet ledger.
       const info = await client().customers.getStackingInfo(clusterId(), address);
       return BigInt(info?.active ?? 0n);
     },
