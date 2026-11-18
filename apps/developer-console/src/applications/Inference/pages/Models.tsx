@@ -18,6 +18,7 @@ import { NavLink } from 'react-router-dom';
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
 import { usd } from '~/billing/format';
+import { PageHeader, Section } from '~/components';
 import { atCapacityNotice, taskLabel, type ModelCard, type StatusTone } from '~/inference/model';
 import type { GatewayModelStatus } from '~/inference/gateway';
 import ShowMeHowDialog from '../ShowMeHowDialog';
@@ -98,12 +99,16 @@ const Models = () => {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="baseline" justifyContent="space-between" marginBottom="20px">
-        <Typography variant="h3">Models</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {balance.loading ? 'Balance …' : `Balance ${usd(balance.data ?? 0)}`}
-        </Typography>
-      </Stack>
+      <Box marginBottom="20px">
+        <PageHeader
+          title="Models"
+          actions={
+            <Typography variant="body2" color="text.secondary">
+              {balance.loading ? 'Balance …' : `Balance ${usd(balance.data ?? 0)}`}
+            </Typography>
+          }
+        />
+      </Box>
 
       {/* Hero: create a key + call a model. */}
       <Hero marginBottom="16px">
@@ -148,7 +153,7 @@ const Models = () => {
           <Typography variant="body2">
             Add a card or CERE to start: you get $10 to try, then pay only for what you use.
           </Typography>
-          <Button component={NavLink} to="/billing" sx={{ flexShrink: 0 }}>
+          <Button component={NavLink} to="/billing?add=1" sx={{ flexShrink: 0 }}>
             Add funds
           </Button>
         </Stack>
@@ -198,15 +203,9 @@ const Models = () => {
           No models available.
         </Typography>
       ) : (
-        <TableContainer
-          sx={{
-            border: (theme) => `1px solid ${theme.palette.divider}`,
-            borderRadius: '12px',
-            // Airier rows, matching the board.
-            '& td': { paddingTop: '16px', paddingBottom: '16px' },
-          }}
-        >
-          <Table>
+        <Section flush>
+          <TableContainer sx={{ '& td': { paddingTop: '16px', paddingBottom: '16px' } }}>
+            <Table>
             <TableHead>
               <TableRow>
                 <TableCell colSpan={4} sx={{ color: 'text.secondary' }}>
@@ -248,7 +247,8 @@ const Models = () => {
               ))}
             </TableBody>
           </Table>
-        </TableContainer>
+          </TableContainer>
+        </Section>
       )}
 
       <ShowMeHowDialog open={howOpen} onClose={() => setHowOpen(false)} cards={cards} />

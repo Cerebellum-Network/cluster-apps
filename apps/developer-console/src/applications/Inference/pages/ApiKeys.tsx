@@ -16,6 +16,7 @@ import { NavLink } from 'react-router-dom';
 import { useAccount } from '~/hooks';
 import { useOwnerBuckets } from '~/inference/useInference';
 import { openAiBaseUrl, anthropicBaseUrl, speechHttpUrl } from '~/inference/gateway';
+import { PageHeader, Section, ComingSoon } from '~/components';
 import '~/inference/inference.css';
 
 /**
@@ -26,13 +27,6 @@ import '~/inference/inference.css';
  */
 const TTL_DAYS = [7, 30, 90];
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-const Card = styled(Box)(({ theme }) => ({
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 12,
-  backgroundColor: theme.palette.background.paper,
-  padding: theme.spacing(3),
-}));
 
 const Mono = styled(Box)(({ theme }) => ({
   font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -116,16 +110,13 @@ const ApiKeys = () => {
 
   return (
     <Box className="inference-root">
-      <Typography variant="h3" marginBottom="20px">
-        API keys
-      </Typography>
+      <Box marginBottom="20px">
+        <PageHeader title="API keys" />
+      </Box>
 
-      {/* Create */}
-      <Card marginBottom="20px">
-        <Typography variant="subtitle1" marginBottom="12px">
-          Create an API key
-        </Typography>
-
+      <Stack spacing="20px">
+        {/* Create */}
+        <Section title="Create an API key">
         {bucketsError ? (
           <Alert severity="error">{bucketsError}</Alert>
         ) : bucketsLoading && buckets.length === 0 ? (
@@ -194,13 +185,10 @@ const ApiKeys = () => {
             </Typography>
           </Box>
         )}
-      </Card>
+        </Section>
 
-      {/* Base URLs */}
-      <Card marginBottom="20px">
-        <Typography variant="subtitle1" marginBottom="12px">
-          Base URLs
-        </Typography>
+        {/* Base URLs */}
+        <Section title="Base URLs">
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
           <BaseUrl label="OpenAI SDK" url={openAiBaseUrl()} />
           <BaseUrl label="Anthropic SDK" url={anthropicBaseUrl()} />
@@ -209,36 +197,15 @@ const ApiKeys = () => {
         <Typography variant="caption" color="text.secondary" display="block" marginTop="12px">
           The key goes where the SDK expects its API key.
         </Typography>
-      </Card>
+        </Section>
 
-      {/* Your keys — later */}
-      <Box
-        padding="20px 24px"
-        borderRadius="12px"
-        sx={{ border: (theme) => `1px dashed ${theme.palette.divider}` }}
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Typography variant="subtitle1">Your keys</Typography>
-          <Box
-            component="span"
-            sx={{
-              font: '600 11px/1 inherit',
-              padding: '4px 8px',
-              borderRadius: 999,
-              backgroundColor: '#fdf6e3',
-              color: '#9a7b1a',
-            }}
-          >
-            Later
-          </Box>
-        </Stack>
-        <Typography variant="body2" color="text.secondary">
-          No list and no revoke yet.
-        </Typography>
-      </Box>
+        {/* Your keys — the list + revoke come later. */}
+        <Section title="Your keys" actions={<ComingSoon label="Later" />}>
+          <Typography variant="body2" color="text.secondary">
+            No list and no revoke yet.
+          </Typography>
+        </Section>
+      </Stack>
     </Box>
   );
 };

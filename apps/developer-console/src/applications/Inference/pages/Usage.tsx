@@ -2,6 +2,7 @@ import { Box, Typography, Stack, Alert, styled } from '@cluster-apps/ui';
 
 import { useBills } from '~/billing/useBilling';
 import { inferenceUsage } from '~/billing/model';
+import { PageHeader, Section } from '~/components';
 
 /**
  * Inference → Usage (mockup: "a month later"). B-lite: the developer-scope feed
@@ -26,13 +27,6 @@ const Tile = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2.5),
 }));
 
-const Card = styled(Box)(({ theme }) => ({
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 12,
-  backgroundColor: '#fff',
-  padding: theme.spacing(3),
-}));
-
 const BarTrack = styled(Box)(({ theme }) => ({
   flex: 1,
   height: 8,
@@ -47,14 +41,18 @@ const Usage = () => {
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="20px">
-        <Typography variant="h3">Usage</Typography>
-        {usage?.hasData && (
-          <Typography variant="body2" color="text.secondary">
-            {usage.note}
-          </Typography>
-        )}
-      </Stack>
+      <Box marginBottom="20px">
+        <PageHeader
+          title="Usage"
+          actions={
+            usage?.hasData ? (
+              <Typography variant="body2" color="text.secondary">
+                {usage.note}
+              </Typography>
+            ) : undefined
+          }
+        />
+      </Box>
 
       {bills.error ? (
         <Alert severity="error">{bills.error}</Alert>
@@ -102,10 +100,7 @@ const Usage = () => {
           </Stack>
 
           {/* Compute spend per month */}
-          <Card>
-            <Typography variant="subtitle1" marginBottom="16px">
-              Compute spend by month
-            </Typography>
+          <Section title="Compute spend by month">
             <Stack spacing="12px">
               {usage.monthly.map((m) => (
                 <Stack key={m.month} direction="row" alignItems="center" spacing="12px">
@@ -121,7 +116,7 @@ const Usage = () => {
                 </Stack>
               ))}
             </Stack>
-          </Card>
+          </Section>
 
           {/* Honest note on what needs plans / per-agent data */}
           <Alert severity="info">
