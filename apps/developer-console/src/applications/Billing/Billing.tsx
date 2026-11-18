@@ -15,10 +15,12 @@ import { observer } from 'mobx-react-lite';
 import { useState, Fragment } from 'react';
 
 import { useAccount } from '~/hooks';
+import { PageHeader, Section } from '~/components';
 import { useBills, useBalance, useProfile, useLedger } from '~/billing/useBilling';
 import { kpis, services, billSections } from '~/billing/model';
 import { usd, usdBalance, monthLabel, brandName } from '~/billing/format';
 import { normalizeAccount } from '~/billing/api';
+import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
 import { BillingHistory } from './BillingHistory';
 import '~/billing/billing.css';
@@ -56,6 +58,24 @@ const Billing = () => {
     profile.reload();
     ledger.reload();
   };
+
+  // In a build, a missing billing endpoint stays undefined (no silent devnet
+  // fallback), so show "unavailable" rather than devnet balances / payments.
+  if (!isBillingConfigured()) {
+    return (
+      <Stack spacing="20px">
+        <PageHeader title="Billing" />
+        <Section>
+          <Typography variant="subtitle1" marginBottom="4px">
+            Billing is unavailable
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Billing isn’t configured for this environment yet. Please check back soon.
+          </Typography>
+        </Section>
+      </Stack>
+    );
+  }
 
   const paymentSummary = () => {
     if (profile.loading) return 'Loading…';
