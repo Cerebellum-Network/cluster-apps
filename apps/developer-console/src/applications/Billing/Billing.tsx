@@ -15,7 +15,8 @@ import {
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { observer } from 'mobx-react-lite';
-import { useState, Fragment } from 'react';
+import { useState, useEffect, Fragment } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
 import { PageHeader, Section, ComingSoon } from '~/components';
@@ -44,6 +45,21 @@ const Billing = () => {
   const ledger = useLedger();
   const [openMonth, setOpenMonth] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+
+  // The account menu and the low-balance alert deep-link to `/billing?add=1` to
+  // open the Add funds dialog directly (#190 review: one dialog, opened from
+  // Billing, the account menu and the low-balance warning).
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('add') === '1') setAddOpen(true);
+  }, [searchParams]);
+  const closeAdd = () => {
+    setAddOpen(false);
+    if (searchParams.has('add')) {
+      searchParams.delete('add');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   // In a build a missing endpoint stays undefined (no silent devnet fallback).
   if (!isBillingConfigured()) {
@@ -182,11 +198,11 @@ const Billing = () => {
 
       {/* Add funds dialog (mockup board 11). Opened from the page header and the
           balance card; the account menu / low-balance alert deep-link to it. */}
-      <Dialog open={addOpen && !!pubkey} onClose={() => setAddOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={addOpen && !!pubkey} onClose={closeAdd} maxWidth="md" fullWidth>
         <DialogTitle sx={{ paddingBottom: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             Add funds
-            <IconButton size="small" onClick={() => setAddOpen(false)}>
+            <IconButton size="small" onClick={closeAdd}>
               <Close sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>

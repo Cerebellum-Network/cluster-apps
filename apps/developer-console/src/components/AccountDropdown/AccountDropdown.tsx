@@ -6,6 +6,8 @@ import { Dropdown, AvatarIcon, Box, Stack, Truncate, Button, Typography } from '
 
 import { useAccountStore } from '~/hooks';
 import { useSession } from '~/wallet/session';
+import { useBalance } from '~/billing/useBilling';
+import { money } from '~/billing/format';
 import { elementsRendered } from '../ApplicationTour';
 
 export type AccountDropdownProps = {};
@@ -24,6 +26,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 const AccountDropdown = () => {
   const account = useAccountStore();
   const session = useSession();
+  const balance = useBalance();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -39,8 +42,7 @@ const AccountDropdown = () => {
   }
 
   const handleClose = () => setOpen(false);
-  const cere = account.balance === undefined ? '—' : `${account.balance} CERE`;
-  const ddc = account.deposit === undefined ? '—' : `${account.deposit} CERE`;
+  const usdBalance = balance.loading && balance.data == null ? '…' : money(balance.data);
 
   return (
     <Dropdown
@@ -66,13 +68,12 @@ const AccountDropdown = () => {
           </Typography>
         </Stack>
 
-        {/* Balance */}
+        {/* Balance — one USD balance (the mockup's), from payment-service. A direct
+            CERE deposit stays as a minor link. "Add funds" opens the Add funds
+            dialog on the Billing page (#190/#192 review). */}
         <Stack spacing={1} padding={1.5} border={(theme) => `1px solid ${theme.palette.divider}`} borderRadius={2}>
-          <Row label="Wallet balance" value={cere} />
-          <Row label="DDC balance" value={ddc} />
-          {/* One funding path (#192 review): "Add funds" goes to Billing (USD);
-              a direct CERE deposit stays as a minor link. */}
-          <Button component={NavLink} fullWidth to="/billing" onClick={handleClose}>
+          <Row label="Balance" value={usdBalance} />
+          <Button component={NavLink} fullWidth to="/billing?add=1" onClick={handleClose}>
             Add funds
           </Button>
           <Button

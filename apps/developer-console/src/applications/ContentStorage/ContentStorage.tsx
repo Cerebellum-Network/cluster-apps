@@ -259,7 +259,7 @@ const ContentStorage = () => {
         <StyledAlert
           severity="info"
           action={
-            <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/billing">
+            <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/billing?add=1">
               Add funds
             </Button>
           }
