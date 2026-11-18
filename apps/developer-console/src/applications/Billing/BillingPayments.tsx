@@ -188,17 +188,21 @@ export function BillingPayments({
         </Typography>
 
         <Stack direction="row" spacing={1} marginTop="16px">
-          {PRESETS.map((p) => (
-            <Button
-              key={p}
-              fullWidth
-              variant={valid && amount === p ? 'contained' : 'outlined'}
-              color="secondary"
-              onClick={() => edit(p.toFixed(2))}
-            >
-              ${p}
-            </Button>
-          ))}
+          {PRESETS.map((p) => {
+            const selected = valid && amount === p;
+            return (
+              <Button
+                key={p}
+                fullWidth
+                // Selected preset is primary, not black (#190 review).
+                variant={selected ? 'contained' : 'outlined'}
+                color={selected ? 'primary' : 'secondary'}
+                onClick={() => edit(p.toFixed(2))}
+              >
+                ${p}
+              </Button>
+            );
+          })}
         </Stack>
 
         <TextField
@@ -215,6 +219,7 @@ export function BillingPayments({
         {status.kind === 'idle' && (
           <LoadingButton
             fullWidth
+            variant="contained"
             loading={redirecting}
             disabled={!valid}
             onClick={useCheckout ? goToCheckout : () => setStatus({ kind: 'confirm' })}
@@ -238,7 +243,9 @@ export function BillingPayments({
               <Button variant="outlined" color="secondary" onClick={() => setStatus({ kind: 'idle' })}>
                 Cancel
               </Button>
-              <Button onClick={charge}>Charge {usd(amount)}</Button>
+              <Button variant="contained" onClick={charge}>
+                Charge {usd(amount)}
+              </Button>
             </Stack>
           </Box>
         )}
@@ -308,6 +315,7 @@ export function BillingPayments({
             </Stack>
             <Stack direction="row" spacing={1} marginTop="16px">
               <LoadingButton
+                variant="contained"
                 loading={autoSaving}
                 disabled={!autoValid}
                 onClick={() =>
