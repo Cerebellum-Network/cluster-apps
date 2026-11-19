@@ -211,6 +211,11 @@ export class AccountStore implements Account {
       });
       return;
     }
+    // A fiat wallet (deposit in the contract, 0 free CERE) can't pay the addProxy
+    // reserve + fee. Seed free CERE via the gateway's onboarding faucet first
+    // (no-op once funded). TESTNET STOPGAP — on mainnet the gas rides in with the
+    // card top-up through the bridge, and this call drops out.
+    await this.storage.ensureWalletFunded();
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
     try {

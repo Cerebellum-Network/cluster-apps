@@ -86,6 +86,12 @@ export interface BucketStorage {
   publicUrl(bucketName: string, key: string): string;
   /** Whether the gateway holds this wallet's on-chain proxy (skip a needless re-grant). */
   isGatewayAuthorized(): Promise<boolean>;
+  /**
+   * Seed the wallet's free CERE for the one-time addProxy via the gateway's
+   * onboarding faucet, when it reports `fund_wallet` (testnet stopgap). No-op if
+   * already funded.
+   */
+  ensureWalletFunded(): Promise<void>;
   /** Revoke the wallet's gateway credentials (DELETE /auth/credentials). */
   revokeCredentials(): Promise<void>;
   /** Drop the cached gateway credential (in-memory + persisted), e.g. on account switch. */

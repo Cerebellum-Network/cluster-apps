@@ -105,6 +105,41 @@ export async function fetchGatewayProxyRegistered(
   });
 }
 
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Seed the wallet's free CERE for the one-time addProxy, via the gateway's
+ * onboarding faucet (TESTNET STOPGAP). A fiat wallet funded by card has its
+ * deposit in the customer-deposit contract but 0 free CERE, so it can't pay the
+ * addProxy reserve + fee. When `/auth/onboarding/status` reports `fund_wallet`,
+ * POST `/auth/onboarding/bootstrap` (same empty-body signature as /auth/status)
+ * sends ~10 CERE free, then we wait for it to land on-chain before addProxy.
+ *
+ * Both the status read and the bootstrap use a 'data'-intent signature (a plain
+ * message, no consent popup). On mainnet the gas rides in with the card top-up
+ * through the bridge, and this call goes away.
+ */
+export async function ensureWalletFundedForProxy(
+  getSigner: () => CefSigner,
+  gateway: GatewayClient,
+): Promise<void> {
+  const signer = createDdcSigner(getSigner);
+  const signature = bytesToHex(await signer.sign(new Uint8Array(0), 'data'));
+  const auth = { publicKey: hexWithPrefix(signer.publicKey), signature, signatureType: signer.type };
+
+  const status = await gateway.getOnboardingStatus(auth);
+  if (status.nextUserAction !== 'fund_wallet') return; // already funded, or faucet not needed
+
+  await gateway.onboardingBootstrap(auth);
+  // Wait for the native transfer to reflect on-chain before addProxy reads the
+  // balance. Poll the faucet status (same signature) rather than a blind sleep.
+  for (let i = 0; i < 8; i++) {
+    await delay(2000);
+    const next = await gateway.getOnboardingStatus(auth);
+    if (next.nextUserAction !== 'fund_wallet') return;
+  }
+}
+
 /**
  * Revoke a specific gateway credential (DELETE /auth/credentials), so it stops
  * working at once rather than lapsing in up to 24h. Signed by the wallet ('data'

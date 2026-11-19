@@ -209,6 +209,28 @@ export interface GatewayClient {
    */
   getAuthStatus(input: { publicKey: string; signature: string; signatureType: string }): Promise<boolean>;
   /**
+   * Onboarding faucet status (testnet). Signed GET (`/auth/onboarding/status`) over
+   * an EMPTY body; returns the gateway's `next_user_action` ("fund_wallet" when the
+   * wallet's free balance is below the proxy threshold, null/other when it's fine).
+   */
+  getOnboardingStatus(input: {
+    publicKey: string;
+    signature: string;
+    signatureType: string;
+  }): Promise<{ nextUserAction: string | null }>;
+  /**
+   * Onboarding faucet (testnet stopgap, #192/#190 flow). Signed POST
+   * (`/auth/onboarding/bootstrap`) over an EMPTY body: when the wallet's free
+   * balance is < 1 CERE the gateway sends it ~10 CERE so a fiat wallet (deposit in
+   * the contract, 0 free CERE) can pay the one-time addProxy. Leaves the DDC
+   * deposit untouched. Returns whether native CERE was transferred.
+   */
+  onboardingBootstrap(input: {
+    publicKey: string;
+    signature: string;
+    signatureType: string;
+  }): Promise<{ nativeTransferred: boolean }>;
+  /**
    * Revoke this wallet's gateway credentials (so they stop working at once, not in
    * up to 24h). Signed DELETE (`/auth/credentials`) over `body`
    * (`{"access_key_id":"<key>"}` for a specific credential, or empty for the
@@ -396,6 +418,44 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
       } catch {
         return false;
       }
+    },
+
+    async getOnboardingStatus(input): Promise<{ nextUserAction: string | null }> {
+      // Signed GET /auth/onboarding/status over an EMPTY body (same auth as
+      // /auth/status). A non-OK response reads as "no action" so the caller just
+      // proceeds to addProxy (which fails loudly if the wallet is truly unfunded).
+      try {
+        const res = await fetch(`${baseUrl}/auth/onboarding/status`, {
+          cache: 'no-store',
+          headers: {
+            'X-Public-Key': input.publicKey,
+            'X-Signature': input.signature,
+            'X-Signature-Type': input.signatureType,
+          },
+        });
+        if (!res.ok) return { nextUserAction: null };
+        const data = (await res.json()) as { next_user_action?: string | null };
+        return { nextUserAction: data.next_user_action ?? null };
+      } catch {
+        return { nextUserAction: null };
+      }
+    },
+
+    async onboardingBootstrap(input): Promise<{ nativeTransferred: boolean }> {
+      // Signed POST /auth/onboarding/bootstrap over an EMPTY body. Seeds ~10 CERE
+      // of free balance when it's below the threshold (the DDC deposit is left
+      // alone). Testnet stopgap — on mainnet the gas rides in with the card top-up
+      // via the bridge.
+      const res = await fetch(`${baseUrl}/auth/onboarding/bootstrap`, {
+        method: 'POST',
+        headers: {
+          'X-Public-Key': input.publicKey,
+          'X-Signature': input.signature,
+          'X-Signature-Type': input.signatureType,
+        },
+      });
+      const data = await parseJson<{ native_transferred?: boolean }>(res, 'Failed to seed the wallet for setup');
+      return { nativeTransferred: data.native_transferred === true };
     },
 
     async deleteCredentials(input): Promise<void> {
