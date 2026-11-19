@@ -1,11 +1,11 @@
 /**
  * Data hooks for Inference → Usage. Three reads, all scoped to one bucket's
  * short-lived COMPUTE key (minted in memory, never stored):
- *   - useReadKey   — mint the key for the chosen bucket (silent signature);
+ *   - useReadKey   — mint the key for the chosen bucket on an explicit click;
  *   - useLiveLimits — poll /limits for the "N of N at once" grid;
  *   - useUsageBoards — range totals (requests/GPU by model, tokens, refusals).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAccount } from '~/hooks';
 import {
@@ -45,31 +45,36 @@ export type ReadKey =
   | { kind: 'error'; message: string };
 
 /**
- * Mint a COMPUTE-only read key for `bucketId`, held in state only. The signature
- * is silent (no wallet popup), so it can run on open; a failure offers a retry.
+ * Mint a COMPUTE-only read key for `bucketId`, held in state only. Minting signs
+ * with the wallet, which pops a passkey when the signer is cold, so it runs on an
+ * explicit `mint()` click (a user gesture) rather than on open — the page shows a
+ * "Show usage" button. A bucket change resets to idle so the new bucket is a fresh
+ * click. `mint` doubles as the retry.
  */
-export function useReadKey(bucketId: string | null): { state: ReadKey; retry: () => void } {
+export function useReadKey(bucketId: string | null): { state: ReadKey; mint: () => void } {
   const account = useAccount();
   const accountRef = useRef(account);
   accountRef.current = account;
   const [state, setState] = useState<ReadKey>({ kind: 'idle' });
-  const [reload, setReload] = useState(0);
+  const cancelled = useRef(false);
 
+  // A new bucket (or none) drops the held key back to idle.
   useEffect(() => {
-    if (!bucketId) {
-      setState({ kind: 'idle' });
-      return undefined;
-    }
-    let cancelled = false;
+    cancelled.current = false;
+    setState({ kind: 'idle' });
+    return () => { cancelled.current = true; };
+  }, [bucketId]);
+
+  const mint = useCallback(() => {
+    if (!bucketId) return;
     setState({ kind: 'minting' });
     accountRef.current.createInferenceApiKey(BigInt(bucketId), KEY_TTL_MS).then(
-      (key) => { if (!cancelled) setState({ kind: 'ready', key }); },
-      (e: unknown) => { if (!cancelled) setState({ kind: 'error', message: messageOf(e) }); },
+      (key) => { if (!cancelled.current) setState({ kind: 'ready', key }); },
+      (e: unknown) => { if (!cancelled.current) setState({ kind: 'error', message: messageOf(e) }); },
     );
-    return () => { cancelled = true; };
-  }, [bucketId, reload]);
+  }, [bucketId]);
 
-  return { state, retry: () => setReload((n) => n + 1) };
+  return { state, mint };
 }
 
 // ── Live limits (polled) ─────────────────────────────────────────────────────
@@ -119,8 +124,11 @@ export type Boards =
 
 async function loadBoards(key: string, range: UsageRange, nowMs: number, signal: AbortSignal): Promise<UsageBoards> {
   const { ms, step, stepMs } = USAGE_RANGES[range];
-  const toMs = Math.floor(nowMs / stepMs) * stepMs;
-  const fromMs = toMs - ms;
+  // End at `now`, not the last whole step boundary: a usage page should show the
+  // call you just made, so the current (partial) step is included — its increase()
+  // is the partial total so far. `from` is step-aligned to keep the buckets clean.
+  const toMs = nowMs;
+  const fromMs = Math.floor((nowMs - ms) / stepMs) * stepMs;
   const counter = (metric: Parameters<typeof queryRange>[1]['metric'], groupBy: Parameters<typeof queryRange>[1]['groupBy']) =>
     queryRange(key, { metric, groupBy, stat: 'increase', window: step }, fromMs, toMs, step, stepMs, signal);
 

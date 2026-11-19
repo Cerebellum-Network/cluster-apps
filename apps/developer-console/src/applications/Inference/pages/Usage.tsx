@@ -235,7 +235,7 @@ const Usage = () => {
   const [bucketId, setBucketId] = useState<string>('');
   // Default to the first bucket once they load; honour a pick after that.
   const active = bucketId || buckets[0]?.id || '';
-  const { state: key, retry } = useReadKey(active || null);
+  const { state: key, mint } = useReadKey(active || null);
 
   const header = (actions?: React.ReactNode) => (
     <Box marginBottom="20px">
@@ -297,19 +297,28 @@ const Usage = () => {
     );
   }
 
-  // Minting / idle / error — the page frame stays, the body says where it is.
+  // Idle / minting / error — the page frame stays, the body says where it is.
+  // Minting is gated behind an explicit click: it signs, which pops the wallet
+  // passkey when the signer is cold, so it shouldn't fire on open.
   return (
     <Box>
       {header(bucketPicker)}
-      {key.kind === 'error' ? (
+      {key.kind === 'minting' ? (
+        <Muted>Authorizing…</Muted>
+      ) : key.kind === 'error' ? (
         <Stack direction="row" spacing={1} alignItems="center">
           <Muted>Couldn’t authorize usage reads for this bucket.</Muted>
-          <Button size="small" variant="text" onClick={retry}>
+          <Button size="small" variant="text" onClick={mint}>
             Try again
           </Button>
         </Stack>
       ) : (
-        <Muted>Authorizing…</Muted>
+        <Stack spacing={1.5} alignItems="flex-start">
+          <Muted>Reading your usage needs a one-time signature from your wallet.</Muted>
+          <Button variant="contained" onClick={mint}>
+            Show usage
+          </Button>
+        </Stack>
       )}
     </Box>
   );
