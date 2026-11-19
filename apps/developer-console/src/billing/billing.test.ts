@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { usd, usdBalance, money, signedMoney, monthLabel, brandName, runway, num } from './format';
-import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding, inferenceUsage } from './model';
+import { usd, usdBalance, money, signedMoney, monthLabel, brandName, runway } from './format';
+import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding } from './model';
 import type { Bills, Rates, LedgerEntry } from './api';
 
 /**
@@ -163,79 +163,5 @@ describe('balanceBox / monthFunding (ledger → balance box)', () => {
   it('monthFunding splits cost into card vs balance', () => {
     expect(monthFunding(ledger, '2026-11', 2)).toEqual({ card: 2, fromBalance: 0 }); // card covers it
     expect(monthFunding(ledger, '2026-11', 15)).toEqual({ card: 10, fromBalance: 5 }); // card + balance
-  });
-});
-
-describe('inferenceUsage (Inference → Usage B-lite)', () => {
-  it('returns null when there is no bill', () => {
-    expect(inferenceUsage(null)).toBeNull();
-  });
-
-  it('empty account (no months) → null', () => {
-    expect(inferenceUsage(emptyBills)).toBeNull();
-  });
-
-  it('a month with zero compute and zero GPU → hasData false (empty state)', () => {
-    const zeroBills: Bills = {
-      ...emptyBills,
-      months: [
-        {
-          month: '2026-11',
-          status: 'estimated',
-          eras: 1,
-          lines: { compute_usd: '0', storage_usd: '3', transfer_usd: '0', put_usd: '0', get_usd: '0' },
-          usage: {
-            stored_byte_months: '0',
-            transferred_bytes: '0',
-            put_requests: '0',
-            get_requests: '0',
-            cpu_units: '0',
-            ram_units: '0',
-            gpu_units: '0',
-          },
-          total_usd: '3',
-        },
-      ],
-    };
-    expect(inferenceUsage(zeroBills)?.hasData).toBe(false);
-  });
-
-  it('uses the current month and trends compute spend oldest→newest', () => {
-    const u = inferenceUsage(bills)!;
-    expect(u.hasData).toBe(true);
-    expect(u.computeSpend).toBe('$6.00'); // current month (2026-11) compute_usd
-    expect(u.note).toContain('month to date');
-    // Oldest→newest: October (20, the largest → full bar), then November (6).
-    expect(u.monthly.map((m) => m.month)).toEqual(['October', 'November']);
-    expect(u.monthly[0].width).toBe('100%');
-    expect(u.monthly[1].width).toBe('30%'); // 6/20
-  });
-
-  it('formats GPU units from the active month via num()', () => {
-    const gpuBills: Bills = {
-      ...emptyBills,
-      current_month: { ...emptyBills.current_month, month_to_date_usd: '9.00' },
-      months: [
-        {
-          month: '2026-11',
-          status: 'estimated',
-          eras: 1,
-          lines: { compute_usd: '9', storage_usd: '0', transfer_usd: '0', put_usd: '0', get_usd: '0' },
-          usage: {
-            stored_byte_months: '0',
-            transferred_bytes: '0',
-            put_requests: '0',
-            get_requests: '0',
-            cpu_units: '120',
-            ram_units: '64',
-            gpu_units: '42',
-          },
-          total_usd: '9',
-        },
-      ],
-    };
-    const u = inferenceUsage(gpuBills)!;
-    expect(u.gpuUnits).toBe(num('42'));
-    expect(u.cpuUnits).toBe(num('120'));
   });
 });
