@@ -86,11 +86,20 @@ export function callSnippet(lang: SnippetLang, input: SnippetInput = {}): string
         "  }'",
       ].join('\n');
     case 'speech':
+      // The gateway's /api/v1/inference takes a JSON body — `model.alias` (or
+      // `model.name`) and an `input.audio` that is a URL (recommended; ~1MB edge
+      // cap) or a base64 data-URI. Verified live against the test gateway
+      // (parakeet-tdt-0.6b-v2); the earlier `-F model=/-F file=` multipart form
+      // is rejected with "model.name or model.alias is required".
       return [
+        '# input.audio: a public URL (recommended, ~1MB edge cap) or a base64 data-URI',
         'curl "$SPEECH_URL" \\',
         '  -H "Authorization: Bearer $CERE_API_KEY" \\',
-        `  -F model="${speech}" \\`,
-        '  -F file=@sample.wav',
+        '  -H "Content-Type: application/json" \\',
+        "  -d '{",
+        `    "model": {"alias": "${speech}"},`,
+        '    "input": {"audio": "https://example.com/clip.wav"}',
+        "  }'",
       ].join('\n');
   }
 }

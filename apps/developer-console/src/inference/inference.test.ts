@@ -183,9 +183,15 @@ describe('snippets', () => {
     expect(s).toContain('Authorization: Bearer $OPENAI_API_KEY');
   });
 
-  it('call: speech posts multipart with the speech model, and placeholders when unknown', () => {
-    expect(callSnippet('speech', { speechModel: 'parakeet' })).toContain('model="parakeet"');
-    expect(callSnippet('speech')).toContain('model="your-speech-model"');
+  it('call: speech posts the JSON model.alias + input.audio body, placeholders when unknown', () => {
+    const s = callSnippet('speech', { speechModel: 'parakeet' });
+    expect(s).toContain('"$SPEECH_URL"');
+    expect(s).toContain('Authorization: Bearer $CERE_API_KEY');
+    expect(s).toContain('"model": {"alias": "parakeet"}');
+    expect(s).toContain('"input": {"audio"');
+    // The old multipart form the deployed gateway rejects must not reappear.
+    expect(s).not.toContain('-F ');
+    expect(callSnippet('speech')).toContain('"model": {"alias": "your-speech-model"}');
     expect(callSnippet('openai')).toContain('model="your-model"');
   });
 });
