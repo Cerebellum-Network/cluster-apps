@@ -13,7 +13,7 @@ import {
   useMessages,
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
@@ -85,7 +85,12 @@ const ContentStorage = () => {
     [account.buckets],
   );
 
+  const creatingRef = useRef(false);
   const onBucketCreation = useCallback(async () => {
+    // Guard against a double invocation (two parallel createBucket flows would
+    // fire two addProxy extrinsics on the same nonce and both fail).
+    if (creatingRef.current) return;
+    creatingRef.current = true;
     setIsBucketCreating(true);
     try {
       // First create authorizes the gateway (one wallet consent), then mints the bucket.
@@ -100,8 +105,10 @@ const ContentStorage = () => {
         message: 'Could not create the bucket. Please try again.',
         placement: { vertical: 'top', horizontal: 'right' },
       });
+    } finally {
+      creatingRef.current = false;
+      setIsBucketCreating(false);
     }
-    setIsBucketCreating(false);
   }, [account, refetchBucket, showMessage]);
 
   const handleUpload = useCallback(
