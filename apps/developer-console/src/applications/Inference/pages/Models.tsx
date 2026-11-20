@@ -82,7 +82,7 @@ const Models = () => {
   const { cards, loading, error, reload } = useModels();
   const balance = useBalance();
   const [howOpen, setHowOpen] = useState(false);
-  // Usage's empty state deep-links to `/inference/quickstart` to open "Show me how".
+  // Usage's empty state deep-links to `/inference?quickstart=1` to open "Show me how".
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     if (searchParams.get('how') === '1') setHowOpen(true);

@@ -49,7 +49,7 @@ describe('UsageView', () => {
     const html = render(empty);
     expect(html).toBe(renderToStaticMarkup(<MemoryRouter><EmptyUsage /></MemoryRouter>));
     expect(html).toContain('No usage yet');
-    expect(html).toContain('href="/inference/quickstart"');
+    expect(html).toContain('href="/inference?quickstart=1"');
   });
 
   it('has no upgrade notice when refusals were only "model full"', () => {
