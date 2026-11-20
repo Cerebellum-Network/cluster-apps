@@ -65,29 +65,31 @@ function Stat({ label, value, share, color }: { label: string; value: string; sh
   );
 }
 
-const caption = { fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', color: 'text.secondary', textTransform: 'uppercase' } as const;
+const caption = { fontSize: 12, fontWeight: 600, color: 'text.secondary' } as const;
 
-/** Tokens in / cached / out, or a "Coming soon" where the gateway doesn't count them. */
+/**
+ * Tokens in / cached / out. A zero is "—", never "doesn't count tokens": the
+ * gateway's counters can read zero for a model that does count them (see
+ * usageMath.ts on VictoriaMetrics' first sample). "Coming soon" only when the
+ * gateway won't serve token counts at all.
+ */
 function TokenStats({ row, tokensAvailable }: { row: UsageRow; tokensAvailable: boolean }) {
   const per = (v: number, d: number, digits = 2) => (d > 0 ? (v / d).toFixed(digits) : '—');
   const all = row.tokensIn + row.tokensOut;
   const share = (v: number) => (all > 0 ? v / all : 0);
+  const cell = (v: number) => (v > 0 ? compactWords(v) : '—');
   return (
     <Stack gap="10px" sx={{ minWidth: 0 }}>
       <Stack direction="row" alignItems="center" gap="8px">
         <Typography sx={caption}>Tokens</Typography>
         {!tokensAvailable && <ComingSoon />}
       </Stack>
-      {tokensAvailable && all > 0 ? (
+      {tokensAvailable && (
         <>
-          <Stat label="In" value={compactWords(row.tokensIn)} share={share(row.tokensIn)} color="#b294f0" />
-          <Stat label="of which cached" value={compactWords(row.tokensCached)} share={share(row.tokensCached)} color="#c9b6f5" />
-          <Stat label="Out" value={compactWords(row.tokensOut)} share={share(row.tokensOut)} color="#5b2bc9" />
+          <Stat label="In" value={cell(row.tokensIn)} share={share(row.tokensIn)} color="#b294f0" />
+          <Stat label="of which cached" value={cell(row.tokensCached)} share={share(row.tokensCached)} color="#c9b6f5" />
+          <Stat label="Out" value={cell(row.tokensOut)} share={share(row.tokensOut)} color="#5b2bc9" />
         </>
-      ) : (
-        <Typography variant="body2" color="text.secondary">
-          {tokensAvailable ? 'This model doesn’t count tokens.' : 'Token counts per model are on the way.'}
-        </Typography>
       )}
       <Stat label="GPU units per request" value={per(row.gpu, row.requests)} color="#5b2bc9" />
     </Stack>
@@ -97,18 +99,18 @@ function TokenStats({ row, tokensAvailable }: { row: UsageRow; tokensAvailable: 
 function InflightPlot({ gatewayKey, row, window: w, onAuthError }: { gatewayKey: string; row: UsageRow; window: UsageWindow; onAuthError: () => void }) {
   const detail = useModelDetail(gatewayKey, row.model, w, onAuthError);
   if (detail.kind === 'loading') {
-    return <Typography variant="body2" color="text.secondary">Loading…</Typography>;
+    return <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Loading…</Typography>;
   }
   if (detail.kind === 'error') {
     return (
-      <Typography variant="body2" color="error" title={detail.detail}>
+      <Typography sx={{ fontSize: 13, color: 'error.main' }} title={detail.detail}>
         {detail.message}
       </Typography>
     );
   }
   const steps = detailSteps(detail.data.peak, detail.data.refused, w);
   const time = timeFormat(w.barMs);
-  const tick = { fontSize: 10.5, fill: '#6B6A7B' };
+  const tick = { fontSize: 12, fill: '#6B6A7B' };
   const limit = row.limit;
   const top = Math.max(limit ?? 0, ...steps.map((s) => s.peak ?? 0));
   const refusedAny = steps.some((s) => s.refusedLimit + s.refusedFull > 0);
@@ -137,7 +139,7 @@ function InflightPlot({ gatewayKey, row, window: w, onAuthError }: { gatewayKey:
           </ComposedChart>
         </ResponsiveContainer>
       </Box>
-      <Stack direction="row" flexWrap="wrap" gap="6px 14px" sx={{ fontSize: 11.5, color: 'text.secondary' }}>
+      <Stack direction="row" flexWrap="wrap" gap="6px 14px" sx={{ fontSize: 12, color: 'text.secondary' }}>
         <Legend swatch={PEAK}>Peak</Legend>
         <Legend swatch={AT_LIMIT}>At the limit</Legend>
         <Stack direction="row" alignItems="center" gap="5px">
@@ -191,10 +193,20 @@ function Details({ row, gatewayKey, window: w, tokensAvailable, onAuthError }: {
   );
 }
 
-/** Every model this account used in the period, one row each; the arrow opens a row's details. */
-const UsageModelsTable = ({ rows, colorOf, gatewayKey, window: w, tokensAvailable, onAuthError }: {
+/**
+ * Every model this account used in the period, one row each, whatever the
+ * filters: out-of-view rows are greyed. A model's name toggles its filter;
+ * the arrow opens its details.
+ */
+const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, gatewayKey, window: w, tokensAvailable, onAuthError }: {
   rows: UsageRow[];
   colorOf: (model: string) => string;
+  /** Rows out of view (filtered away) stay listed, greyed. */
+  isInView: (model: string) => boolean;
+  /** Models the page is filtered to. */
+  selected: string[];
+  /** A model name toggles its filter. */
+  onPickModel: (model: string) => void;
   gatewayKey: string;
   window: UsageWindow;
   tokensAvailable: boolean;
@@ -225,7 +237,11 @@ const UsageModelsTable = ({ rows, colorOf, gatewayKey, window: w, tokensAvailabl
               const refused = refusedCell(row);
               return (
                 <Fragment key={row.model}>
-                  <TableRow hover sx={{ '& td': { borderBottom: isOpen ? 'none' : undefined } }}>
+                  <TableRow
+                    hover
+                    selected={selected.includes(row.model)}
+                    sx={{ '& td': { borderBottom: isOpen ? 'none' : undefined, fontSize: 14 }, opacity: isInView(row.model) ? 1 : 0.45 }}
+                  >
                     <TableCell sx={{ paddingRight: 0 }}>
                       <IconButton
                         size="small"
@@ -239,7 +255,15 @@ const UsageModelsTable = ({ rows, colorOf, gatewayKey, window: w, tokensAvailabl
                     <TableCell>
                       <Stack direction="row" alignItems="center" gap="8px">
                         <Box aria-hidden sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: colorOf(row.model), flexShrink: 0 }} />
-                        <Typography variant="subtitle2">{row.model}</Typography>
+                        <Box
+                          component="button"
+                          type="button"
+                          onClick={() => onPickModel(row.model)}
+                          title={selected.includes(row.model) ? `Remove ${row.model} from the filter` : `Filter to ${row.model}`}
+                          sx={{ all: 'unset', cursor: 'pointer', fontSize: 14, fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
+                        >
+                          {row.model}
+                        </Box>
                       </Stack>
                     </TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{fmtCount(row.requests)}</TableCell>

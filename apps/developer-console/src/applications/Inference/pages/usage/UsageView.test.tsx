@@ -28,6 +28,11 @@ describe('UsageView', () => {
     expect(html).toContain('qwen3-embed');
     expect(html).not.toContain('never-used');
     expect(html).toContain('8 / 8');
+    expect(html).toContain('+ Filter');
+    expect(html).toContain('title="Filter to glm-5.3"');
+    // Text stays on the shared scale (18 card titles and below); only icons are larger.
+    const text = (html.match(/\.css-[\w-]+\{[^}]*\}/g) ?? []).filter((r) => !/icon/i.test(r));
+    expect(text.filter((r) => /font-size:(19|2\d|3\d)px/.test(r))).toEqual([]);
   });
 
   it('shows the empty state with a way to the quickstart when nothing was used', () => {

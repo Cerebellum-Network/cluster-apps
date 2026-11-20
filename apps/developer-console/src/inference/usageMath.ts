@@ -9,14 +9,17 @@
  *
  * # How the numbers are sampled
  *
- * - Totals (tiles, table) are ONE instant `increase(metric[span])` at the end
- *   of the window, `sum by (model)`; the previous period is the same read at
- *   the window's start. VictoriaMetrics' increase() counts a series' first
- *   sample from zero, so a model's first call in the window is not dropped —
- *   unlike differencing consecutive points on the page, which would lose it.
- * - Charts are range reads of `increase(metric[bar])` at each bar's end, so
- *   each point is that bar's own count; the legend totals come from the
- *   instant read so they agree with the tiles.
+ * - Totals (tiles, table) are ONE instant `increase(metric[window])` at NOW,
+ *   `sum by (model)`, over the whole window; the previous period is the same
+ *   read at the window's start. The page never differences points itself.
+ * - Charts are range reads of `increase(metric[bar])` at each whole bar's
+ *   end, plus one instant read for the partial bar up to now; the legend
+ *   totals come from the instant read so they agree with the tiles.
+ * - VictoriaMetrics' increase() drops a NEW series' first sample when it is
+ *   large (it can't tell a fresh counter from one first seen mid-life), and
+ *   the gateway creates its series on first use. Requests (first value 1) and
+ *   GPU units survive that; token counts (first value in the thousands) lose
+ *   each series' first call. Only the gateway can fix it (increase_pure).
  * - Peaks are `max_over_time(inference_gateway_inflight{state="used"}[w])`
  *   (stat=max on the gateway), the highest of every scraped sample in the
  *   window, not the value a step happens to land on.
@@ -71,22 +74,35 @@ export function stepPhrase(ms: number): string {
 }
 
 export interface UsageWindow {
-  /** Both multiples of `barMs`, epoch-aligned as VictoriaMetrics aligns a range query. */
+  /** The window's start, a multiple of `barMs` (VictoriaMetrics aligns range queries the same way). */
   fromMs: number;
+  /** The axis end: the end of the bar `nowMs` falls in. The last bar may be partial. */
   toMs: number;
   barMs: number;
+  /** When the window was read: totals are evaluated here, so a call made a minute ago is in them. */
+  nowMs: number;
+  /** The last whole bar boundary at or before `nowMs`: range reads end here, the partial bar is read on its own. */
+  wholeToMs: number;
 }
 
 /**
- * The window the gateway is asked for: `span` ending at the last whole bar
- * before `nowMs`. Totals and charts read the same window, so they agree.
+ * The window the gateway is asked for: at least `span`, ending NOW. The start
+ * is floored to a whole bar so the chart's bars line up; the last bar runs
+ * from the last whole boundary to now. Ending at the last whole bar instead
+ * (as ROC does) cuts off up to one bar of the most recent usage — 15 minutes
+ * on 24h, an hour on 7d — so a model used only recently vanished from the page.
  */
 export function usageWindow(preset: UsagePreset, nowMs: number): UsageWindow {
   const span = USAGE_PRESETS[preset];
   const barMs = pickStep(span, MAX_BARS);
-  const toMs = Math.floor(nowMs / barMs) * barMs;
-  return { fromMs: toMs - span, toMs, barMs };
+  const wholeToMs = Math.floor(nowMs / barMs) * barMs;
+  const toMs = wholeToMs === nowMs ? nowMs : wholeToMs + barMs;
+  const fromMs = Math.floor((nowMs - span) / barMs) * barMs;
+  return { fromMs, toMs, barMs, nowMs, wholeToMs };
 }
+
+/** A duration in whole seconds, rounded up, as the gateway's `window` wants it: "90061s". At least 1s. */
+export const secondsWindow = (ms: number): string => `${Math.max(1, Math.ceil(ms / 1000))}s`;
 
 /** The period the tiles compare against, in words. */
 export const PREVIOUS_LABEL: Record<UsagePreset, string> = {
@@ -279,6 +295,22 @@ export function usageTiles(rows: UsageRow[]): Tiles {
   };
 }
 
+/** What the page is narrowed to; empty lists mean everything. */
+export interface UsageFilter {
+  models: string[];
+  kinds: string[];
+}
+
+export const NO_FILTER: UsageFilter = { models: [], kinds: [] };
+
+/** Whether a model is in view under `f`; `kindOf` names its kind ("Chat", "Embeddings", …). */
+export function inView(model: string, f: UsageFilter, kindOf: (model: string) => string): boolean {
+  return (f.models.length === 0 || f.models.includes(model)) && (f.kinds.length === 0 || f.kinds.includes(kindOf(model)));
+}
+
+/** `list` with `item` added, or removed when already there. */
+export const toggle = (list: string[], item: string): string[] => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
+
 export interface ThrottleNotice {
   /** Requests refused at the account's own limit in the window. */
   refused: number;
@@ -307,7 +339,7 @@ export function throttleNotice(rows: UsageRow[]): ThrottleNotice | null {
  * (fromMs, toMs]: an idle bar reads as zero; the sample at `fromMs` — the
  * bar ending there, which belongs to the previous period — is left out.
  */
-export function stepsByModel(series: Series[], w: UsageWindow): { startsMs: number[]; byModel: Map<string, number[]> } {
+export function stepsByModel(series: Series[], w: Pick<UsageWindow, 'fromMs' | 'toMs' | 'barMs'>): { startsMs: number[]; byModel: Map<string, number[]> } {
   const startsMs: number[] = [];
   for (let t = w.fromMs + w.barMs; t <= w.toMs; t += w.barMs) startsMs.push(t);
   const index = new Map(startsMs.map((t, i) => [t, i]));
@@ -419,7 +451,7 @@ export interface DetailStep {
 }
 
 /** An opened row's chart: the in-flight peak and the 429s by reason per bar, on the page's axis. */
-export function detailSteps(peak: Series[], refused: Series[], w: UsageWindow): DetailStep[] {
+export function detailSteps(peak: Series[], refused: Series[], w: Pick<UsageWindow, 'fromMs' | 'toMs' | 'barMs'>): DetailStep[] {
   const steps: DetailStep[] = [];
   for (let t = w.fromMs + w.barMs; t <= w.toMs; t += w.barMs) steps.push({ t, peak: null, refusedLimit: 0, refusedFull: 0 });
   const index = new Map(steps.map((s, i) => [s.t, i]));

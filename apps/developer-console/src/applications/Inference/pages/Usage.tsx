@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Alert, Box, Button, Stack, Typography } from '@cluster-apps/ui';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@cluster-apps/ui';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { observer } from 'mobx-react-lite';
 import { NavLink } from 'react-router-dom';
 
 import { PageHeader } from '~/components';
-import { useOwnerBuckets } from '~/inference/useInference';
+import { nameOf } from '~/inference/metricsApi';
+import { taskLabel } from '~/inference/model';
+import { useModels, useOwnerBuckets } from '~/inference/useInference';
 import { DEFAULT_PRESET, USAGE_PRESET_KEYS, type UsagePreset } from '~/inference/usageMath';
 import { useUsageData, useUsageKey } from '~/inference/useUsage';
 import UsageView from './usage/UsageView';
@@ -17,10 +19,28 @@ import UsageView from './usage/UsageView';
  * opens and the wallet shows its own consent — there is no in-page step.
  */
 const Muted = ({ children }: { children: React.ReactNode }) => (
-  <Typography variant="body2" color="text.secondary">
-    {children}
-  </Typography>
+  <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{children}</Typography>
 );
+
+/** Auto-refresh choices, as ROC offers them; 0 is off. */
+const AUTO_REFRESH: Array<{ ms: number; label: string }> = [
+  { ms: 0, label: 'Off' },
+  { ms: 30_000, label: '30s' },
+  { ms: 60_000, label: '1m' },
+  { ms: 300_000, label: '5m' },
+];
+const DEFAULT_AUTO_REFRESH_MS = 60_000;
+
+/** Bumps the returned counter every `ms` while the tab is visible; 0 never does. */
+function useAutoRefresh(ms: number, onTick: () => void) {
+  useEffect(() => {
+    if (ms <= 0) return undefined;
+    const id = setInterval(() => {
+      if (typeof document === 'undefined' || !document.hidden) onTick();
+    }, ms);
+    return () => clearInterval(id);
+  }, [ms, onTick]);
+}
 
 const Usage = () => {
   const { buckets, loading, error } = useOwnerBuckets();
@@ -29,10 +49,25 @@ const Usage = () => {
   const { state: key, onAuthError, retry } = useUsageKey(bucketId);
   const [preset, setPreset] = useState<UsagePreset>(DEFAULT_PRESET);
   const [reload, setReload] = useState(0);
+  const [autoMs, setAutoMs] = useState(DEFAULT_AUTO_REFRESH_MS);
   const usage = useUsageData(key.kind === 'ready' ? key.key : null, preset, reload, onAuthError);
+  const bump = useCallback(() => setReload((n) => n + 1), []);
+  useAutoRefresh(key.kind === 'ready' ? autoMs : 0, bump);
+
+  // A model's kind for the Kind filter, from the catalogue's model.json `task`.
+  const { cards } = useModels();
+  const kindOf = useMemo(() => {
+    const kinds = new Map<string, string>();
+    for (const c of cards) {
+      const kind = taskLabel(c.task);
+      kinds.set(c.name, kind);
+      kinds.set(nameOf(c.id), kind);
+    }
+    return (model: string) => kinds.get(model) ?? 'Other';
+  }, [cards]);
 
   const busy = key.kind === 'minting' || usage.kind === 'loading' || (usage.kind === 'ready' && usage.refreshing);
-  const refresh = () => (key.kind === 'error' ? retry() : setReload((n) => n + 1));
+  const refresh = () => (key.kind === 'error' ? retry() : bump());
 
   const header = (
     <Box marginBottom="20px">
@@ -56,6 +91,21 @@ const Usage = () => {
             <Button size="small" variant="outlined" color="secondary" onClick={refresh} disabled={busy && key.kind !== 'error'}>
               Refresh
             </Button>
+            <TextField
+              select
+              size="small"
+              value={String(autoMs)}
+              onChange={(e) => setAutoMs(Number(e.target.value))}
+              aria-label="Auto-refresh"
+              sx={{ minWidth: 120 }}
+              InputProps={{ startAdornment: <Typography sx={{ fontSize: 13, color: 'text.secondary', marginRight: '6px', whiteSpace: 'nowrap' }}>Auto</Typography> }}
+            >
+              {AUTO_REFRESH.map((o) => (
+                <MenuItem key={o.ms} value={String(o.ms)} sx={{ fontSize: 14 }}>
+                  {o.label}
+                </MenuItem>
+              ))}
+            </TextField>
           </Stack>
         }
       />
@@ -92,7 +142,7 @@ const Usage = () => {
       </Alert>
     );
   } else {
-    body = <UsageView data={usage.data} preset={preset} gatewayKey={key.key} onAuthError={onAuthError} />;
+    body = <UsageView data={usage.data} preset={preset} gatewayKey={key.key} onAuthError={onAuthError} kindOf={kindOf} />;
   }
 
   return (
