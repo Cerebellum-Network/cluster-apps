@@ -5,6 +5,7 @@ import {
   Button,
   ButtonGroup,
   IconButton,
+  Stack,
   styled,
   Typography,
   AddCircleOutlinedIcon,
@@ -13,6 +14,7 @@ import {
   useIsDesktop,
   CircularProgress,
 } from '@cluster-apps/ui';
+import { ContentCopy } from '@mui/icons-material';
 import { DownloadIcon, FilledFolderIcon, FolderIcon, ShareIcon, useMessages } from '@cluster-apps/ui';
 import TreeView, { flattenTree, INode } from 'react-accessible-treeview';
 import { RowData } from './types.ts';
@@ -169,10 +171,33 @@ export const Row = ({
   return (
     <>
       <StyledRow locked={lockUi} open={isOpen} onClick={onRowClick}>
-        <Typography variant="subtitle1" flex={1} sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-          {row.bucketId}
-        </Typography>
-        <Box display="flex" alignItems="center" flex={1.5} justifyContent="end">
+        <Stack direction="row" alignItems="center" spacing={0.5} flex={4} minWidth={0}>
+          <Typography
+            variant="subtitle1"
+            noWrap
+            sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+            title={row.bucketId}
+          >
+            {row.bucketId}
+          </Typography>
+          <IconButton
+            size="small"
+            sx={{ flexShrink: 0 }}
+            onClick={(event) => {
+              event.stopPropagation();
+              navigator.clipboard.writeText(row.bucketId);
+              showMessage({
+                appearance: 'success',
+                message: 'Bucket name copied.',
+                placement: { vertical: 'top', horizontal: 'right' },
+                autoDismiss: true,
+              });
+            }}
+          >
+            <ContentCopy sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Stack>
+        <Box display="flex" alignItems="center" flex={1.4} justifyContent="end">
           {isOpen && (
             <>
               {/*    <IconButton*/}

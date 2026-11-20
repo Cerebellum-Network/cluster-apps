@@ -1,0 +1,14 @@
+/*
+ * App canvas for the developer console. Colors come from the shared
+ * @cluster-apps/ui theme (#192 review); this only provides the full-bleed page
+ * background (shared theme's background.default = #F5F7FA) so it fills the
+ * viewport behind the layout.
+ */
+body {
+  background: #f5f7fa;
+}
+
+.dc-root {
+  min-height: 100vh;
+  background: #f5f7fa;
+}

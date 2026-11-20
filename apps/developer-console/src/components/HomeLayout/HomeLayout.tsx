@@ -1,58 +1,57 @@
 import { PropsWithChildren, ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
 import { isMobile } from 'react-device-detect';
-import { Paper, Stack, styled, MobileOverlay } from '@cluster-apps/ui';
+import { Box, Stack, styled, MobileOverlay } from '@cluster-apps/ui';
 
 import { Layout } from '../Layout';
-import { AccountDropdown } from '../AccountDropdown';
+import { AppHeader } from '../AppHeader';
 import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeLayoutProps = PropsWithChildren<{
+  /** Sidebar navigation. */
   rightElement?: ReactNode;
-  leftElement?: ReactNode;
+  /** Extra header controls, left of the account menu (Docs / Discord). */
   headerRight?: ReactNode;
 }>;
 
-const Content = styled(Paper)(({ theme }) => ({
-  zIndex: 1,
+/** Content row below the 56px header: grouped sidebar + page canvas. */
+const Sheet = styled(Stack)(() => ({
+  flexDirection: 'row',
+  minHeight: 'calc(100vh - 56px)',
+}));
+
+const SidebarNav = styled(Box)(() => ({
+  width: 248,
+  flexShrink: 0,
+  backgroundColor: '#FAFAFC',
+  borderRight: '1px solid #E3E4EE',
+  padding: '20px 12px',
+}));
+
+const Content = styled(Box)(() => ({
   flex: 1,
-  minWidth: 800,
-  padding: theme.spacing(4),
-  borderTopLeftRadius: 0,
-  borderTopRightRadius: 0,
-  boxShadow: '0px 8px 12px 0px #1A0A7C1A', // TODO: use theme
+  minWidth: 0,
+  backgroundColor: '#F5F7FA',
+  padding: '24px 32px',
 }));
 
-const Left = styled(Stack)(({ theme }) => ({
-  flex: 1,
-  maxWidth: 400,
-  minWidth: 200,
-  padding: theme.spacing(4, 0, 3, 3),
-}));
-
-const Right = styled(Stack)(() => ({
-  width: 200,
-}));
-
-const HomeLayout = ({ children, rightElement, leftElement, headerRight }: HomeLayoutProps) => {
+const HomeLayout = ({ children, rightElement, headerRight }: HomeLayoutProps) => {
   const { hideTour } = useApplicationTour();
 
   return (
     <Layout
       disablePaddings
       fullPage
-      headerRight={
-        <Stack data-tour="account" direction="row" spacing={2} onClick={hideTour}>
-          {headerRight}
-          <AccountDropdown />
-        </Stack>
+      header={
+        <Box data-tour="account" onClick={hideTour}>
+          <AppHeader right={headerRight} />
+        </Box>
       }
     >
-      <Stack direction="row">
-        {rightElement && <Left>{rightElement}</Left>}
-        <Content elevation={3}>{children}</Content>
-        {leftElement && <Right>{leftElement}</Right>}
-      </Stack>
+      <Sheet>
+        {rightElement && <SidebarNav>{rightElement}</SidebarNav>}
+        <Content>{children}</Content>
+      </Sheet>
       {isMobile && <MobileOverlay />}
     </Layout>
   );

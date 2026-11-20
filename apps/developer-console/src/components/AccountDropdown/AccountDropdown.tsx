@@ -2,25 +2,24 @@ import { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { NavLink } from 'react-router-dom';
 import { AnalyticsId } from '@cluster-apps/analytics';
-import {
-  Dropdown,
-  AvatarIcon,
-  Stack,
-  Truncate,
-  Button,
-  Card,
-  CardHeader,
-  CardContent,
-  CardActions,
-  Typography,
-  InfoOutlinedIcon,
-} from '@cluster-apps/ui';
+import { Dropdown, AvatarIcon, Box, Stack, Truncate, Button, Typography } from '@cluster-apps/ui';
 
 import { useAccountStore } from '~/hooks';
 import { useSession } from '~/wallet/session';
 import { elementsRendered } from '../ApplicationTour';
 
 export type AccountDropdownProps = {};
+
+const Row = ({ label, value }: { label: string; value: string }) => (
+  <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+    <Typography variant="body2" color="text.secondary">
+      {label}
+    </Typography>
+    <Typography variant="body2" fontWeight={600} color="text.primary">
+      {value}
+    </Typography>
+  </Stack>
+);
 
 const AccountDropdown = () => {
   const account = useAccountStore();
@@ -40,59 +39,74 @@ const AccountDropdown = () => {
   }
 
   const handleClose = () => setOpen(false);
+  const cere = account.balance === undefined ? '—' : `${account.balance} CERE`;
+  const ddc = account.deposit === undefined ? '—' : `${account.deposit} CERE`;
 
   return (
-    <Dropdown variant="header" open={open} onToggle={setOpen} label="Account" leftElement={<AvatarIcon />}>
-      <Stack spacing={2} width={240}>
-        <Card variant="outlined" size="small">
-          <CardHeader
-            title="Cere Wallet"
-            action={
-              <Typography variant="body2" fontWeight="bold" color="text.primary">
-                <Truncate variant="hex" maxLength={8} text={account.address} />
-              </Typography>
-            }
-          />
-          <CardContent>
-            <Typography fontWeight="bold">{account.balance === undefined ? '-' : `${account.balance} CERE`}</Typography>
-          </CardContent>
-        </Card>
+    <Dropdown
+      variant="header"
+      open={open}
+      onToggle={setOpen}
+      label={account.email || 'Account'}
+      leftElement={<AvatarIcon />}
+    >
+      <Stack spacing={2} width={260} paddingY={1}>
+        {/* Who you are */}
+        <Stack spacing={0.25}>
+          <Typography variant="caption" color="text.secondary">
+            Signed in as
+          </Typography>
+          {account.email && (
+            <Typography variant="body2" fontWeight={600} color="text.primary">
+              {account.email}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.secondary">
+            <Truncate variant="hex" maxLength={8} text={account.address} />
+          </Typography>
+        </Stack>
 
-        <Card variant="outlined" size="small">
-          <CardHeader avatar={<InfoOutlinedIcon />} title="DDC Wallet" />
-          <CardContent>
-            <Typography fontWeight="bold">{account.deposit === undefined ? '-' : `${account.deposit} CERE`}</Typography>
-          </CardContent>
-          <CardActions>
-            <Button component={NavLink} fullWidth variant="outlined" to="/top-up" onClick={handleClose}>
-              Top Up
-            </Button>
-          </CardActions>
-        </Card>
+        {/* Balance */}
+        <Stack spacing={1} padding={1.5} border={(theme) => `1px solid ${theme.palette.divider}`} borderRadius={2}>
+          <Row label="Wallet balance" value={cere} />
+          <Row label="DDC balance" value={ddc} />
+          {/* One funding path (#192 review): "Add funds" goes to Billing (USD);
+              a direct CERE deposit stays as a minor link. */}
+          <Button component={NavLink} fullWidth to="/billing" onClick={handleClose}>
+            Add funds
+          </Button>
+          <Button
+            component={NavLink}
+            size="small"
+            variant="text"
+            color="secondary"
+            to="/top-up"
+            onClick={handleClose}
+            sx={{ alignSelf: 'center', textTransform: 'none' }}
+          >
+            Add CERE directly
+          </Button>
+        </Stack>
 
-        <Card variant="outlined" size="small">
-          <CardHeader title="Current Package" />
-          <CardContent>
-            <Typography fontWeight="bold">Starter Pack</Typography>
-          </CardContent>
-          {/* <CardActions>
-            <Button fullWidth variant="outlined" color="success">
-              Upgrade
-            </Button>
-          </CardActions> */}
-        </Card>
-
-        <Button
-          className={AnalyticsId.signOut}
-          variant="outlined"
-          color="secondary"
-          onClick={() => {
-            session.signOut();
-            handleClose();
-          }}
-        >
-          Log Out
+        {/* Links */}
+        <Button component={NavLink} variant="outlined" color="secondary" fullWidth to="/billing" onClick={handleClose}>
+          Billing
         </Button>
+
+        <Box borderTop={(theme) => `1px solid ${theme.palette.divider}`} paddingTop={2}>
+          <Button
+            className={AnalyticsId.signOut}
+            variant="text"
+            color="secondary"
+            fullWidth
+            onClick={() => {
+              session.signOut();
+              handleClose();
+            }}
+          >
+            Sign out
+          </Button>
+        </Box>
       </Stack>
     </Dropdown>
   );

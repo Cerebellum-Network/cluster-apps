@@ -72,8 +72,10 @@ export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   if (bytes === 0) return '0 Bytes';
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  const sizeInUnits = bytes / Math.pow(1024, i);
-  return `${parseFloat(sizeInUnits.toFixed(2))} ${sizes[i]}`;
+  const value = parseFloat((bytes / Math.pow(1024, i)).toFixed(2));
+  // Singular only for exactly one byte ("1 Byte", not "1 Bytes").
+  const unit = i === 0 && value === 1 ? 'Byte' : sizes[i];
+  return `${value} ${unit}`;
 };
 
 export const transformData = (data: RealData[]): RowData[] => {

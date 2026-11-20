@@ -1,17 +1,15 @@
-import { AnalyticsId } from '@cluster-apps/analytics';
 import Reporting from '@cluster-apps/reporting';
+import { AnalyticsId } from '@cluster-apps/analytics';
 import {
-  Docs,
-  DocsGroup,
-  DocsSection,
-  GithubLogoIcon,
   Box,
+  Stack,
   Button,
   styled,
   Typography,
   Alert,
   AlertProps,
   AddCircleOutlinedIcon,
+  IconButton,
   LoadingButton,
   useMessages,
 } from '@cluster-apps/ui';
@@ -19,21 +17,21 @@ import { observer } from 'mobx-react-lite';
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
+import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { ContentCopy } from '@mui/icons-material';
+
 import { useAccount, useFetchDirs } from '~/hooks';
-import { DataStorageDocsIcon } from './icons';
-import { GITHUB_GUIDE_LINK, StepByStepUploadDoc } from '~/applications/ContentStorage/docs';
+import { useApplicationTour } from '~/components/ApplicationTour';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
+import { PageHeader, Section, ComingSoon } from '~/components';
+import { storageConfig } from '~/storage/storageConfig';
 import { EMPTY_FILE_NAME, DEFAULT_FOLDER_NAME } from '~/constants.ts';
 import type { Acl } from '~/storage/ddc/types';
 
 /** Folder-upload tuning: a bounded worker pool, with a couple of retries per file. */
 const UPLOAD_CONCURRENCY = 4;
 const UPLOAD_MAX_RETRIES = 2;
-
-const Container = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.background.default,
-}));
 
 const StyledAlert = styled(Alert)<AlertProps>(() => ({
   display: 'flex',
@@ -47,6 +45,7 @@ const StyledAlert = styled(Alert)<AlertProps>(() => ({
  */
 const ContentStorage = () => {
   const account = useAccount();
+  const { hideTour } = useApplicationTour();
   const { showMessage } = useMessages();
 
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -55,6 +54,8 @@ const ContentStorage = () => {
   const [bucketInProgress, setBucketInProgress] = useState<string>();
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [s3Open, setS3Open] = useState(false);
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
 
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
   useEffect(() => {
@@ -193,17 +194,13 @@ const ContentStorage = () => {
     [account.storage, aclForBucket, refetchBucket, showMessage],
   );
 
+  // Confirmation is handled in-app inside the S3 dialog (no window.confirm).
   const handleRevokeGateway = useCallback(async () => {
-    if (
-      !window.confirm(
-        "Stop Cere from managing your storage? You'll allow it again the next time you create a bucket.",
-      )
-    ) {
-      return;
-    }
     setIsRevoking(true);
     try {
       await account.revokeGateway();
+      setS3Open(false);
+      setDisconnectConfirm(false);
       showMessage({ appearance: 'success', message: 'Cere no longer manages your storage.' });
     } catch (e) {
       Reporting.error(e);
@@ -238,90 +235,169 @@ const ContentStorage = () => {
     [defaultDirIndices, handleUpload, setDefaultFolderIndex],
   );
 
-  return (
-    <>
-      <Box
-        display="flex"
-        flexDirection="column"
-        border={(theme) => `1px solid ${theme.palette.divider}`}
-        borderRadius="12px"
-        marginBottom="20px"
-      >
-        <Box padding="34px 32px" borderBottom={(theme) => `1px solid ${theme.palette.divider}`}>
-          <Typography variant="h3">Content Storage</Typography>
-        </Box>
-        <Container padding="24px" borderRadius={(theme) => theme.spacing(0, 0, 1.5, 1.5)}>
-          {!isAccountReady && (
-            <StyledAlert
-              severity="info"
-              action={
-                <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/top-up">
-                  Top Up
-                </Button>
-              }
-            >
-              Your DDC Wallet balance is 0. Please top it up before creating a bucket.
-            </StyledAlert>
-          )}
-          <FileManager
-            data={dirs || []}
-            userHasBuckets={buckets.length > 0 || false}
-            isLoading={loading}
-            isBucketsLoading={false}
-            onCreateBucket={onBucketCreation}
-            onUpload={handleUpload}
-            uploadType={uploadType}
-            uploadStatus={uploadStatus}
-            setUploadStatus={handleCloseStatus}
-            isBucketCreating={isBucketCreating}
-            firstBucketLocked={buckets.length === 0}
-            lockUi={false}
-            onUnlockFirstBucket={onBucketCreation}
-            onRowClick={handleRowClick}
-            selectedBucket={selectedBucket}
-            onFolderCreate={handleCreateEmptyFolder}
-            isAccountReady={isAccountReady}
-            bucketInProgress={bucketInProgress}
-          />
-        </Container>
-      </Box>
+  const s3Endpoint = storageConfig.ddcS3GatewayUrl ?? '';
 
-      {account.gatewayAuthorized && (
-        <Box display="flex" justifyContent="flex-end" marginBottom="20px">
-          <LoadingButton variant="text" color="secondary" size="small" loading={isRevoking} onClick={handleRevokeGateway}>
-            Stop Cere from managing your storage
-          </LoadingButton>
-        </Box>
+  return (
+    <Stack spacing="20px">
+      <PageHeader
+        title="Storage"
+        actions={
+          account.gatewayAuthorized && (
+            <Button variant="outlined" color="secondary" onClick={() => setS3Open(true)}>
+              S3 access
+            </Button>
+          )
+        }
+      />
+
+      {!isAccountReady && (
+        <StyledAlert
+          severity="info"
+          action={
+            <Button component={NavLink} endIcon={<AddCircleOutlinedIcon />} to="/billing">
+              Add funds
+            </Button>
+          }
+        >
+          Your deposit is empty. Add funds in Billing before creating a bucket.
+        </StyledAlert>
       )}
 
-      <Docs
-        icon={<DataStorageDocsIcon />}
-        title="Get started with Decentralised cloud storage "
-        description="Store your app's data securely across a decentralized network and maintain complete control over your data sovereignty"
-      >
-        <DocsGroup title="Upload your content using DDC SDK">
-          <DocsSection analyticId={AnalyticsId.starterGuideStorage} title="Upload your file step-by-step guide">
-            <StepByStepUploadDoc />
-          </DocsSection>
-          <DocsSection
-            title="Quick start guide in Github"
-            rightSection={
-              <Button
+      {/* Buckets — from the S3 gateway. The plan quota belongs here (mockup) but
+          needs the plan/limits backend, so the slot shows "Coming soon". */}
+      <Section
+        title="Buckets"
+        actions={
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Plan quota</Typography>
+            <ComingSoon />
+            {buckets.length > 0 && (
+              <LoadingButton
                 variant="contained"
-                color="secondary"
-                className={AnalyticsId.repoCereDdcSdkJsBtn}
-                href={GITHUB_GUIDE_LINK}
-                startIcon={<GithubLogoIcon />}
-                target="_blank"
-                rel="noopener noreferrer"
+                startIcon={<AddCircleOutlinedIcon />}
+                loading={isBucketCreating}
+                disabled={!isAccountReady}
+                className={AnalyticsId.createBucketBtn}
+                data-tour="bucket"
+                onClick={() => {
+                  hideTour();
+                  onBucketCreation();
+                }}
               >
-                Open in Github
-              </Button>
-            }
-          />
-        </DocsGroup>
-      </Docs>
-    </>
+                New bucket
+              </LoadingButton>
+            )}
+          </Stack>
+        }
+        flush
+      >
+        <FileManager
+          data={dirs || []}
+          userHasBuckets={buckets.length > 0 || false}
+          isLoading={loading}
+          isBucketsLoading={false}
+          onCreateBucket={onBucketCreation}
+          onUpload={handleUpload}
+          uploadType={uploadType}
+          uploadStatus={uploadStatus}
+          setUploadStatus={handleCloseStatus}
+          isBucketCreating={isBucketCreating}
+          firstBucketLocked={buckets.length === 0}
+          lockUi={false}
+          onUnlockFirstBucket={onBucketCreation}
+          onRowClick={handleRowClick}
+          selectedBucket={selectedBucket}
+          onFolderCreate={handleCreateEmptyFolder}
+          isAccountReady={isAccountReady}
+          bucketInProgress={bucketInProgress}
+        />
+      </Section>
+
+      {/* GET / PUT requests — needs the bills feed, so the section holds its place
+          with a Coming soon badge rather than a developer note. */}
+      <Section title="GET / PUT requests" actions={<ComingSoon />}>
+        <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+          Request counts and data served will show here once your plan is active.
+        </Typography>
+      </Section>
+
+      {/* S3 access: the endpoint to point an S3 client at. Access keys are not
+          issued yet, so they read "Coming soon". */}
+      <Dialog
+        open={s3Open}
+        onClose={() => {
+          setS3Open(false);
+          setDisconnectConfirm(false);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>S3 access</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} paddingTop={1}>
+            <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+              Point any S3-compatible client at this endpoint. Address buckets by the names shown above.
+            </Typography>
+            <Box>
+              <Typography sx={{ fontSize: 12, color: '#818083', marginBottom: 0.5 }}>Endpoint</Typography>
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ border: '1px solid #E3E4EE', borderRadius: '8px', padding: '8px 12px' }}
+              >
+                <Typography sx={{ fontFamily: 'monospace', fontSize: 13, flex: 1, wordBreak: 'break-all' }}>
+                  {s3Endpoint}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    navigator.clipboard.writeText(s3Endpoint);
+                    showMessage({ appearance: 'success', message: 'Endpoint copied.' });
+                  }}
+                >
+                  <ContentCopy sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Stack>
+            </Box>
+            <Stack direction="row" alignItems="center" justifyContent="space-between">
+              <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Access key &amp; secret</Typography>
+              <ComingSoon />
+            </Stack>
+
+            {/* Disconnect S3 lives here, behind an in-app confirm (no window.confirm). */}
+            {account.gatewayAuthorized && (
+              <Box sx={{ borderTop: '1px solid #E3E4EE', paddingTop: 2 }}>
+                {disconnectConfirm ? (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+                      Disconnect Cere from your storage? You can allow it again the next time you create a bucket.
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="text" color="secondary" disabled={isRevoking} onClick={() => setDisconnectConfirm(false)}>
+                        Cancel
+                      </Button>
+                      <LoadingButton variant="contained" color="error" loading={isRevoking} onClick={handleRevokeGateway}>
+                        Disconnect
+                      </LoadingButton>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Button variant="text" color="error" onClick={() => setDisconnectConfirm(true)}>
+                    Disconnect S3
+                  </Button>
+                )}
+              </Box>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" color="secondary" onClick={() => setS3Open(false)}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack>
   );
 };
 
