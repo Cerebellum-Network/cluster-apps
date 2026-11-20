@@ -183,6 +183,20 @@ export const payment = {
         newIdempotencyKey(),
       ),
     }).then((r) => r.checkout_url),
+  /** Stripe Checkout in setup mode: saves a new card without charging; it becomes the card on file. */
+  replaceCard: (account: string, returnTo: string) =>
+    call<{ checkout_url: string }>(`${pay}/v1/psp-methods`, {
+      method: 'POST',
+      ...json(
+        {
+          account_pubkey: account,
+          role: 'developer',
+          success_url: `${returnTo}?checkout=card`,
+          cancel_url: `${returnTo}?checkout=cancelled`,
+        },
+        newIdempotencyKey(),
+      ),
+    }).then((r) => r.checkout_url),
   topUp: (account: string, amountUsd: number, idempotencyKey: string) =>
     call<TopupResult>(`${pay}/v1/developers/${account}/topups`, {
       method: 'POST',
