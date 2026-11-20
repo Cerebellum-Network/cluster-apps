@@ -2,7 +2,7 @@ import { Box, Typography, Stack, Button, Table, TableHead, TableBody, TableRow, 
 import { useState } from 'react';
 
 import type { LedgerEntry } from '~/billing/api';
-import { num, shortDate, signedMoney, money } from '~/billing/format';
+import { shortDate, signedMoney, money } from '~/billing/format';
 
 /**
  * All transactions — the full ledger, paged. The per-month view lives in each
@@ -64,20 +64,11 @@ export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | nu
         <TableBody>
           {shown.map((e) => {
             const amt = Number(e.amount_usd);
-            const era =
-              e.era_id && /^\d+$/.test(e.era_id)
-                ? ` · era ${num(Number(e.era_id), 0)}`
-                : e.era_id
-                  ? ` · era ${e.era_id}`
-                  : '';
             return (
               <TableRow key={e.id}>
                 <TableCell>{shortDate(e.created_at)}</TableCell>
                 <TableCell>
                   {typeLabel(e.entry_type)}
-                  <Typography component="span" variant="caption" color="text.secondary">
-                    {era}
-                  </Typography>
                 </TableCell>
                 <TableCell align="right" sx={{ color: amt > 0 ? 'success.main' : 'text.primary' }}>
                   {signedMoney(amt)}

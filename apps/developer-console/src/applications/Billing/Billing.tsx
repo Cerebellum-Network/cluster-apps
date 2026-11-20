@@ -209,11 +209,6 @@ const Billing = () => {
       <PageHeader
         title="Billing"
         subtitle="US dollars"
-        actions={
-          <Button variant="contained" onClick={() => setAddOpen((o) => !o)}>
-            Add funds
-          </Button>
-        }
       />
 
       {(bills.error || balance.error) && (
