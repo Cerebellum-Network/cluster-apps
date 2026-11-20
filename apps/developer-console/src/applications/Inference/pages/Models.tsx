@@ -18,7 +18,7 @@ import { NavLink } from 'react-router-dom';
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
 import { usd } from '~/billing/format';
-import { PageHeader, Section } from '~/components';
+import { PageHeader, Section, ComingSoon } from '~/components';
 import { atCapacityNotice, taskLabel, type ModelCard, type StatusTone } from '~/inference/model';
 import type { GatewayModelStatus } from '~/inference/gateway';
 import ShowMeHowDialog from '../ShowMeHowDialog';
@@ -54,8 +54,8 @@ const Hero = styled(Box)(({ theme }) => ({
   flexWrap: 'wrap',
   padding: theme.spacing(3, 4),
   borderRadius: 12,
-  backgroundColor: '#1e1b3f',
-  color: '#fff',
+  backgroundColor: theme.palette.primary.main,
+  color: theme.palette.primary.contrastText,
 }));
 
 function PriceCell({ card }: { card: ModelCard }) {
@@ -113,7 +113,7 @@ const Models = () => {
       {/* Hero: create a key + call a model. */}
       <Hero marginBottom="16px">
         <Box minWidth={0}>
-          <Typography variant="h4" sx={{ color: '#fff' }}>
+          <Typography variant="h4" sx={{ color: 'primary.contrastText' }}>
             Create an API key and call any model from your laptop or app
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', marginTop: '6px' }}>
@@ -124,14 +124,14 @@ const Models = () => {
           <Button
             variant="outlined"
             onClick={() => setHowOpen(true)}
-            sx={{ color: '#fff', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: '#fff' } }}
+            sx={{ color: 'primary.contrastText', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'primary.contrastText' } }}
           >
             Show me how
           </Button>
           <Button
             component={NavLink}
             to="/inference/keys"
-            sx={{ backgroundColor: '#fff', color: '#1e1b3f', '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' } }}
+            sx={{ backgroundColor: 'primary.contrastText', color: 'primary.main', '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' } }}
           >
             Create API key
           </Button>
@@ -148,7 +148,7 @@ const Models = () => {
           marginBottom="16px"
           padding="14px 20px"
           borderRadius="12px"
-          sx={{ backgroundColor: '#fdf6e3', border: '1px solid #f0e4c0' }}
+          sx={{ backgroundColor: 'secondary.light', border: (theme) => `1px solid ${theme.palette.divider}` }}
         >
           <Typography variant="body2">
             Add a card or CERE to start: you get $10 to try, then pay only for what you use.
@@ -159,7 +159,8 @@ const Models = () => {
         </Stack>
       )}
 
-      {/* Plan line (informational; plans attach later). */}
+      {/* Plan line (informational; paid plans attach later — #191 review: no
+          hardcoded "Free"/"Pro", no dead "See plans" link). */}
       <Stack
         direction="row"
         alignItems="center"
@@ -168,15 +169,12 @@ const Models = () => {
         marginBottom="20px"
         padding="12px 20px"
         borderRadius="12px"
-        sx={{ backgroundColor: 'var(--i-chip, #f5f7fa)' }}
+        sx={{ backgroundColor: 'background.default' }}
       >
         <Typography variant="body2" color="text.secondary">
-          <strong style={{ color: 'var(--i-tx)' }}>Free:</strong> up to 8 requests at once across all models. Pro: 20 at
-          once for $50 a month.
+          Up to 8 requests at once across all models. Plans with higher limits are on the way.
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          See plans
-        </Typography>
+        <ComingSoon />
       </Stack>
 
       {notice && (

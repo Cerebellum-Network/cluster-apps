@@ -1,14 +1,4 @@
-import {
-  Box,
-  Typography,
-  Stack,
-  Alert,
-  Button,
-  ButtonGroup,
-  TextField,
-  MenuItem,
-  styled,
-} from '@cluster-apps/ui';
+import { Box, Typography, Stack, Alert, Button, ButtonGroup, styled } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
@@ -46,7 +36,7 @@ const Tile = styled(Box)(({ theme }) => ({
   minWidth: 160,
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: 12,
-  backgroundColor: '#fff',
+  backgroundColor: theme.palette.background.paper,
   padding: theme.spacing(2.5),
 }));
 
@@ -62,8 +52,16 @@ const counts = new Intl.NumberFormat('en-US');
 const fmtCount = (v: number) => counts.format(Math.round(v));
 /** GPU units are small fractions; keep precision under 1, two decimals above. */
 const fmtUnits = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: v !== 0 && Math.abs(v) < 1 ? 6 : 2 });
-const REASONS: Record<string, string> = { rate_limited: 'Rate limited', saturated: 'Saturated' };
+// Refusal reasons in user words: rate_limited = your concurrency limit; saturated
+// = the model itself was full (#191 review: not "Saturated").
+const REASONS: Record<string, string> = { rate_limited: 'At your limit', saturated: 'Model was full' };
 const prettyReason = (r: string) => REASONS[r] ?? r;
+
+/** A gateway failure in user words — an expired read vs the gateway being down. */
+const friendlyError = (status?: number): string =>
+  status === 401 || status === 403
+    ? 'Your usage session expired. Click Show usage to read it again.'
+    : 'The inference gateway isn’t responding right now. Try Refresh in a moment.';
 
 const Muted = ({ children }: { children: React.ReactNode }) => (
   <Typography variant="body2" color="text.secondary">
@@ -96,7 +94,12 @@ function Bars({ rows, format, label }: { rows: GroupTotal[]; format: (v: number)
 /** The live "right now" grid from /limits: in flight against the limit, per model. */
 function LiveGrid({ live }: { live: Live }) {
   if (live.kind === 'loading') return <Muted>Loading…</Muted>;
-  if (live.kind === 'error') return <Alert severity="error">{live.message}</Alert>;
+  if (live.kind === 'error')
+    return (
+      <Alert severity="error">
+        <span title={live.message}>{friendlyError(live.status)}</span>
+      </Alert>
+    );
   const models = [...live.limits.models].sort((a, b) => (a.alias ?? a.model).localeCompare(b.alias ?? b.model));
   if (models.length === 0) return <Muted>No models available right now.</Muted>;
   return (
@@ -125,7 +128,12 @@ function LiveGrid({ live }: { live: Live }) {
 function BoardsView({ boards }: { boards: Boards }) {
   if (boards.kind === 'loading') return <Muted>Loading…</Muted>;
   if (boards.kind === 'unavailable') return <Alert severity="info">Usage history isn’t available on this cluster yet.</Alert>;
-  if (boards.kind === 'error') return <Alert severity="error">{boards.message}</Alert>;
+  if (boards.kind === 'error')
+    return (
+      <Alert severity="error">
+        <span title={boards.message}>{friendlyError(boards.status)}</span>
+      </Alert>
+    );
 
   const d = boards.data;
   const empty = d.totalRequests === 0 && d.gpuByModel.length === 0;
@@ -155,7 +163,7 @@ function BoardsView({ boards }: { boards: Boards }) {
             <ComingSoon />
           </Stack>
           <Typography variant="body2" color="text.secondary" marginTop="8px">
-            Per-token usage lands with the gateway usage journal.
+            Per-model token counts are on the way.
           </Typography>
         </Tile>
       </Stack>
@@ -183,11 +191,11 @@ function BoardsView({ boards }: { boards: Boards }) {
   );
 }
 
-function Board({ gatewayKey }: { gatewayKey: string }) {
+function Board({ gatewayKey, onExpired }: { gatewayKey: string; onExpired: () => void }) {
   const [range, setRange] = useState<UsageRange>('24h');
   const [reload, setReload] = useState(0);
-  const live = useLiveLimits(gatewayKey);
-  const boards = useUsageBoards(gatewayKey, range, reload);
+  const live = useLiveLimits(gatewayKey, onExpired);
+  const boards = useUsageBoards(gatewayKey, range, reload, onExpired);
 
   return (
     <Box>
@@ -217,10 +225,7 @@ function Board({ gatewayKey }: { gatewayKey: string }) {
       </Box>
 
       <Stack spacing="20px">
-        <Section
-          title="Right now"
-          actions={<Muted>{live.kind === 'ready' ? `${live.limits.profile} profile` : ''}</Muted>}
-        >
+        <Section title="Right now" actions={<Muted>Live · refreshes every 15s</Muted>}>
           <LiveGrid live={live} />
         </Section>
 
@@ -232,10 +237,10 @@ function Board({ gatewayKey }: { gatewayKey: string }) {
 
 const Usage = () => {
   const { buckets, loading, error } = useOwnerBuckets();
-  const [bucketId, setBucketId] = useState<string>('');
-  // Default to the first bucket once they load; honour a pick after that.
-  const active = bucketId || buckets[0]?.id || '';
-  const { state: key, mint } = useReadKey(active || null);
+  // The COMPUTE key is billed to one of the wallet's buckets behind the scenes;
+  // the mockup has no bucket to pick, so Usage reads the first (#191 review).
+  const active = buckets[0]?.id || '';
+  const { state: key, mint, expire } = useReadKey(active || null);
 
   const header = (actions?: React.ReactNode) => (
     <Box marginBottom="20px">
@@ -270,29 +275,10 @@ const Usage = () => {
     );
   }
 
-  const bucketPicker =
-    buckets.length > 1 ? (
-      <TextField
-        select
-        size="small"
-        label="Bucket"
-        value={active}
-        onChange={(e) => setBucketId(e.target.value)}
-        sx={{ minWidth: 160 }}
-      >
-        {buckets.map((b) => (
-          <MenuItem key={b.id} value={b.id}>
-            {b.id}
-          </MenuItem>
-        ))}
-      </TextField>
-    ) : undefined;
-
   if (key.kind === 'ready') {
     return (
       <Box>
-        {bucketPicker && <Box marginBottom="12px">{bucketPicker}</Box>}
-        <Board key={key.key} gatewayKey={key.key} />
+        <Board key={key.key} gatewayKey={key.key} onExpired={expire} />
       </Box>
     );
   }
@@ -302,19 +288,19 @@ const Usage = () => {
   // passkey when the signer is cold, so it shouldn't fire on open.
   return (
     <Box>
-      {header(bucketPicker)}
+      {header()}
       {key.kind === 'minting' ? (
         <Muted>Authorizing…</Muted>
       ) : key.kind === 'error' ? (
         <Stack direction="row" spacing={1} alignItems="center">
-          <Muted>Couldn’t authorize usage reads for this bucket.</Muted>
+          <Muted>Couldn’t authorize usage reads.</Muted>
           <Button size="small" variant="text" onClick={mint}>
             Try again
           </Button>
         </Stack>
       ) : (
         <Stack spacing={1.5} alignItems="flex-start">
-          <Muted>Reading your usage needs a one-time signature from your wallet.</Muted>
+          <Muted>Reading your usage needs a wallet signature — once per visit, good for an hour.</Muted>
           <Button variant="contained" onClick={mint}>
             Show usage
           </Button>

@@ -32,6 +32,9 @@ export const USAGE_RANGES: Record<UsageRange, { ms: number; step: string; stepMs
 export const RANGE_OPTIONS: UsageRange[] = ['24h', '7d', '30d'];
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const statusOf = (e: unknown): number | undefined => (e instanceof GatewayError ? e.status : undefined);
+/** A read key that expired (or never had the scope): the caller re-mints it. */
+const isAuthError = (e: unknown): boolean => e instanceof GatewayError && (e.status === 401 || e.status === 403);
 /** The gateway 503s both when no metrics store is configured and when it fails; only the first is "not here yet". */
 const metricsNotConfigured = (e: unknown): boolean =>
   e instanceof GatewayError && e.status === 503 && /not configured/i.test(e.message);
@@ -51,7 +54,7 @@ export type ReadKey =
  * "Show usage" button. A bucket change resets to idle so the new bucket is a fresh
  * click. `mint` doubles as the retry.
  */
-export function useReadKey(bucketId: string | null): { state: ReadKey; mint: () => void } {
+export function useReadKey(bucketId: string | null): { state: ReadKey; mint: () => void; expire: () => void } {
   const account = useAccount();
   const accountRef = useRef(account);
   accountRef.current = account;
@@ -74,35 +77,50 @@ export function useReadKey(bucketId: string | null): { state: ReadKey; mint: () 
     );
   }, [bucketId]);
 
-  return { state, mint };
+  // Drop the held key back to idle when a read rejects it (401/403): the 1-hour
+  // key has expired, so the page shows "Show usage" again rather than looping on
+  // a raw 401 (#191 review).
+  const expire = useCallback(() => {
+    setState((s) => (s.kind === 'ready' ? { kind: 'idle' } : s));
+  }, []);
+
+  return { state, mint, expire };
 }
 
 // ── Live limits (polled) ─────────────────────────────────────────────────────
 
 export type Live =
   | { kind: 'loading' }
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message: string; status?: number }
   | { kind: 'ready'; limits: BucketLimits };
 
-/** /limits, polled while `key` is set. */
-export function useLiveLimits(key: string | null): Live {
+/** /limits, polled while `key` is set. On 401/403 the key is expired via `onExpired`. */
+export function useLiveLimits(key: string | null, onExpired: () => void): Live {
   const [state, setState] = useState<Live>({ kind: 'loading' });
   useEffect(() => {
     if (!key) return undefined;
     const ctl = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     const tick = () => {
-      getLimits(key, ctl.signal)
-        .then(
-          (limits) => { if (!ctl.signal.aborted) setState({ kind: 'ready', limits }); },
-          (e: unknown) => { if (!ctl.signal.aborted) setState({ kind: 'error', message: messageOf(e) }); },
-        )
-        .finally(() => { if (!ctl.signal.aborted) timer = setTimeout(tick, LIVE_POLL_MS); });
+      getLimits(key, ctl.signal).then(
+        (limits) => {
+          if (ctl.signal.aborted) return;
+          setState({ kind: 'ready', limits });
+          timer = setTimeout(tick, LIVE_POLL_MS);
+        },
+        (e: unknown) => {
+          if (ctl.signal.aborted) return;
+          // An expired key resets the page; don't keep polling a 401.
+          if (isAuthError(e)) { onExpired(); return; }
+          setState({ kind: 'error', message: messageOf(e), status: statusOf(e) });
+          timer = setTimeout(tick, LIVE_POLL_MS);
+        },
+      );
     };
     setState({ kind: 'loading' });
     tick();
     return () => { ctl.abort(); if (timer) clearTimeout(timer); };
-  }, [key]);
+  }, [key, onExpired]);
   return state;
 }
 
@@ -119,7 +137,7 @@ export type Boards =
   | { kind: 'loading' }
   /** No VictoriaMetrics on this cluster — the board can't exist here yet. */
   | { kind: 'unavailable' }
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message: string; status?: number }
   | { kind: 'ready'; data: UsageBoards };
 
 async function loadBoards(key: string, range: UsageRange, nowMs: number, signal: AbortSignal): Promise<UsageBoards> {
@@ -157,7 +175,7 @@ async function loadBoards(key: string, range: UsageRange, nowMs: number, signal:
   };
 }
 
-export function useUsageBoards(key: string | null, range: UsageRange, reload = 0): Boards {
+export function useUsageBoards(key: string | null, range: UsageRange, reload: number, onExpired: () => void): Boards {
   const [state, setState] = useState<Boards>({ kind: 'loading' });
   useEffect(() => {
     if (!key) return undefined;
@@ -167,11 +185,12 @@ export function useUsageBoards(key: string | null, range: UsageRange, reload = 0
       (data) => { if (!ctl.signal.aborted) setState({ kind: 'ready', data }); },
       (e: unknown) => {
         if (ctl.signal.aborted) return;
+        if (isAuthError(e)) { onExpired(); return; }
         if (metricsNotConfigured(e)) setState({ kind: 'unavailable' });
-        else setState({ kind: 'error', message: messageOf(e) });
+        else setState({ kind: 'error', message: messageOf(e), status: statusOf(e) });
       },
     );
     return () => ctl.abort();
-  }, [key, range, reload]);
+  }, [key, range, reload, onExpired]);
   return state;
 }
