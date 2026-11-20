@@ -8,7 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAccount } from '~/hooks';
 import { listOwnerBuckets, type OwnerBucket } from '~/storage/ddc/ownerBuckets';
 import { listModels, getModelManifest } from './gateway';
-import { toModelCard, type ModelCard } from './model';
+import { latestPerModel, toModelCard, type ModelCard } from './model';
 
 export interface ModelsState {
   cards: ModelCard[];
@@ -31,7 +31,7 @@ export function useModels(): ModelsState {
     listModels()
       .then(async (models) => {
         const built = await Promise.all(
-          models.map(async (m) => toModelCard(m, await getModelManifest(m.bucket, m.name, m.version))),
+          latestPerModel(models).map(async (m) => toModelCard(m, await getModelManifest(m.bucket, m.name, m.version))),
         );
         if (!cancelled) setCards(built);
       })
