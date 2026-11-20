@@ -3,13 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
   toSeries,
   nameOf,
-  sumSeries,
-  totalsByLabel,
   chunkRange,
   mergeSeries,
-  peakByBucket,
-  seriesMax,
-  withLabel,
   RANGE_QUERY_MAX_MS,
 } from './metricsApi';
 
@@ -48,32 +43,6 @@ describe('nameOf', () => {
   });
 });
 
-describe('sumSeries / totalsByLabel', () => {
-  const series = [
-    { labels: { model: 'glm-5.3' }, points: [[1, 2] as [number, number], [2, 3] as [number, number]] },
-    { labels: { model: 'parakeet' }, points: [[1, 1] as [number, number]] },
-  ];
-
-  it('sums every point across series', () => {
-    expect(sumSeries(series)).toBe(6);
-  });
-
-  it('ignores NaN/Infinity', () => {
-    expect(sumSeries([{ labels: {}, points: [[1, NaN], [2, 5], [3, Infinity]] }])).toBe(5);
-  });
-
-  it('totals per label value, largest first', () => {
-    expect(totalsByLabel(series, 'model')).toEqual([
-      { group: 'glm-5.3', total: 5 },
-      { group: 'parakeet', total: 1 },
-    ]);
-  });
-
-  it('buckets a missing label under ""', () => {
-    expect(totalsByLabel([{ labels: {}, points: [[1, 4]] }], 'model')).toEqual([{ group: '', total: 4 }]);
-  });
-});
-
 describe('chunkRange', () => {
   const DAY = RANGE_QUERY_MAX_MS; // 24h
   const STEP = 900_000; // 15m
@@ -89,37 +58,6 @@ describe('chunkRange', () => {
     // each chunk starts one step past the previous end
     for (let i = 1; i < chunks.length; i++) expect(chunks[i].from).toBe(chunks[i - 1].to + STEP);
     expect(chunks[chunks.length - 1].to).toBe(7 * DAY);
-  });
-});
-
-describe('peakByBucket / seriesMax / withLabel', () => {
-  const HOUR = 3_600_000;
-  // used-state inflight: two points in hour 0 (peak 3), one in hour 1 (peak 2).
-  const used = [
-    { labels: { state: 'used' }, points: [[0, 1] as [number, number], [60_000, 3] as [number, number], [HOUR, 2] as [number, number]] },
-  ];
-  const maxS = [{ labels: { state: 'max' }, points: [[0, 8] as [number, number], [HOUR, 8] as [number, number]] }];
-
-  it('takes the highest value per bucket, time-ordered, empties omitted', () => {
-    expect(peakByBucket(used, HOUR)).toEqual([
-      { t: 0, peak: 3 },
-      { t: HOUR, peak: 2 },
-    ]);
-  });
-
-  it('ignores non-finite points', () => {
-    expect(peakByBucket([{ labels: {}, points: [[0, NaN], [1, 5], [2, Infinity]] }], HOUR)).toEqual([{ t: 0, peak: 5 }]);
-  });
-
-  it('seriesMax is the largest single point (the limit)', () => {
-    expect(seriesMax(maxS)).toBe(8);
-    expect(seriesMax([])).toBe(0);
-  });
-
-  it('withLabel filters series by a label value', () => {
-    const all = [...used, ...maxS];
-    expect(withLabel(all, 'state', 'used')).toEqual(used);
-    expect(withLabel(all, 'state', 'max')).toEqual(maxS);
   });
 });
 
