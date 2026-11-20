@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import {
-  AddCircleOutlinedIcon,
   Box,
   Button,
   CircularProgress,
@@ -106,11 +105,6 @@ export const FileManager = ({
     callback();
   };
 
-  const onCreateNextBucket = () => {
-    hideTour();
-    onCreateBucket();
-  };
-
   return (
     <CssReset>
       <StyledBox
@@ -119,7 +113,7 @@ export const FileManager = ({
         alignItems="center"
         padding={(theme) => theme.spacing(1, 1.5)}
       >
-        <Typography flex={2} sx={{ fontSize: 12, color: '#818083' }}>
+        <Typography flex={4} sx={{ fontSize: 12, color: '#818083' }}>
           Bucket
         </Typography>
         <Typography flex={1.4} textAlign="right" sx={{ fontSize: 12, color: '#818083' }}>
@@ -175,17 +169,9 @@ export const FileManager = ({
               </Box>
             </Box>
           )}
-          {userHasBuckets && !firstBucketLocked ? (
-            <Button
-              startIcon={<AddCircleOutlinedIcon />}
-              className={AnalyticsId.createBucketBtn}
-              onClick={onCreateNextBucket}
-              disabled={isBucketCreating}
-              data-tour="bucket"
-            >
-              {isBucketCreating ? 'Creating Bucket' : 'Create New Bucket'}
-            </Button>
-          ) : (
+          {/* Adding more buckets is the "New bucket" primary in the card header
+              (ContentStorage). Only the first-bucket onboarding CTA stays here. */}
+          {(!userHasBuckets || firstBucketLocked) && (
             <Button
               onClick={onFirstBucketClick}
               disabled={isBucketCreating || !isAccountReady}

@@ -1,4 +1,5 @@
 import Reporting from '@cluster-apps/reporting';
+import { AnalyticsId } from '@cluster-apps/analytics';
 import {
   Box,
   Stack,
@@ -20,6 +21,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material
 import { ContentCopy } from '@mui/icons-material';
 
 import { useAccount, useFetchDirs } from '~/hooks';
+import { useApplicationTour } from '~/components/ApplicationTour';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { PageHeader, Section, ComingSoon } from '~/components';
@@ -43,6 +45,7 @@ const StyledAlert = styled(Alert)<AlertProps>(() => ({
  */
 const ContentStorage = () => {
   const account = useAccount();
+  const { hideTour } = useApplicationTour();
   const { showMessage } = useMessages();
 
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -52,6 +55,7 @@ const ContentStorage = () => {
   const [isBucketCreating, setIsBucketCreating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [s3Open, setS3Open] = useState(false);
+  const [disconnectConfirm, setDisconnectConfirm] = useState(false);
 
   const [buckets, setBuckets] = useState<Bucket[]>(account.buckets ?? []);
   useEffect(() => {
@@ -190,17 +194,13 @@ const ContentStorage = () => {
     [account.storage, aclForBucket, refetchBucket, showMessage],
   );
 
+  // Confirmation is handled in-app inside the S3 dialog (no window.confirm).
   const handleRevokeGateway = useCallback(async () => {
-    if (
-      !window.confirm(
-        "Stop Cere from managing your storage? You'll allow it again the next time you create a bucket.",
-      )
-    ) {
-      return;
-    }
     setIsRevoking(true);
     try {
       await account.revokeGateway();
+      setS3Open(false);
+      setDisconnectConfirm(false);
       showMessage({ appearance: 'success', message: 'Cere no longer manages your storage.' });
     } catch (e) {
       Reporting.error(e);
@@ -243,14 +243,9 @@ const ContentStorage = () => {
         title="Storage"
         actions={
           account.gatewayAuthorized && (
-            <>
-              <Button variant="outlined" color="secondary" onClick={() => setS3Open(true)}>
-                S3 access
-              </Button>
-              <LoadingButton variant="text" color="secondary" loading={isRevoking} onClick={handleRevokeGateway}>
-                Disconnect S3
-              </LoadingButton>
-            </>
+            <Button variant="outlined" color="secondary" onClick={() => setS3Open(true)}>
+              S3 access
+            </Button>
           )
         }
       />
@@ -273,9 +268,25 @@ const ContentStorage = () => {
       <Section
         title="Buckets"
         actions={
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction="row" spacing={1.5} alignItems="center">
             <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Plan quota</Typography>
             <ComingSoon />
+            {buckets.length > 0 && (
+              <LoadingButton
+                variant="contained"
+                startIcon={<AddCircleOutlinedIcon />}
+                loading={isBucketCreating}
+                disabled={!isAccountReady}
+                className={AnalyticsId.createBucketBtn}
+                data-tour="bucket"
+                onClick={() => {
+                  hideTour();
+                  onBucketCreation();
+                }}
+              >
+                New bucket
+              </LoadingButton>
+            )}
           </Stack>
         }
         flush
@@ -312,7 +323,15 @@ const ContentStorage = () => {
 
       {/* S3 access: the endpoint to point an S3 client at. Access keys are not
           issued yet, so they read "Coming soon". */}
-      <Dialog open={s3Open} onClose={() => setS3Open(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={s3Open}
+        onClose={() => {
+          setS3Open(false);
+          setDisconnectConfirm(false);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>S3 access</DialogTitle>
         <DialogContent>
           <Stack spacing={2} paddingTop={1}>
@@ -345,6 +364,31 @@ const ContentStorage = () => {
               <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Access key &amp; secret</Typography>
               <ComingSoon />
             </Stack>
+
+            {/* Disconnect S3 lives here, behind an in-app confirm (no window.confirm). */}
+            {account.gatewayAuthorized && (
+              <Box sx={{ borderTop: '1px solid #E3E4EE', paddingTop: 2 }}>
+                {disconnectConfirm ? (
+                  <Stack spacing={1}>
+                    <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+                      Disconnect Cere from your storage? You can allow it again the next time you create a bucket.
+                    </Typography>
+                    <Stack direction="row" spacing={1}>
+                      <Button variant="text" color="secondary" disabled={isRevoking} onClick={() => setDisconnectConfirm(false)}>
+                        Cancel
+                      </Button>
+                      <LoadingButton variant="contained" color="error" loading={isRevoking} onClick={handleRevokeGateway}>
+                        Disconnect
+                      </LoadingButton>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Button variant="text" color="error" onClick={() => setDisconnectConfirm(true)}>
+                    Disconnect S3
+                  </Button>
+                )}
+              </Box>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
