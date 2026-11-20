@@ -21,7 +21,9 @@ import { useModels, useOwnerBuckets } from '~/inference/useInference';
 import { chatModelChoices, exampleModels } from '~/inference/model';
 import { rememberKey, useSessionKey } from '~/inference/sessionKey';
 import { SNIPPET_TABS, snippetsFor, providerFields, type SnippetTabId } from '~/inference/snippets';
-import { PageHeader, Section } from '~/components';
+import { Section } from '~/components';
+import { Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import '~/inference/inference.css';
 
 /**
@@ -178,7 +180,7 @@ function CommonProblems() {
   );
 }
 
-const Quickstart = () => {
+const QuickstartBody = () => {
   const account = useAccount();
   const owner = account.account ?? null;
   const { buckets, loading: bucketsLoading, error: bucketsError } = useOwnerBuckets();
@@ -227,10 +229,6 @@ const Quickstart = () => {
 
   return (
     <Box>
-      <Box marginBottom="20px">
-        <PageHeader title="Quickstart" subtitle="Create a key, copy it, and call a model from your laptop or app." />
-      </Box>
-
       <Stack spacing="20px">
         {/* 1 — Create a key */}
         <Section>
@@ -416,4 +414,30 @@ const Quickstart = () => {
   );
 };
 
-export default observer(Quickstart);
+const QuickstartBodyObserved = observer(QuickstartBody);
+
+/**
+ * The quickstart opens as a wide dialog over Models (mockup "Show me how" is a
+ * dialog): a short 3-step task keeps the user where they started. Deep link:
+ * `/inference?quickstart=1`.
+ */
+export const QuickstartDialog = ({ open, onClose }: { open: boolean; onClose: () => void }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper">
+    <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+      <Box>
+        <Typography sx={{ fontSize: 18, fontWeight: 700 }}>Get started</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Create a key, copy it, and call a model from your laptop or app.
+        </Typography>
+      </Box>
+      <IconButton aria-label="Close" onClick={onClose} size="small">
+        <CloseIcon fontSize="small" />
+      </IconButton>
+    </DialogTitle>
+    <DialogContent dividers sx={{ backgroundColor: 'background.default' }}>
+      {open && <QuickstartBodyObserved />}
+    </DialogContent>
+  </Dialog>
+);
+
+export default QuickstartDialog;
