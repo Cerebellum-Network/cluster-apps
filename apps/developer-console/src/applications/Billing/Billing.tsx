@@ -24,7 +24,7 @@ import { PageHeader, Section, ComingSoon } from '~/components';
 import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
-import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
+import { normalizeAccount, newIdempotencyKey, payment, type MonthBill } from '~/billing/api';
 import { readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
@@ -92,11 +92,15 @@ const Billing = () => {
   // unmounted — shows the confirmation and polls the reload while the webhook
   // lands (#190 review).
   const [checkoutOk, setCheckoutOk] = useState<number | null>(null);
+  const [cardUpdated, setCardUpdated] = useState(false);
+  const [cardBusy, setCardBusy] = useState(false);
+  const [cardError, setCardError] = useState<string | null>(null);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const result = q.get('checkout');
     if (!result) return;
-    const paid = readCheckoutAmount();
+    if (result === 'card') setCardUpdated(true);
+    const paid = result === 'card' ? null : readCheckoutAmount();
     if (result === 'success') setCheckoutOk(paid ?? 0);
     q.delete('checkout');
     const rest = q.toString();
@@ -214,6 +218,12 @@ const Billing = () => {
         </Typography>
       )}
 
+      {cardUpdated && (
+        <Alert severity="success" onClose={() => setCardUpdated(false)}>
+          Card updated. New payments use it.
+        </Alert>
+      )}
+
       {checkoutOk != null && (
         <Alert severity="success" onClose={() => setCheckoutOk(null)}>
           {checkoutOk > 0 ? `${money(checkoutOk)} added.` : 'Payment received.'}
@@ -257,13 +267,33 @@ const Billing = () => {
                   ? `${brandName(card.brand)} ···· ${card.last4 ?? '••••'}`
                   : 'No card on file'}
             </Typography>
-            {card && (
+            {!profile.loading && (
               <Stack direction="row" alignItems="center" spacing={1} marginTop="10px">
-                <Button variant="outlined" color="secondary" size="small" disabled>
-                  Replace
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  size="small"
+                  disabled={cardBusy || !pubkey}
+                  onClick={async () => {
+                    if (!pubkey) return;
+                    setCardBusy(true);
+                    setCardError(null);
+                    try {
+                      window.location.assign(await payment.replaceCard(pubkey, `${window.location.origin}/billing`));
+                    } catch {
+                      setCardError('Couldn’t open the card form. Try again.');
+                      setCardBusy(false);
+                    }
+                  }}
+                >
+                  {card ? 'Replace card' : 'Add card'}
                 </Button>
-                <ComingSoon />
               </Stack>
+            )}
+            {cardError && (
+              <Typography variant="caption" color="error" display="block" marginTop="6px">
+                {cardError}
+              </Typography>
             )}
           </Section>
         </Box>
