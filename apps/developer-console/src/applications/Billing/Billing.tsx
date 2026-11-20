@@ -11,11 +11,12 @@ import {
   TableRow,
   TableCell,
   Collapse,
+  Alert,
 } from '@cluster-apps/ui';
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { observer } from 'mobx-react-lite';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
@@ -23,11 +24,11 @@ import { PageHeader, Section, ComingSoon } from '~/components';
 import { useBills, useBalance, useProfile, useLedger } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
-import { normalizeAccount, type MonthBill } from '~/billing/api';
+import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
+import { readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
 import { BillingHistory } from './BillingHistory';
-import '~/billing/billing.css';
 
 /**
  * Billing — one page (mockup board 10): balance, plan and payment method on top,
@@ -61,6 +62,52 @@ const Billing = () => {
     }
   };
 
+  const reloadPayments = () => {
+    balance.reload();
+    profile.reload();
+    ledger.reload();
+  };
+
+  // Idempotency key for a card top-up, held by the page (not the dialog) so
+  // closing and reopening Add funds cannot mint a new key for the same charge
+  // and double-charge. Tied to the amount — editing it starts a fresh key — and
+  // cleared by the dialog only on a definite outcome (success / 402 declined).
+  const idemRef = useRef<{ cents: number; key: string } | null>(null);
+  const idemKeyFor = (amt: number): string => {
+    const cents = Math.round(amt * 100);
+    if (!idemRef.current || idemRef.current.cents !== cents) {
+      idemRef.current = { cents, key: newIdempotencyKey() };
+    }
+    return idemRef.current.key;
+  };
+  const clearIdem = () => {
+    idemRef.current = null;
+  };
+
+  // Back from Stripe Checkout the page lands on `/billing?checkout=success` with
+  // the Add funds dialog closed, so the page — not the dialog, which is
+  // unmounted — shows the confirmation and polls the reload while the webhook
+  // lands (#190 review).
+  const [checkoutOk, setCheckoutOk] = useState<number | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const result = q.get('checkout');
+    if (!result) return;
+    const paid = readCheckoutAmount();
+    if (result === 'success') setCheckoutOk(paid ?? 0);
+    q.delete('checkout');
+    const rest = q.toString();
+    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
+    reloadPayments();
+    const t = setInterval(reloadPayments, 3000);
+    const stop = setTimeout(() => clearInterval(t), 30_000);
+    return () => {
+      clearInterval(t);
+      clearTimeout(stop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // In a build a missing endpoint stays undefined (no silent devnet fallback).
   if (!isBillingConfigured()) {
     return (
@@ -86,12 +133,6 @@ const Billing = () => {
   const bal = balance.data;
   const runwayText = bal != null && perDay > 0 ? `${runway(bal, perDay).text} at this month’s use` : null;
 
-  const reloadPayments = () => {
-    balance.reload();
-    profile.reload();
-    ledger.reload();
-  };
-
   const downloadCsv = () => {
     const blob = new Blob([ledgerToCsv(ledger.data)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -112,15 +153,26 @@ const Billing = () => {
     ? `Auto top-up ${money(profile.data!.auto_recharge_amount_usd)} below ${money(profile.data!.auto_recharge_threshold_usd)}`
     : 'Auto top-up off';
 
-  const asOf = bills.data?.as_of;
-  // One-line summary under each month (mockup): open → "so far, about $X by <date>";
-  // settled → how the cost was covered ("$A by card, $B from balance").
+  const current = bills.data?.current_month;
+  // Last day of a YYYY-MM month, for the forecast's "by <date>".
+  const monthEnd = (ym: string): Date => {
+    const [y, mo] = ym.split('-').map(Number);
+    return new Date(Date.UTC(y, mo, 0));
+  };
+  // One-line summary under each month (mockup): open → "$X so far, about $Y by
+  // <month end>" from current_month.forecast_usd (not the month-to-date total at
+  // as_of); settled → how the cost was covered, but only once the ledger is in,
+  // so a loading/failed ledger doesn't read as "$total from balance".
   const summaryFor = (m: MonthBill): string => {
-    const total = Number(m.total_usd);
     if (m.status !== 'settled') {
-      return asOf ? `so far, about ${money(total)} by ${shortDate(asOf)}` : `so far, about ${money(total)}`;
+      const soFar = money(m.total_usd);
+      const forecast = current && current.month === m.month ? current.forecast_usd : null;
+      return forecast != null
+        ? `${soFar} so far, about ${money(forecast)} by ${shortDate(monthEnd(m.month))}`
+        : `${soFar} so far`;
     }
-    const f = monthFunding(ledger.data, m.month, total);
+    if (ledger.loading || !ledger.data) return '';
+    const f = monthFunding(ledger.data, m.month, Number(m.total_usd));
     if (f.card > 0 && f.fromBalance > 0) return `${money(f.card)} by card, ${money(f.fromBalance)} from balance`;
     if (f.card > 0) return `${money(f.card)} by card`;
     return `${money(f.fromBalance)} from balance`;
@@ -155,36 +207,42 @@ const Billing = () => {
         </Typography>
       )}
 
+      {checkoutOk != null && (
+        <Alert severity="success" onClose={() => setCheckoutOk(null)}>
+          {checkoutOk > 0 ? `${money(checkoutOk)} added.` : 'Payment received.'} Funding your DDC deposit…
+        </Alert>
+      )}
+
       {/* Balance / Plan / Payment method */}
       <Stack direction={{ xs: 'column', md: 'row' }} spacing="20px" alignItems="stretch">
         <Box flex={1}>
           <Section>
-            <Typography sx={{ fontSize: 12, color: '#818083' }}>Balance</Typography>
+            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Balance</Typography>
             <Typography sx={{ fontSize: 32, fontWeight: 700, marginTop: '4px', lineHeight: 1.1 }}>
               {balance.loading && bal == null ? '…' : money(bal)}
             </Typography>
-            {runwayText && <Typography sx={{ fontSize: 13, color: '#5E5C6B', marginTop: '2px' }}>{runwayText}</Typography>}
+            {runwayText && <Typography sx={{ fontSize: 13, color: 'text.secondary', marginTop: '2px' }}>{runwayText}</Typography>}
             <Stack direction="row" alignItems="center" spacing={1} marginTop="14px">
               <Button variant="contained" size="small" onClick={() => setAddOpen(true)}>
                 Add funds
               </Button>
-              <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>· {autoStatus}</Typography>
+              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>· {autoStatus}</Typography>
             </Stack>
           </Section>
         </Box>
         <Box flex={1}>
-          <Section
-            title="Plan"
-            actions={<ComingSoon />}
-          >
+          <Section title="Plan" actions={<ComingSoon />}>
             <Typography sx={{ fontSize: 18, fontWeight: 700 }}>Pay as you go</Typography>
-            <Typography sx={{ fontSize: 13, color: '#5E5C6B', marginTop: '2px' }}>
+            <Typography sx={{ fontSize: 13, color: 'text.secondary', marginTop: '2px' }}>
               Free and Pro plans are on the way.
             </Typography>
+            <Button variant="outlined" color="secondary" size="small" disabled sx={{ marginTop: '12px' }}>
+              Change plan
+            </Button>
           </Section>
         </Box>
         <Box flex={1}>
-          <Section title="Payment method" actions={card ? <ComingSoon label="Manage soon" /> : undefined}>
+          <Section title="Payment method">
             <Typography sx={{ fontSize: 18, fontWeight: 700 }}>
               {profile.loading
                 ? 'Loading…'
@@ -192,6 +250,14 @@ const Billing = () => {
                   ? `${brandName(card.brand)} ···· ${card.last4 ?? '••••'}`
                   : 'No card on file'}
             </Typography>
+            {card && (
+              <Stack direction="row" alignItems="center" spacing={1} marginTop="10px">
+                <Button variant="outlined" color="secondary" size="small" disabled>
+                  Replace
+                </Button>
+                <ComingSoon />
+              </Stack>
+            )}
           </Section>
         </Box>
       </Stack>
@@ -209,7 +275,16 @@ const Billing = () => {
         </DialogTitle>
         <DialogContent>
           {pubkey && (
-            <BillingPayments account={pubkey} profile={profile.data} ledger={ledger.data} onPaid={reloadPayments} />
+            <BillingPayments
+              account={pubkey}
+              profile={profile.data}
+              ledger={ledger.data}
+              balance={bal ?? null}
+              onPaid={reloadPayments}
+              onCancel={closeAdd}
+              idemKeyFor={idemKeyFor}
+              clearIdem={clearIdem}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -254,7 +329,7 @@ const Billing = () => {
                       </TableCell>
                       <TableCell sx={{ textTransform: 'capitalize' }}>{m.status}</TableCell>
                       <TableCell align="right">{money(m.total_usd)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'var(--b-tx-dim)' }}>
+                      <TableCell align="right" sx={{ color: 'text.secondary' }}>
                         {open ? '▾' : '▸'}
                       </TableCell>
                     </TableRow>
@@ -276,7 +351,7 @@ const Billing = () => {
                                   justifyContent="space-between"
                                   alignItems="baseline"
                                   paddingBottom="6px"
-                                  sx={{ borderBottom: '2px solid var(--b-tx)' }}
+                                  sx={{ borderBottom: (theme) => `2px solid ${theme.palette.text.primary}` }}
                                 >
                                   <Typography variant="subtitle2">{sec.title}</Typography>
                                   <Typography variant="subtitle2">{sec.amount}</Typography>
@@ -288,7 +363,7 @@ const Billing = () => {
                                     alignItems="baseline"
                                     spacing={2}
                                     padding="8px 0"
-                                    sx={{ borderBottom: '1px solid var(--b-line)' }}
+                                    sx={{ borderBottom: (theme) => `1px solid ${theme.palette.divider}` }}
                                   >
                                     <Box flex={2}>
                                       <Typography variant="body2">{r.item}</Typography>
@@ -314,6 +389,14 @@ const Billing = () => {
                                     {sec.note}
                                   </Typography>
                                 )}
+                                {sec.title === 'Compute' && (
+                                  <Stack direction="row" alignItems="center" spacing={1} paddingTop="8px">
+                                    <Typography variant="caption" color="text.secondary">
+                                      Per-model breakdown
+                                    </Typography>
+                                    <ComingSoon />
+                                  </Stack>
+                                )}
                               </Box>
                             ))}
 
@@ -328,7 +411,7 @@ const Billing = () => {
                                 ['Closing', money(box.closing)],
                               ];
                               return (
-                                <Box marginTop="20px" padding="12px 16px" sx={{ backgroundColor: '#F5F7FA', borderRadius: '8px' }}>
+                                <Box marginTop="20px" padding="12px 16px" sx={{ backgroundColor: 'background.default', borderRadius: '8px' }}>
                                   <Typography variant="subtitle2" marginBottom="8px">
                                     Balance
                                   </Typography>
@@ -339,7 +422,7 @@ const Billing = () => {
                                         key={label}
                                         direction="row"
                                         justifyContent="space-between"
-                                        sx={{ paddingY: '3px', borderTop: last ? '1px solid var(--b-line)' : undefined, marginTop: last ? '4px' : 0, paddingTop: last ? '7px' : '3px' }}
+                                        sx={{ paddingY: '3px', borderTop: last ? (theme) => `1px solid ${theme.palette.divider}` : undefined, marginTop: last ? '4px' : 0, paddingTop: last ? '7px' : '3px' }}
                                       >
                                         <Typography variant="body2" color={last ? 'text.primary' : 'text.secondary'} sx={{ fontWeight: last ? 700 : 400 }}>
                                           {label}
@@ -370,9 +453,15 @@ const Billing = () => {
       <Section
         title="All transactions"
         actions={
-          <Button variant="outlined" color="secondary" size="small" onClick={downloadCsv} disabled={!ledger.data?.length}>
-            Download CSV
-          </Button>
+          <>
+            <Button variant="outlined" color="secondary" size="small" onClick={downloadCsv} disabled={!ledger.data?.length}>
+              Download CSV
+            </Button>
+            <Button variant="outlined" color="secondary" size="small" disabled>
+              PDF
+            </Button>
+            <ComingSoon />
+          </>
         }
       >
         <BillingHistory ledger={ledger.data} loading={ledger.loading} />

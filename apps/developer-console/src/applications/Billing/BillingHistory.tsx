@@ -75,10 +75,10 @@ export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | nu
                     {era}
                   </Typography>
                 </TableCell>
-                <TableCell align="right" sx={{ color: amt > 0 ? 'var(--b-ok-tx)' : 'var(--b-tx)' }}>
+                <TableCell align="right" sx={{ color: amt > 0 ? 'success.main' : 'text.primary' }}>
                   {signedMoney(amt)}
                 </TableCell>
-                <TableCell align="right" sx={{ color: 'var(--b-tx-dim)' }}>
+                <TableCell align="right" sx={{ color: 'text.secondary' }}>
                   {money(e.running_balance_usd)}
                 </TableCell>
               </TableRow>
