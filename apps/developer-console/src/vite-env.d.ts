@@ -15,6 +15,9 @@ interface ImportMetaEnv {
   readonly VITE_DDC_CDN_URL?: string;
   readonly VITE_DDC_CLUSTER_ID?: string;
   readonly VITE_STATS_ENDPOINT?: string;
+  // Billing slice (src/billing/billingConfig.ts)
+  readonly VITE_RECON_URL?: string;
+  readonly VITE_PAYMENT_URL?: string;
 }
 
 interface ImportMeta {
@@ -33,6 +36,11 @@ interface RuntimeConfig {
     ddcCdnUrl?: string;
     clusterId?: string;
     statsEndpoint?: string;
+  };
+  /** Billing slice (src/billing/billingConfig.ts). */
+  billing?: {
+    reconUrl?: string;
+    paymentUrl?: string;
   };
 }
 
