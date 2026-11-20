@@ -17,8 +17,15 @@
  * description (e.g. `createDdcSigner(session.getSigner).describing('Create a
  * storage bucket')`), or CefDdcSigner.sign refuses it.
  */
-import { connect } from '@cere-ddc-sdk/blockchain';
-import type { Bucket, BucketParams, CereClient, CereNetwork, ClusterId } from '@cere-ddc-sdk/blockchain';
+import { connect, createCustomerDepositContract } from '@cere-ddc-sdk/blockchain';
+import type {
+  Bucket,
+  BucketParams,
+  CereClient,
+  CereNetwork,
+  ClusterId,
+  CustomerDepositContract,
+} from '@cere-ddc-sdk/blockchain';
 import { config } from '../../config';
 import { storageConfig } from '../storageConfig';
 import type { BucketInfo, ChainClient, Signer } from './types';
@@ -36,6 +43,20 @@ function client(): CereClient {
 
 const clusterId = (): ClusterId => storageConfig.clusterId as ClusterId;
 
+// Customer-deposit ink! contract reader (SDK v3). On devnet/testnet (and mainnet)
+// DAC debits the account's deposit from THIS contract, and the fiat bridge's
+// `deposit_for` funds it -- NOT the legacy `ddcCustomers` pallet. So the deposit
+// the console gates on must be read from the contract; a card top-up lands here,
+// while `getStackingInfo` (the pallet) would read an unrelated, usually-empty
+// ledger. The contract address is resolved from the cluster's gov params and
+// cached by the SDK. The pallet read stays only as a fallback for a cluster that
+// has no deposit contract configured.
+let depositContract: CustomerDepositContract | null = null;
+function customerDeposit(): CustomerDepositContract {
+  if (!depositContract) depositContract = createCustomerDepositContract(client().api);
+  return depositContract;
+}
+
 function toBucketInfo(b: Bucket): BucketInfo {
   return { bucketId: b.bucketId, ownerId: b.ownerId, isPublic: b.isPublic, isRemoved: b.isRemoved };
 }
@@ -43,6 +64,16 @@ function toBucketInfo(b: Bucket): BucketInfo {
 export function createChainClient(): ChainClient {
   return {
     async getDeposit(address) {
+      // Prefer the deposit CONTRACT (where fiat top-ups land and DAC debits).
+      // `resolve` is cached; `readBalance` returns undefined for an account with
+      // no deposit (clean 0) and throws only on a failed dry run, which the
+      // caller already treats as "deposit unknown" rather than zero.
+      const contractAddr = await customerDeposit().resolve(clusterId());
+      if (contractAddr) {
+        const info = await customerDeposit().readBalance(contractAddr, address);
+        return BigInt(info?.active ?? 0n);
+      }
+      // No deposit contract on this cluster -> legacy pallet ledger.
       const info = await client().customers.getStackingInfo(clusterId(), address);
       return BigInt(info?.active ?? 0n);
     },
@@ -68,10 +99,29 @@ export function createChainClient(): ChainClient {
       await client().tx.send(client().customers.setBucketParams(bucketId, { isPublic }), { signer });
     },
 
-    async deposit(value: bigint, signer: Signer) {
-      // Lock `value` (chain's smallest unit) from the signer's balance as a
-      // new/topped-up deposit in the configured cluster. Extrinsic -> the signer
-      // must carry a consent description.
+    async deposit(value: bigint, signer: Signer, caller: string) {
+      // Lock `value` (chain's smallest unit) from the caller's balance as a
+      // new/topped-up deposit. Extrinsic -> the signer must carry a consent
+      // description.
+      const contractAddr = await customerDeposit().resolve(clusterId());
+      if (contractAddr) {
+        // Deposit into the customer-deposit CONTRACT -- where DAC debits and where
+        // `getDeposit` now reads, so a CERE top-up lands in the same place a card
+        // top-up does (and not in the pallet ledger the console no longer reads).
+        // `sizeCall` dry-runs to size gas AND an explicit storage-deposit ceiling
+        // (never None: devnet reads None as a zero ceiling and rejects the
+        // ledger-creating first deposit). It never throws -- it degrades to a
+        // generous sizing. One dry-run precedes signing; on the default iframe
+        // transport that is within the user-activation window (popup transport is
+        // the tight case -- see addProxy). The message takes no args; `value`
+        // carries the deposit.
+        const MSG = 'DdcBalancesDepositor::deposit';
+        const sizing = await customerDeposit().sizeCall(contractAddr, MSG, caller, value, {});
+        const sendable = customerDeposit().buildContractCall(contractAddr, MSG, value, {}, sizing);
+        await client().tx.send(sendable, { signer });
+        return;
+      }
+      // No deposit contract on this cluster -> legacy pallet deposit.
       const tx = await client().customers.deposit(clusterId(), value, {});
       await client().tx.send(tx, { signer });
     },

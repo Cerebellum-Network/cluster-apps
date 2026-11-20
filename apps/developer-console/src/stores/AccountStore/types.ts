@@ -48,6 +48,11 @@ export interface Account {
   /** Create a gateway bucket (authorizing the gateway first if needed); returns its name. */
   createBucket(): Promise<string>;
   saveBucket(name: string, params: { isPublic: boolean }): Promise<void>;
+  /**
+   * Mint a COMPUTE-only Inference API key (base58 DDC bearer) scoped to
+   * `bucketId`, signed by this wallet. Shown once; stateless (expires only).
+   */
+  createInferenceApiKey(bucketId: bigint, ttlMs: number): Promise<string>;
   /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
   revokeGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;

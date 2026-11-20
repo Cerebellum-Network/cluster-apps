@@ -8,6 +8,7 @@ import { createDdcSigner } from '~/storage/ddc/signer';
 import { createGatewayClient } from '~/storage/ddc/gatewayClient';
 import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
 import { generateBucketName } from '~/storage/gatewayBuckets';
+import { buildInferenceApiKey } from '~/inference/inferenceKey';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
@@ -210,6 +211,11 @@ export class AccountStore implements Account {
       });
       return;
     }
+    // A fiat wallet (deposit in the contract, 0 free CERE) can't pay the addProxy
+    // reserve + fee. Seed free CERE via the gateway's onboarding faucet first
+    // (no-op once funded). TESTNET STOPGAP — on mainnet the gas rides in with the
+    // card top-up through the bridge, and this call drops out.
+    await this.storage.ensureWalletFunded();
     const info = await this.gateway.getInfo();
     const ss58 = gatewayPubKeyToSs58(info.gatewayPublicKey);
     try {
@@ -270,11 +276,25 @@ export class AccountStore implements Account {
     await this.refreshBuckets();
   }
 
+  /**
+   * Mint a COMPUTE-only Inference API key (a base58 DDC bearer token) scoped to
+   * `bucketId`, signed by this wallet (which must own the bucket). Shown once;
+   * stateless, so it only expires. Signs, so call from a user gesture.
+   */
+  async createInferenceApiKey(bucketId: bigint, ttlMs: number): Promise<string> {
+    this.requireAccount();
+    const signer = createDdcSigner(() => this.requireSigner());
+    return buildInferenceApiKey(signer, { bucketId, expiresInMs: ttlMs });
+  }
+
   async topUp(amount: number) {
+    const addr = this.session?.address;
+    if (!addr) throw new Error('Account is not ready');
     const value = BigInt(Math.round(amount * 10 ** CERE_DECIMALS));
     // Name the amount in the wallet consent so the user approves a known figure,
-    // not an opaque "add a deposit" (#185 review).
-    await this.chain.deposit(value, this.consentSigner(`Add a ${amount} CERE deposit to DDC`));
+    // not an opaque "add a deposit" (#185 review). `addr` is the depositor: the
+    // deposit is credited to it and funded from it.
+    await this.chain.deposit(value, this.consentSigner(`Add a ${amount} CERE deposit to DDC`), addr);
     await Promise.all([this.refreshDeposit(), this.refreshBalance()]);
   }
 }
