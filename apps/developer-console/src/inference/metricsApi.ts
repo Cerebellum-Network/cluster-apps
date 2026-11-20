@@ -118,6 +118,37 @@ export function totalsByLabel(series: Series[], label: string): GroupTotal[] {
   return [...by.entries()].map(([group, total]) => ({ group, total })).sort((a, b) => b.total - a.total);
 }
 
+export interface Peak { t: number; peak: number }
+
+/**
+ * The highest value in each time bucket across these gauge series — e.g. the
+ * daily (or hourly) peak of in-flight requests, for the "requests at once"
+ * chart. `bucketMs` floors each point's timestamp; empty buckets are omitted.
+ */
+export function peakByBucket(series: Series[], bucketMs: number): Peak[] {
+  const by = new Map<number, number>();
+  for (const s of series) {
+    for (const [t, v] of s.points) {
+      if (!Number.isFinite(v)) continue;
+      const bucket = Math.floor(t / bucketMs) * bucketMs;
+      by.set(bucket, Math.max(by.get(bucket) ?? 0, v));
+    }
+  }
+  return [...by.entries()].map(([t, peak]) => ({ t, peak })).sort((a, b) => a.t - b.t);
+}
+
+/** The largest single point across these series — e.g. the concurrency limit from the `max` gauge. */
+export function seriesMax(series: Series[]): number {
+  let m = 0;
+  for (const s of series) for (const [, v] of s.points) if (Number.isFinite(v)) m = Math.max(m, v);
+  return m;
+}
+
+/** Series carrying a given label value (e.g. the `used` vs `max` state of inflight). */
+export function withLabel(series: Series[], label: string, value: string): Series[] {
+  return series.filter((s) => s.labels[label] === value);
+}
+
 /**
  * [from, to] cut into pieces spanning at most `maxMs`, each starting one step
  * after the last ended so no sample is read twice. The gateway caps a range

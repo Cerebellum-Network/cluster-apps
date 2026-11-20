@@ -1,15 +1,31 @@
-import { Box, Typography, Stack, Alert, Button, ButtonGroup, styled } from '@cluster-apps/ui';
+import {
+  Box,
+  Typography,
+  Stack,
+  Alert,
+  Button,
+  TextField,
+  MenuItem,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  styled,
+} from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useOwnerBuckets } from '~/inference/useInference';
-import { nameOf, type GroupTotal } from '~/inference/metricsApi';
+import { nameOf, type GroupTotal, type Peak } from '~/inference/metricsApi';
 import {
   useReadKey,
   useLiveLimits,
   useUsageBoards,
   RANGE_OPTIONS,
+  USAGE_RANGES,
   type UsageRange,
   type Live,
   type Boards,
@@ -52,10 +68,6 @@ const counts = new Intl.NumberFormat('en-US');
 const fmtCount = (v: number) => counts.format(Math.round(v));
 /** GPU units are small fractions; keep precision under 1, two decimals above. */
 const fmtUnits = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: v !== 0 && Math.abs(v) < 1 ? 6 : 2 });
-// Refusal reasons in user words: rate_limited = your concurrency limit; saturated
-// = the model itself was full (#191 review: not "Saturated").
-const REASONS: Record<string, string> = { rate_limited: 'At your limit', saturated: 'Model was full' };
-const prettyReason = (r: string) => REASONS[r] ?? r;
 
 /** A gateway failure in user words — an expired read vs the gateway being down. */
 const friendlyError = (status?: number): string =>
@@ -63,33 +75,17 @@ const friendlyError = (status?: number): string =>
     ? 'Your usage session expired. Click Show usage to read it again.'
     : 'The inference gateway isn’t responding right now. Try Refresh in a moment.';
 
+const RANGE_LABEL: Record<UsageRange, string> = {
+  '24h': 'Last 24 hours',
+  '7d': 'Last 7 days',
+  '30d': 'Last 30 days',
+};
+
 const Muted = ({ children }: { children: React.ReactNode }) => (
   <Typography variant="body2" color="text.secondary">
     {children}
   </Typography>
 );
-
-/** A labelled horizontal bar list, each bar relative to the largest value. */
-function Bars({ rows, format, label }: { rows: GroupTotal[]; format: (v: number) => string; label: (g: string) => string }) {
-  const max = Math.max(0, ...rows.map((r) => r.total));
-  return (
-    <Stack spacing="12px">
-      {rows.map((r) => (
-        <Stack key={r.group} direction="row" alignItems="center" spacing="12px">
-          <Typography variant="body2" sx={{ width: 160, flexShrink: 0 }} noWrap title={label(r.group)}>
-            {label(r.group)}
-          </Typography>
-          <BarTrack>
-            <Box sx={{ width: max > 0 ? `${Math.max(1.5, (r.total / max) * 100)}%` : '0%', height: '100%', backgroundColor: 'primary.main' }} />
-          </BarTrack>
-          <Typography variant="body2" sx={{ width: 96, flexShrink: 0, textAlign: 'right' }}>
-            {format(r.total)}
-          </Typography>
-        </Stack>
-      ))}
-    </Stack>
-  );
-}
 
 /** The live "right now" grid from /limits: in flight against the limit, per model. */
 function LiveGrid({ live }: { live: Live }) {
@@ -124,8 +120,77 @@ function LiveGrid({ live }: { live: Live }) {
   );
 }
 
-/** The range boards: requests/GPU by model, tokens in/out, refusals by reason. */
-function BoardsView({ boards }: { boards: Boards }) {
+/** Peak concurrent requests per bucket over the range, against the plan limit. */
+function PeakChart({ peaks, limit, range }: { peaks: Peak[]; limit: number; range: UsageRange }) {
+  const top = Math.max(limit, 1, ...peaks.map((p) => p.peak));
+  const daily = USAGE_RANGES[range].chartBucketMs >= 86_400_000;
+  const fmtLabel = (t: number) =>
+    new Date(t).toLocaleString('en-US', daily ? { month: 'short', day: 'numeric', timeZone: 'UTC' } : { hour: 'numeric', timeZone: 'UTC' });
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: 120 }}>
+        {peaks.map((p) => {
+          const hit = limit > 0 && p.peak >= limit;
+          return (
+            <Box
+              key={p.t}
+              title={`${fmtLabel(p.t)} · peak ${p.peak}${limit > 0 ? ` of ${limit}` : ''}`}
+              sx={{ flex: 1, minWidth: 0, height: '100%', display: 'flex', alignItems: 'flex-end' }}
+            >
+              <Box
+                sx={{
+                  width: '100%',
+                  height: `${Math.max(2, (p.peak / top) * 100)}%`,
+                  borderRadius: '3px 3px 0 0',
+                  backgroundColor: hit ? 'warning.main' : 'primary.main',
+                }}
+              />
+            </Box>
+          );
+        })}
+      </Box>
+      {peaks.length > 0 && (
+        <Stack direction="row" justifyContent="space-between" marginTop="6px">
+          <Muted>{fmtLabel(peaks[0].t)}</Muted>
+          <Muted>{fmtLabel(peaks[peaks.length - 1].t)}</Muted>
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
+/** One row per model: requests and GPU units over the range. */
+function ModelTable({ requests, gpu }: { requests: GroupTotal[]; gpu: GroupTotal[] }) {
+  const byModel = new Map<string, { requests: number; gpu: number }>();
+  for (const r of requests) byModel.set(r.group, { requests: r.total, gpu: byModel.get(r.group)?.gpu ?? 0 });
+  for (const g of gpu) byModel.set(g.group, { requests: byModel.get(g.group)?.requests ?? 0, gpu: g.total });
+  const rows = [...byModel.entries()].map(([model, v]) => ({ model, ...v })).sort((a, b) => b.requests - a.requests);
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Model</TableCell>
+            <TableCell align="right">Requests</TableCell>
+            <TableCell align="right">GPU units</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rows.map((r) => (
+            <TableRow key={r.model}>
+              <TableCell>{nameOf(r.model)}</TableCell>
+              <TableCell align="right">{fmtCount(r.requests)}</TableCell>
+              <TableCell align="right">{r.gpu > 0 ? fmtUnits(r.gpu) : '—'}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+/** The range boards: a refusal banner, totals, the peak chart, and a per-model table. */
+function BoardsView({ boards, range }: { boards: Boards; range: UsageRange }) {
   if (boards.kind === 'loading') return <Muted>Loading…</Muted>;
   if (boards.kind === 'unavailable') return <Alert severity="info">Usage history isn’t available on this cluster yet.</Alert>;
   if (boards.kind === 'error')
@@ -136,7 +201,7 @@ function BoardsView({ boards }: { boards: Boards }) {
     );
 
   const d = boards.data;
-  const empty = d.totalRequests === 0 && d.gpuByModel.length === 0;
+  const empty = d.totalRequests === 0 && d.peaks.length === 0 && d.totalRefusals === 0;
   if (empty) {
     return (
       <Empty>
@@ -148,8 +213,19 @@ function BoardsView({ boards }: { boards: Boards }) {
     );
   }
 
+  const atLimit = d.refusalsByReason.find((r) => r.group === 'rate_limited')?.total ?? 0;
+  const modelFull = d.refusalsByReason.find((r) => r.group === 'saturated')?.total ?? 0;
+  const hasModels = d.requestsByModel.length > 0 || d.gpuByModel.length > 0;
+
   return (
     <Stack spacing="20px">
+      {d.totalRefusals > 0 && (
+        <Alert severity="warning">
+          {fmtCount(d.totalRefusals)} request{d.totalRefusals === 1 ? '' : 's'} refused in this range
+          {atLimit + modelFull > 0 && ` — ${fmtCount(atLimit)} at your limit, ${fmtCount(modelFull)} model was full`}.
+        </Alert>
+      )}
+
       <Stack direction="row" spacing="16px" flexWrap="wrap" useFlexGap>
         <Tile>
           <Muted>Requests</Muted>
@@ -168,25 +244,17 @@ function BoardsView({ boards }: { boards: Boards }) {
         </Tile>
       </Stack>
 
-      {d.requestsByModel.length > 0 && (
-        <Section title="Requests by model">
-          <Bars rows={d.requestsByModel} format={fmtCount} label={nameOf} />
+      {d.peaks.length > 0 && (
+        <Section title="Requests at once" actions={<Muted>{d.concurrencyLimit > 0 ? `Limit ${d.concurrencyLimit}` : ''}</Muted>}>
+          <PeakChart peaks={d.peaks} limit={d.concurrencyLimit} range={range} />
         </Section>
       )}
 
-      {d.gpuByModel.length > 0 && (
-        <Section title="GPU units by model">
-          <Bars rows={d.gpuByModel} format={fmtUnits} label={nameOf} />
+      {hasModels && (
+        <Section title="By model" flush>
+          <ModelTable requests={d.requestsByModel} gpu={d.gpuByModel} />
         </Section>
       )}
-
-      <Section title="Refusals">
-        {d.refusalsByReason.length > 0 ? (
-          <Bars rows={d.refusalsByReason} format={fmtCount} label={prettyReason} />
-        ) : (
-          <Muted>No refusals in this range.</Muted>
-        )}
-      </Section>
     </Stack>
   );
 }
@@ -204,18 +272,19 @@ function Board({ gatewayKey, onExpired }: { gatewayKey: string; onExpired: () =>
           title="Usage"
           actions={
             <Stack direction="row" spacing={1.5} alignItems="center">
-              <ButtonGroup size="small" variant="outlined" color="secondary">
+              <TextField
+                select
+                size="small"
+                value={range}
+                onChange={(e) => setRange(e.target.value as UsageRange)}
+                sx={{ minWidth: 150 }}
+              >
                 {RANGE_OPTIONS.map((r) => (
-                  <Button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    variant={r === range ? 'contained' : 'outlined'}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    {r}
-                  </Button>
+                  <MenuItem key={r} value={r}>
+                    {RANGE_LABEL[r]}
+                  </MenuItem>
                 ))}
-              </ButtonGroup>
+              </TextField>
               <Button size="small" variant="outlined" color="secondary" onClick={() => setReload((n) => n + 1)}>
                 Refresh
               </Button>
@@ -229,7 +298,7 @@ function Board({ gatewayKey, onExpired }: { gatewayKey: string; onExpired: () =>
           <LiveGrid live={live} />
         </Section>
 
-        <BoardsView boards={boards} />
+        <BoardsView boards={boards} range={range} />
       </Stack>
     </Box>
   );

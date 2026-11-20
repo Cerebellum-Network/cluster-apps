@@ -13,9 +13,14 @@ import {
   queryRange,
   sumSeries,
   totalsByLabel,
+  peakByBucket,
+  seriesMax,
+  withLabel,
   GatewayError,
   type BucketLimits,
   type GroupTotal,
+  type Peak,
+  type Series,
 } from './metricsApi';
 
 /** In memory only, for this page's reads — long enough to browse, short enough not to linger. */
@@ -24,10 +29,11 @@ const KEY_TTL_MS = 60 * 60 * 1000;
 const LIVE_POLL_MS = 15_000;
 
 export type UsageRange = '24h' | '7d' | '30d';
-export const USAGE_RANGES: Record<UsageRange, { ms: number; step: string; stepMs: number }> = {
-  '24h': { ms: 86_400_000, step: '15m', stepMs: 900_000 },
-  '7d': { ms: 7 * 86_400_000, step: '1h', stepMs: 3_600_000 },
-  '30d': { ms: 30 * 86_400_000, step: '6h', stepMs: 21_600_000 },
+/** `chartBucketMs` is the "requests at once" chart's bar width: hourly for 24h, daily beyond. */
+export const USAGE_RANGES: Record<UsageRange, { ms: number; step: string; stepMs: number; chartBucketMs: number }> = {
+  '24h': { ms: 86_400_000, step: '15m', stepMs: 900_000, chartBucketMs: 3_600_000 },
+  '7d': { ms: 7 * 86_400_000, step: '1h', stepMs: 3_600_000, chartBucketMs: 86_400_000 },
+  '30d': { ms: 30 * 86_400_000, step: '6h', stepMs: 21_600_000, chartBucketMs: 86_400_000 },
 };
 export const RANGE_OPTIONS: UsageRange[] = ['24h', '7d', '30d'];
 
@@ -131,6 +137,11 @@ export interface UsageBoards {
   requestsByModel: GroupTotal[];
   gpuByModel: GroupTotal[];
   refusalsByReason: GroupTotal[];
+  totalRefusals: number;
+  /** Peak concurrent requests per time bucket, for the "requests at once" chart. */
+  peaks: Peak[];
+  /** The bucket's concurrency limit (0 when the gateway doesn't report it). */
+  concurrencyLimit: number;
 }
 
 export type Boards =
@@ -141,7 +152,7 @@ export type Boards =
   | { kind: 'ready'; data: UsageBoards };
 
 async function loadBoards(key: string, range: UsageRange, nowMs: number, signal: AbortSignal): Promise<UsageBoards> {
-  const { ms, step, stepMs } = USAGE_RANGES[range];
+  const { ms, step, stepMs, chartBucketMs } = USAGE_RANGES[range];
   // End at `now`, not the last whole step boundary: a usage page should show the
   // call you just made, so the current (partial) step is included — its increase()
   // is the partial total so far. `from` is step-aligned to keep the buckets clean.
@@ -156,14 +167,18 @@ async function loadBoards(key: string, range: UsageRange, nowMs: number, signal:
   // read 0). Can't tell gateway counting from an increase() artifact — the metrics
   // API exposes only rate/increase, never the raw counter. Reliable per-token usage
   // is the gateway usage journal (D35), so Usage marks tokens "Coming soon" until then.
-  const [req, gpu, limited] = await Promise.all([
+  // inflight is a gauge (no stat): its range values give the peak-concurrency
+  // chart (state=used) against the limit (state=max). Extra, like refusals — an
+  // older gateway without it still draws the rest (#191 review, board 7).
+  const extra = (e: unknown): Series[] => {
+    if (signal.aborted || metricsNotConfigured(e)) throw e;
+    return [];
+  };
+  const [req, gpu, limited, inflight] = await Promise.all([
     counter('inference_gateway_requests_total', 'model'),
     counter('inference_gateway_gpu_units_total', 'model'),
-    // Refusals are extra: an older gateway without the series still draws the rest.
-    counter('inference_gateway_limited_total', 'reason').catch((e: unknown) => {
-      if (signal.aborted || metricsNotConfigured(e)) throw e;
-      return [];
-    }),
+    counter('inference_gateway_limited_total', 'reason').catch(extra),
+    queryRange(key, { metric: 'inference_gateway_inflight', groupBy: 'state' }, fromMs, toMs, step, stepMs, signal).catch(extra),
   ]);
 
   const nonZero = (g: GroupTotal) => g.total > 0;
@@ -172,6 +187,9 @@ async function loadBoards(key: string, range: UsageRange, nowMs: number, signal:
     requestsByModel: totalsByLabel(req, 'model').filter(nonZero),
     gpuByModel: totalsByLabel(gpu, 'model').filter(nonZero),
     refusalsByReason: totalsByLabel(limited, 'reason').filter(nonZero),
+    totalRefusals: sumSeries(limited),
+    peaks: peakByBucket(withLabel(inflight, 'state', 'used'), chartBucketMs),
+    concurrencyLimit: seriesMax(withLabel(inflight, 'state', 'max')),
   };
 }
 

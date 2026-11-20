@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
 
-import { toSeries, nameOf, sumSeries, totalsByLabel, chunkRange, mergeSeries, RANGE_QUERY_MAX_MS } from './metricsApi';
+import {
+  toSeries,
+  nameOf,
+  sumSeries,
+  totalsByLabel,
+  chunkRange,
+  mergeSeries,
+  peakByBucket,
+  seriesMax,
+  withLabel,
+  RANGE_QUERY_MAX_MS,
+} from './metricsApi';
 
 describe('toSeries', () => {
   it('parses a range result, epoch seconds → ms', () => {
@@ -78,6 +89,37 @@ describe('chunkRange', () => {
     // each chunk starts one step past the previous end
     for (let i = 1; i < chunks.length; i++) expect(chunks[i].from).toBe(chunks[i - 1].to + STEP);
     expect(chunks[chunks.length - 1].to).toBe(7 * DAY);
+  });
+});
+
+describe('peakByBucket / seriesMax / withLabel', () => {
+  const HOUR = 3_600_000;
+  // used-state inflight: two points in hour 0 (peak 3), one in hour 1 (peak 2).
+  const used = [
+    { labels: { state: 'used' }, points: [[0, 1] as [number, number], [60_000, 3] as [number, number], [HOUR, 2] as [number, number]] },
+  ];
+  const maxS = [{ labels: { state: 'max' }, points: [[0, 8] as [number, number], [HOUR, 8] as [number, number]] }];
+
+  it('takes the highest value per bucket, time-ordered, empties omitted', () => {
+    expect(peakByBucket(used, HOUR)).toEqual([
+      { t: 0, peak: 3 },
+      { t: HOUR, peak: 2 },
+    ]);
+  });
+
+  it('ignores non-finite points', () => {
+    expect(peakByBucket([{ labels: {}, points: [[0, NaN], [1, 5], [2, Infinity]] }], HOUR)).toEqual([{ t: 0, peak: 5 }]);
+  });
+
+  it('seriesMax is the largest single point (the limit)', () => {
+    expect(seriesMax(maxS)).toBe(8);
+    expect(seriesMax([])).toBe(0);
+  });
+
+  it('withLabel filters series by a label value', () => {
+    const all = [...used, ...maxS];
+    expect(withLabel(all, 'state', 'used')).toEqual(used);
+    expect(withLabel(all, 'state', 'max')).toEqual(maxS);
   });
 });
 
