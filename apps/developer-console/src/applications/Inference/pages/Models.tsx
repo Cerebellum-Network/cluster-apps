@@ -45,18 +45,6 @@ const Dot = styled('span', { shouldForwardProp: (p) => p !== 'tone' })<{ tone: S
   flexShrink: 0,
 }));
 
-const Hero = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: theme.spacing(3),
-  flexWrap: 'wrap',
-  padding: theme.spacing(3, 4),
-  borderRadius: 12,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-}));
-
 function PriceCell({ card }: { card: ModelCard }) {
   if (!card.pricePerMillion) {
     return (
@@ -108,34 +96,26 @@ const Models = () => {
         />
       </Box>
 
-      {/* Hero: create a key + call a model. */}
-      <Hero marginBottom="16px">
-        <Box minWidth={0}>
-          <Typography variant="h4" sx={{ color: 'primary.contrastText' }}>
-            Create an API key and call any model from your laptop or app
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', marginTop: '6px' }}>
+      {/* Get started: same card and type scale as the rest of the console. */}
+      <Box marginBottom="16px">
+        <Section
+          title="Call a model from your laptop or app"
+          actions={
+            <Stack direction="row" spacing={1.5}>
+              <Button component={NavLink} to="/inference/keys" variant="outlined" color="secondary">
+                API keys
+              </Button>
+              <Button component={NavLink} to="/inference/quickstart" variant="contained">
+                Get started
+              </Button>
+            </Stack>
+          }
+        >
+          <Typography variant="body2" color="text.secondary">
             Works with the OpenAI and Anthropic SDKs, Claude Code, and editors like Cursor. Speech models take plain HTTP.
           </Typography>
-        </Box>
-        <Stack direction="row" spacing={1.5} flexShrink={0}>
-          <Button
-            component={NavLink}
-            to="/inference/keys"
-            variant="outlined"
-            sx={{ color: 'primary.contrastText', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'primary.contrastText' } }}
-          >
-            API keys
-          </Button>
-          <Button
-            component={NavLink}
-            to="/inference/quickstart"
-            sx={{ backgroundColor: 'primary.contrastText', color: 'primary.main', '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' } }}
-          >
-            Get started
-          </Button>
-        </Stack>
-      </Hero>
+        </Section>
+      </Box>
 
       {/* Funds notice (no balance yet). */}
       {!balance.loading && !hasBalance && (

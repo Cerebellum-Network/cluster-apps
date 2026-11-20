@@ -23,7 +23,6 @@ const application: Application = {
   group: 'services',
   subNav: [
     { path: '', label: 'Models' },
-    { path: 'quickstart', label: 'Quickstart' },
     { path: 'keys', label: 'API keys' },
     { path: 'usage', label: 'Usage' },
   ],
