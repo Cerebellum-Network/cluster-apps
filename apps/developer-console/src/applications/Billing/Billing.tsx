@@ -21,7 +21,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
 import { PageHeader, Section, ComingSoon } from '~/components';
-import { useBills, useBalance, useProfile, useLedger } from '~/billing/useBilling';
+import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
 import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
@@ -44,6 +44,9 @@ const Billing = () => {
   const balance = useBalance();
   const profile = useProfile();
   const ledger = useLedger();
+  // Provision the developer record on first visit so top-up / checkout don't 400
+  // with "not registered as developer" (#190 follow-up).
+  useEnsureDeveloper(profile);
   const [openMonth, setOpenMonth] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
