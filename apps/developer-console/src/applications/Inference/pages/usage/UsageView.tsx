@@ -60,7 +60,7 @@ export function EmptyUsage() {
       <Typography sx={{ fontSize: 13, color: 'text.secondary', marginBottom: '18px' }}>
         Make your first call with an API key and it shows up here, by model, within a minute or two.
       </Typography>
-      <Button variant="contained" component={NavLink} to="/inference/quickstart">
+      <Button variant="contained" component={NavLink} to="/inference?quickstart=1">
         Show me how
       </Button>
     </Box>
