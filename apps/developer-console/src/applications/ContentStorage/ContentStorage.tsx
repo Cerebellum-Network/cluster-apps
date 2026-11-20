@@ -27,6 +27,7 @@ import { Bucket } from '~/stores';
 import { PageHeader, Section, ComingSoon } from '~/components';
 import { storageConfig } from '~/storage/storageConfig';
 import { EMPTY_FILE_NAME, DEFAULT_FOLDER_NAME } from '~/constants.ts';
+import { color, mono, text } from '~/theme/tokens';
 import type { Acl } from '~/storage/ddc/types';
 
 /** Folder-upload tuning: a bounded worker pool, with a couple of retries per file. */
@@ -276,7 +277,7 @@ const ContentStorage = () => {
         title="Buckets"
         actions={
           <Stack direction="row" spacing={1.5} alignItems="center">
-            <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Plan quota</Typography>
+            <Typography sx={text.secondary}>Plan quota</Typography>
             <ComingSoon />
             {buckets.length > 0 && (
               <LoadingButton
@@ -323,7 +324,7 @@ const ContentStorage = () => {
       {/* GET / PUT requests — needs the bills feed, so the section holds its place
           with a Coming soon badge rather than a developer note. */}
       <Section title="GET / PUT requests" actions={<ComingSoon />}>
-        <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+        <Typography sx={text.secondary}>
           Request counts and data served will show here once your plan is active.
         </Typography>
       </Section>
@@ -342,18 +343,18 @@ const ContentStorage = () => {
         <DialogTitle>S3 access</DialogTitle>
         <DialogContent>
           <Stack spacing={2} paddingTop={1}>
-            <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+            <Typography sx={text.secondary}>
               Point any S3-compatible client at this endpoint. Address buckets by the names shown above.
             </Typography>
             <Box>
-              <Typography sx={{ fontSize: 12, color: '#818083', marginBottom: 0.5 }}>Endpoint</Typography>
+              <Typography sx={{ ...text.label, marginBottom: 0.5 }}>Endpoint</Typography>
               <Stack
                 direction="row"
                 alignItems="center"
                 spacing={1}
-                sx={{ border: '1px solid #E3E4EE', borderRadius: '8px', padding: '8px 12px' }}
+                sx={{ border: `1px solid ${color.border}`, borderRadius: '8px', padding: '8px 12px' }}
               >
-                <Typography sx={{ fontFamily: 'monospace', fontSize: 13, flex: 1, wordBreak: 'break-all' }}>
+                <Typography sx={{ fontFamily: mono, fontSize: 13, flex: 1, wordBreak: 'break-all' }}>
                   {s3Endpoint}
                 </Typography>
                 <IconButton
@@ -368,16 +369,16 @@ const ContentStorage = () => {
               </Stack>
             </Box>
             <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography sx={{ fontSize: 13, color: '#5E5C6B' }}>Access key &amp; secret</Typography>
+              <Typography sx={text.secondary}>Access key &amp; secret</Typography>
               <ComingSoon />
             </Stack>
 
             {/* Disconnect S3 lives here, behind an in-app confirm (no window.confirm). */}
             {account.gatewayAuthorized && (
-              <Box sx={{ borderTop: '1px solid #E3E4EE', paddingTop: 2 }}>
+              <Box sx={{ borderTop: `1px solid ${color.border}`, paddingTop: 2 }}>
                 {disconnectConfirm ? (
                   <Stack spacing={1}>
-                    <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+                    <Typography sx={text.secondary}>
                       Disconnect Cere from your storage? You can allow it again the next time you create a bucket.
                     </Typography>
                     <Stack direction="row" spacing={1}>

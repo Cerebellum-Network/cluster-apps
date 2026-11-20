@@ -19,6 +19,7 @@ import { rememberKey } from '~/inference/sessionKey';
 import { openAiBaseUrl, anthropicBaseUrl, speechHttpUrl } from '~/inference/gateway';
 import { PageHeader, Section, ComingSoon } from '~/components';
 import '~/inference/inference.css';
+import { color, mono, text } from '~/theme/tokens';
 
 /**
  * Inference → API keys (mockup): create a wallet-signed, shown-once COMPUTE
@@ -30,11 +31,11 @@ const TTL_DAYS = [7, 30, 90];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const Mono = styled(Box)(({ theme }) => ({
-  font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
+  font: `13px/1.5 ${mono}`,
   wordBreak: 'break-all',
   padding: '12px 14px',
   borderRadius: 8,
-  backgroundColor: '#fff',
+  backgroundColor: color.surface,
   border: `1px solid ${theme.palette.divider}`,
 }));
 
@@ -56,14 +57,14 @@ function BaseUrl({ label, url }: { label: string; url: string }) {
       .catch(() => {});
   };
   return (
-    <Box flex={1} minWidth={0} padding="14px" borderRadius="10px" border={(theme) => `1px solid ${theme.palette.divider}`}>
+    <Box flex={1} minWidth={0} padding="14px 16px" borderRadius="12px" border={`1px solid ${color.border}`}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="8px">
         <Typography variant="subtitle2">{label}</Typography>
         <Button size="small" variant="outlined" color="secondary" onClick={copy}>
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </Stack>
-      <Typography sx={{ font: '12.5px/1.5 ui-monospace, Menlo, monospace', color: 'var(--i-tx-dim)', wordBreak: 'break-all' }}>
+      <Typography sx={{ font: `12.5px/1.5 ${mono}`, color: color.textSecondary, wordBreak: 'break-all' }}>
         {url}
       </Typography>
     </Box>
@@ -118,8 +119,8 @@ const ApiKeys = () => {
         <PageHeader
           title="API keys"
           actions={
-            <Button component={NavLink} to="/inference?quickstart=1" variant="outlined">
-              Quickstart
+            <Button component={NavLink} to="/inference?quickstart=1" variant="outlined" color="secondary">
+              Get started
             </Button>
           }
         />
@@ -161,7 +162,7 @@ const ApiKeys = () => {
                 </MenuItem>
               ))}
             </TextField>
-            <LoadingButton loading={busy} onClick={generate}>
+            <LoadingButton variant="contained" loading={busy} onClick={generate}>
               Create key
             </LoadingButton>
             <Typography variant="body2" color="text.secondary">
@@ -180,18 +181,18 @@ const ApiKeys = () => {
           <Box
             marginTop="16px"
             padding="16px"
-            borderRadius="10px"
-            sx={{ backgroundColor: 'var(--i-chip)', border: (theme) => `1px solid ${theme.palette.divider}` }}
+            borderRadius="12px"
+            sx={{ backgroundColor: color.inset, border: `1px solid ${color.border}` }}
           >
             <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="8px">
               <Typography variant="subtitle2">New key · expires {fmtDate(shown.expiresAt)}</Typography>
-              <Button size="small" onClick={copyKey}>
+              <Button size="small" variant="outlined" color="secondary" onClick={copyKey}>
                 {copied ? 'Copied' : 'Copy key'}
               </Button>
             </Stack>
             <Mono>{shown.token}</Mono>
             <Typography variant="body2" color="text.secondary" marginTop="10px">
-              <strong style={{ color: 'var(--i-tx)' }}>Shown once.</strong> It <strong style={{ color: 'var(--i-tx)' }}>can’t
+              <strong style={{ color: color.text }}>Shown once.</strong> It <strong style={{ color: color.text }}>can’t
               be revoked</strong>: anyone who has it can spend from your balance until {fmtDate(shown.expiresAt)}.
             </Typography>
           </Box>
@@ -205,14 +206,17 @@ const ApiKeys = () => {
           <BaseUrl label="Anthropic SDK" url={anthropicBaseUrl()} />
           <BaseUrl label="Speech models, plain HTTP" url={speechHttpUrl()} />
         </Stack>
-        <Typography variant="caption" color="text.secondary" display="block" marginTop="12px">
+        <Typography sx={{ ...text.secondary, marginTop: '12px' }}>
           The key goes where the SDK expects its API key.{' '}
-          <NavLink to="/inference?quickstart=1">See ready-to-run examples in Get started</NavLink>.
+          <Box component={NavLink} to="/inference?quickstart=1" sx={{ color: color.primary, fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+            See ready-to-run examples in Get started
+          </Box>
+          .
         </Typography>
         </Section>
 
         {/* Your keys — the list + revoke come later. */}
-        <Section title="Your keys" actions={<ComingSoon label="Later" />}>
+        <Section title="Your keys" actions={<ComingSoon />}>
           <Typography variant="body2" color="text.secondary">
             No list and no revoke yet.
           </Typography>

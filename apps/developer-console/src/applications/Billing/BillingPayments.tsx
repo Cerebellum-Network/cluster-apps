@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { payment, ApiError, type DeveloperProfile, type LedgerEntry, type TopupResult } from '~/billing/api';
 import { saveCheckoutAmount } from '~/billing/checkout';
 import { brandName, usd, longDate } from '~/billing/format';
-import { ComingSoon } from '~/components';
+import { ComingSoon, Pill } from '~/components';
+import { color, text } from '~/theme/tokens';
 
 /**
  * Top-up and auto-top-up, ported from billing-console (pages/payments/{TopUp,
@@ -23,11 +24,12 @@ const MAX = 1000;
 const DEFAULT_THRESHOLD = 10;
 const DEFAULT_AMOUNT = 20;
 
-const Panel = styled(Box)(({ theme }) => ({
-  border: `1px solid ${theme.palette.divider}`,
-  borderRadius: 12,
-  backgroundColor: theme.palette.background.paper,
-  padding: 20,
+// The same card as Section: 16px radius, the shared border, 18/22 padding.
+const Panel = styled(Box)(() => ({
+  border: `1px solid ${color.border}`,
+  borderRadius: 16,
+  backgroundColor: color.surface,
+  padding: '18px 22px',
 }));
 
 type TopUpStatus =
@@ -160,8 +162,8 @@ export function BillingPayments({
     <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="stretch">
       {/* Top up */}
       <Panel flex={1}>
-        <Typography variant="subtitle1">Top up</Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography component="h3" sx={text.title}>Top up</Typography>
+        <Typography sx={{ ...text.secondary, marginTop: '4px' }}>
           One balance pays for both storage and inference.
         </Typography>
 
@@ -172,10 +174,13 @@ export function BillingPayments({
               <Button
                 key={p}
                 fullWidth
-                // Selected preset is primary, not black (#190 review).
-                variant={selected ? 'contained' : 'outlined'}
+                // A preset is a choice, not the action: the selected one is tinted
+                // primary, so "Add $X" stays the card's one filled button.
+                variant="outlined"
                 color={selected ? 'primary' : 'secondary'}
+                aria-pressed={selected}
                 onClick={() => edit(p.toFixed(2))}
+                sx={selected ? { backgroundColor: color.primaryTint, '&:hover': { backgroundColor: color.primaryTint } } : { borderColor: color.border }}
               >
                 ${p}
               </Button>
@@ -241,7 +246,7 @@ export function BillingPayments({
         )}
 
         {status.kind === 'processing' && (
-          <LoadingButton fullWidth loading disabled sx={{ marginTop: '16px' }}>
+          <LoadingButton variant="contained" fullWidth loading disabled sx={{ marginTop: '16px' }}>
             Charging {cardLabel}…
           </LoadingButton>
         )}
@@ -271,19 +276,17 @@ export function BillingPayments({
       {/* Auto top-up */}
       <Panel flex={1}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Typography variant="subtitle1">Auto top-up</Typography>
-          <Typography variant="body2" sx={{ color: autoOn ? 'success.main' : 'text.secondary' }}>
-            {autoOn ? 'On' : 'Off'}
-          </Typography>
+          <Typography component="h3" sx={text.title}>Auto top-up</Typography>
+          <Pill tone={autoOn ? 'success' : 'neutral'}>{autoOn ? 'On' : 'Off'}</Pill>
         </Stack>
 
         {!hasCard ? (
-          <Typography variant="body2" color="text.secondary" marginTop="12px">
+          <Typography sx={{ ...text.secondary, marginTop: '4px' }}>
             Add a card (top up once) to turn on auto top-up.
           </Typography>
         ) : (
           <>
-            <Typography variant="body2" color="text.secondary" marginTop="8px">
+            <Typography sx={{ ...text.secondary, marginTop: '4px' }}>
               When the balance falls below the threshold, charge the amount to {cardLabel}.
             </Typography>
             <Stack direction="row" spacing={1} marginTop="16px">

@@ -14,6 +14,7 @@ import { Row } from './Row.tsx';
 import { RealData } from './types.ts';
 import { transformData } from './helpers.ts';
 import { useApplicationTour, elementsRendered } from '~/components/ApplicationTour';
+import { text } from '~/theme/tokens';
 
 /**
  * This component resets default CSS styles.
@@ -111,15 +112,15 @@ export const FileManager = ({
         locked={lockUi && userHasBuckets}
         display="flex"
         alignItems="center"
-        padding={(theme) => theme.spacing(1, 1.5)}
+        padding="8px 22px"
       >
-        <Typography flex={4} sx={{ fontSize: 12, color: '#818083' }}>
+        <Typography flex={4} sx={text.label}>
           Bucket
         </Typography>
-        <Typography flex={1.4} textAlign="right" sx={{ fontSize: 12, color: '#818083' }}>
+        <Typography flex={1.4} textAlign="right" sx={text.label}>
           Stored
         </Typography>
-        <Typography flex={1} textAlign="center" sx={{ fontSize: 12, color: '#818083' }}>
+        <Typography flex={1} textAlign="center" sx={text.label}>
           Access
         </Typography>
         <Box flex={1}></Box>
@@ -156,7 +157,7 @@ export const FileManager = ({
             />
           ))
         )}
-        <Box marginTop="20px" display="flex" alignItems="center" justifyContent="center" flexDirection="column">
+        <Box marginTop="20px" paddingBottom="24px" display="flex" alignItems="center" justifyContent="center" flexDirection="column">
           {isBucketCreating && (
             <Box
               display="flex"
@@ -173,16 +174,17 @@ export const FileManager = ({
               (ContentStorage). Only the first-bucket onboarding CTA stays here. */}
           {(!userHasBuckets || firstBucketLocked) && (
             <Button
+              variant="contained"
               onClick={onFirstBucketClick}
               disabled={isBucketCreating || !isAccountReady}
               className={AnalyticsId.createFirstBucketBtn}
               data-tour="bucket"
             >
-              {isBucketCreating ? 'Creating Your First Bucket...' : 'Create Your First Bucket'}
+              {isBucketCreating ? 'Creating your first bucket…' : 'Create your first bucket'}
             </Button>
           )}
-          <Typography marginTop={(theme) => theme.spacing(2.5)} variant="caption" fontSize="small">
-            Buckets allow you to create discrete and decoupled storage bins for each of your applications
+          <Typography sx={{ ...text.secondary, marginTop: '12px' }}>
+            A bucket keeps one app’s files apart from the rest. Create one per app.
           </Typography>
         </Box>
       </Box>

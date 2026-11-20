@@ -22,6 +22,8 @@ import { bytesToSize } from './helpers.ts';
 import { EMPTY_FILE_NAME } from '~/constants.ts';
 import { UploadStatus } from './UploadStatus.tsx';
 import { UploadButton } from './UploadButton.tsx';
+import { alpha } from '@mui/material';
+import { color } from '~/theme/tokens';
 import { useAccount } from '~/hooks';
 
 interface StyledRowProps extends BoxProps {
@@ -33,13 +35,13 @@ const StyledRow = styled(Box, {
 })<StyledRowProps>(({ theme, open, locked }) => ({
   display: 'flex',
   alignItems: 'center',
-  padding: '16px 12px',
+  padding: '16px 22px',
   '&:hover': {
     cursor: !locked ? 'pointer' : 'not-allowed',
-    backgroundColor: '#7A9FFF0A',
+    backgroundColor: color.inset,
   },
   '&:nth-of-type(odd)': {
-    backgroundColor: open ? theme.palette.common.white : '#7A9FFF0A',
+    backgroundColor: open ? theme.palette.common.white : color.inset,
   },
   backgroundColor: open ? theme.palette.common.white : 'transparent',
   border: open ? `1px solid ${theme.palette.divider}` : 'none',
@@ -54,7 +56,7 @@ const ExpandedRow = styled(Box)<StyledRowProps>(({ theme, open }) => ({
   border: `1px solid ${theme.palette.divider}`,
   borderTop: 'none',
   borderRadius: theme.spacing(0, 0, 0.5, 0.5),
-  boxShadow: '0px 8px 12px 0px #1A0A7C1A',
+  boxShadow: `0px 8px 12px 0px ${alpha(color.text, 0.08)}`,
   maxHeight: '352px',
   overflowY: 'auto',
   width: '100%',
@@ -302,15 +304,15 @@ export const Row = ({
                         alignItems: 'center',
                         padding: '6px 6px',
                         borderRadius: '6px',
-                        backgroundColor: '#f5f5f5',
+                        backgroundColor: color.neutralFill,
                         whiteSpace: 'nowrap',
                         '&:hover': {
-                          backgroundColor: '#e0e0e0',
+                          backgroundColor: color.border,
                           cursor: 'pointer',
                         },
                       }}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" height={18} viewBox="0 0 24 24" width={18} fill={'#555'}>
+                      <svg xmlns="http://www.w3.org/2000/svg" height={18} viewBox="0 0 24 24" width={18} fill={color.textSecondary}>
                         <path d="M0 0h24v24H0z" fill="none" />
                         <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 18H8V7h11v16z" />
                       </svg>

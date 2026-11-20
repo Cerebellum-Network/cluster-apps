@@ -19,15 +19,16 @@ import { QuickstartDialog } from './Quickstart';
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
 import { usd } from '~/billing/format';
-import { PageHeader, Section, ComingSoon } from '~/components';
+import { PageHeader, Section, ComingSoon, Pill } from '~/components';
+import { color, text } from '~/theme/tokens';
 import { atCapacityNotice, taskLabel, type ModelCard, type StatusTone } from '~/inference/model';
 import type { GatewayModelStatus } from '~/inference/gateway';
 
 const TONE_COLOR: Record<StatusTone, string> = {
-  success: '#2e7d32',
-  warning: '#ed6c02',
-  error: '#d32f2f',
-  neutral: '#9e9e9e',
+  success: color.success,
+  warning: color.warning,
+  error: color.danger,
+  neutral: color.textTertiary,
 };
 
 const STATUS_TEXT: Record<GatewayModelStatus, string> = {
@@ -101,7 +102,7 @@ const Models = () => {
         <PageHeader
           title="Models"
           actions={
-            <Typography variant="body2" color="text.secondary">
+            <Typography sx={text.secondary}>
               {balance.loading ? 'Balance …' : `Balance ${usd(balance.data ?? 0)}`}
             </Typography>
           }
@@ -123,7 +124,7 @@ const Models = () => {
             </Stack>
           }
         >
-          <Typography variant="body2" color="text.secondary">
+          <Typography sx={text.secondary}>
             Works with the OpenAI and Anthropic SDKs, Claude Code, and editors like Cursor. Speech models take plain HTTP.
           </Typography>
         </Section>
@@ -139,7 +140,7 @@ const Models = () => {
           marginBottom="16px"
           padding="14px 20px"
           borderRadius="12px"
-          sx={{ backgroundColor: 'secondary.light', border: (theme) => `1px solid ${theme.palette.divider}` }}
+          sx={{ backgroundColor: color.primaryTint, border: `1px solid ${color.border}` }}
         >
           <Typography variant="body2">
             Add a card or CERE to start: you get $10 to try, then pay only for what you use.
@@ -158,11 +159,9 @@ const Models = () => {
         justifyContent="space-between"
         spacing={2}
         marginBottom="20px"
-        padding="12px 20px"
-        borderRadius="12px"
-        sx={{ backgroundColor: 'background.default' }}
+        padding="0 22px"
       >
-        <Typography variant="body2" color="text.secondary">
+        <Typography sx={text.secondary}>
           Up to 8 requests at once across all models. Plans with higher limits are on the way.
         </Typography>
         <ComingSoon />
@@ -193,16 +192,15 @@ const Models = () => {
         </Typography>
       ) : (
         <Section flush>
-          <TableContainer sx={{ '& td': { paddingTop: '16px', paddingBottom: '16px' } }}>
+          <TableContainer sx={{ '& td': { paddingTop: '12px', paddingBottom: '12px' } }}>
             <Table>
             <TableHead>
               <TableRow>
-                <TableCell colSpan={4} sx={{ color: 'text.secondary' }}>
-                  {cards.length} models
-                </TableCell>
-                <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                  Status is live
-                </TableCell>
+                <TableCell sx={{ width: 24, paddingRight: 0 }} />
+                <TableCell>{`${cards.length} models`}</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Price</TableCell>
+                <TableCell align="right">Live status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -220,15 +218,13 @@ const Models = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {taskLabel(card.task)}
-                    </Typography>
+                    <Pill>{taskLabel(card.task)}</Pill>
                   </TableCell>
                   <TableCell>
                     <PriceCell card={card} />
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2" sx={{ color: TONE_COLOR[card.capacity.tone] }} title={card.capacity.detail || undefined}>
+                    <Typography variant="body2" sx={{ color: TONE_COLOR[card.capacity.tone], fontWeight: 600 }} title={card.capacity.detail || undefined}>
                       {STATUS_TEXT[card.capacity.status]}
                     </Typography>
                   </TableCell>

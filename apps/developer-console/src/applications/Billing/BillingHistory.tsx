@@ -48,7 +48,11 @@ export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | nu
 
   return (
     <Box>
-      <Table size="small">
+      <Table
+        size="small"
+        // Inside a padded card: the outer columns line up with the card title.
+        sx={{ '& .MuiTableCell-root:first-of-type': { paddingLeft: 0 }, '& .MuiTableCell-root:last-of-type': { paddingRight: 0 } }}
+      >
         <TableHead>
           <TableRow>
             <TableCell>Date</TableCell>

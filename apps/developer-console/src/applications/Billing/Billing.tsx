@@ -20,7 +20,11 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
-import { PageHeader, Section, ComingSoon } from '~/components';
+import { PageHeader, Section, ComingSoon, Pill } from '~/components';
+import { text } from '~/theme/tokens';
+
+/** A card's main line (plan name, card on file): body size, bold. */
+const cardValue = { fontSize: 16, lineHeight: '22px', fontWeight: 600 } as const;
 import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
@@ -230,63 +234,61 @@ const Billing = () => {
         </Alert>
       )}
 
-      {/* Balance / Plan / Payment method */}
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing="20px" alignItems="stretch">
-        <Box flex={1}>
-          <Section>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Balance</Typography>
-            <Typography sx={{ fontSize: 32, fontWeight: 700, marginTop: '4px', lineHeight: 1.1 }}>
-              {balance.loading && bal == null ? '…' : money(bal)}
-            </Typography>
-            {runwayText && <Typography sx={{ fontSize: 13, color: 'text.secondary', marginTop: '2px' }}>{runwayText}</Typography>}
-            <Stack direction="row" alignItems="center" spacing={1} marginTop="14px">
-              <Button variant="contained" size="small" onClick={() => setAddOpen(true)}>
-                Add funds
-              </Button>
-              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>· {autoStatus}</Typography>
-            </Stack>
-          </Section>
-        </Box>
-        <Box flex={1}>
-          <Section title="Plan" actions={<ComingSoon />}>
-            <Typography sx={{ fontSize: 18, fontWeight: 700 }}>Pay as you go</Typography>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary', marginTop: '2px' }}>
-              Free and Pro plans are on the way.
-            </Typography>
-            <Button variant="outlined" color="secondary" size="small" disabled sx={{ marginTop: '12px' }}>
+      {/* Balance / Plan / Payment method: equal-height cards, one title style,
+          the action pinned to the bottom so the three line up. */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' }, gap: '20px' }}>
+        <Section title="Balance" fill>
+          <Typography sx={{ fontSize: 28, lineHeight: '34px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+            {balance.loading && bal == null ? '…' : money(bal)}
+          </Typography>
+          <Typography sx={{ ...text.secondary, marginTop: '4px' }}>{runwayText ?? autoStatus}</Typography>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ marginTop: 'auto', paddingTop: '16px' }}>
+            <Button variant="outlined" color="secondary" size="small" onClick={() => setAddOpen(true)}>
+              Add funds
+            </Button>
+            {runwayText && <Typography sx={text.secondary}>{autoStatus}</Typography>}
+          </Stack>
+        </Section>
+        <Section title="Plan" actions={<ComingSoon />} fill>
+          <Typography sx={cardValue}>Pay as you go</Typography>
+          <Typography sx={{ ...text.secondary, marginTop: '4px' }}>Free and Pro plans are on the way.</Typography>
+          <Box sx={{ marginTop: 'auto', paddingTop: '16px' }}>
+            <Button variant="outlined" color="secondary" size="small" disabled>
               Change plan
             </Button>
-          </Section>
-        </Box>
-        <Box flex={1}>
-          <Section title="Payment method">
-            <Typography sx={{ fontSize: 18, fontWeight: 700 }}>
-              {profile.loading
-                ? 'Loading…'
-                : card
-                  ? `${brandName(card.brand)} ···· ${card.last4 ?? '••••'}`
-                  : 'No card on file'}
+          </Box>
+        </Section>
+        <Section title="Payment method" fill>
+          <Typography sx={cardValue}>
+            {profile.loading
+              ? 'Loading…'
+              : card
+                ? `${brandName(card.brand)} ···· ${card.last4 ?? '••••'}`
+                : 'No card on file'}
+          </Typography>
+          {card?.exp_month && card.exp_year && (
+            <Typography sx={{ ...text.secondary, marginTop: '4px' }}>
+              {`Expires ${String(card.exp_month).padStart(2, '0')}/${card.exp_year}`}
             </Typography>
-            {!profile.loading && (
-              <Stack direction="row" alignItems="center" spacing={1} marginTop="10px">
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  size="small"
-                  disabled={!pubkey}
-                  onClick={() => {
-                    setNewCardFlow(true);
-                    setAddOpen(true);
-                  }}
-                >
-                  {card ? 'Replace card' : 'Add card'}
-                </Button>
-              </Stack>
-            )}
-
-          </Section>
-        </Box>
-      </Stack>
+          )}
+          {!profile.loading && (
+            <Box sx={{ marginTop: 'auto', paddingTop: '16px' }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                disabled={!pubkey}
+                onClick={() => {
+                  setNewCardFlow(true);
+                  setAddOpen(true);
+                }}
+              >
+                {card ? 'Replace card' : 'Add card'}
+              </Button>
+            </Box>
+          )}
+        </Section>
+      </Box>
 
       {/* Add funds dialog (mockup board 11). Opened from the page header and the
           balance card; the account menu / low-balance alert deep-link to it. */}
@@ -294,7 +296,7 @@ const Billing = () => {
         <DialogTitle sx={{ paddingBottom: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             Add funds
-            <IconButton size="small" onClick={closeAdd}>
+            <IconButton size="small" aria-label="Close" onClick={closeAdd}>
               <Close sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
@@ -354,7 +356,9 @@ const Billing = () => {
                           {summaryFor(m)}
                         </Typography>
                       </TableCell>
-                      <TableCell sx={{ textTransform: 'capitalize' }}>{m.status}</TableCell>
+                      <TableCell>
+                        <Pill tone={m.status === 'settled' ? 'success' : 'neutral'}>{m.status === 'settled' ? 'Settled' : 'Estimated'}</Pill>
+                      </TableCell>
                       <TableCell align="right">{money(m.total_usd)}</TableCell>
                       <TableCell align="right" sx={{ color: 'text.secondary' }}>
                         {open ? '▾' : '▸'}

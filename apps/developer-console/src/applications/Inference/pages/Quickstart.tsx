@@ -24,6 +24,7 @@ import { SNIPPET_TABS, snippetsFor, providerFields, type SnippetTabId } from '~/
 import { Section } from '~/components';
 import { Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { color, mono, text } from '~/theme/tokens';
 import '~/inference/inference.css';
 
 /**
@@ -40,19 +41,19 @@ const Code = styled('pre')({
   padding: '12px 14px',
   paddingRight: 84,
   borderRadius: 8,
-  backgroundColor: 'var(--i-code-bg, #0f1729)',
-  color: 'var(--i-code-tx, #e2e8f0)',
-  font: '12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  backgroundColor: color.codeBg,
+  color: color.codeText,
+  font: `12.5px/1.6 ${mono}`,
   overflowX: 'auto',
   whiteSpace: 'pre',
 });
 
 const Mono = styled(Box)(({ theme }) => ({
-  font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
+  font: `13px/1.5 ${mono}`,
   wordBreak: 'break-all',
   padding: '12px 14px',
   borderRadius: 8,
-  backgroundColor: '#fff',
+  backgroundColor: color.surface,
   border: `1px solid ${theme.palette.divider}`,
 }));
 
@@ -112,7 +113,7 @@ function CopyButton({ text, label = 'Copy', dark }: { text: string; label?: stri
       variant="outlined"
       color="secondary"
       onClick={() => copy(text)}
-      sx={dark ? { backgroundColor: '#fff', '&:hover': { backgroundColor: '#fff' } } : { flexShrink: 0 }}
+      sx={dark ? { backgroundColor: color.surface, '&:hover': { backgroundColor: color.surface } } : { flexShrink: 0 }}
     >
       {copied ? 'Copied' : label}
     </Button>
@@ -134,7 +135,7 @@ function StepTitle({ no, title, done }: { no: number; title: string; done?: bool
   return (
     <Stack direction="row" spacing={1.5} alignItems="center" marginBottom="12px">
       <StepNo>{done ? '✓' : no}</StepNo>
-      <Typography sx={{ fontSize: 18, fontWeight: 700 }}>{title}</Typography>
+      <Typography component="h3" sx={text.title}>{title}</Typography>
     </Stack>
   );
 }
@@ -271,7 +272,7 @@ const QuickstartBody = () => {
                     </MenuItem>
                   ))}
                 </TextField>
-                <LoadingButton loading={busy} onClick={create}>
+                <LoadingButton variant="contained" loading={busy} onClick={create}>
                   {key ? 'Create another key' : 'Create key'}
                 </LoadingButton>
                 <Typography variant="body2" color="text.secondary">
@@ -425,8 +426,8 @@ export const QuickstartDialog = ({ open, onClose }: { open: boolean; onClose: ()
   <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth scroll="paper">
     <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
       <Box>
-        <Typography sx={{ fontSize: 18, fontWeight: 700 }}>Get started</Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography component="span" display="block" sx={text.title}>Get started</Typography>
+        <Typography component="span" display="block" sx={{ ...text.secondary, fontWeight: 400 }}>
           Create a key, copy it, and call a model from your laptop or app.
         </Typography>
       </Box>
