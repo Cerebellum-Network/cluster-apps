@@ -15,6 +15,7 @@ import { NavLink } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
 import { useOwnerBuckets } from '~/inference/useInference';
+import { rememberKey } from '~/inference/sessionKey';
 import { openAiBaseUrl, anthropicBaseUrl, speechHttpUrl } from '~/inference/gateway';
 import { PageHeader, Section, ComingSoon } from '~/components';
 import '~/inference/inference.css';
@@ -90,7 +91,10 @@ const ApiKeys = () => {
     try {
       const ttlMs = ttlDays * DAY_MS;
       const token = await account.createInferenceApiKey(BigInt(bucketId), ttlMs);
-      setShown({ token, expiresAt: Date.now() + ttlMs });
+      const expiresAt = Date.now() + ttlMs;
+      setShown({ token, expiresAt });
+      // Offered as "Use the key you just created" on the Quickstart.
+      if (account.account) rememberKey({ token, expiresAt, account: account.account });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -111,7 +115,14 @@ const ApiKeys = () => {
   return (
     <Box className="inference-root">
       <Box marginBottom="20px">
-        <PageHeader title="API keys" />
+        <PageHeader
+          title="API keys"
+          actions={
+            <Button component={NavLink} to="/inference/quickstart" variant="outlined">
+              Quickstart
+            </Button>
+          }
+        />
       </Box>
 
       <Stack spacing="20px">
@@ -154,7 +165,7 @@ const ApiKeys = () => {
               Create key
             </LoadingButton>
             <Typography variant="body2" color="text.secondary">
-              Your wallet asks you to sign it.
+              Your SSCP wallet asks you to approve it.
             </Typography>
           </Stack>
         )}
@@ -195,7 +206,8 @@ const ApiKeys = () => {
           <BaseUrl label="Speech models, plain HTTP" url={speechHttpUrl()} />
         </Stack>
         <Typography variant="caption" color="text.secondary" display="block" marginTop="12px">
-          The key goes where the SDK expects its API key.
+          The key goes where the SDK expects its API key.{' '}
+          <NavLink to="/inference/quickstart">See ready-to-run examples in the Quickstart</NavLink>.
         </Typography>
         </Section>
 

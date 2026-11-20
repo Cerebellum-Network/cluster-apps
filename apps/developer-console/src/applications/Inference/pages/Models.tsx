@@ -12,7 +12,7 @@ import {
   TableContainer,
   styled,
 } from '@cluster-apps/ui';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 
 import { useModels } from '~/inference/useInference';
@@ -21,7 +21,6 @@ import { usd } from '~/billing/format';
 import { PageHeader, Section, ComingSoon } from '~/components';
 import { atCapacityNotice, taskLabel, type ModelCard, type StatusTone } from '~/inference/model';
 import type { GatewayModelStatus } from '~/inference/gateway';
-import ShowMeHowDialog from '../ShowMeHowDialog';
 
 const TONE_COLOR: Record<StatusTone, string> = {
   success: '#2e7d32',
@@ -81,7 +80,6 @@ function PriceCell({ card }: { card: ModelCard }) {
 const Models = () => {
   const { cards, loading, error, reload } = useModels();
   const balance = useBalance();
-  const [howOpen, setHowOpen] = useState(false);
 
   const sorted = useMemo(() => {
     const rank: Record<string, number> = { available: 0, busy: 1, saturated: 2, unavailable: 3 };
@@ -117,23 +115,24 @@ const Models = () => {
             Create an API key and call any model from your laptop or app
           </Typography>
           <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', marginTop: '6px' }}>
-            Works with the OpenAI and Anthropic SDKs. Speech models take plain HTTP.
+            Works with the OpenAI and Anthropic SDKs, Claude Code, and editors like Cursor. Speech models take plain HTTP.
           </Typography>
         </Box>
         <Stack direction="row" spacing={1.5} flexShrink={0}>
           <Button
+            component={NavLink}
+            to="/inference/keys"
             variant="outlined"
-            onClick={() => setHowOpen(true)}
             sx={{ color: 'primary.contrastText', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'primary.contrastText' } }}
           >
-            Show me how
+            API keys
           </Button>
           <Button
             component={NavLink}
-            to="/inference/keys"
+            to="/inference/quickstart"
             sx={{ backgroundColor: 'primary.contrastText', color: 'primary.main', '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' } }}
           >
-            Create API key
+            Get started
           </Button>
         </Stack>
       </Hero>
@@ -249,7 +248,6 @@ const Models = () => {
         </Section>
       )}
 
-      <ShowMeHowDialog open={howOpen} onClose={() => setHowOpen(false)} cards={cards} />
     </Box>
   );
 };

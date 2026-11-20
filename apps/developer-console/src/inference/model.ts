@@ -202,7 +202,7 @@ export interface ExampleModels {
 }
 
 /**
- * Pick concrete model ids for the "Show me how" samples: prefer a model that is
+ * Pick concrete model ids for the Quickstart samples: prefer a model that is
  * actually serving (available/busy) over one at capacity or unknown, so the
  * copyable snippet names something a reader can call right now. Chat falls back
  * to the first card so the OpenAI/curl samples always carry a real id.
@@ -228,4 +228,17 @@ export function toModelCard(m: GatewayModel, manifest: ModelManifest | null): Mo
     pricePerMillion: pricePerMillionOf(manifest),
     description: (manifest?.description as string | undefined) ?? null,
   };
+}
+
+/**
+ * The model ids the quickstart's model picker offers: chat models, serving ones
+ * first, each once. When the catalogue tags no model as chat (manifests
+ * missing), every model is offered so the picker is never empty while models exist.
+ */
+export function chatModelChoices(cards: ModelCard[]): string[] {
+  const ready = (c: ModelCard) => c.capacity.status === 'available' || c.capacity.status === 'busy';
+  const chat = cards.filter((c) => isChatModel(c.task));
+  const pool = chat.length > 0 ? chat : cards;
+  const ordered = [...pool.filter(ready), ...pool.filter((c) => !ready(c))];
+  return [...new Set(ordered.map((c) => c.name))];
 }
