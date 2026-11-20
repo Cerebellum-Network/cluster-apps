@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@cluster-apps/ui';
 import { KeyboardArrowRight } from '@mui/icons-material';
+import { alpha } from '@mui/material';
 import { Bar, CartesianGrid, Cell, ComposedChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import { ComingSoon, Section } from '~/components';
@@ -27,19 +28,57 @@ import {
   type UsageWindow,
 } from '~/inference/usageMath';
 import { useModelDetail } from '~/inference/useUsage';
-import { timeFormat } from './UsageChart';
+import { color, text } from '~/theme/tokens';
+import { TICK, timeAxis } from './UsageChart';
 
-const AT_LIMIT = '#b4410c';
-const FULL = '#f0b98f';
-const PEAK = '#c7b3f3';
-const REFUSED_COLOR = { none: 'text.disabled', limit: AT_LIMIT, full: 'text.secondary' } as const;
+const AT_LIMIT = color.warning;
+const FULL = color.warningSoft;
+const REFUSED_COLOR = { none: color.textTertiary, limit: AT_LIMIT, full: color.textSecondary } as const;
+
+/** Evenly spaced integer ticks from 0 to just above `top` (so a limit line never sits on the frame). */
+export function evenTicks(top: number): number[] {
+  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((s) => top / s <= 5) ?? Math.ceil(top / 5);
+  const max = Math.max(step, Math.floor(top / step) * step + step);
+  return Array.from({ length: max / step + 1 }, (_, i) => i * step);
+}
+
+/** A pill that applies a filter when clicked; tinted while that filter is on. */
+export function FilterPill({ label, active, onClick, title }: { label: string; active: boolean; onClick: () => void; title: string }) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-pressed={active}
+      sx={{
+        all: 'unset',
+        cursor: 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        height: 22,
+        padding: '0 8px',
+        borderRadius: '999px',
+        fontSize: 12,
+        fontWeight: 600,
+        whiteSpace: 'nowrap',
+        color: active ? color.primaryDark : color.textSecondary,
+        backgroundColor: active ? color.primaryTint : color.neutralFill,
+        '&:hover': { backgroundColor: color.primaryTint, color: color.primaryDark },
+        '&:focus-visible': { outline: `2px solid ${color.primary}`, outlineOffset: 2 },
+      }}
+    >
+      {label}
+    </Box>
+  );
+}
 
 function PeakCell({ row }: { row: UsageRow }) {
   const ratio = row.limit ? row.peak / row.limit : 0;
   const full = row.limit !== null && row.peak >= row.limit;
   return (
     <Stack direction="row" alignItems="center" gap="8px">
-      <Box aria-hidden sx={{ width: 56, height: 6, backgroundColor: '#f1eef8', borderRadius: '3px', overflow: 'hidden', flexShrink: 0 }}>
+      <Box aria-hidden sx={{ width: 56, height: 6, backgroundColor: color.grid, borderRadius: '3px', overflow: 'hidden', flexShrink: 0 }}>
         <Box sx={{ height: '100%', width: `${Math.min(1, ratio) * 100}%`, backgroundColor: full ? AT_LIMIT : 'primary.main' }} />
       </Box>
       <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums', color: full ? AT_LIMIT : undefined, fontWeight: full ? 600 : 400 }}>
@@ -49,7 +88,7 @@ function PeakCell({ row }: { row: UsageRow }) {
   );
 }
 
-function Stat({ label, value, share, color }: { label: string; value: string; share?: number; color: string }) {
+function Stat({ label, value, share, fill }: { label: string; value: string; share?: number; fill: string }) {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" gap="8px" sx={{ fontSize: 13 }}>
@@ -57,15 +96,15 @@ function Stat({ label, value, share, color }: { label: string; value: string; sh
         <Box component="b" sx={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{value}</Box>
       </Stack>
       {share !== undefined && (
-        <Box aria-hidden sx={{ height: 5, marginTop: '4px', backgroundColor: '#efeaf8', borderRadius: '3px', overflow: 'hidden' }}>
-          <Box sx={{ height: '100%', width: `${Math.min(100, share * 100)}%`, backgroundColor: color }} />
+        <Box aria-hidden sx={{ height: 5, marginTop: '4px', backgroundColor: color.grid, borderRadius: '3px', overflow: 'hidden' }}>
+          <Box sx={{ height: '100%', width: `${Math.min(100, share * 100)}%`, backgroundColor: fill }} />
         </Box>
       )}
     </Box>
   );
 }
 
-const caption = { fontSize: 12, fontWeight: 600, color: 'text.secondary' } as const;
+const caption = text.label;
 
 /**
  * Tokens in / cached / out. A zero is "—", never "doesn't count tokens": the
@@ -86,12 +125,12 @@ function TokenStats({ row, tokensAvailable }: { row: UsageRow; tokensAvailable: 
       </Stack>
       {tokensAvailable && (
         <>
-          <Stat label="In" value={cell(row.tokensIn)} share={share(row.tokensIn)} color="#b294f0" />
-          <Stat label="of which cached" value={cell(row.tokensCached)} share={share(row.tokensCached)} color="#c9b6f5" />
-          <Stat label="Out" value={cell(row.tokensOut)} share={share(row.tokensOut)} color="#5b2bc9" />
+          <Stat label="In" value={cell(row.tokensIn)} share={share(row.tokensIn)} fill={color.primary} />
+          <Stat label="of which cached" value={cell(row.tokensCached)} share={share(row.tokensCached)} fill={alpha(color.primary, 0.4)} />
+          <Stat label="Out" value={cell(row.tokensOut)} share={share(row.tokensOut)} fill={color.primaryDark} />
         </>
       )}
-      <Stat label="GPU units per request" value={per(row.gpu, row.requests)} color="#5b2bc9" />
+      <Stat label="GPU units per request" value={per(row.gpu, row.requests)} fill={color.primary} />
     </Stack>
   );
 }
@@ -99,7 +138,7 @@ function TokenStats({ row, tokensAvailable }: { row: UsageRow; tokensAvailable: 
 function InflightPlot({ gatewayKey, row, window: w, onAuthError }: { gatewayKey: string; row: UsageRow; window: UsageWindow; onAuthError: () => void }) {
   const detail = useModelDetail(gatewayKey, row.model, w, onAuthError);
   if (detail.kind === 'loading') {
-    return <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Loading…</Typography>;
+    return <Typography sx={text.secondary}>Loading…</Typography>;
   }
   if (detail.kind === 'error') {
     return (
@@ -109,53 +148,81 @@ function InflightPlot({ gatewayKey, row, window: w, onAuthError }: { gatewayKey:
     );
   }
   const steps = detailSteps(detail.data.peak, detail.data.refused, w);
-  const time = timeFormat(w.barMs);
-  const tick = { fontSize: 12, fill: '#6B6A7B' };
+  const time = timeAxis(steps.map((s) => s.t), w.barMs);
   const limit = row.limit;
-  const top = Math.max(limit ?? 0, ...steps.map((s) => s.peak ?? 0));
-  const refusedAny = steps.some((s) => s.refusedLimit + s.refusedFull > 0);
+  const slotTicks = evenTicks(Math.max(limit ?? 0, ...steps.map((s) => s.peak ?? 0), 1));
+  const refusedTop = Math.max(...steps.map((s) => s.refusedLimit + s.refusedFull), 0);
+  const refusedAny = refusedTop > 0;
+  const refusedTicks = refusedAny ? [0, evenTicks(refusedTop).slice(-1)[0]] : [0];
+  const sync = `inflight-${row.model}`;
+  const margin = { top: 6, right: 8, bottom: 0, left: 0 };
+  const gap = steps.length > 60 ? 0 : '10%';
+  const xAxis = (hide: boolean) => (
+    <XAxis dataKey="t" hide={hide} tickFormatter={time.tick} ticks={time.ticks} interval={time.ticks ? 0 : 'preserveEnd'} minTickGap={24} tick={TICK} tickLine={false} stroke={color.border} />
+  );
+  const tooltip = (
+    <Tooltip
+      labelFormatter={(t: number) => time.full(t)}
+      formatter={(v) => (typeof v === 'number' ? fmtCount(v) : '—')}
+      contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: color.border }}
+    />
+  );
   return (
     <>
-      <Box role="img" aria-label={`Peak in flight per ${stepPhrase(w.barMs)} for ${row.model}`} sx={{ height: 170 }}>
+      {/* Peak in flight against the limit: one axis, even integer ticks. */}
+      <Box role="img" aria-label={`Peak in flight per ${stepPhrase(w.barMs)} for ${row.model}`} sx={{ height: refusedAny ? 130 : 160 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={steps} margin={{ top: 6, right: refusedAny ? 0 : 8, bottom: 0, left: 0 }} barGap={0} barCategoryGap={steps.length > 60 ? 0 : '10%'}>
-            <CartesianGrid vertical={false} stroke="#EEEFF5" />
-            <XAxis dataKey="t" tickFormatter={time.tick} minTickGap={24} tick={tick} tickLine={false} />
-            <YAxis yAxisId="slots" width={32} allowDecimals={false} domain={[0, Math.ceil(top * 1.2) || 1]} tick={tick} tickLine={false} axisLine={false} />
-            <YAxis yAxisId="refused" orientation="right" width={refusedAny ? 32 : 0} hide={!refusedAny} allowDecimals={false} tick={{ ...tick, fill: AT_LIMIT }} tickLine={false} axisLine={false} />
-            <Tooltip
-              labelFormatter={(t: number) => time.full(t)}
-              formatter={(v) => (typeof v === 'number' ? fmtCount(v) : '—')}
-              contentStyle={{ fontSize: 12, borderRadius: 8 }}
-            />
-            <Bar yAxisId="slots" dataKey="peak" name="Peak in flight" isAnimationActive={false}>
+          <ComposedChart data={steps} syncId={sync} margin={{ ...margin, bottom: refusedAny ? 8 : 0 }} barCategoryGap={gap}>
+            <CartesianGrid vertical={false} stroke={color.grid} />
+            {xAxis(refusedAny)}
+            <YAxis width={36} domain={[0, slotTicks[slotTicks.length - 1]]} ticks={slotTicks} interval={0} tick={TICK} tickLine={false} axisLine={false} />
+            {tooltip}
+            <Bar dataKey="peak" name="Peak in flight" isAnimationActive={false}>
               {steps.map((s) => (
-                <Cell key={s.t} fill={limit && (s.peak ?? 0) >= limit ? AT_LIMIT : PEAK} />
+                <Cell key={s.t} fill={limit && (s.peak ?? 0) >= limit ? AT_LIMIT : color.primary} fillOpacity={limit && (s.peak ?? 0) >= limit ? 1 : 0.35} />
               ))}
             </Bar>
-            {refusedAny && <Bar yAxisId="refused" dataKey="refusedLimit" name="Refused, your limit" stackId="r" fill={AT_LIMIT} fillOpacity={0.55} maxBarSize={6} isAnimationActive={false} />}
-            {refusedAny && <Bar yAxisId="refused" dataKey="refusedFull" name="Refused, model full" stackId="r" fill={FULL} maxBarSize={6} isAnimationActive={false} />}
-            {limit !== null && <ReferenceLine yAxisId="slots" y={limit} stroke="#1B1A27" strokeDasharray="4 3" strokeWidth={2} ifOverflow="extendDomain" />}
+            {limit !== null && <ReferenceLine y={limit} stroke={color.text} strokeDasharray="4 3" strokeWidth={1.5} />}
           </ComposedChart>
         </ResponsiveContainer>
       </Box>
-      <Stack direction="row" flexWrap="wrap" gap="6px 14px" sx={{ fontSize: 12, color: 'text.secondary' }}>
-        <Legend swatch={PEAK}>Peak</Legend>
+      {/* Refusals on their own strip and axis, under the same time axis, so they never cover a peak. */}
+      {refusedAny && (
+        <>
+          <Typography sx={{ ...text.caption, color: color.textTertiary, margin: '6px 0 0 36px' }}>Refused per {stepPhrase(w.barMs)}</Typography>
+          <Box role="img" aria-label={`Requests refused per ${stepPhrase(w.barMs)} for ${row.model}`} sx={{ height: 76 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={steps} syncId={sync} margin={margin} barCategoryGap={gap}>
+                <CartesianGrid vertical={false} stroke={color.grid} />
+                {xAxis(false)}
+                <YAxis width={36} domain={[0, refusedTicks[1]]} ticks={refusedTicks} interval={0} tick={TICK} tickLine={false} axisLine={false} />
+                {tooltip}
+                <Bar dataKey="refusedLimit" name="Refused, your limit" stackId="r" fill={AT_LIMIT} isAnimationActive={false} />
+                <Bar dataKey="refusedFull" name="Refused, model full" stackId="r" fill={FULL} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </Box>
+        </>
+      )}
+      <Stack direction="row" flexWrap="wrap" gap="6px 14px" sx={{ ...text.caption, marginTop: '4px' }}>
+        <Legend swatch={color.primary} opacity={0.35}>Peak</Legend>
         <Legend swatch={AT_LIMIT}>At the limit</Legend>
-        <Stack direction="row" alignItems="center" gap="5px">
-          <Box component="span" sx={{ width: 14, borderTop: '2px dashed #1B1A27' }} />
-          Limit
-        </Stack>
-        <Legend swatch={AT_LIMIT}>{`Refused, your limit: ${fmtCount(row.refusedLimit)}`}</Legend>
-        <Legend swatch={FULL}>{`Refused, model full: ${fmtCount(row.refusedFull)}`}</Legend>
+        {limit !== null && (
+          <Stack direction="row" alignItems="center" gap="5px">
+            <Box component="span" sx={{ width: 14, borderTop: `2px dashed ${color.text}` }} />
+            Limit
+          </Stack>
+        )}
+        {refusedAny && <Legend swatch={AT_LIMIT}>{`Refused, your limit: ${fmtCount(row.refusedLimit)}`}</Legend>}
+        {refusedAny && <Legend swatch={FULL}>{`Refused, model full: ${fmtCount(row.refusedFull)}`}</Legend>}
       </Stack>
     </>
   );
 }
 
-const Legend = ({ swatch, children }: { swatch: string; children: string }) => (
+const Legend = ({ swatch, opacity = 1, children }: { swatch: string; opacity?: number; children: string }) => (
   <Stack direction="row" alignItems="center" gap="5px">
-    <Box component="span" sx={{ width: 9, height: 9, backgroundColor: swatch }} />
+    <Box component="span" sx={{ width: 9, height: 9, borderRadius: '2px', backgroundColor: swatch, opacity }} />
     {children}
   </Stack>
 );
@@ -173,9 +240,9 @@ function Details({ row, gatewayKey, window: w, tokensAvailable, onAuthError }: {
       aria-label={`Details for ${row.model}`}
       sx={{
         margin: '0 16px 14px 56px',
-        border: '1px solid #E3E4EE',
+        border: `1px solid ${color.border}`,
         borderRadius: '12px',
-        backgroundColor: '#fbfaff',
+        backgroundColor: color.inset,
         padding: '14px 16px',
         display: 'grid',
         gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '220px minmax(0, 1fr)' },
@@ -195,10 +262,10 @@ function Details({ row, gatewayKey, window: w, tokensAvailable, onAuthError }: {
 
 /**
  * Every model this account used in the period, one row each, whatever the
- * filters: out-of-view rows are greyed. A model's name toggles its filter;
- * the arrow opens its details.
+ * filters: out-of-view rows are greyed. A model's name and its type each
+ * toggle their filter; the arrow opens its details.
  */
-const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, gatewayKey, window: w, tokensAvailable, onAuthError }: {
+const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, kindOf, selectedKinds, onPickKind, gatewayKey, window: w, tokensAvailable, onAuthError }: {
   rows: UsageRow[];
   colorOf: (model: string) => string;
   /** Rows out of view (filtered away) stay listed, greyed. */
@@ -207,6 +274,12 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, gate
   selected: string[];
   /** A model name toggles its filter. */
   onPickModel: (model: string) => void;
+  /** A model's type ("Chat", "Speech to text", …) from the catalogue. */
+  kindOf: (model: string) => string;
+  /** Types the page is filtered to. */
+  selectedKinds: string[];
+  /** A type pill toggles its filter. */
+  onPickKind: (kind: string) => void;
   gatewayKey: string;
   window: UsageWindow;
   tokensAvailable: boolean;
@@ -218,11 +291,12 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, gate
   return (
     <Section title="Models" flush>
       <TableContainer>
-        <Table size="small" sx={{ minWidth: 820 }}>
+        <Table size="small" sx={{ minWidth: 900 }}>
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 40 }} />
               <TableCell>Model</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell align="right">Requests</TableCell>
               <TableCell align="right">GPU units</TableCell>
               <TableCell>Share</TableCell>
@@ -260,18 +334,34 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, gate
                           type="button"
                           onClick={() => onPickModel(row.model)}
                           title={selected.includes(row.model) ? `Remove ${row.model} from the filter` : `Filter to ${row.model}`}
-                          sx={{ all: 'unset', cursor: 'pointer', fontSize: 14, fontWeight: 600, '&:hover': { textDecoration: 'underline' } }}
+                          sx={{
+                            all: 'unset',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: selected.includes(row.model) ? color.primary : color.text,
+                            '&:hover': { textDecoration: 'underline' },
+                            '&:focus-visible': { outline: `2px solid ${color.primary}`, outlineOffset: 2 },
+                          }}
                         >
                           {row.model}
                         </Box>
                       </Stack>
                     </TableCell>
+                    <TableCell>
+                      <FilterPill
+                        label={kindOf(row.model)}
+                        active={selectedKinds.includes(kindOf(row.model))}
+                        onClick={() => onPickKind(kindOf(row.model))}
+                        title={selectedKinds.includes(kindOf(row.model)) ? `Remove ${kindOf(row.model)} from the filter` : `Filter to ${kindOf(row.model)}`}
+                      />
+                    </TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{fmtCount(row.requests)}</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{gpuWords(row.gpu)}</TableCell>
                     <TableCell>
                       <Stack direction="row" alignItems="center" gap="8px">
-                        <Box aria-hidden sx={{ width: 40, height: 6, backgroundColor: '#f1eef8', borderRadius: '3px', overflow: 'hidden' }}>
-                          <Box sx={{ height: '100%', width: `${Math.max(2, share * 100)}%`, backgroundColor: '#9b7be8' }} />
+                        <Box aria-hidden sx={{ width: 40, height: 6, backgroundColor: color.grid, borderRadius: '3px', overflow: 'hidden' }}>
+                          <Box sx={{ height: '100%', width: `${Math.max(2, share * 100)}%`, backgroundColor: color.primary }} />
                         </Box>
                         <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>{`${(share * 100).toFixed(1)}%`}</Box>
                       </Stack>
@@ -282,7 +372,7 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, gate
                     <TableCell sx={{ color: REFUSED_COLOR[refused.tone], fontWeight: refused.tone === 'none' ? 400 : 600 }}>{refused.text}</TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell colSpan={7} sx={{ padding: 0, borderBottom: isOpen ? undefined : 'none' }}>
+                    <TableCell colSpan={8} sx={{ padding: 0, borderBottom: isOpen ? undefined : 'none' }}>
                       <Collapse in={isOpen} unmountOnExit>
                         <Details row={row} gatewayKey={gatewayKey} window={w} tokensAvailable={tokensAvailable} onAuthError={onAuthError} />
                       </Collapse>

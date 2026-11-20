@@ -11,6 +11,7 @@ import { useModels, useOwnerBuckets } from '~/inference/useInference';
 import { DEFAULT_PRESET, USAGE_PRESET_KEYS, type UsagePreset } from '~/inference/usageMath';
 import { useUsageData, useUsageKey } from '~/inference/useUsage';
 import UsageView from './usage/UsageView';
+import { color, CONTROL_HEIGHT, text } from '~/theme/tokens';
 
 /**
  * Inference → Usage, read live from the Inference Gateway's /api/v1/metrics
@@ -19,7 +20,7 @@ import UsageView from './usage/UsageView';
  * opens and the wallet shows its own consent — there is no in-page step.
  */
 const Muted = ({ children }: { children: React.ReactNode }) => (
-  <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{children}</Typography>
+  <Typography sx={text.secondary}>{children}</Typography>
 );
 
 /** Auto-refresh choices, as ROC offers them; 0 is off. */
@@ -81,14 +82,34 @@ const Usage = () => {
               value={preset}
               onChange={(_, v: UsagePreset | null) => v && setPreset(v)}
               aria-label="Period"
+              sx={{ height: CONTROL_HEIGHT, backgroundColor: color.surface }}
             >
               {USAGE_PRESET_KEYS.map((p) => (
-                <ToggleButton key={p} value={p} sx={{ paddingX: '12px', paddingY: '4px', textTransform: 'none' }}>
+                <ToggleButton
+                  key={p}
+                  value={p}
+                  sx={{
+                    paddingX: '12px',
+                    textTransform: 'none',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: color.textSecondary,
+                    borderColor: color.border,
+                    '&.Mui-selected, &.Mui-selected:hover': { color: color.primaryDark, backgroundColor: color.primaryTint },
+                  }}
+                >
                   {p}
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
-            <Button size="small" variant="outlined" color="secondary" onClick={refresh} disabled={busy && key.kind !== 'error'}>
+            <Button
+              size="small"
+              variant="outlined"
+              color="secondary"
+              onClick={refresh}
+              disabled={busy && key.kind !== 'error'}
+              sx={{ height: CONTROL_HEIGHT, backgroundColor: color.surface, borderColor: color.border }}
+            >
               Refresh
             </Button>
             <TextField
@@ -97,8 +118,13 @@ const Usage = () => {
               value={String(autoMs)}
               onChange={(e) => setAutoMs(Number(e.target.value))}
               aria-label="Auto-refresh"
-              sx={{ minWidth: 120 }}
-              InputProps={{ startAdornment: <Typography sx={{ fontSize: 13, color: 'text.secondary', marginRight: '6px', whiteSpace: 'nowrap' }}>Auto</Typography> }}
+              sx={{
+                minWidth: 112,
+                '& .MuiInputBase-root': { height: CONTROL_HEIGHT, fontSize: 13, fontWeight: 600, backgroundColor: color.surface },
+                '& .MuiSelect-select': { paddingTop: 0, paddingBottom: 0 },
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: color.border },
+              }}
+              InputProps={{ startAdornment: <Typography sx={{ ...text.secondary, marginRight: '6px', whiteSpace: 'nowrap' }}>Auto</Typography> }}
             >
               {AUTO_REFRESH.map((o) => (
                 <MenuItem key={o.ms} value={String(o.ms)} sx={{ fontSize: 14 }}>

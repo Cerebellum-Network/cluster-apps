@@ -2,14 +2,15 @@ import type { ReactNode } from 'react';
 import { Box, Typography } from '@cluster-apps/ui';
 
 import { changeText, countChangeText, fmtCount, gpuWords, type Tiles } from '~/inference/usageMath';
+import { color, text } from '~/theme/tokens';
 
 /**
  * The four tiles, each against the previous period: GPU units, requests,
  * refused (your limit / model full), and the model closest to its limit.
  */
-const TONE = { neutral: 'text.secondary', bad: '#b4410c', good: '#1c6b38' } as const;
-const AT_LIMIT = '#b4410c';
-const FULL = '#f0b98f';
+const TONE = { neutral: color.textSecondary, bad: color.warning, good: color.success } as const;
+const AT_LIMIT = color.warning;
+const FULL = color.warningSoft;
 
 function Tile({ label, value, sub, delta, deltaTone = 'neutral', foot }: {
   label: string;
@@ -24,9 +25,9 @@ function Tile({ label, value, sub, delta, deltaTone = 'neutral', foot }: {
       role="group"
       aria-label={label}
       sx={{
-        border: '1px solid #E3E4EE',
+        border: `1px solid ${color.border}`,
         borderRadius: '16px',
-        backgroundColor: '#fff',
+        backgroundColor: color.surface,
         padding: '16px 18px',
         display: 'flex',
         flexDirection: 'column',
@@ -36,10 +37,10 @@ function Tile({ label, value, sub, delta, deltaTone = 'neutral', foot }: {
         boxSizing: 'border-box',
       }}
     >
-      <Typography sx={{ color: 'text.secondary', fontSize: 13 }}>{label}</Typography>
+      <Typography sx={text.secondary}>{label}</Typography>
       {/* The card-title size (Section's 18 bold): the shared scale's largest, no custom display font. */}
-      <Typography sx={{ fontSize: 18, fontWeight: 700, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{value}</Typography>
-      <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>{sub}</Typography>
+      <Typography sx={{ ...text.title, overflowWrap: 'anywhere', fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+      <Typography sx={text.secondary}>{sub}</Typography>
       {delta && (
         <Typography sx={{ fontSize: 12, color: TONE[deltaTone], fontWeight: deltaTone === 'neutral' ? 400 : 600 }}>{delta}</Typography>
       )}
@@ -68,7 +69,7 @@ const UsageTiles = ({ tiles, prevLabel, scope = 'All models' }: { tiles: Tiles; 
         deltaTone={refusedChange.tone}
         foot={
           refused.total > 0 ? (
-            <Box aria-hidden sx={{ display: 'flex', height: 8, borderRadius: '4px', overflow: 'hidden', backgroundColor: '#f1eef8' }}>
+            <Box aria-hidden sx={{ display: 'flex', height: 8, borderRadius: '4px', overflow: 'hidden', backgroundColor: color.grid }}>
               <Box sx={{ backgroundColor: AT_LIMIT, width: share(refused.limit) }} />
               <Box sx={{ backgroundColor: FULL, width: share(refused.full) }} />
             </Box>
@@ -78,7 +79,7 @@ const UsageTiles = ({ tiles, prevLabel, scope = 'All models' }: { tiles: Tiles; 
       {closest ? (
         <Tile
           label="Closest to limit"
-            value={closest.model}
+          value={closest.model}
           sub={
             closest.limit
               ? `${fmtCount(closest.peak)} / ${fmtCount(closest.limit)} in flight${closest.othersAtLimit ? ` · ${closest.othersAtLimit} more at their limit` : ''}`

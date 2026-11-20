@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Alert, Box, Button, Menu, MenuItem, Stack, Typography } from '@cluster-apps/ui';
 import { Chip, ListSubheader } from '@mui/material';
+import { Check, Close, FilterList } from '@mui/icons-material';
 import { NavLink } from 'react-router-dom';
 
 import { ComingSoon } from '~/components';
@@ -27,17 +28,20 @@ import {
 import UsageChart from './UsageChart';
 import UsageModelsTable from './UsageModelsTable';
 import UsageTiles from './UsageTiles';
+import { color, CONTROL_HEIGHT, text } from '~/theme/tokens';
 
 /** "N requests were refused at your plan's limit of X at once." with what to do about it. */
 export function UpgradeNotice({ refused, limit }: { refused: number; limit: number | null }) {
   return (
     <Alert
       severity="warning"
+      sx={{ alignItems: 'center', '& .MuiAlert-action': { paddingTop: 0 } }}
       action={
         <Stack direction="row" alignItems="center" gap="8px" sx={{ paddingRight: '4px' }}>
-          <Button size="small" variant="outlined" disabled endIcon={<ComingSoon />}>
+          <Button size="small" variant="outlined" color="secondary" disabled>
             Upgrade plan
           </Button>
+          <ComingSoon />
           <Button size="small" variant="text" component="a" href={DISCORD_LINK} target="_blank" rel="noopener noreferrer">
             Talk to us
           </Button>
@@ -53,11 +57,9 @@ export function UpgradeNotice({ refused, limit }: { refused: number; limit: numb
 /** No usage in the period: what to do next. */
 export function EmptyUsage() {
   return (
-    <Box sx={{ border: '1px dashed #D5D6E2', borderRadius: '16px', padding: '56px 24px', textAlign: 'center', backgroundColor: '#fff' }}>
-      <Typography sx={{ fontSize: 14, fontWeight: 600, marginBottom: '6px' }}>
-        No usage yet
-      </Typography>
-      <Typography sx={{ fontSize: 13, color: 'text.secondary', marginBottom: '18px' }}>
+    <Box sx={{ border: `1px dashed ${color.border}`, borderRadius: '16px', padding: '56px 24px', textAlign: 'center', backgroundColor: color.surface }}>
+      <Typography sx={{ ...text.title, marginBottom: '6px' }}>No usage yet</Typography>
+      <Typography sx={{ ...text.secondary, marginBottom: '20px' }}>
         Make your first call with an API key and it shows up here, by model, within a minute or two.
       </Typography>
       <Button variant="contained" component={NavLink} to="/inference?quickstart=1">
@@ -67,12 +69,41 @@ export function EmptyUsage() {
   );
 }
 
-/** "+ Filter" and the chips of what the page is narrowed to. */
-function FilterBar({ models, kinds, filter, onFilter }: {
+const chipSx = {
+  height: 28,
+  fontSize: 13,
+  fontWeight: 600,
+  color: color.primaryDark,
+  backgroundColor: color.primaryTint,
+  '& .MuiChip-label': { paddingLeft: '10px', paddingRight: '6px' },
+  '& .MuiChip-deleteIcon': { fontSize: 16, color: color.primaryDark, opacity: 0.7, marginRight: '6px', '&:hover': { color: color.primaryDark, opacity: 1 } },
+} as const;
+
+/** One applied filter: "Type: Chat ×". */
+function FilterChip({ field, value, onRemove }: { field: string; value: string; onRemove: () => void }) {
+  return (
+    <Chip
+      size="small"
+      sx={chipSx}
+      label={
+        <>
+          <Box component="span" sx={{ fontWeight: 400, color: color.textSecondary }}>{`${field}: `}</Box>
+          {value}
+        </>
+      }
+      onDelete={onRemove}
+      deleteIcon={<Close aria-label={`Remove ${value} from the filter`} />}
+    />
+  );
+}
+
+/** "Filter" (model or type) and the chips of what the page is narrowed to. */
+function FilterBar({ models, kinds, filter, onFilter, colorOf }: {
   models: string[];
   kinds: string[];
   filter: UsageFilter;
   onFilter: (f: UsageFilter) => void;
+  colorOf: (model: string) => string;
 }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const pick = (f: UsageFilter) => {
@@ -80,35 +111,49 @@ function FilterBar({ models, kinds, filter, onFilter }: {
     setAnchor(null);
   };
   const active = filter.models.length + filter.kinds.length > 0;
+  const item = (key: string, selected: boolean, onClick: () => void, label: ReactNode) => (
+    <MenuItem key={key} selected={selected} onClick={onClick} sx={{ fontSize: 14, minWidth: 220, gap: '8px' }}>
+      <Box component="span" sx={{ width: 16, display: 'inline-flex', color: color.primary }}>
+        {selected && <Check sx={{ fontSize: 16 }} />}
+      </Box>
+      {label}
+    </MenuItem>
+  );
   return (
     <Stack direction="row" alignItems="center" flexWrap="wrap" useFlexGap gap="8px">
-      <Button size="small" variant="outlined" color="secondary" onClick={(e) => setAnchor(e.currentTarget)} aria-haspopup="menu">
-        + Filter
+      <Button
+        size="small"
+        variant="outlined"
+        color="secondary"
+        startIcon={<FilterList />}
+        onClick={(e) => setAnchor(e.currentTarget)}
+        aria-haspopup="menu"
+        sx={{ height: CONTROL_HEIGHT, backgroundColor: color.surface, borderColor: color.border }}
+      >
+        Filter
       </Button>
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
-        <ListSubheader sx={{ fontSize: 12, lineHeight: '28px' }}>Model</ListSubheader>
-        {models.map((m) => (
-          <MenuItem key={`m:${m}`} selected={filter.models.includes(m)} onClick={() => pick({ ...filter, models: toggle(filter.models, m) })} sx={{ fontSize: 14 }}>
-            {m}
-          </MenuItem>
-        ))}
-        {kinds.length > 1 && <ListSubheader sx={{ fontSize: 12, lineHeight: '28px' }}>Kind</ListSubheader>}
-        {kinds.length > 1 &&
-          kinds.map((k) => (
-            <MenuItem key={`k:${k}`} selected={filter.kinds.includes(k)} onClick={() => pick({ ...filter, kinds: toggle(filter.kinds, k) })} sx={{ fontSize: 14 }}>
-              {k}
-            </MenuItem>
-          ))}
+        <ListSubheader sx={{ ...text.label, lineHeight: '28px' }}>Model</ListSubheader>
+        {models.map((m) =>
+          item(`m:${m}`, filter.models.includes(m), () => pick({ ...filter, models: toggle(filter.models, m) }), (
+            <>
+              <Box aria-hidden component="span" sx={{ width: 10, height: 10, borderRadius: '2px', backgroundColor: colorOf(m), flexShrink: 0 }} />
+              {m}
+            </>
+          )),
+        )}
+        <ListSubheader sx={{ ...text.label, lineHeight: '28px' }}>Type</ListSubheader>
+        {kinds.map((k) => item(`k:${k}`, filter.kinds.includes(k), () => pick({ ...filter, kinds: toggle(filter.kinds, k) }), k))}
       </Menu>
       {filter.kinds.map((k) => (
-        <Chip key={`k:${k}`} size="small" label={`Kind: ${k}`} onDelete={() => onFilter({ ...filter, kinds: toggle(filter.kinds, k) })} />
+        <FilterChip key={`k:${k}`} field="Type" value={k} onRemove={() => onFilter({ ...filter, kinds: toggle(filter.kinds, k) })} />
       ))}
       {filter.models.map((m) => (
-        <Chip key={`m:${m}`} size="small" label={m} onDelete={() => onFilter({ ...filter, models: toggle(filter.models, m) })} />
+        <FilterChip key={`m:${m}`} field="Model" value={m} onRemove={() => onFilter({ ...filter, models: toggle(filter.models, m) })} />
       ))}
       {active && (
         <Button size="small" variant="text" onClick={() => onFilter(NO_FILTER)}>
-          Clear
+          Clear all
         </Button>
       )}
     </Stack>
@@ -160,7 +205,7 @@ const UsageView = ({ data, preset, gatewayKey, onAuthError, kindOf = () => 'Mode
   return (
     <Stack spacing="16px">
       {all.notice && <UpgradeNotice refused={all.notice.refused} limit={all.notice.limit} />}
-      <FilterBar models={models} kinds={kinds} filter={filter} onFilter={setFilter} />
+      <FilterBar models={models} kinds={kinds} filter={filter} onFilter={setFilter} colorOf={all.colorOf} />
       <UsageTiles tiles={view.tiles} prevLabel={PREVIOUS_LABEL[preset]} scope={scope} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(2, minmax(0, 1fr))' }, gap: '16px' }}>
         <UsageChart title="GPU units" sub={sub} startsMs={all.gpu.startsMs} barMs={data.window.barMs} series={view.gpu} format={gpuWords} />
@@ -172,6 +217,9 @@ const UsageView = ({ data, preset, gatewayKey, onAuthError, kindOf = () => 'Mode
         isInView={view.shown}
         selected={filter.models}
         onPickModel={(m) => setFilter({ ...filter, models: toggle(filter.models, m) })}
+        kindOf={kindOf}
+        selectedKinds={filter.kinds}
+        onPickKind={(k) => setFilter({ ...filter, kinds: toggle(filter.kinds, k) })}
         gatewayKey={gatewayKey}
         window={data.window}
         tokensAvailable={data.tokensAvailable}
