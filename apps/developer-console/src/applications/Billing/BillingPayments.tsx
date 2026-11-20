@@ -1,4 +1,5 @@
 import { Box, Typography, Stack, Button, LoadingButton, TextField, Alert, styled } from '@cluster-apps/ui';
+import { Link } from '@mui/material';
 import { useEffect, useState } from 'react';
 
 import { payment, ApiError, type DeveloperProfile, type LedgerEntry, type TopupResult } from '~/billing/api';
@@ -46,6 +47,7 @@ export function BillingPayments({
   onCancel,
   idemKeyFor,
   clearIdem,
+  startWithNewCard = false,
 }: {
   /** Lowercase-hex, no 0x — the recon/payment account key. */
   account: string;
@@ -62,9 +64,12 @@ export function BillingPayments({
   idemKeyFor: (amount: number) => string;
   /** Drops the held key after a definite outcome (success / declined). */
   clearIdem: () => void;
+  /** Opened from "Replace card": pay with a new card on Stripe Checkout, which saves it. */
+  startWithNewCard?: boolean;
 }) {
   const card = profile?.has_active_card ? profile.card : null;
-  const useCheckout = !card;
+  const [newCard, setNewCard] = useState(startWithNewCard);
+  const useCheckout = !card || newCard;
 
   // ── Top up ────────────────────────────────────────────────────────────────
   const [input, setInput] = useState('25.00');
@@ -214,17 +219,16 @@ export function BillingPayments({
             </Stack>
             <Typography variant="caption" color="text.secondary" display="block" marginTop="8px">
               {useCheckout
-                ? 'You pay on Stripe Checkout. The card is saved for your next top-up.'
+                ? card
+                  ? 'You pay with a new card on Stripe Checkout. It replaces your card on file.'
+                  : 'You pay on Stripe Checkout. The card is saved for your next top-up.'
                 : `Charged to ${cardLabel}, added to your balance.`}
             </Typography>
             <Stack spacing={0.5} marginTop="12px">
               {card && (
-                <Stack direction="row" alignItems="center" spacing={1}>
-                  <Typography variant="caption" color="text.secondary">
-                    Use another card
-                  </Typography>
-                  <ComingSoon />
-                </Stack>
+                <Link component="button" type="button" variant="caption" onClick={() => setNewCard(!newCard)} sx={{ alignSelf: 'flex-start' }}>
+                  {newCard ? `Pay with ${cardLabel} instead` : 'Use another card'}
+                </Link>
               )}
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Typography variant="caption" color="text.secondary">

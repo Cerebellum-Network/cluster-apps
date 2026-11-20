@@ -24,7 +24,7 @@ import { PageHeader, Section, ComingSoon } from '~/components';
 import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
-import { normalizeAccount, newIdempotencyKey, payment, type MonthBill } from '~/billing/api';
+import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
 import { readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
@@ -59,6 +59,7 @@ const Billing = () => {
   }, [searchParams]);
   const closeAdd = () => {
     setAddOpen(false);
+    setNewCardFlow(false);
     if (searchParams.has('add')) {
       searchParams.delete('add');
       setSearchParams(searchParams, { replace: true });
@@ -93,8 +94,7 @@ const Billing = () => {
   // lands (#190 review).
   const [checkoutOk, setCheckoutOk] = useState<number | null>(null);
   const [cardUpdated, setCardUpdated] = useState(false);
-  const [cardBusy, setCardBusy] = useState(false);
-  const [cardError, setCardError] = useState<string | null>(null);
+  const [newCardFlow, setNewCardFlow] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const result = q.get('checkout');
@@ -273,28 +273,17 @@ const Billing = () => {
                   variant="outlined"
                   color="secondary"
                   size="small"
-                  disabled={cardBusy || !pubkey}
-                  onClick={async () => {
-                    if (!pubkey) return;
-                    setCardBusy(true);
-                    setCardError(null);
-                    try {
-                      window.location.assign(await payment.replaceCard(pubkey, `${window.location.origin}/billing`));
-                    } catch {
-                      setCardError('Couldn’t open the card form. Try again.');
-                      setCardBusy(false);
-                    }
+                  disabled={!pubkey}
+                  onClick={() => {
+                    setNewCardFlow(true);
+                    setAddOpen(true);
                   }}
                 >
                   {card ? 'Replace card' : 'Add card'}
                 </Button>
               </Stack>
             )}
-            {cardError && (
-              <Typography variant="caption" color="error" display="block" marginTop="6px">
-                {cardError}
-              </Typography>
-            )}
+
           </Section>
         </Box>
       </Stack>
@@ -321,6 +310,7 @@ const Billing = () => {
               onCancel={closeAdd}
               idemKeyFor={idemKeyFor}
               clearIdem={clearIdem}
+              startWithNewCard={newCardFlow}
             />
           )}
         </DialogContent>
