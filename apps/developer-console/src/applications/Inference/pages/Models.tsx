@@ -13,7 +13,8 @@ import {
   styled,
 } from '@cluster-apps/ui';
 import { useMemo } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useSearchParams } from 'react-router-dom';
+import { QuickstartDialog } from './Quickstart';
 
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
@@ -68,6 +69,17 @@ function PriceCell({ card }: { card: ModelCard }) {
 const Models = () => {
   const { cards, loading, error, reload } = useModels();
   const balance = useBalance();
+  // Get started opens as a dialog here; `?quickstart=1` deep-links to it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const quickstartOpen = searchParams.get('quickstart') === '1';
+  const openQuickstart = () => {
+    searchParams.set('quickstart', '1');
+    setSearchParams(searchParams);
+  };
+  const closeQuickstart = () => {
+    searchParams.delete('quickstart');
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const sorted = useMemo(() => {
     const rank: Record<string, number> = { available: 0, busy: 1, saturated: 2, unavailable: 3 };
@@ -105,7 +117,7 @@ const Models = () => {
               <Button component={NavLink} to="/inference/keys" variant="outlined" color="secondary">
                 API keys
               </Button>
-              <Button component={NavLink} to="/inference/quickstart" variant="contained">
+              <Button variant="contained" onClick={openQuickstart}>
                 Get started
               </Button>
             </Stack>
@@ -228,6 +240,7 @@ const Models = () => {
         </Section>
       )}
 
+      <QuickstartDialog open={quickstartOpen} onClose={closeQuickstart} />
     </Box>
   );
 };

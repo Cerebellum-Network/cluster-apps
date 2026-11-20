@@ -118,7 +118,7 @@ const ApiKeys = () => {
         <PageHeader
           title="API keys"
           actions={
-            <Button component={NavLink} to="/inference/quickstart" variant="outlined">
+            <Button component={NavLink} to="/inference?quickstart=1" variant="outlined">
               Quickstart
             </Button>
           }
@@ -207,7 +207,7 @@ const ApiKeys = () => {
         </Stack>
         <Typography variant="caption" color="text.secondary" display="block" marginTop="12px">
           The key goes where the SDK expects its API key.{' '}
-          <NavLink to="/inference/quickstart">See ready-to-run examples in the Quickstart</NavLink>.
+          <NavLink to="/inference?quickstart=1">See ready-to-run examples in Get started</NavLink>.
         </Typography>
         </Section>
 
