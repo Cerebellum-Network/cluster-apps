@@ -190,7 +190,7 @@ const Models = () => {
       ) : error ? (
         <Stack spacing={1} alignItems="flex-start">
           <Typography color="error" variant="body2">
-            {error}
+            The model list isn’t available right now. Try again in a moment.
           </Typography>
           <Button variant="outlined" color="secondary" onClick={reload}>
             Retry

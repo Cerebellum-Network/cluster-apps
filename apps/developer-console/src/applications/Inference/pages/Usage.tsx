@@ -222,7 +222,7 @@ function BoardsView({ boards, range }: { boards: Boards; range: UsageRange }) {
       {d.totalRefusals > 0 && (
         <Alert severity="warning">
           {fmtCount(d.totalRefusals)} request{d.totalRefusals === 1 ? '' : 's'} refused in this range
-          {atLimit + modelFull > 0 && ` — ${fmtCount(atLimit)} at your limit, ${fmtCount(modelFull)} model was full`}.
+          {atLimit + modelFull > 0 && ` — ${fmtCount(atLimit)} at your limit, ${fmtCount(modelFull)} refused, the model was full`}.
         </Alert>
       )}
 
