@@ -55,7 +55,7 @@ export function EmptyUsage() {
       <Typography variant="body2" color="text.secondary" sx={{ marginBottom: '18px' }}>
         Make your first call with an API key and it shows up here, by model, within a minute or two.
       </Typography>
-      <Button variant="contained" component={NavLink} to="/inference?how=1">
+      <Button variant="contained" component={NavLink} to="/inference/quickstart">
         Show me how
       </Button>
     </Box>
