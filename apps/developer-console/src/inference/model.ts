@@ -202,7 +202,7 @@ export interface ExampleModels {
 }
 
 /**
- * Pick concrete model ids for the "Show me how" samples: prefer a model that is
+ * Pick concrete model ids for the Quickstart samples: prefer a model that is
  * actually serving (available/busy) over one at capacity or unknown, so the
  * copyable snippet names something a reader can call right now. Chat falls back
  * to the first card so the OpenAI/curl samples always carry a real id.
