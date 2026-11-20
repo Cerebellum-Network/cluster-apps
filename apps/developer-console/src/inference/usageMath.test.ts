@@ -54,12 +54,22 @@ describe('window and steps', () => {
     expect(stepString(15 * 60_000)).toBe('15m');
   });
 
-  it('ends at the last whole bar and spans the preset exactly', () => {
+  it('ends now, with a partial last bar, and covers at least the preset', () => {
     const now = Date.UTC(2026, 10, 20, 10, 37);
     const w = usageWindow('24h', now);
     expect(w.barMs).toBe(15 * 60_000);
-    expect(w.toMs).toBe(Date.UTC(2026, 10, 20, 10, 30));
-    expect(w.toMs - w.fromMs).toBe(24 * H);
+    expect(w.nowMs).toBe(now);
+    expect(w.wholeToMs).toBe(Date.UTC(2026, 10, 20, 10, 30));
+    expect(w.toMs).toBe(Date.UTC(2026, 10, 20, 10, 45));
+    expect(w.fromMs).toBe(Date.UTC(2026, 10, 19, 10, 30));
+    expect(w.nowMs - w.fromMs).toBeGreaterThanOrEqual(24 * H);
+  });
+
+  it('has no partial bar when now is on a boundary', () => {
+    const now = Date.UTC(2026, 10, 20, 10, 0);
+    const w = usageWindow('7d', now);
+    expect(w.toMs).toBe(now);
+    expect(w.wholeToMs).toBe(now);
   });
 });
 
@@ -156,6 +166,21 @@ describe('throttleNotice', () => {
 
   it('still shows when the limit is unknown', () => {
     expect(throttleNotice([row({ model: 'a', refusedLimit: 1 })])).toEqual({ refused: 1, limit: null });
+  });
+});
+
+describe('a sparse series', () => {
+  it('keeps a single burst in the middle of a 7d range', () => {
+    const w = usageWindow('7d', Date.UTC(2026, 10, 20, 12, 0));
+    const mid = w.fromMs + 84 * H;
+    const series: Series[] = [{ labels: { model: 'glm-5.3' }, points: [[mid, 3]] }];
+    const bars = stepsByModel(series, w).byModel.get('glm-5.3')!;
+    expect(bars).toHaveLength(168);
+    expect(bars[83]).toBe(3);
+    expect(bars.reduce((a, b) => a + b, 0)).toBe(3);
+    const r = emptyReads();
+    r.requests = byLabel([{ labels: { model: 'glm-5.3' }, points: [[w.nowMs, 3]] }]);
+    expect(usageRows(r).map((x) => x.model)).toEqual(['glm-5.3']);
   });
 });
 

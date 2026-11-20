@@ -34,25 +34,25 @@ const UsageChart = ({ title, sub, startsMs, barMs, series, format }: {
     <Section
       title={title}
       actions={
-        <Typography variant="body2" color="text.secondary">
+        <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>
           {format(total)} total
         </Typography>
       }
     >
-      <Typography variant="body2" color="text.secondary" sx={{ marginTop: '-8px', marginBottom: '12px' }}>
+      <Typography sx={{ fontSize: 12, color: 'text.secondary', marginTop: '-8px', marginBottom: '12px' }}>
         {sub}
       </Typography>
       {series.length === 0 ? (
         <Box sx={{ height: PLOT_HEIGHT, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Typography variant="body2" color="text.secondary">Nothing in this period.</Typography>
+          <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>Nothing in this period.</Typography>
         </Box>
       ) : (
         <Box role="img" aria-label={`${title} ${sub}`} sx={{ width: '100%', height: PLOT_HEIGHT }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={rows} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barCategoryGap={rows.length > 60 ? 0 : '12%'}>
               <CartesianGrid vertical={false} stroke="#EEEFF5" />
-              <XAxis dataKey="t" tickFormatter={time.tick} minTickGap={24} tick={{ fontSize: 11, fill: '#6B6A7B' }} tickLine={false} />
-              <YAxis width={44} tickFormatter={compactWords} tick={{ fontSize: 11, fill: '#6B6A7B' }} tickLine={false} axisLine={false} />
+              <XAxis dataKey="t" tickFormatter={time.tick} minTickGap={24} tick={{ fontSize: 12, fill: '#6B6A7B' }} tickLine={false} />
+              <YAxis width={44} tickFormatter={compactWords} tick={{ fontSize: 12, fill: '#6B6A7B' }} tickLine={false} axisLine={false} />
               <Tooltip
                 labelFormatter={(t: number) => time.full(t)}
                 formatter={(v) => (typeof v === 'number' ? format(v) : '—')}
