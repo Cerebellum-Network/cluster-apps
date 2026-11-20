@@ -5,10 +5,10 @@
  * viewport behind the layout.
  */
 body {
-  background: #f5f7fa;
+  background: #F5F7FA;
 }
 
 .dc-root {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: #F5F7FA;
 }

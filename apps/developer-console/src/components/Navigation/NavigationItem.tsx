@@ -5,6 +5,7 @@ import { KeyboardArrowDown } from '@mui/icons-material';
 
 import { Box, Stack, styled, Typography } from '@cluster-apps/ui';
 
+import { color } from '~/theme/tokens';
 import type { SubNavItem } from '~/applications';
 
 export type NavigationItemProps = {
@@ -19,8 +20,8 @@ export type NavigationItemProps = {
 
 // Mockup nav item (#192 review): 36px tall, 14.5px / weight 500, #1D1B20 text with
 // grey icons. Active: weight 700 on #ECEDF3. One hover grey, not two.
-const ACTIVE_BG = '#ECEDF3';
-const HOVER_BG = '#F3F4F8';
+const ACTIVE_BG = color.neutralFill;
+const HOVER_BG = color.grid;
 
 type ItemStyle = { active: boolean; filled: boolean };
 
@@ -33,7 +34,7 @@ const Item = styled(Link, { shouldForwardProp: (p) => p !== 'active' && p !== 'f
     padding: theme.spacing(0, 1.5),
     borderRadius: 8,
     textDecoration: 'none',
-    color: '#1D1B20',
+    color: color.text,
     backgroundColor: filled ? ACTIVE_BG : 'transparent',
     fontWeight: active ? 700 : 500,
 
@@ -43,7 +44,7 @@ const Item = styled(Link, { shouldForwardProp: (p) => p !== 'active' && p !== 'f
 
     '& .MuiSvgIcon-root': {
       fontSize: 20,
-      color: active ? '#1D1B20' : '#818083',
+      color: active ? color.text : color.textTertiary,
     },
   }),
 );
@@ -65,11 +66,11 @@ const SubLink = styled(NavLink)(() => ({
   borderRadius: 8,
   textDecoration: 'none',
   fontSize: 13,
-  color: '#5E5C6B',
+  color: color.textSecondary,
 
   '&:hover': { backgroundColor: HOVER_BG },
   '&.active': {
-    color: '#1D1B20',
+    color: color.text,
     fontWeight: 700,
     backgroundColor: ACTIVE_BG,
   },

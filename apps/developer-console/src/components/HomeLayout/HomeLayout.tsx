@@ -5,6 +5,7 @@ import { Box, Stack, styled, MobileOverlay } from '@cluster-apps/ui';
 
 import { Layout } from '../Layout';
 import { AppHeader } from '../AppHeader';
+import { color } from '~/theme/tokens';
 import { useApplicationTour } from '~/components/ApplicationTour';
 
 export type HomeLayoutProps = PropsWithChildren<{
@@ -23,15 +24,15 @@ const Sheet = styled(Stack)(() => ({
 const SidebarNav = styled(Box)(() => ({
   width: 248,
   flexShrink: 0,
-  backgroundColor: '#FAFAFC',
-  borderRight: '1px solid #E3E4EE',
+  backgroundColor: color.inset,
+  borderRight: `1px solid ${color.border}`,
   padding: '20px 12px',
 }));
 
 const Content = styled(Box)(() => ({
   flex: 1,
   minWidth: 0,
-  backgroundColor: '#F5F7FA',
+  backgroundColor: color.page,
   padding: '24px 32px',
 }));
 

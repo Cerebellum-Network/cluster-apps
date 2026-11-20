@@ -1,4 +1,4 @@
-import { Box } from '@cluster-apps/ui';
+import { Pill } from '../Pill';
 
 export type ComingSoonProps = {
   /** User-facing label; defaults to "Coming soon". */
@@ -10,24 +10,6 @@ export type ComingSoonProps = {
  * yet, the element stays in place with this badge in user language — never a
  * developer note like "appears here once the bills feed is wired".
  */
-const ComingSoon = ({ label = 'Coming soon' }: ComingSoonProps) => (
-  <Box
-    component="span"
-    sx={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      fontSize: 12,
-      fontWeight: 600,
-      lineHeight: 1.5,
-      color: '#5E5C6B',
-      backgroundColor: '#ECEDF3',
-      borderRadius: '999px',
-      padding: '2px 8px',
-      whiteSpace: 'nowrap',
-    }}
-  >
-    {label}
-  </Box>
-);
+const ComingSoon = ({ label = 'Coming soon' }: ComingSoonProps) => <Pill>{label}</Pill>;
 
 export default ComingSoon;
