@@ -12,8 +12,8 @@ import {
   TableContainer,
   styled,
 } from '@cluster-apps/ui';
-import { useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { NavLink, useSearchParams } from 'react-router-dom';
 
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
@@ -82,6 +82,18 @@ const Models = () => {
   const { cards, loading, error, reload } = useModels();
   const balance = useBalance();
   const [howOpen, setHowOpen] = useState(false);
+  // Usage's empty state deep-links to `/inference?how=1` to open "Show me how".
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('how') === '1') setHowOpen(true);
+  }, [searchParams]);
+  const closeHow = () => {
+    setHowOpen(false);
+    if (searchParams.has('how')) {
+      searchParams.delete('how');
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   const sorted = useMemo(() => {
     const rank: Record<string, number> = { available: 0, busy: 1, saturated: 2, unavailable: 3 };
@@ -249,7 +261,7 @@ const Models = () => {
         </Section>
       )}
 
-      <ShowMeHowDialog open={howOpen} onClose={() => setHowOpen(false)} cards={cards} />
+      <ShowMeHowDialog open={howOpen} onClose={closeHow} cards={cards} />
     </Box>
   );
 };
