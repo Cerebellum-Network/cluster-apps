@@ -1,4 +1,5 @@
 import Reporting from '@cluster-apps/reporting';
+import { AnalyticsId } from '@cluster-apps/analytics';
 import {
   Box,
   Stack,
@@ -20,6 +21,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material
 import { ContentCopy } from '@mui/icons-material';
 
 import { useAccount, useFetchDirs } from '~/hooks';
+import { useApplicationTour } from '~/components/ApplicationTour';
 import { FileManager } from './FileManager/FileManager';
 import { Bucket } from '~/stores';
 import { PageHeader, Section, ComingSoon } from '~/components';
@@ -43,6 +45,7 @@ const StyledAlert = styled(Alert)<AlertProps>(() => ({
  */
 const ContentStorage = () => {
   const account = useAccount();
+  const { hideTour } = useApplicationTour();
   const { showMessage } = useMessages();
 
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
@@ -270,10 +273,16 @@ const ContentStorage = () => {
             <ComingSoon />
             {buckets.length > 0 && (
               <LoadingButton
+                variant="contained"
                 startIcon={<AddCircleOutlinedIcon />}
                 loading={isBucketCreating}
                 disabled={!isAccountReady}
-                onClick={onBucketCreation}
+                className={AnalyticsId.createBucketBtn}
+                data-tour="bucket"
+                onClick={() => {
+                  hideTour();
+                  onBucketCreation();
+                }}
               >
                 New bucket
               </LoadingButton>
