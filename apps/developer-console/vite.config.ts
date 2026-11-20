@@ -22,7 +22,7 @@ const https =
  * For more information, visit: https://vitejs.dev/config
  */
 export default defineConfig({
-  base: './',
+  base: '/', // served at the domain root; './' broke deep-link refreshes (/inference/usage → /inference/assets/…)
   assetsInclude: ['**/*.md'],
   envDir: rootDir,
   ...(https ? { server: { https } } : {}),
