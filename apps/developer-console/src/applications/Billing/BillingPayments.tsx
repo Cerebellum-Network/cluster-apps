@@ -1,15 +1,10 @@
 import { Box, Typography, Stack, Button, LoadingButton, TextField, Alert, styled } from '@cluster-apps/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-  payment,
-  ApiError,
-  newIdempotencyKey,
-  type DeveloperProfile,
-  type LedgerEntry,
-  type TopupResult,
-} from '~/billing/api';
+import { payment, ApiError, type DeveloperProfile, type LedgerEntry, type TopupResult } from '~/billing/api';
+import { saveCheckoutAmount } from '~/billing/checkout';
 import { brandName, usd, longDate } from '~/billing/format';
+import { ComingSoon } from '~/components';
 
 /**
  * Top-up and auto-top-up, ported from billing-console (pages/payments/{TopUp,
@@ -26,46 +21,47 @@ const PRESETS = [10, 25, 50, 100];
 const MAX = 1000;
 const DEFAULT_THRESHOLD = 10;
 const DEFAULT_AMOUNT = 20;
-const CHECKOUT_KEY = 'dc-billing:checkout-amount';
 
 const Panel = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
   borderRadius: 12,
-  backgroundColor: '#fff',
+  backgroundColor: theme.palette.background.paper,
   padding: 20,
 }));
 
 type TopUpStatus =
   | { kind: 'idle' }
-  | { kind: 'confirm' }
   | { kind: 'processing' }
   | { kind: 'ok'; amount: number }
   | { kind: 'declined' }
   | { kind: 'pending' }
   | { kind: 'failed'; message: string };
 
-function readCheckoutAmount(): number | null {
-  try {
-    const v = sessionStorage.getItem(CHECKOUT_KEY);
-    sessionStorage.removeItem(CHECKOUT_KEY);
-    return v ? Number(v) : null;
-  } catch {
-    return null;
-  }
-}
-
 export function BillingPayments({
   account,
   profile,
   ledger,
+  balance,
   onPaid,
+  onCancel,
+  idemKeyFor,
+  clearIdem,
 }: {
   /** Lowercase-hex, no 0x — the recon/payment account key. */
   account: string;
   profile: DeveloperProfile | null;
   ledger: LedgerEntry[] | null;
+  /** Current balance in USD, for the "Balance after" preview; null while loading. */
+  balance: number | null;
   /** Reload balance + profile + ledger after a charge or a settings change. */
   onPaid: () => void;
+  /** Close the Add funds dialog (the Cancel button). */
+  onCancel: () => void;
+  /** Idempotency key for a card top-up of `amount`, held by the page so it
+   *  survives this dialog closing; tied to the amount. */
+  idemKeyFor: (amount: number) => string;
+  /** Drops the held key after a definite outcome (success / declined). */
+  clearIdem: () => void;
 }) {
   const card = profile?.has_active_card ? profile.card : null;
   const useCheckout = !card;
@@ -74,31 +70,10 @@ export function BillingPayments({
   const [input, setInput] = useState('25.00');
   const [status, setStatus] = useState<TopUpStatus>({ kind: 'idle' });
   const [redirecting, setRedirecting] = useState(false);
-  const idem = useRef<string | null>(null);
 
   const amount = Number(input);
   const tooMuch = amount > MAX;
   const valid = input !== '' && Number.isFinite(amount) && amount >= 0.01 && !tooMuch;
-
-  // Back from Stripe Checkout: show success and poll the reload while the webhook lands.
-  useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    const result = q.get('checkout');
-    if (!result) return;
-    const paid = readCheckoutAmount();
-    if (result === 'success' && paid) setStatus({ kind: 'ok', amount: paid });
-    q.delete('checkout');
-    const rest = q.toString();
-    window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
-    onPaid();
-    const t = setInterval(onPaid, 3000);
-    const stop = setTimeout(() => clearInterval(t), 30_000);
-    return () => {
-      clearInterval(t);
-      clearTimeout(stop);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const edit = (next: string) => {
     if (!/^\d{0,4}(\.\d{0,2})?$/.test(next)) return;
@@ -110,11 +85,7 @@ export function BillingPayments({
     setRedirecting(true);
     try {
       const url = await payment.checkout(account, amount, `${window.location.origin}/billing`);
-      try {
-        sessionStorage.setItem(CHECKOUT_KEY, amount.toFixed(2));
-      } catch {
-        /* the success message falls back to a reload */
-      }
+      saveCheckoutAmount(amount);
       window.location.assign(url);
     } catch (e) {
       setRedirecting(false);
@@ -124,15 +95,17 @@ export function BillingPayments({
 
   const charge = async () => {
     setStatus({ kind: 'processing' });
-    idem.current ??= newIdempotencyKey();
+    // The key is held by the page and tied to this amount, so a retry after a
+    // network failure reuses it and cannot double-charge.
+    const key = idemKeyFor(amount);
     try {
-      const r: TopupResult = await payment.topUp(account, amount, idem.current);
-      idem.current = null;
+      const r: TopupResult = await payment.topUp(account, amount, key);
+      clearIdem();
       setStatus(r.status === 'pending' ? { kind: 'pending' } : { kind: 'ok', amount: Number(r.amount_usd) });
       onPaid();
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) {
-        idem.current = null;
+        clearIdem();
         setStatus({ kind: 'declined' });
       } else {
         // Keep the idempotency key so a retry cannot double-charge.
@@ -216,38 +189,51 @@ export function BillingPayments({
           sx={{ marginTop: '16px' }}
         />
 
-        {status.kind === 'idle' && (
-          <LoadingButton
-            fullWidth
-            variant="contained"
-            loading={redirecting}
-            disabled={!valid}
-            onClick={useCheckout ? goToCheckout : () => setStatus({ kind: 'confirm' })}
-            sx={{ marginTop: '16px' }}
-          >
-            {useCheckout ? 'Continue to payment' : `Top up ${valid ? usd(amount) : ''}`.trim()}
-          </LoadingButton>
-        )}
-        {status.kind === 'idle' && useCheckout && (
+        {valid && balance != null && (
           <Typography variant="caption" color="text.secondary" display="block" marginTop="8px">
-            You pay on Stripe Checkout. The card is saved for your next top-up.
+            Balance after: {usd(balance + amount)}
           </Typography>
         )}
 
-        {status.kind === 'confirm' && (
-          <Box marginTop="16px">
-            <Typography variant="body2">
-              Charge {usd(amount)} to {cardLabel}? It is added to your balance, then funds your DDC deposit on chain.
-            </Typography>
-            <Stack direction="row" spacing={1} justifyContent="flex-end" marginTop="12px">
-              <Button variant="outlined" color="secondary" onClick={() => setStatus({ kind: 'idle' })}>
+        {status.kind === 'idle' && (
+          <>
+            {/* The dialog is the deliberate step, so the amount is charged straight
+                from this button — no second confirm (#190 review, board 11). */}
+            <Stack direction="row" spacing={1} justifyContent="flex-end" marginTop="16px">
+              <Button variant="outlined" color="secondary" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button variant="contained" onClick={charge}>
-                Charge {usd(amount)}
-              </Button>
+              <LoadingButton
+                variant="contained"
+                loading={redirecting}
+                disabled={!valid}
+                onClick={useCheckout ? goToCheckout : charge}
+              >
+                {useCheckout ? 'Continue to payment' : `Add ${valid ? usd(amount) : ''}`.trim()}
+              </LoadingButton>
             </Stack>
-          </Box>
+            <Typography variant="caption" color="text.secondary" display="block" marginTop="8px">
+              {useCheckout
+                ? 'You pay on Stripe Checkout. The card is saved for your next top-up.'
+                : `Charged to ${cardLabel}, added to your balance.`}
+            </Typography>
+            <Stack spacing={0.5} marginTop="12px">
+              {card && (
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography variant="caption" color="text.secondary">
+                    Use another card
+                  </Typography>
+                  <ComingSoon />
+                </Stack>
+              )}
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography variant="caption" color="text.secondary">
+                  Prefer crypto? Deposit CERE
+                </Typography>
+                <ComingSoon />
+              </Stack>
+            </Stack>
+          </>
         )}
 
         {status.kind === 'processing' && (
@@ -258,7 +244,7 @@ export function BillingPayments({
 
         {status.kind === 'ok' && (
           <Alert severity="success" sx={{ marginTop: '16px' }} onClose={() => setStatus({ kind: 'idle' })}>
-            {usd(status.amount)} added. Funding your DDC deposit…
+            {usd(status.amount)} added.
           </Alert>
         )}
         {status.kind === 'declined' && (
@@ -282,7 +268,7 @@ export function BillingPayments({
       <Panel flex={1}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography variant="subtitle1">Auto top-up</Typography>
-          <Typography variant="body2" sx={{ color: autoOn ? 'var(--b-ok-tx)' : 'var(--b-tx-dim)' }}>
+          <Typography variant="body2" sx={{ color: autoOn ? 'success.main' : 'text.secondary' }}>
             {autoOn ? 'On' : 'Off'}
           </Typography>
         </Stack>
@@ -294,8 +280,7 @@ export function BillingPayments({
         ) : (
           <>
             <Typography variant="body2" color="text.secondary" marginTop="8px">
-              When the balance falls below the threshold, charge the amount to {cardLabel}. Checked after each settled
-              period and once a day.
+              When the balance falls below the threshold, charge the amount to {cardLabel}.
             </Typography>
             <Stack direction="row" spacing={1} marginTop="16px">
               <TextField

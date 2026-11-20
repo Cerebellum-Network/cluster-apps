@@ -31,7 +31,7 @@ const AccessCard = styled(Box, { shouldForwardProp: (p) => p !== 'selected' })<{
     alignItems: 'flex-start',
     gap: theme.spacing(1),
     padding: theme.spacing(1.5, 2),
-    borderRadius: 10,
+    borderRadius: 8,
     cursor: 'pointer',
     border: `1px solid ${selected ? theme.palette.primary.main : theme.palette.divider}`,
     backgroundColor: selected ? theme.palette.action.selected : theme.palette.background.paper,
@@ -86,11 +86,9 @@ const ContentDelivery = () => {
       <PageHeader title="Delivery" />
 
       {/* Access */}
-      <Section>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} marginBottom="20px">
-          <Typography variant="subtitle1">
-            {currentBucket ? `Who can read bucket ${currentBucket.name}` : 'Pick a bucket to manage delivery'}
-          </Typography>
+      <Section
+        title={currentBucket ? `Who can read bucket ${currentBucket.name}` : 'Pick a bucket to manage delivery'}
+        actions={
           <TextField
             select
             label="Bucket"
@@ -115,7 +113,8 @@ const ContentDelivery = () => {
               </MenuItem>
             ))}
           </TextField>
-        </Stack>
+        }
+      >
 
         {currentBucket ? (
           <Stack spacing={1.5}>

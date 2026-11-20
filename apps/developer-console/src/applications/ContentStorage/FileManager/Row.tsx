@@ -171,7 +171,7 @@ export const Row = ({
   return (
     <>
       <StyledRow locked={lockUi} open={isOpen} onClick={onRowClick}>
-        <Stack direction="row" alignItems="center" spacing={0.5} flex={2} minWidth={0}>
+        <Stack direction="row" alignItems="center" spacing={0.5} flex={4} minWidth={0}>
           <Typography
             variant="subtitle1"
             noWrap
