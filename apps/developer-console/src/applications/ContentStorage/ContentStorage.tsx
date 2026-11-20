@@ -212,6 +212,36 @@ const ContentStorage = () => {
     setIsRevoking(false);
   }, [account, showMessage]);
 
+  // A wallet that hasn't authorized the gateway (a new user, or one who revoked)
+  // sees an empty list — let it authorize and list existing buckets without
+  // having to create one first (reviewer: "Allow Cere to manage your storage").
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const handleAuthorizeGateway = useCallback(async () => {
+    setIsAuthorizing(true);
+    try {
+      await account.authorizeGateway();
+      await account.refreshBuckets();
+      showMessage({ appearance: 'success', message: 'Cere now manages your storage.' });
+    } catch (e) {
+      Reporting.error(e);
+      showMessage({ appearance: 'error', message: 'Could not authorize storage. Please try again.' });
+    }
+    setIsAuthorizing(false);
+  }, [account, showMessage]);
+
+  // When the gateway's proxy state can't be read (a blip, status 'unknown'), the
+  // list is left untouched and this re-probes it instead of assuming "revoked".
+  const [isRetrying, setIsRetrying] = useState(false);
+  const handleRetryGateway = useCallback(async () => {
+    setIsRetrying(true);
+    try {
+      await account.retryGateway();
+    } catch (e) {
+      Reporting.error(e);
+    }
+    setIsRetrying(false);
+  }, [account]);
+
   const handleCloseStatus = () => setUploadStatus('idle');
 
   const handleRowClick = useCallback(
@@ -261,6 +291,30 @@ const ContentStorage = () => {
               }
             >
               Your DDC Wallet balance is 0. Please top it up before creating a bucket.
+            </StyledAlert>
+          )}
+          {isAccountReady && account.gatewayAuthStatus === 'unauthorized' && (
+            <StyledAlert
+              severity="info"
+              action={
+                <LoadingButton loading={isAuthorizing} onClick={handleAuthorizeGateway}>
+                  Allow Cere to manage your storage
+                </LoadingButton>
+              }
+            >
+              Cere isn’t managing your storage yet. Allow it to list your existing buckets, or just create one below.
+            </StyledAlert>
+          )}
+          {isAccountReady && account.gatewayAuthStatus === 'unknown' && (
+            <StyledAlert
+              severity="warning"
+              action={
+                <LoadingButton loading={isRetrying} onClick={handleRetryGateway}>
+                  Retry
+                </LoadingButton>
+              }
+            >
+              Couldn’t load your buckets — the storage gateway didn’t respond. Your data is safe; try again.
             </StyledAlert>
           )}
           <FileManager

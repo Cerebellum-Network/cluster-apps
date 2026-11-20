@@ -31,8 +31,18 @@ import {
 
 /** Bodies larger than this are uploaded with S3 multipart; smaller ones in one PUT. */
 const MULTIPART_THRESHOLD = 10 * 1024 * 1024;
-/** Multipart part size (S3 minimum is 5 MiB, except the last part). */
-const MULTIPART_PART_SIZE = 5 * 1024 * 1024;
+/**
+ * Multipart part size: 8 MiB, not the 5 MiB S3 minimum, on purpose. The DDC
+ * gateway assembles a multipart object through a fast path (PutMultipartPiece)
+ * only when every non-last part is DDC-aligned — 1024 * 2^n bytes. Other sizes
+ * fall back to a streaming assembly that currently fails on CompleteMultipartUpload
+ * ("502 ServiceUnavailable: DDC read/write failed during assembly"), which is why
+ * 5 MiB parts (5120 * 1024, not a power of two) broke every large upload. 8 MiB
+ * (1024 * 2^13) is aligned and >= the 5 MiB minimum, so every non-last part takes
+ * the working fast path. Verified on devnet: 5 MiB → Complete 502; 8 MiB → OK.
+ * Drop this back to 5 MiB once the gateway's non-aligned assembly path is fixed.
+ */
+const MULTIPART_PART_SIZE = 8 * 1024 * 1024;
 import { storageConfig } from '../storageConfig';
 import type { Acl } from './types';
 
@@ -68,6 +78,22 @@ export interface RegisterCredentialsInput {
   signatureType: string;
   delegationToken: string;
   label?: string;
+  /**
+   * Stable per-device id. When sent, the gateway makes registration idempotent
+   * per device (returns this device's existing credential instead of minting a
+   * new row). An older gateway without the field ignores it, so it is always safe
+   * to send. The SIGNED body must include it, so signer and sender both pass it
+   * through `buildRegistrationBody`.
+   */
+  deviceId?: string;
+  /**
+   * Credential TTL in seconds. For a proxy-backed credential (empty
+   * delegationToken) there is no 24h delegation token to bound it, so an explicit
+   * TTL gives the credential an expiry the client can refresh against. Included in
+   * the signed body, so signer and sender both pass it through
+   * `buildRegistrationBody`.
+   */
+  expiresInSeconds?: number;
 }
 
 // ── byte / hash helpers (ported from ROC @/utils + browserBucketStorage) ────
@@ -123,8 +149,18 @@ async function parseJson<T>(res: Response, msg: string): Promise<T> {
  * over the exact raw body bytes, so the signer and the sender MUST build
  * byte-identical JSON -- both go through this helper.
  */
-export function buildRegistrationBody(delegationToken: string, label?: string): string {
-  return JSON.stringify({ delegation_token: delegationToken, ...(label ? { label } : {}) });
+export function buildRegistrationBody(
+  delegationToken: string,
+  label?: string,
+  deviceId?: string,
+  expiresInSeconds?: number,
+): string {
+  return JSON.stringify({
+    delegation_token: delegationToken,
+    ...(label ? { label } : {}),
+    ...(deviceId ? { device_id: deviceId } : {}),
+    ...(expiresInSeconds && expiresInSeconds > 0 ? { expires_in_seconds: expiresInSeconds } : {}),
+  });
 }
 
 // ── S3 client wired for the DDC gateway ─────────────────────────────────────
@@ -183,6 +219,18 @@ function createS3Client(baseUrl: string, creds: GatewayCredentials): S3Client {
   return client;
 }
 
+/**
+ * Tri-state result of the gateway proxy check (`/auth/status`):
+ * - `authorized`   — the gateway holds the wallet's on-chain proxy (explicit true).
+ * - `unauthorized` — it does not (explicit `gateway_proxy_registered: false`).
+ * - `unknown`      — the gateway didn't answer (non-OK response or network error).
+ *
+ * Only `unauthorized` means "not authorized". `unknown` is a blip, not a revoke,
+ * so callers must leave the bucket list and the banner untouched and offer Retry
+ * (a gateway hiccup must not look like data loss — #189 review).
+ */
+export type GatewayAuthStatus = 'authorized' | 'unauthorized' | 'unknown';
+
 export interface GatewayClient {
   getInfo(): Promise<GatewayInfo>;
   registerCredentials(input: RegisterCredentialsInput): Promise<GatewayCredentials>;
@@ -207,7 +255,7 @@ export interface GatewayClient {
    * Whether the gateway is registered as the wallet's on-chain proxy. Signed GET
    * (`/auth/status`) over an EMPTY body; reads `gateway_proxy_registered`.
    */
-  getAuthStatus(input: { publicKey: string; signature: string; signatureType: string }): Promise<boolean>;
+  getAuthStatus(input: { publicKey: string; signature: string; signatureType: string }): Promise<GatewayAuthStatus>;
   /**
    * Revoke this wallet's gateway credentials (so they stop working at once, not in
    * up to 24h). Signed DELETE (`/auth/credentials`) over `body`
@@ -232,7 +280,7 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
     },
 
     async registerCredentials(input: RegisterCredentialsInput): Promise<GatewayCredentials> {
-      const body = buildRegistrationBody(input.delegationToken, input.label);
+      const body = buildRegistrationBody(input.delegationToken, input.label, input.deviceId, input.expiresInSeconds);
       const res = await fetch(`${baseUrl}/auth/credentials`, {
         method: 'POST',
         headers: {
@@ -277,8 +325,9 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
         return;
       }
 
-      // Large file: S3 multipart. Upload 5 MiB parts, then complete; abort on any
-      // failure so the gateway does not keep orphaned parts.
+      // Large file: S3 multipart. Upload DDC-aligned 8 MiB parts (see
+      // MULTIPART_PART_SIZE), then complete; abort on any failure so the gateway
+      // does not keep orphaned parts.
       const created = await client.send(
         new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType, ACL: acl }),
       );
@@ -374,13 +423,18 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
       await createS3Client(baseUrl, creds).send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
     },
 
-    async getAuthStatus(input): Promise<boolean> {
+    async getAuthStatus(input): Promise<GatewayAuthStatus> {
       // Signed GET /auth/status over an EMPTY body (the gateway's
       // verifyWalletRequest checks the signature over the raw body, which is empty
       // for GET). Reads `gateway_proxy_registered` -- whether the gateway already
       // holds the wallet's on-chain proxy, so a returning device can skip a
-      // needless add_proxy prompt + fee. A non-OK response is treated as "not
-      // registered" (the caller then falls through to addProxy, which is idempotent).
+      // needless add_proxy prompt + fee.
+      //
+      // Tri-state on purpose (#189 review): only an explicit
+      // `gateway_proxy_registered: false` means "not authorized". A non-OK
+      // response, a network error, or a malformed body is 'unknown' -- a gateway
+      // blip must not look like a revoked wallet (which would blank the list and
+      // push a needless add_proxy fee). The caller shows Retry on 'unknown'.
       try {
         const res = await fetch(`${baseUrl}/auth/status`, {
           cache: 'no-store',
@@ -390,11 +444,13 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
             'X-Signature-Type': input.signatureType,
           },
         });
-        if (!res.ok) return false;
+        if (!res.ok) return 'unknown';
         const data = (await res.json()) as { gateway_proxy_registered?: boolean };
-        return data.gateway_proxy_registered === true;
+        if (data.gateway_proxy_registered === true) return 'authorized';
+        if (data.gateway_proxy_registered === false) return 'unauthorized';
+        return 'unknown'; // field missing -> can't tell, treat as a blip
       } catch {
-        return false;
+        return 'unknown';
       }
     },
 
