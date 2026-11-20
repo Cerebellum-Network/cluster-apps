@@ -82,7 +82,7 @@ export async function getModelManifest(bucket: number, name: string, version: st
   }
 }
 
-/** The OpenAI-compatible base URL developers point their SDK at ("Show me how"). */
+/** The OpenAI-compatible base URL developers point their SDK at (Quickstart). */
 export const openAiBaseUrl = () => `${config.gatewayUrl}/openai/v1`;
 
 /**

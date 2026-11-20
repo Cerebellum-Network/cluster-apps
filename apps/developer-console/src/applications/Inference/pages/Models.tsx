@@ -12,8 +12,9 @@ import {
   TableContainer,
   styled,
 } from '@cluster-apps/ui';
-import { useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useMemo } from 'react';
+import { NavLink, useSearchParams } from 'react-router-dom';
+import { QuickstartDialog } from './Quickstart';
 
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
@@ -21,7 +22,6 @@ import { usd } from '~/billing/format';
 import { PageHeader, Section, ComingSoon } from '~/components';
 import { atCapacityNotice, taskLabel, type ModelCard, type StatusTone } from '~/inference/model';
 import type { GatewayModelStatus } from '~/inference/gateway';
-import ShowMeHowDialog from '../ShowMeHowDialog';
 
 const TONE_COLOR: Record<StatusTone, string> = {
   success: '#2e7d32',
@@ -44,18 +44,6 @@ const Dot = styled('span', { shouldForwardProp: (p) => p !== 'tone' })<{ tone: S
   borderRadius: '50%',
   backgroundColor: TONE_COLOR[tone],
   flexShrink: 0,
-}));
-
-const Hero = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: theme.spacing(3),
-  flexWrap: 'wrap',
-  padding: theme.spacing(3, 4),
-  borderRadius: 12,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
 }));
 
 function PriceCell({ card }: { card: ModelCard }) {
@@ -81,7 +69,17 @@ function PriceCell({ card }: { card: ModelCard }) {
 const Models = () => {
   const { cards, loading, error, reload } = useModels();
   const balance = useBalance();
-  const [howOpen, setHowOpen] = useState(false);
+  // Get started opens as a dialog here; `?quickstart=1` deep-links to it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const quickstartOpen = searchParams.get('quickstart') === '1';
+  const openQuickstart = () => {
+    searchParams.set('quickstart', '1');
+    setSearchParams(searchParams);
+  };
+  const closeQuickstart = () => {
+    searchParams.delete('quickstart');
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const sorted = useMemo(() => {
     const rank: Record<string, number> = { available: 0, busy: 1, saturated: 2, unavailable: 3 };
@@ -110,33 +108,26 @@ const Models = () => {
         />
       </Box>
 
-      {/* Hero: create a key + call a model. */}
-      <Hero marginBottom="16px">
-        <Box minWidth={0}>
-          <Typography variant="h4" sx={{ color: 'primary.contrastText' }}>
-            Create an API key and call any model from your laptop or app
+      {/* Get started: same card and type scale as the rest of the console. */}
+      <Box marginBottom="16px">
+        <Section
+          title="Call a model from your laptop or app"
+          actions={
+            <Stack direction="row" spacing={1.5}>
+              <Button component={NavLink} to="/inference/keys" variant="outlined" color="secondary">
+                API keys
+              </Button>
+              <Button variant="contained" onClick={openQuickstart}>
+                Get started
+              </Button>
+            </Stack>
+          }
+        >
+          <Typography variant="body2" color="text.secondary">
+            Works with the OpenAI and Anthropic SDKs, Claude Code, and editors like Cursor. Speech models take plain HTTP.
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', marginTop: '6px' }}>
-            Works with the OpenAI and Anthropic SDKs. Speech models take plain HTTP.
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1.5} flexShrink={0}>
-          <Button
-            variant="outlined"
-            onClick={() => setHowOpen(true)}
-            sx={{ color: 'primary.contrastText', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'primary.contrastText' } }}
-          >
-            Show me how
-          </Button>
-          <Button
-            component={NavLink}
-            to="/inference/keys"
-            sx={{ backgroundColor: 'primary.contrastText', color: 'primary.main', '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' } }}
-          >
-            Create API key
-          </Button>
-        </Stack>
-      </Hero>
+        </Section>
+      </Box>
 
       {/* Funds notice (no balance yet). */}
       {!balance.loading && !hasBalance && (
@@ -249,7 +240,7 @@ const Models = () => {
         </Section>
       )}
 
-      <ShowMeHowDialog open={howOpen} onClose={() => setHowOpen(false)} cards={cards} />
+      <QuickstartDialog open={quickstartOpen} onClose={closeQuickstart} />
     </Box>
   );
 };
