@@ -229,3 +229,16 @@ export function toModelCard(m: GatewayModel, manifest: ModelManifest | null): Mo
     description: (manifest?.description as string | undefined) ?? null,
   };
 }
+
+/**
+ * The model ids the quickstart's model picker offers: chat models, serving ones
+ * first, each once. When the catalogue tags no model as chat (manifests
+ * missing), every model is offered so the picker is never empty while models exist.
+ */
+export function chatModelChoices(cards: ModelCard[]): string[] {
+  const ready = (c: ModelCard) => c.capacity.status === 'available' || c.capacity.status === 'busy';
+  const chat = cards.filter((c) => isChatModel(c.task));
+  const pool = chat.length > 0 ? chat : cards;
+  const ordered = [...pool.filter(ready), ...pool.filter((c) => !ready(c))];
+  return [...new Set(ordered.map((c) => c.name))];
+}

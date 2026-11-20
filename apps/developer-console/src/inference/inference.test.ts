@@ -10,12 +10,22 @@ import {
   isSpeechModel,
   isChatModel,
   exampleModels,
+  chatModelChoices,
   pricePerMillionOf,
   taskLabel,
 } from './model';
 import { COMPUTE_OPERATION, COMPUTE_OPERATIONS } from './inferenceKey';
 import { openAiBaseUrl, anthropicBaseUrl, speechHttpUrl } from './gateway';
-import { envSnippet, callSnippet, SNIPPET_TABS } from './snippets';
+import {
+  snippetsFor,
+  claudeCodeEnv,
+  providerFields,
+  SNIPPET_TABS,
+  KEY_PLACEHOLDER,
+  MODEL_PLACEHOLDER,
+  type SnippetTabId,
+} from './snippets';
+import { rememberKey, forgetKey, sessionKeyFor } from './sessionKey';
 import type { GatewayModel, ModelManifest } from './gateway';
 
 const base = (over: Partial<GatewayModel> = {}): GatewayModel => ({
@@ -127,9 +137,10 @@ describe('task classification', () => {
   });
 });
 
+const card = (name: string, task: string | null, status: GatewayModel['status']) =>
+  toModelCard(base({ name, alias: name, status }), task ? { name, version: '1', task } : null);
+
 describe('exampleModels', () => {
-  const card = (name: string, task: string | null, status: GatewayModel['status']) =>
-    toModelCard(base({ name, alias: name, status }), task ? { name, version: '1', task } : null);
 
   it('prefers a serving model, and picks chat vs speech by task', () => {
     const cards = [
@@ -151,48 +162,110 @@ describe('exampleModels', () => {
 });
 
 describe('snippets', () => {
-  it('has a tab per mockup surface (OpenAI, Anthropic, curl, speech)', () => {
-    expect(SNIPPET_TABS.map((t) => t.id)).toEqual(['openai', 'anthropic', 'curl', 'speech']);
+  const KEY = '5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ';
+  const code = (tab: SnippetTabId, input = {}) => snippetsFor(tab, input).map((b) => b.code).join('\n');
+
+  it('has the quickstart tabs in order', () => {
+    expect(SNIPPET_TABS.map((t) => t.id)).toEqual([
+      'curl',
+      'python',
+      'javascript',
+      'anthropic',
+      'claude-code',
+      'tools',
+      'speech',
+    ]);
   });
 
-  it('env: OpenAI/curl export the OpenAI base URL + key', () => {
-    expect(envSnippet('openai')).toContain(`export OPENAI_BASE_URL="${openAiBaseUrl()}"`);
-    expect(envSnippet('openai')).toContain('export OPENAI_API_KEY=');
-    expect(envSnippet('curl')).toContain(`export OPENAI_BASE_URL="${openAiBaseUrl()}"`);
+  it('OpenAI-compatible tabs use the /openai/v1 base URL', () => {
+    expect(openAiBaseUrl().endsWith('/openai/v1')).toBe(true);
+    expect(code('curl')).toContain(`curl "${openAiBaseUrl()}/chat/completions"`);
+    expect(code('python')).toContain(`base_url="${openAiBaseUrl()}"`);
+    expect(code('javascript')).toContain(`baseURL: '${openAiBaseUrl()}'`);
+    expect(providerFields()[0]).toEqual({ label: 'Base URL', value: openAiBaseUrl() });
   });
 
-  it('env: Anthropic uses the /anthropic base (SDK appends /v1/messages)', () => {
-    expect(envSnippet('anthropic')).toContain(`export ANTHROPIC_BASE_URL="${anthropicBaseUrl()}"`);
+  it('Anthropic SDK and Claude Code use the /anthropic base URL (no /v1)', () => {
     expect(anthropicBaseUrl().endsWith('/anthropic')).toBe(true);
+    expect(code('anthropic')).toContain(`base_url="${anthropicBaseUrl()}"`);
+    expect(claudeCodeEnv().ANTHROPIC_BASE_URL).toBe(anthropicBaseUrl());
+    expect(code('claude-code')).not.toContain('/openai/v1');
   });
 
-  it('env: Speech exports the plain-HTTP inference URL', () => {
-    expect(envSnippet('speech')).toContain(`export SPEECH_URL="${speechHttpUrl()}"`);
+  it('speech posts JSON model.alias + input.audio to the plain-HTTP endpoint', () => {
+    const s = code('speech', { apiKey: KEY, speechModel: 'parakeet' });
     expect(speechHttpUrl().endsWith('/api/v1/inference')).toBe(true);
-  });
-
-  it('call: OpenAI reads env and names the model', () => {
-    const s = callSnippet('openai', { chatModel: 'glm-5.3' });
-    expect(s).toContain('client = OpenAI()');
-    expect(s).toContain('model="glm-5.3"');
-  });
-
-  it('call: curl hits chat/completions via the env base URL', () => {
-    const s = callSnippet('curl', { chatModel: 'glm-5.3' });
-    expect(s).toContain('"$OPENAI_BASE_URL/chat/completions"');
-    expect(s).toContain('Authorization: Bearer $OPENAI_API_KEY');
-  });
-
-  it('call: speech posts the JSON model.alias + input.audio body, placeholders when unknown', () => {
-    const s = callSnippet('speech', { speechModel: 'parakeet' });
-    expect(s).toContain('"$SPEECH_URL"');
-    expect(s).toContain('Authorization: Bearer $CERE_API_KEY');
+    expect(s).toContain(`curl "${speechHttpUrl()}"`);
+    expect(s).toContain(`Authorization: Bearer ${KEY}`);
     expect(s).toContain('"model": {"alias": "parakeet"}');
     expect(s).toContain('"input": {"audio"');
-    // The old multipart form the deployed gateway rejects must not reappear.
     expect(s).not.toContain('-F ');
-    expect(callSnippet('speech')).toContain('"model": {"alias": "your-speech-model"}');
-    expect(callSnippet('openai')).toContain('model="your-model"');
+  });
+
+  it('substitutes the key and model into every tab', () => {
+    for (const t of SNIPPET_TABS) {
+      const s = code(t.id, { apiKey: KEY, model: 'glm-5.3', speechModel: 'parakeet' });
+      expect(s, t.id).toContain(KEY);
+      expect(s, t.id).not.toContain(KEY_PLACEHOLDER);
+      if (t.id !== 'speech') expect(s, t.id).toContain('glm-5.3');
+    }
+    expect(code('curl', { apiKey: KEY })).toContain(`Authorization: Bearer ${KEY}`);
+    expect(code('python', { apiKey: KEY })).toContain(`api_key="${KEY}"`);
+    expect(code('javascript', { apiKey: KEY })).toContain(`apiKey: '${KEY}'`);
+  });
+
+  it('uses the <YOUR_API_KEY> placeholder in every tab when there is no key', () => {
+    expect(KEY_PLACEHOLDER).toBe('<YOUR_API_KEY>');
+    for (const t of SNIPPET_TABS) {
+      expect(code(t.id), t.id).toContain(KEY_PLACEHOLDER);
+      expect(code(t.id, { apiKey: '' }), t.id).toContain(KEY_PLACEHOLDER);
+    }
+    expect(code('curl')).toContain(`"model": "${MODEL_PLACEHOLDER}"`);
+  });
+
+  it('Claude Code: settings.json env block and the shell export alternative', () => {
+    const [settings, shell] = snippetsFor('claude-code', { apiKey: KEY, model: 'glm-5.3' });
+    expect(settings.title).toContain('~/.claude/settings.json');
+    expect(JSON.parse(settings.code)).toEqual({
+      env: {
+        ANTHROPIC_BASE_URL: anthropicBaseUrl(),
+        ANTHROPIC_AUTH_TOKEN: KEY,
+        ANTHROPIC_MODEL: 'glm-5.3',
+        ANTHROPIC_SMALL_FAST_MODEL: 'glm-5.3',
+        API_TIMEOUT_MS: '3000000',
+      },
+    });
+    expect(shell.code).toContain(`export ANTHROPIC_BASE_URL="${anthropicBaseUrl()}"`);
+    expect(shell.code).toContain(`export ANTHROPIC_AUTH_TOKEN="${KEY}"`);
+    expect(shell.code).toContain('export API_TIMEOUT_MS="3000000"');
+  });
+});
+
+describe('chatModelChoices', () => {
+  it('offers chat models only, serving ones first', () => {
+    const cards = [
+      card('asr', 'automatic-speech-recognition', 'available'),
+      card('full-llm', 'text-generation', 'saturated'),
+      card('glm-5.3', 'text-generation', 'available'),
+    ];
+    expect(chatModelChoices(cards)).toEqual(['glm-5.3', 'full-llm']);
+  });
+
+  it('falls back to every model when none is tagged chat', () => {
+    expect(chatModelChoices([card('x', null, 'available')])).toEqual(['x']);
+    expect(chatModelChoices([])).toEqual([]);
+  });
+});
+
+describe('sessionKey', () => {
+  it('returns the key only for the signing account and before expiry', () => {
+    rememberKey({ token: 't', expiresAt: 1000, account: 'a' });
+    expect(sessionKeyFor('a', 500)?.token).toBe('t');
+    expect(sessionKeyFor('b', 500)).toBeNull();
+    expect(sessionKeyFor('a', 1000)).toBeNull();
+    expect(sessionKeyFor(null, 500)).toBeNull();
+    forgetKey();
+    expect(sessionKeyFor('a', 500)).toBeNull();
   });
 });
 
