@@ -347,7 +347,7 @@ export function billSections(b: MonthBill, rates: Rates | null): BillSection[] {
     {
       title: 'Compute',
       amount: money(compute),
-      note: 'Includes inference: models turn tokens into GPU units, and the cluster prices GPU units.',
+      note: 'Includes inference.',
       rows: computeRows(b, rates),
     },
     {
@@ -356,8 +356,11 @@ export function billSections(b: MonthBill, rates: Rates | null): BillSection[] {
       rows: [
         {
           item: 'Held',
-          sub: 'bytes held × the fraction of the month held',
-          used: `${num(gibMonths)} GiB-month`,
+          sub: '',
+          // The stored-bytes figure from the bills service is not yet reliable (it
+          // reports petabyte-months for small accounts), so the quantity is withheld
+          // until it is fixed upstream; the amount and the chain rate stay.
+          used: 'Coming soon',
           rate: rate(chain(rates?.storage_usd_per_mib_month, 1024), storage, gibMonths, 'GiB-month'),
           amount: money(storage),
         },

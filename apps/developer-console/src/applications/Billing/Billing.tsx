@@ -175,6 +175,10 @@ const Billing = () => {
         : `${soFar} so far`;
     }
     if (ledger.loading || !ledger.data) return '';
+    // Only say how a month was paid when the ledger recorded that month's usage.
+    // Without usage debits the split would attribute the whole bill to the balance.
+    const box = balanceBox(ledger.data, m.month);
+    if (!box || box.usage === 0) return '';
     const f = monthFunding(ledger.data, m.month, Number(m.total_usd));
     if (f.card > 0 && f.fromBalance > 0) return `${money(f.card)} by card, ${money(f.fromBalance)} from balance`;
     if (f.card > 0) return `${money(f.card)} by card`;
@@ -212,7 +216,7 @@ const Billing = () => {
 
       {checkoutOk != null && (
         <Alert severity="success" onClose={() => setCheckoutOk(null)}>
-          {checkoutOk > 0 ? `${money(checkoutOk)} added.` : 'Payment received.'} Funding your DDC deposit…
+          {checkoutOk > 0 ? `${money(checkoutOk)} added.` : 'Payment received.'}
         </Alert>
       )}
 
@@ -340,11 +344,9 @@ const Billing = () => {
                       <TableCell colSpan={4} sx={{ p: 0, borderBottom: open ? undefined : 'none' }}>
                         <Collapse in={open} unmountOnExit>
                           <Box padding="8px 8px 20px">
-                            {m.eras > 0 && (
+                            {m.status !== 'settled' && (
                               <Typography variant="caption" color="text.secondary">
-                                {m.status === 'settled'
-                                  ? `Settled · ${m.eras} era${m.eras === 1 ? '' : 's'}`
-                                  : 'Estimated, month in progress'}
+                                Estimated, month in progress
                               </Typography>
                             )}
                             {billSections(m, rates).map((sec) => (

@@ -244,7 +244,7 @@ export function BillingPayments({
 
         {status.kind === 'ok' && (
           <Alert severity="success" sx={{ marginTop: '16px' }} onClose={() => setStatus({ kind: 'idle' })}>
-            {usd(status.amount)} added. Funding your DDC deposit…
+            {usd(status.amount)} added.
           </Alert>
         )}
         {status.kind === 'declined' && (
@@ -280,8 +280,7 @@ export function BillingPayments({
         ) : (
           <>
             <Typography variant="body2" color="text.secondary" marginTop="8px">
-              When the balance falls below the threshold, charge the amount to {cardLabel}. Checked after each settled
-              period and once a day.
+              When the balance falls below the threshold, charge the amount to {cardLabel}.
             </Typography>
             <Stack direction="row" spacing={1} marginTop="16px">
               <TextField
