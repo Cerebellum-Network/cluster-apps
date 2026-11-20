@@ -242,3 +242,36 @@ export function chatModelChoices(cards: ModelCard[]): string[] {
   const ordered = [...pool.filter(ready), ...pool.filter((c) => !ready(c))];
   return [...new Set(ordered.map((c) => c.name))];
 }
+
+/** Compare "v1.2.10"-style versions numerically; non-numeric parts fall back to string order. */
+function compareVersions(a: string, b: string): number {
+  const pa = a.replace(/^v/, '').split('.');
+  const pb = b.replace(/^v/, '').split('.');
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = Number(pa[i] ?? 0);
+    const y = Number(pb[i] ?? 0);
+    if (Number.isNaN(x) || Number.isNaN(y)) {
+      const c = (pa[i] ?? '').localeCompare(pb[i] ?? '');
+      if (c !== 0) return c;
+    } else if (x !== y) return x - y;
+  }
+  return 0;
+}
+
+/**
+ * One entry per model: the catalogue lists every published version of a model
+ * (bucket/name/version), which read as duplicates. Keep the newest version that
+ * is serving; if none is, the newest version.
+ */
+export function latestPerModel(models: GatewayModel[]): GatewayModel[] {
+  const best = new Map<string, GatewayModel>();
+  for (const m of models) {
+    const key = `${m.bucket}/${m.name}`;
+    const cur = best.get(key);
+    if (!cur) { best.set(key, m); continue; }
+    const curUp = cur.available ? 1 : 0;
+    const mUp = m.available ? 1 : 0;
+    if (mUp > curUp || (mUp === curUp && compareVersions(m.version, cur.version) > 0)) best.set(key, m);
+  }
+  return [...best.values()];
+}
