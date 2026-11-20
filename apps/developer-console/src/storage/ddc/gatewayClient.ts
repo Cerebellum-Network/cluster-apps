@@ -31,8 +31,18 @@ import {
 
 /** Bodies larger than this are uploaded with S3 multipart; smaller ones in one PUT. */
 const MULTIPART_THRESHOLD = 10 * 1024 * 1024;
-/** Multipart part size (S3 minimum is 5 MiB, except the last part). */
-const MULTIPART_PART_SIZE = 5 * 1024 * 1024;
+/**
+ * Multipart part size: 8 MiB, not the 5 MiB S3 minimum, on purpose. The DDC
+ * gateway assembles a multipart object through a fast path (PutMultipartPiece)
+ * only when every non-last part is DDC-aligned — 1024 * 2^n bytes. Other sizes
+ * fall back to a streaming assembly that currently fails on CompleteMultipartUpload
+ * ("502 ServiceUnavailable: DDC read/write failed during assembly"), which is why
+ * 5 MiB parts (5120 * 1024, not a power of two) broke every large upload. 8 MiB
+ * (1024 * 2^13) is aligned and >= the 5 MiB minimum, so every non-last part takes
+ * the working fast path. Verified on devnet: 5 MiB → Complete 502; 8 MiB → OK.
+ * Drop this back to 5 MiB once the gateway's non-aligned assembly path is fixed.
+ */
+const MULTIPART_PART_SIZE = 8 * 1024 * 1024;
 import { storageConfig } from '../storageConfig';
 import type { Acl } from './types';
 
@@ -315,8 +325,9 @@ export function createGatewayClient(gatewayUrl: string = storageConfig.ddcS3Gate
         return;
       }
 
-      // Large file: S3 multipart. Upload 5 MiB parts, then complete; abort on any
-      // failure so the gateway does not keep orphaned parts.
+      // Large file: S3 multipart. Upload DDC-aligned 8 MiB parts (see
+      // MULTIPART_PART_SIZE), then complete; abort on any failure so the gateway
+      // does not keep orphaned parts.
       const created = await client.send(
         new CreateMultipartUploadCommand({ Bucket: bucket, Key: key, ContentType: contentType, ACL: acl }),
       );
