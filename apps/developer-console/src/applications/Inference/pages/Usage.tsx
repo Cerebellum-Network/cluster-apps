@@ -5,6 +5,7 @@ import { observer } from 'mobx-react-lite';
 import { NavLink } from 'react-router-dom';
 
 import { PageHeader } from '~/components';
+import { useAccount } from '~/hooks';
 import { nameOf } from '~/inference/metricsApi';
 import { taskLabel } from '~/inference/model';
 import { useModels, useOwnerBuckets } from '~/inference/useInference';
@@ -44,6 +45,7 @@ function useAutoRefresh(ms: number, onTick: () => void) {
 }
 
 const Usage = () => {
+  const owner = useAccount().account;
   const { buckets, loading, error } = useOwnerBuckets();
   // Usage bills to the wallet's first bucket, as the API key panel defaults to.
   const bucketId = buckets[0]?.id || null;
@@ -168,7 +170,17 @@ const Usage = () => {
       </Alert>
     );
   } else {
-    body = <UsageView data={usage.data} preset={preset} gatewayKey={key.key} onAuthError={onAuthError} kindOf={kindOf} />;
+    // Keyed by the data source: another account or bucket starts with no filter and no open rows.
+    body = (
+      <UsageView
+        key={`${owner}:${bucketId}`}
+        data={usage.data}
+        preset={preset}
+        gatewayKey={key.key}
+        onAuthError={onAuthError}
+        kindOf={kindOf}
+      />
+    );
   }
 
   return (

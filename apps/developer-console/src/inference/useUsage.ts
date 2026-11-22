@@ -49,7 +49,10 @@ export function useUsageKey(bucketId: string | null): { state: UsageKey; onAuthE
   const accountRef = useRef(account);
   accountRef.current = account;
   const owner = account.account;
-  const [state, setState] = useState<UsageKey>({ kind: 'minting' });
+  /** Which (account, bucket) the state is for: another's token is never handed out, not even for one render. */
+  const source = `${owner}:${bucketId}`;
+  const [tagged, setTagged] = useState<{ for: string; value: UsageKey }>({ for: source, value: { kind: 'minting' } });
+  const setState = useCallback((value: UsageKey) => setTagged({ for: source, value }), [source]);
   const [attempt, setAttempt] = useState(0);
   /** When this hook last minted: a token rejected soon after is not stale, the gateway is refusing it. */
   const mintedAt = useRef(0);
@@ -81,7 +84,7 @@ export function useUsageKey(bucketId: string | null): { state: UsageKey; onAuthE
       (e: unknown) => { if (!dead) setState({ kind: 'error', message: MINT_FAILED, detail: messageOf(e) }); },
     );
     return () => { dead = true; };
-  }, [owner, bucketId, attempt]);
+  }, [owner, bucketId, attempt, setState]);
 
   const onAuthError = useCallback(() => {
     if (!bucketId) return;
@@ -91,19 +94,26 @@ export function useUsageKey(bucketId: string | null): { state: UsageKey; onAuthE
       return;
     }
     setAttempt((n) => n + 1);
-  }, [owner, bucketId]);
+  }, [owner, bucketId, setState]);
 
   const retry = useCallback(() => {
     mintedAt.current = 0;
     setAttempt((n) => n + 1);
   }, []);
 
+  const state: UsageKey = tagged.for === source ? tagged.value : { kind: 'minting' };
   return { state, onAuthError, retry };
 }
 
-/** The window's reads; a refresh keeps the last answer on screen until the new one lands. */
+/**
+ * The window's reads; a refresh keeps the last answer on screen until the new
+ * one lands. The answer is tagged with the token and the preset it was read
+ * with: under another token (another account or bucket) it is dropped, not
+ * shown as "refreshing".
+ */
 export function useUsageData(key: string | null, preset: UsagePreset, reload: number, onAuthError: () => void): UsageState {
-  const [state, setState] = useState<{ preset: UsagePreset; value: UsageState } | null>(null);
+  const tag = `${key}|${preset}`;
+  const [state, setState] = useState<{ tag: string; value: UsageState } | null>(null);
   const authRef = useRef(onAuthError);
   authRef.current = onAuthError;
 
@@ -111,22 +121,24 @@ export function useUsageData(key: string | null, preset: UsagePreset, reload: nu
     if (!key) return undefined;
     const ctl = new AbortController();
     setState((s) =>
-      s && s.preset === preset && s.value.kind === 'ready'
-        ? { preset, value: { ...s.value, refreshing: true } }
-        : { preset, value: { kind: 'loading' } },
+      s && s.tag === tag && s.value.kind === 'ready'
+        ? { tag, value: { ...s.value, refreshing: true } }
+        : { tag, value: { kind: 'loading' } },
     );
     loadUsage(key, preset, Date.now(), ctl.signal).then(
-      (data) => { if (!ctl.signal.aborted) setState({ preset, value: { kind: 'ready', data, refreshing: false } }); },
+      (data) => { if (!ctl.signal.aborted) setState({ tag, value: { kind: 'ready', data, refreshing: false } }); },
       (e: unknown) => {
         if (ctl.signal.aborted) return;
         if (isAuthError(e)) { authRef.current(); return; }
-        setState({ preset, value: metricsNotConfigured(e) ? { kind: 'unavailable' } : { kind: 'error', message: USAGE_DOWN, detail: messageOf(e) } });
+        setState({ tag, value: metricsNotConfigured(e) ? { kind: 'unavailable' } : { kind: 'error', message: USAGE_DOWN, detail: messageOf(e) } });
       },
     );
     return () => ctl.abort();
-  }, [key, preset, reload]);
+    // `tag` carries the key and the preset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tag, reload]);
 
-  if (!key || !state || state.preset !== preset) return { kind: 'loading' };
+  if (!key || !state || state.tag !== tag) return { kind: 'loading' };
   return state.value;
 }
 

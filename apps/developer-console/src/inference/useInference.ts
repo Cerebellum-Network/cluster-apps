@@ -64,32 +64,30 @@ export interface OwnerBucketsState {
 export function useOwnerBuckets(): OwnerBucketsState {
   const account = useAccount();
   const pubkey = account.account ?? null;
-  const [buckets, setBuckets] = useState<OwnerBucket[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Tagged with the account they were read for: after a wallet switch the old
+  // account's buckets are gone in the same render, so nothing (a usage token
+  // mint, a new key) ever pairs the new owner with the old owner's bucket.
+  const [state, setState] = useState<{ for: string | null } & OwnerBucketsState>({ for: null, buckets: [], loading: false, error: null });
 
   useEffect(() => {
     if (!pubkey) {
-      setBuckets([]);
+      setState({ for: null, buckets: [], loading: false, error: null });
       return;
     }
     let cancelled = false;
-    setLoading(true);
-    setError(null);
+    setState({ for: pubkey, buckets: [], loading: true, error: null });
     listOwnerBuckets(pubkey)
       .then((list) => {
-        if (!cancelled) setBuckets(list.filter((b) => !b.isRemoved));
+        if (!cancelled) setState({ for: pubkey, buckets: list.filter((b) => !b.isRemoved), loading: false, error: null });
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Could not read your buckets.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setState({ for: pubkey, buckets: [], loading: false, error: e instanceof Error ? e.message : 'Could not read your buckets.' });
       });
     return () => {
       cancelled = true;
     };
   }, [pubkey]);
 
-  return { buckets, loading, error };
+  if (state.for !== pubkey) return { buckets: [], loading: !!pubkey, error: null };
+  return { buckets: state.buckets, loading: state.loading, error: state.error };
 }
