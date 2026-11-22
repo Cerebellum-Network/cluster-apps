@@ -1,21 +1,26 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  clearUsageTokens,
   dropUsageToken,
   readUsageToken,
   usageTokenKey,
   writeUsageToken,
   USAGE_TOKEN_MARGIN_MS,
-  type TokenStorage,
+  type ListableStorage,
 } from './usageToken';
 
-const fakeStorage = (): TokenStorage & { map: Map<string, string> } => {
+const fakeStorage = (): ListableStorage & { map: Map<string, string> } => {
   const map = new Map<string, string>();
   return {
     map,
     getItem: (k) => map.get(k) ?? null,
     setItem: (k, v) => void map.set(k, v),
     removeItem: (k) => void map.delete(k),
+    get length() {
+      return map.size;
+    },
+    key: (i) => [...map.keys()][i] ?? null,
   };
 };
 
@@ -48,5 +53,25 @@ describe('usage token cache', () => {
   it('works without storage', () => {
     expect(readUsageToken('a', '1', 0, null)).toBeNull();
     expect(() => writeUsageToken('a', '1', 't', 1, null)).not.toThrow();
+  });
+});
+
+describe('clearUsageTokens', () => {
+  it('drops every cached usage token, for every account and bucket, and nothing else', () => {
+    const s = fakeStorage();
+    writeUsageToken('acc1', '7', 'a', 10_000_000, s);
+    writeUsageToken('acc1', '8', 'b', 10_000_000, s);
+    writeUsageToken('acc2', '7', 'c', 10_000_000, s);
+    s.setItem('dc.gateway.creds:acc1', 'keep');
+    s.setItem('dc.inference.usageTokenish', 'keep');
+    clearUsageTokens(s);
+    expect(readUsageToken('acc1', '7', 0, s)).toBeNull();
+    expect(readUsageToken('acc1', '8', 0, s)).toBeNull();
+    expect(readUsageToken('acc2', '7', 0, s)).toBeNull();
+    expect([...s.map.keys()].sort()).toEqual(['dc.gateway.creds:acc1', 'dc.inference.usageTokenish']);
+  });
+
+  it('does nothing without storage', () => {
+    expect(() => clearUsageTokens(null)).not.toThrow();
   });
 });

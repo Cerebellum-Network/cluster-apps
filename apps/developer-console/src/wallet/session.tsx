@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { type CefSigner } from '@cef-ai/wallet';
 import { useWalletConnect } from '@cef-ai/wallet-react';
 import { config } from '../config';
+import { clearUsageTokens } from '../inference/usageToken';
+import { forgetKey } from '../inference/sessionKey';
 import { BOOT_GRACE_MS, nextBootPhase, type BootPhase } from './bootPhase';
 
 /** The index and S3 gateway key accounts as lowercase hex, no 0x. */
@@ -78,6 +80,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setExpired(false);
       setCancelled(false);
     } else if (wasConnected.current && !signingOut.current && w.status !== 'resuming') {
+      // The usage token is a COMPUTE bearer for the bucket: it must not outlive the session.
+      clearUsageTokens();
+      forgetKey();
       setExpired(true);
     }
   }, [w.wallet, w.status]);
@@ -119,6 +124,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         wasConnected.current = false;
         setExpired(false);
         setLastAccount(null);
+        clearUsageTokens();
+        forgetKey();
         void w.logout().catch(() => {});
       },
       getSigner: () => {

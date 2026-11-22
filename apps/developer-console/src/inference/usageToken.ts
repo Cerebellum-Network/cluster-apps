@@ -15,6 +15,8 @@ export const USAGE_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 export const USAGE_TOKEN_MARGIN_MS = 5 * 60 * 1000;
 
 const PREFIX = 'dc.inference.usageToken';
+/** Every cached token's key starts with this. */
+export const USAGE_TOKEN_KEY_PREFIX = `${PREFIX}:`;
 
 export interface CachedToken {
   token: string;
@@ -25,8 +27,10 @@ export const usageTokenKey = (account: string, bucketId: string): string => `${P
 
 /** The minimal Storage surface used, so tests can pass a Map-backed fake. */
 export type TokenStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+/** What clearing needs on top: walking the keys. */
+export type ListableStorage = TokenStorage & Pick<Storage, 'length' | 'key'>;
 
-function storage(): TokenStorage | null {
+function storage(): ListableStorage | null {
   try {
     return typeof localStorage === 'undefined' ? null : localStorage;
   } catch {
@@ -65,5 +69,24 @@ export function dropUsageToken(account: string, bucketId: string, store = storag
     store?.removeItem(usageTokenKey(account, bucketId));
   } catch {
     /* nothing to drop */
+  }
+}
+
+/**
+ * Drop every cached usage token, for every account and bucket. Each is a
+ * COMPUTE bearer for its bucket, good for 24h, so none may outlive the
+ * session: called on sign-out and when the session expires.
+ */
+export function clearUsageTokens(store: ListableStorage | null = storage()): void {
+  if (!store) return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < store.length; i += 1) {
+      const k = store.key(i);
+      if (k?.startsWith(USAGE_TOKEN_KEY_PREFIX)) keys.push(k);
+    }
+    for (const k of keys) store.removeItem(k);
+  } catch {
+    /* storage blocked: nothing was cached */
   }
 }
