@@ -158,7 +158,8 @@ export type DetailState =
 
 /** One opened row's two range reads, filtered to the model. */
 export function useModelDetail(key: string, model: string, w: UsageWindow, onAuthError: () => void): DetailState {
-  const tag = `${key}|${model}|${w.fromMs}|${w.toMs}|${w.barMs}`;
+  // `nowMs` too: a Refresh (manual or auto) reads the opened row again, not only the page.
+  const tag = `${key}|${model}|${w.fromMs}|${w.toMs}|${w.barMs}|${w.nowMs}`;
   const [state, setState] = useState<{ for: string; model: string; value: DetailState } | null>(null);
   const authRef = useRef(onAuthError);
   authRef.current = onAuthError;

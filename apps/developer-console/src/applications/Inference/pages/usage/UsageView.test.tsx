@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 
 import UsageView, { EmptyUsage } from './UsageView';
+import UsageModelsTable from './UsageModelsTable';
+import { usageRows } from '../../../../inference/usageMath';
 import { usageFixture } from './usageFixture';
 import type { UsageData } from '~/inference/useUsage';
 
@@ -59,4 +61,23 @@ describe('UsageView', () => {
     const html = render({ ...usageFixture, reads: { ...usageFixture.reads, refusedLimit: new Map() } });
     expect(html).not.toContain('Upgrade plan');
   });
+
+  it('gives each model in view its share of the models in view; a filtered-away one has none', () => {
+    const rows = usageRows(usageFixture.reads);
+    const table = (inView: (m: string) => boolean) =>
+      renderToStaticMarkup(
+        <UsageModelsTable
+          rows={rows} colorOf={() => '#000'} isInView={inView} selected={[]} onPickModel={() => {}} kindOf={() => 'Chat'}
+          selectedKinds={[]} onPickKind={() => {}} gatewayKey="k" window={usageFixture.window} tokensAvailable onAuthError={() => {}}
+        />,
+      );
+    const all = table(() => true);
+    expect(all).toContain('>99.2%<'); // glm-5.3: 412.5 of 415.7
+    expect(all).toContain('>0.8%<');
+    const one = table((m) => m === 'qwen3-embed');
+    expect(one).toContain('>100.0%<');
+    expect(one).not.toContain('>99.2%<');
+    expect(one).toContain('>—<');
+  });
 });
+

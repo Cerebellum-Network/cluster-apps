@@ -287,7 +287,8 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, kind
 }) => {
   const [open, setOpen] = useState<string[]>([]);
   const toggle = (m: string) => setOpen((o) => (o.includes(m) ? o.filter((x) => x !== m) : [...o, m]));
-  const totalGpu = rows.reduce((n, r) => n + r.gpu, 0);
+  // Share of the models in view, as the tiles count them; a filtered-away row has none.
+  const totalGpu = rows.reduce((n, r) => (isInView(r.model) ? n + r.gpu : n), 0);
   return (
     <Section title="Models" flush>
       <TableContainer>
@@ -307,7 +308,7 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, kind
           <TableBody>
             {rows.map((row) => {
               const isOpen = open.includes(row.model);
-              const share = totalGpu > 0 ? row.gpu / totalGpu : 0;
+              const share = !isInView(row.model) ? null : totalGpu > 0 ? row.gpu / totalGpu : 0;
               const refused = refusedCell(row);
               return (
                 <Fragment key={row.model}>
@@ -359,12 +360,16 @@ const UsageModelsTable = ({ rows, colorOf, isInView, selected, onPickModel, kind
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{fmtCount(row.requests)}</TableCell>
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{gpuWords(row.gpu)}</TableCell>
                     <TableCell>
-                      <Stack direction="row" alignItems="center" gap="8px">
-                        <Box aria-hidden sx={{ width: 40, height: 6, backgroundColor: color.grid, borderRadius: '3px', overflow: 'hidden' }}>
-                          <Box sx={{ height: '100%', width: `${Math.max(2, share * 100)}%`, backgroundColor: color.primary }} />
-                        </Box>
-                        <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>{`${(share * 100).toFixed(1)}%`}</Box>
-                      </Stack>
+                      {share === null ? (
+                        <Box component="span" sx={{ color: color.textTertiary }}>—</Box>
+                      ) : (
+                        <Stack direction="row" alignItems="center" gap="8px">
+                          <Box aria-hidden sx={{ width: 40, height: 6, backgroundColor: color.grid, borderRadius: '3px', overflow: 'hidden' }}>
+                            <Box sx={{ height: '100%', width: `${Math.max(2, share * 100)}%`, backgroundColor: color.primary }} />
+                          </Box>
+                          <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>{`${(share * 100).toFixed(1)}%`}</Box>
+                        </Stack>
+                      )}
                     </TableCell>
                     <TableCell>
                       <PeakCell row={row} />
