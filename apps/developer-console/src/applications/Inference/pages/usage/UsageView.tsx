@@ -189,7 +189,7 @@ const UsageView = ({ data, preset, gatewayKey, onAuthError, kindOf = () => 'Mode
     const rows = all.rows.filter((r) => shown(r.model));
     return {
       shown,
-      tiles: usageTiles(rows),
+      tiles: usageTiles(rows, data.reads.prev, shown),
       gpu: stackSeries(only(all.gpu.byModel), only(data.reads.gpu), all.colorOf, all.gpu.startsMs.length),
       requests: stackSeries(only(all.requests.byModel), only(data.reads.requests), all.colorOf, all.requests.startsMs.length),
     };

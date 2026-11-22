@@ -37,9 +37,11 @@ const emptyReads = (): InstantReads => ({
 
 const row = (o: Partial<UsageRow> & { model: string }): UsageRow => ({
   gpu: 0, requests: 0, tokensIn: 0, tokensCached: 0, tokensOut: 0, peak: 0, limit: null, refusedLimit: 0, refusedFull: 0,
-  prev: { gpu: 0, requests: 0, refused: 0, peak: 0 },
+  prevPeak: 0,
   ...o,
 });
+
+const noPrev = (): InstantReads['prev'] => ({ gpu: new Map(), requests: new Map(), refused: new Map(), peak: new Map() });
 
 describe('window and steps', () => {
   it('keeps every preset within MAX_BARS and picks hourly bars for 7d', () => {
@@ -116,14 +118,39 @@ describe('usageRows', () => {
 describe('tiles and deltas', () => {
   it('sums the period and compares with the previous one', () => {
     const rows = [
-      row({ model: 'a', gpu: 6, requests: 30, prev: { gpu: 4, requests: 30, refused: 1, peak: 2 } }),
-      row({ model: 'b', gpu: 6, requests: 10, refusedLimit: 3, refusedFull: 2, prev: { gpu: 6, requests: 10, refused: 0, peak: 0 } }),
+      row({ model: 'a', gpu: 6, requests: 30 }),
+      row({ model: 'b', gpu: 6, requests: 10, refusedLimit: 3, refusedFull: 2 }),
     ];
-    const t = usageTiles(rows);
+    const t = usageTiles(rows, { gpu: M({ a: 4, b: 6 }), requests: M({ a: 30, b: 10 }), refused: M({ a: 1 }), peak: M({ a: 2 }) });
     expect(t.gpu.total).toBe(12);
     expect(t.gpu.change).toEqual({ kind: 'up', ratio: 0.2 });
     expect(t.requests.change).toEqual({ kind: 'flat' });
     expect(t.refused).toEqual({ total: 5, limit: 3, full: 2, prevTotal: 1 });
+  });
+
+  it('compares with models used only in the previous period', () => {
+    // 100 requests on A last week, 50 on B this week: ↓50%, not "None in the previous 7 days".
+    const r = emptyReads();
+    r.requests = M({ b: 50 });
+    r.gpu = M({ b: 5 });
+    r.peak = M({ b: 2 });
+    r.prev = { gpu: M({ a: 10 }), requests: M({ a: 100 }), refused: M({ a: 4 }), peak: M({ a: 3 }) };
+    const rows = usageRows(r);
+    expect(rows.map((x) => x.model)).toEqual(['b']);
+    const t = usageTiles(rows, r.prev);
+    expect(t.requests.change).toEqual({ kind: 'down', ratio: 0.5 });
+    expect(t.gpu.change).toEqual({ kind: 'down', ratio: 0.5 });
+    expect(t.refused.prevTotal).toBe(4);
+    expect(changeText(t.requests.change, 'previous 7 days')).toBe('↓ 50.0% vs the previous 7 days');
+  });
+
+  it('narrows the previous period by the same filter as this one', () => {
+    const prev = { gpu: M({ a: 10, b: 4 }), requests: M({ a: 100, b: 40 }), refused: M({ a: 4, b: 1 }), peak: noPrev().peak };
+    const rows = [row({ model: 'b', gpu: 2, requests: 20 })];
+    const t = usageTiles(rows, prev, (m) => m === 'b');
+    expect(t.requests.change).toEqual({ kind: 'down', ratio: 0.5 });
+    expect(t.gpu.change).toEqual({ kind: 'down', ratio: 0.5 });
+    expect(t.refused.prevTotal).toBe(1);
   });
 
   it('describes changes in words', () => {
@@ -137,14 +164,14 @@ describe('tiles and deltas', () => {
   it('picks the model closest to its limit by ratio, not by raw peak', () => {
     const t = usageTiles([
       row({ model: 'busy', requests: 1, peak: 10, limit: 20 }),
-      row({ model: 'tight', requests: 1, peak: 8, limit: 8, prev: { gpu: 0, requests: 0, refused: 0, peak: 5 } }),
-      row({ model: 'full', requests: 1, peak: 4, limit: 4 }),
-    ]);
-    expect(t.closest).toMatchObject({ model: 'full', peak: 4, limit: 4, othersAtLimit: 1 });
+      row({ model: 'tight', requests: 1, peak: 8, limit: 8, prevPeak: 5 }),
+      row({ model: 'full', requests: 1, peak: 4, limit: 4, prevPeak: 3 }),
+    ], noPrev());
+    expect(t.closest).toMatchObject({ model: 'full', peak: 4, limit: 4, othersAtLimit: 1, prevPeak: 3 });
   });
 
   it('has no closest model when nothing was in flight', () => {
-    expect(usageTiles([row({ model: 'a', requests: 1 })]).closest).toBeNull();
+    expect(usageTiles([row({ model: 'a', requests: 1 })], noPrev()).closest).toBeNull();
   });
 });
 

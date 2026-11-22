@@ -144,10 +144,11 @@ export interface InstantReads {
   limits: ByModel;
   refusedLimit: ByModel;
   refusedFull: ByModel;
-  prev: { gpu: ByModel; requests: ByModel; refused: ByModel; peak: ByModel };
+  prev: PrevReads;
 }
 
-export interface PrevTotals { gpu: number; requests: number; refused: number; peak: number }
+/** The same reads over the previous window, `sum by (model)`. */
+export interface PrevReads { gpu: ByModel; requests: ByModel; refused: ByModel; peak: ByModel }
 
 export interface UsageRow {
   /** The bare model name, as the gateway labels its series. */
@@ -166,7 +167,8 @@ export interface UsageRow {
   refusedLimit: number;
   /** 429s with the model full. */
   refusedFull: number;
-  prev: PrevTotals;
+  /** This model's peak in the previous window, for the Closest to limit tile. */
+  prevPeak: number;
 }
 
 /** Whether a row has any usage in the window. */
@@ -198,12 +200,7 @@ export function usageRows(r: InstantReads, fallbackLimits: ByModel = new Map()):
         limit: limit > 0 ? limit : null,
         refusedLimit: Math.round(get(r.refusedLimit, model)),
         refusedFull: Math.round(get(r.refusedFull, model)),
-        prev: {
-          gpu: get(r.prev.gpu, model),
-          requests: Math.round(get(r.prev.requests, model)),
-          refused: Math.round(get(r.prev.refused, model)),
-          peak: Math.round(get(r.prev.peak, model)),
-        },
+        prevPeak: Math.round(get(r.prev.peak, model)),
       };
     })
     .filter(hasUsage)
@@ -266,11 +263,18 @@ export interface Tiles {
 }
 
 /**
- * The four tiles. Closest to limit is the highest peak against its limit;
- * with no limit known for any model, the busiest.
+ * The four tiles for the `rows` in view. Closest to limit is the highest peak
+ * against its limit; with no limit known for any model, the busiest.
+ *
+ * The previous-period totals come from the previous window's reads, narrowed
+ * by the same `shown` the rows were: summing them over this period's rows
+ * would drop every model used only last period (100 requests on A last week
+ * and 50 on B this week is ↓50%, not "None in the previous 7 days").
  */
-export function usageTiles(rows: UsageRow[]): Tiles {
+export function usageTiles(rows: UsageRow[], prev: PrevReads, shown: (model: string) => boolean = () => true): Tiles {
   const sum = (f: (r: UsageRow) => number) => rows.reduce((n, r) => n + f(r), 0);
+  const prevSum = (m: ByModel, round = false) =>
+    [...m].reduce((n, [model, v]) => (shown(model) ? n + (round ? Math.round(v) : v) : n), 0);
   const gpu = sum((r) => r.gpu);
   const requests = sum((r) => r.requests);
   const busy = rows.filter((r) => r.peak > 0);
@@ -280,16 +284,16 @@ export function usageTiles(rows: UsageRow[]): Tiles {
   const refusedOf = (r: UsageRow) => r.refusedLimit + r.refusedFull;
   const best = [...pool].sort((a, b) => ratio(b) - ratio(a) || refusedOf(b) - refusedOf(a) || a.model.localeCompare(b.model))[0];
   return {
-    gpu: { total: gpu, change: change(gpu, sum((r) => r.prev.gpu)) },
-    requests: { total: requests, change: change(requests, sum((r) => r.prev.requests)) },
-    refused: { total: sum(refusedOf), limit: sum((r) => r.refusedLimit), full: sum((r) => r.refusedFull), prevTotal: sum((r) => r.prev.refused) },
+    gpu: { total: gpu, change: change(gpu, prevSum(prev.gpu)) },
+    requests: { total: requests, change: change(requests, prevSum(prev.requests, true)) },
+    refused: { total: sum(refusedOf), limit: sum((r) => r.refusedLimit), full: sum((r) => r.refusedFull), prevTotal: prevSum(prev.refused, true) },
     closest: best
       ? {
           model: best.model,
           peak: best.peak,
           limit: best.limit,
           othersAtLimit: rows.filter((r) => r !== best && r.limit !== null && r.peak >= r.limit).length,
-          prevPeak: best.prev.peak,
+          prevPeak: best.prevPeak,
         }
       : null,
   };
