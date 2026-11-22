@@ -56,10 +56,12 @@ export interface Rates {
 }
 
 // payment-service
+export type CardSummary = { brand: string | null; last4: string | null; exp_month: number | null; exp_year: number | null };
+
 export interface DeveloperProfile {
   account_pubkey: string;
   has_active_card: boolean;
-  card: { brand: string | null; last4: string | null; exp_month: number | null; exp_year: number | null } | null;
+  card: CardSummary | null;
   auto_recharge_threshold_usd: string | null;
   auto_recharge_amount_usd: string | null;
   status: string;
@@ -191,6 +193,7 @@ export const payment = {
         {
           account_pubkey: account,
           role: 'developer',
+          setup_only: true,
           success_url: `${returnTo}?checkout=card`,
           cancel_url: `${returnTo}?checkout=cancelled`,
         },

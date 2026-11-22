@@ -33,6 +33,7 @@ import { readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
 import { BillingHistory } from './BillingHistory';
+import { ReplaceCardDialog } from './ReplaceCardDialog';
 
 /**
  * Billing — one page (mockup board 10): balance, plan and payment method on top,
@@ -63,7 +64,6 @@ const Billing = () => {
   }, [searchParams]);
   const closeAdd = () => {
     setAddOpen(false);
-    setNewCardFlow(false);
     if (searchParams.has('add')) {
       searchParams.delete('add');
       setSearchParams(searchParams, { replace: true });
@@ -98,7 +98,7 @@ const Billing = () => {
   // lands (#190 review).
   const [checkoutOk, setCheckoutOk] = useState<number | null>(null);
   const [cardUpdated, setCardUpdated] = useState(false);
-  const [newCardFlow, setNewCardFlow] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const result = q.get('checkout');
@@ -273,10 +273,7 @@ const Billing = () => {
                 color="secondary"
                 size="small"
                 disabled={!pubkey}
-                onClick={() => {
-                  setNewCardFlow(true);
-                  setAddOpen(true);
-                }}
+                onClick={() => setCardOpen(true)}
               >
                 {card ? 'Replace card' : 'Add card'}
               </Button>
@@ -307,11 +304,12 @@ const Billing = () => {
               onCancel={closeAdd}
               idemKeyFor={idemKeyFor}
               clearIdem={clearIdem}
-              startWithNewCard={newCardFlow}
             />
           )}
         </DialogContent>
       </Dialog>
+
+      {pubkey && <ReplaceCardDialog open={cardOpen} account={pubkey} card={card} onClose={() => setCardOpen(false)} />}
 
       {/* Bills, one row per month */}
       <Section title="Bills" flush>

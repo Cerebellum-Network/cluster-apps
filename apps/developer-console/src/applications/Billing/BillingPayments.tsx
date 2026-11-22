@@ -49,7 +49,6 @@ export function BillingPayments({
   onCancel,
   idemKeyFor,
   clearIdem,
-  startWithNewCard = false,
 }: {
   /** Lowercase-hex, no 0x — the recon/payment account key. */
   account: string;
@@ -66,11 +65,9 @@ export function BillingPayments({
   idemKeyFor: (amount: number) => string;
   /** Drops the held key after a definite outcome (success / declined). */
   clearIdem: () => void;
-  /** Opened from "Replace card": pay with a new card on Stripe Checkout, which saves it. */
-  startWithNewCard?: boolean;
 }) {
   const card = profile?.has_active_card ? profile.card : null;
-  const [newCard, setNewCard] = useState(startWithNewCard);
+  const [newCard, setNewCard] = useState(false);
   const useCheckout = !card || newCard;
 
   // ── Top up ────────────────────────────────────────────────────────────────
