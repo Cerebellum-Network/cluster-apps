@@ -95,6 +95,12 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A charge whose outcome is unknown: no answer (status 0) or a server error.
+ * The charge may have gone through, so the user must not be told it didn't.
+ */
+export const isUnconfirmed = (e: unknown): boolean => !(e instanceof ApiError) || e.status === 0 || e.status >= 500;
+
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {

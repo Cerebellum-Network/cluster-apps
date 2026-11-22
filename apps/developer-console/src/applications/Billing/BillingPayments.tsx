@@ -2,7 +2,7 @@ import { Box, Typography, Stack, Button, LoadingButton, TextField, Alert, styled
 import { Link } from '@mui/material';
 import { useEffect, useState } from 'react';
 
-import { payment, ApiError, type DeveloperProfile, type LedgerEntry, type TopupResult } from '~/billing/api';
+import { payment, ApiError, isUnconfirmed, type DeveloperProfile, type LedgerEntry, type TopupResult } from '~/billing/api';
 import { saveCheckoutAmount } from '~/billing/checkout';
 import { brandName, usd, longDate } from '~/billing/format';
 import { ComingSoon, Pill } from '~/components';
@@ -14,7 +14,7 @@ import { color, text } from '~/theme/tokens';
  *  - With a saved card, a top-up is one off-session charge (payment.topUp) with
  *    an idempotency key held across retries so a network failure cannot
  *    double-charge; a 402 reads as "declined", nothing charged.
- *  - Without a card (or "use another card"), it goes through Stripe Checkout
+ *  - Without a card (or "pay with a different card"), it goes through Stripe Checkout
  *    (payment.checkout), which charges the amount and saves the card; on return
  *    the page carries `?checkout=success` and we poll the reload briefly.
  *  - Auto-top-up needs a card; defaults $10 threshold / $20 amount.
@@ -38,6 +38,8 @@ type TopUpStatus =
   | { kind: 'ok'; amount: number }
   | { kind: 'declined' }
   | { kind: 'pending' }
+  /** No answer or a 5xx: it may have been charged. */
+  | { kind: 'unconfirmed' }
   | { kind: 'failed'; message: string };
 
 export function BillingPayments({
@@ -113,7 +115,7 @@ export function BillingPayments({
         setStatus({ kind: 'declined' });
       } else {
         // Keep the idempotency key so a retry cannot double-charge.
-        setStatus({ kind: 'failed', message: e instanceof Error ? e.message : String(e) });
+        setStatus(isUnconfirmed(e) ? { kind: 'unconfirmed' } : { kind: 'failed', message: e instanceof Error ? e.message : String(e) });
       }
     }
   };
@@ -222,14 +224,14 @@ export function BillingPayments({
             <Typography variant="caption" color="text.secondary" display="block" marginTop="8px">
               {useCheckout
                 ? card
-                  ? 'You pay with a new card on Stripe Checkout. It replaces your card on file.'
+                  ? 'You pay on Stripe Checkout. The card you pay with becomes your saved card.'
                   : 'You pay on Stripe Checkout. The card is saved for your next top-up.'
                 : `Charged to ${cardLabel}, added to your balance.`}
             </Typography>
             <Stack spacing={0.5} marginTop="12px">
               {card && (
                 <Link component="button" type="button" variant="caption" onClick={() => setNewCard(!newCard)} sx={{ alignSelf: 'flex-start' }}>
-                  {newCard ? `Pay with ${cardLabel} instead` : 'Use another card'}
+                  {newCard ? `Pay with ${cardLabel} instead` : 'Pay with a different card on Stripe'}
                 </Link>
               )}
               <Stack direction="row" alignItems="center" spacing={1}>
@@ -261,6 +263,11 @@ export function BillingPayments({
         {status.kind === 'pending' && (
           <Alert severity="warning" sx={{ marginTop: '16px' }} onClose={() => setStatus({ kind: 'idle' })}>
             Pending at the card provider. The balance updates when it clears.
+          </Alert>
+        )}
+        {status.kind === 'unconfirmed' && (
+          <Alert severity="warning" sx={{ marginTop: '16px' }} onClose={() => setStatus({ kind: 'idle' })}>
+            We couldn’t confirm the top-up. Check your balance before trying again.
           </Alert>
         )}
         {status.kind === 'failed' && (

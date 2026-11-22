@@ -162,9 +162,9 @@ const Models = () => {
         padding="0 22px"
       >
         <Typography sx={text.secondary}>
-          Up to 8 requests at once across all models. Plans with higher limits are on the way.
+          Up to 8 requests at once across all models.
         </Typography>
-        <ComingSoon />
+        <ComingSoon label="Higher limits coming soon" />
       </Stack>
 
       {notice && (

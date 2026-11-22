@@ -14,7 +14,7 @@ import {
   Alert,
 } from '@cluster-apps/ui';
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { Close, KeyboardArrowRight } from '@mui/icons-material';
 import { observer } from 'mobx-react-lite';
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -22,18 +22,18 @@ import { useSearchParams } from 'react-router-dom';
 import { useAccount } from '~/hooks';
 import { PageHeader, Section, ComingSoon, Pill } from '~/components';
 import { text } from '~/theme/tokens';
-
-/** A card's main line (plan name, card on file): body size, bold. */
-const cardValue = { fontSize: 16, lineHeight: '22px', fontWeight: 600 } as const;
 import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
 import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
-import { readCheckoutAmount } from '~/billing/checkout';
+import { cardReturnStatus, readCardBefore, readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
 import { BillingHistory } from './BillingHistory';
 import { ReplaceCardDialog } from './ReplaceCardDialog';
+
+/** A card's main line (plan name, card on file): body size, bold. */
+const cardValue = { fontSize: 16, lineHeight: '22px', fontWeight: 600 } as const;
 
 /**
  * Billing — one page (mockup board 10): balance, plan and payment method on top,
@@ -97,13 +97,15 @@ const Billing = () => {
   // unmounted — shows the confirmation and polls the reload while the webhook
   // lands (#190 review).
   const [checkoutOk, setCheckoutOk] = useState<number | null>(null);
-  const [cardUpdated, setCardUpdated] = useState(false);
+  // Back from Replace card: the card on file before Stripe (see checkout.ts), until dismissed.
+  const [cardReturn, setCardReturn] = useState<{ before: string | null } | null>(null);
+  const [pollDone, setPollDone] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const result = q.get('checkout');
     if (!result) return;
-    if (result === 'card') setCardUpdated(true);
+    if (result === 'card') setCardReturn({ before: readCardBefore() });
     const paid = result === 'card' ? null : readCheckoutAmount();
     if (result === 'success') setCheckoutOk(paid ?? 0);
     q.delete('checkout');
@@ -111,7 +113,10 @@ const Billing = () => {
     window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
     reloadPayments();
     const t = setInterval(reloadPayments, 3000);
-    const stop = setTimeout(() => clearInterval(t), 30_000);
+    const stop = setTimeout(() => {
+      clearInterval(t);
+      setPollDone(true);
+    }, 30_000);
     return () => {
       clearInterval(t);
       clearTimeout(stop);
@@ -159,6 +164,8 @@ const Billing = () => {
   };
 
   const card = profile.data?.has_active_card ? profile.data.card : null;
+  // The new card shows only once the PSP webhook lands: "saving" until the profile has it.
+  const cardStatus = cardReturn && cardReturnStatus(cardReturn.before, profile.data ? card : undefined, pollDone);
   const autoOn = profile.data?.auto_recharge_threshold_usd && profile.data?.auto_recharge_amount_usd;
   const autoStatus = autoOn
     ? `Auto top-up ${money(profile.data!.auto_recharge_amount_usd)} below ${money(profile.data!.auto_recharge_threshold_usd)}`
@@ -217,9 +224,15 @@ const Billing = () => {
         </Typography>
       )}
 
-      {cardUpdated && (
-        <Alert severity="success" onClose={() => setCardUpdated(false)}>
+      {cardStatus === 'saving' && <Alert severity="info">Card saved, updating…</Alert>}
+      {cardStatus === 'updated' && (
+        <Alert severity="success" onClose={() => setCardReturn(null)}>
           Card updated. New payments use it.
+        </Alert>
+      )}
+      {cardStatus === 'slow' && (
+        <Alert severity="warning" onClose={() => setCardReturn(null)}>
+          We’re still saving your card. Refresh in a minute.
         </Alert>
       )}
 
@@ -246,7 +259,6 @@ const Billing = () => {
         </Section>
         <Section title="Plan" actions={<ComingSoon />} fill>
           <Typography sx={cardValue}>Pay as you go</Typography>
-          <Typography sx={{ ...text.secondary, marginTop: '4px' }}>Free and Pro plans are on the way.</Typography>
           <Box sx={{ marginTop: 'auto', paddingTop: '16px' }}>
             <Button variant="outlined" color="secondary" size="small" disabled>
               Change plan
@@ -282,8 +294,8 @@ const Billing = () => {
         </Section>
       </Box>
 
-      {/* Add funds dialog (mockup board 11). Opened from the page header and the
-          balance card; the account menu / low-balance alert deep-link to it. */}
+      {/* Add funds dialog (mockup board 11). Opened from the balance card; the
+          account menu and the low-balance alert deep-link to it (?add=1). */}
       <Dialog open={addOpen && !!pubkey} onClose={closeAdd} maxWidth="md" fullWidth>
         <DialogTitle sx={{ paddingBottom: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -327,10 +339,10 @@ const Billing = () => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell sx={{ width: 40 }} />
                 <TableCell>Month</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Total</TableCell>
-                <TableCell align="right" sx={{ width: 40 }} />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -343,6 +355,20 @@ const Billing = () => {
                       onClick={() => setOpenMonth(open ? null : m.month)}
                       sx={{ cursor: 'pointer', '& > td': { borderBottom: open ? 'none' : undefined } }}
                     >
+                      {/* The toggle is a real button (keyboard, aria-expanded), like the Usage models table; the row click is a shortcut. */}
+                      <TableCell sx={{ paddingRight: 0 }}>
+                        <IconButton
+                          size="small"
+                          aria-expanded={open}
+                          aria-label={`${open ? 'Hide' : 'Show'} the ${monthLabel(m.month)} bill`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMonth(open ? null : m.month);
+                          }}
+                        >
+                          <KeyboardArrowRight sx={{ fontSize: 20, transition: 'transform 150ms', transform: open ? 'rotate(90deg)' : 'none' }} />
+                        </IconButton>
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2">{monthLabel(m.month)}</Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -353,9 +379,6 @@ const Billing = () => {
                         <Pill tone={m.status === 'settled' ? 'success' : 'neutral'}>{m.status === 'settled' ? 'Settled' : 'Estimated'}</Pill>
                       </TableCell>
                       <TableCell align="right">{money(m.total_usd)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                        {open ? '▾' : '▸'}
-                      </TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell colSpan={4} sx={{ p: 0, borderBottom: open ? undefined : 'none' }}>

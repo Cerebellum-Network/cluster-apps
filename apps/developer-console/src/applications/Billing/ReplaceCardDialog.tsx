@@ -4,6 +4,7 @@ import { Close, CreditCard, LockOutlined } from '@mui/icons-material';
 import { useState } from 'react';
 
 import { payment, type CardSummary } from '~/billing/api';
+import { saveCardBefore } from '~/billing/checkout';
 import { brandName } from '~/billing/format';
 import { color, text } from '~/theme/tokens';
 
@@ -35,6 +36,7 @@ export function ReplaceCardDialog({
     setError(null);
     try {
       const url = await payment.replaceCard(account, `${window.location.origin}/billing`);
+      saveCardBefore(card);
       window.location.assign(url);
     } catch (e) {
       setRedirecting(false);
