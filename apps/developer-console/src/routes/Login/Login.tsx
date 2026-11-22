@@ -1,11 +1,12 @@
 import { Button, LoadingButton, Stack, Typography } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { styled } from '@mui/material';
 
 import { Terms } from './Login.styled';
 import { DDC_CLUSTER_NAME, PRIVACY_POLICY, TERMS_AND_CONDITIONS_LINK } from '~/constants';
 import { useSession } from '~/wallet/session';
+import { returnPath } from '../authGate';
 
 const Screen = styled(Stack)(({ theme }) => ({
   minHeight: '100vh',
@@ -28,9 +29,12 @@ const Inner = styled(Stack)(({ theme }) => ({
  */
 const Login = observer(() => {
   const session = useSession();
+  const location = useLocation();
 
+  // Back to the page that sent the user here (router state only, never a URL
+  // parameter), query and hash included: a deep link or a Stripe return.
   if (session.state === 'connected') {
-    return <Navigate to="/" replace />;
+    return <Navigate to={returnPath(location.state)} replace />;
   }
 
   const busy = session.state === 'connecting' || session.state === 'waiting';

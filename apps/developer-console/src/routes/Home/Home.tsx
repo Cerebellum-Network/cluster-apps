@@ -1,12 +1,14 @@
 import { Box, Button, DiscordButton, LoadingAnimation, styled, Stack } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { AnalyticsId } from '@cluster-apps/analytics';
 import { Application } from '~/applications';
 import { HomeLayout, Navigation } from '~/components';
 import { useAccountStore } from '~/hooks';
 import { DISCORD_LINK, DEVELOPER_DOCS_LINK } from '~/constants.ts';
+import { useSession } from '~/wallet/session';
+import { homeGate, type LoginState } from '../authGate';
 
 export type HomeProps = {
   apps: Application[];
@@ -21,10 +23,24 @@ const Loading = styled(LoadingAnimation)({
 });
 
 const Home = ({ apps }: HomeProps) => {
+  const session = useSession();
   const account = useAccountStore();
+  const location = useLocation();
 
-  if (account.status !== 'connected') {
-    return <Navigate to="/login" />;
+  // The gate reads the session itself: SessionBridge copies it into the store
+  // in an effect, one render behind, so the store alone reads "signed out" for
+  // a moment on every load. The shell (whose header reads the account) still
+  // waits for the store to catch up.
+  const gate = homeGate(session);
+  if (gate === 'wait' || (gate === 'app' && !account.isReady())) {
+    return (
+      <Box height="100vh" display="flex" justifyContent="center" alignItems="center" role="progressbar" aria-label="Signing you in">
+        <Loading />
+      </Box>
+    );
+  }
+  if (gate === 'login') {
+    return <Navigate to="/login" replace state={{ from: location } satisfies LoginState} />;
   }
 
   return (
@@ -40,13 +56,7 @@ const Home = ({ apps }: HomeProps) => {
         </Stack>
       }
     >
-      {account.isReady() ? (
-        <Outlet />
-      ) : (
-        <Box height="100%" display="flex" justifyContent="center" alignItems="center">
-          <Loading />
-        </Box>
-      )}
+      <Outlet />
     </HomeLayout>
   );
 };

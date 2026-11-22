@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { type CefSigner } from '@cef-ai/wallet';
 import { useWalletConnect } from '@cef-ai/wallet-react';
 import { config } from '../config';
+import { BOOT_GRACE_MS, nextBootPhase, type BootPhase } from './bootPhase';
 
 /** The index and S3 gateway key accounts as lowercase hex, no 0x. */
 const normalizeAccount = (pk: string) => pk.trim().toLowerCase().replace(/^0x/, '');
@@ -9,8 +10,14 @@ const normalizeAccount = (pk: string) => pk.trim().toLowerCase().replace(/^0x/, 
 /** The handoff's session states (README "State and data"). */
 export type SessionState = 'idle' | 'connecting' | 'waiting' | 'connected' | 'error' | 'expired';
 
-interface Session {
+export interface Session {
   state: SessionState;
+  /**
+   * True until the boot-time silent resume has answered. While it is, a
+   * returning user is not signed out yet: pages wait instead of sending them
+   * to /login (which would lose their deep link).
+   */
+  resuming: boolean;
   /** Hex public key, lowercase, no 0x — how recon and payment-service key accounts. */
   account: string | null;
   /** The account of a session that expired, for the reconnect prompt. */
@@ -33,7 +40,8 @@ interface Session {
   getSigner: () => CefSigner;
 }
 
-const SessionContext = createContext<Session | null>(null);
+/** Exported for render tests, which provide a fixed session. */
+export const SessionContext = createContext<Session | null>(null);
 
 function devAccount(): string | null {
   if (!import.meta.env.DEV) return null;
@@ -54,6 +62,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signingOut = useRef(false);
   const wasConnected = useRef(false);
   const [lastAccount, setLastAccount] = useState<string | null>(null);
+  const [boot, setBoot] = useState<BootPhase>('pending');
+
+  useEffect(() => setBoot((p) => nextBootPhase(p, w.status)), [w.status]);
+  useEffect(() => {
+    const t = setTimeout(() => setBoot((p) => (p === 'pending' ? 'settled' : p)), BOOT_GRACE_MS);
+    return () => clearTimeout(t);
+  }, []);
 
   // A session that disappears without the user signing out has expired.
   useEffect(() => {
@@ -79,6 +94,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     else state = 'idle';
     return {
       state,
+      resuming: !override && boot !== 'settled',
       account: override ?? (w.wallet ? normalizeAccount(w.wallet.publicKeyHex) : null),
       lastAccount: override ?? lastAccount,
       address: override ? null : (w.wallet?.address ?? null),
@@ -110,7 +126,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return w.wallet.signer;
       },
     };
-  }, [w, override, expired, cancelled, lastAccount]);
+  }, [w, override, expired, cancelled, lastAccount, boot]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
