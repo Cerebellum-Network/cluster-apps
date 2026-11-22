@@ -9,6 +9,12 @@ import { byLabel, secondsWindow, stepString, usageWindow, type InstantReads, typ
 export const isAuthError = (e: unknown): boolean => e instanceof GatewayError && (e.status === 401 || e.status === 403);
 /** The gateway 503s both when no metrics store is configured and when it fails; only the first is "not here yet". */
 export const metricsNotConfigured = (e: unknown): boolean => e instanceof GatewayError && e.status === 503 && /not configured/i.test(e.message);
+/**
+ * The gateway refused a token read as a bad request: the metric or one of its
+ * labels isn't on its allow-list (an older gateway). Only that hides the token
+ * counts; a 5xx or a network error fails the page like any other read.
+ */
+export const tokensNotServed = (e: unknown): boolean => e instanceof GatewayError && e.status === 400;
 
 const USAGE = 'inference_gateway_usage_total';
 const GPU = 'inference_gateway_gpu_units_total';
@@ -80,10 +86,10 @@ export async function loadUsage(key: string, preset: UsagePreset, nowMs: number,
   const before = (q: Read) => instant(w.fromMs, q);
   const steps = (metric: Read['metric']) => readBars(key, { metric, groupBy: 'model', stat: 'increase' }, w, signal);
 
-  // Token counts are optional: a gateway without them still draws the rest.
+  // Token counts are optional: a gateway that doesn't serve them still draws the rest.
   let tokensAvailable = true;
   const optional = (e: unknown): Map<string, number> => {
-    if (signal.aborted || isAuthError(e) || metricsNotConfigured(e)) throw e;
+    if (signal.aborted || !tokensNotServed(e)) throw e;
     tokensAvailable = false;
     return new Map();
   };

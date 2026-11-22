@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { GatewayError } from './metricsApi';
 import { loadUsage } from './usageReads';
 import { usageRows, stepsByModel, usageWindow } from './usageMath';
 
@@ -88,5 +89,34 @@ describe('loadUsage over a sparse 7d range', () => {
     const totals = calls.filter((u) => u.searchParams.get('metric') === 'inference_gateway_requests_total' && !u.searchParams.get('step'));
     const total = totals.find((u) => u.searchParams.get('groupBy') === 'model' && Date.parse(u.searchParams.get('to')!) === now && dur(u.searchParams.get('window')!) >= w.nowMs - w.fromMs);
     expect(total).toBeDefined();
+  });
+});
+
+describe('loadUsage token counts', () => {
+  const now = Date.UTC(2026, 10, 20, 15, 40, 12);
+  const USAGE = 'inference_gateway_usage_total';
+  /** The fake gateway, except token reads answer with `fail`. */
+  const failingTokens = (fail: () => Promise<Response>) => {
+    const ok = fakeGateway([req('glm-5.3', [[now - H, 3]])], []);
+    return async (input: string) => (new URL(input).searchParams.get('metric') === USAGE ? fail() : ok(input));
+  };
+
+  it('shows the rest without token counts when the gateway refuses the metric (400)', async () => {
+    vi.stubGlobal('fetch', failingTokens(async () => new Response('metric "inference_gateway_usage_total" is not allowed', { status: 400 })));
+    const data = await loadUsage('k', '24h', now, new AbortController().signal);
+    expect(data.tokensAvailable).toBe(false);
+    expect(usageRows(data.reads).map((r) => r.model)).toEqual(['glm-5.3']);
+  });
+
+  it('fails like any other read on a 5xx', async () => {
+    vi.stubGlobal('fetch', failingTokens(async () => new Response('upstream timeout', { status: 502 })));
+    const err = await loadUsage('k', '24h', now, new AbortController().signal).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GatewayError);
+    expect((err as GatewayError).status).toBe(502);
+  });
+
+  it('fails like any other read on a network error', async () => {
+    vi.stubGlobal('fetch', failingTokens(async () => { throw new TypeError('Failed to fetch'); }));
+    await expect(loadUsage('k', '24h', now, new AbortController().signal)).rejects.toThrow('Failed to fetch');
   });
 });
