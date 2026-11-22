@@ -63,7 +63,7 @@ export function EmptyUsage() {
         Make your first call with an API key and it shows up here, by model, within a minute or two.
       </Typography>
       <Button variant="contained" component={NavLink} to="/inference?quickstart=1">
-        Show me how
+        Get started
       </Button>
     </Box>
   );

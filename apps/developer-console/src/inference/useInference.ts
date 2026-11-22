@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useAccount } from '~/hooks';
 import { listOwnerBuckets, type OwnerBucket } from '~/storage/ddc/ownerBuckets';
+import { ensureBillingBucket } from './billingBucket';
 import { listModels, getModelManifest } from './gateway';
 import { latestPerModel, toModelCard, type ModelCard } from './model';
 
@@ -55,13 +56,18 @@ export interface OwnerBucketsState {
   error: string | null;
 }
 
+export interface OwnerBuckets extends OwnerBucketsState {
+  /** The id a new key bills to: the first bucket, or one created now (see billingBucket.ts). */
+  ensureBucket: () => Promise<string>;
+}
+
 /**
  * The connected wallet's on-chain buckets (numeric ids), from the blockchain
  * index — the id an Inference API key bills to. Removed buckets are dropped. The
  * key must be scoped to a bucket the wallet owns, so this is the source for the
  * key panel's bucket picker.
  */
-export function useOwnerBuckets(): OwnerBucketsState {
+export function useOwnerBuckets(): OwnerBuckets {
   const account = useAccount();
   const pubkey = account.account ?? null;
   // Tagged with the account they were read for: after a wallet switch the old
@@ -88,6 +94,17 @@ export function useOwnerBuckets(): OwnerBucketsState {
     };
   }, [pubkey]);
 
-  if (state.for !== pubkey) return { buckets: [], loading: !!pubkey, error: null };
-  return { buckets: state.buckets, loading: state.loading, error: state.error };
+  const current = state.for === pubkey ? state : { buckets: [], loading: !!pubkey, error: null };
+  const ensureBucket = useCallback(async () => {
+    if (!pubkey) throw new Error('Sign in first.');
+    const id = await ensureBillingBucket({ current: current.buckets, create: () => account.createBucket(), list: () => listOwnerBuckets(pubkey) });
+    if (current.buckets.length === 0) {
+      // Show the new bucket from now on (the pages read buckets[0]).
+      const list = await listOwnerBuckets(pubkey).catch(() => null);
+      if (list) setState({ for: pubkey, buckets: list.filter((b) => !b.isRemoved), loading: false, error: null });
+    }
+    return id;
+  }, [account, pubkey, current.buckets]);
+
+  return { buckets: current.buckets, loading: current.loading, error: current.error, ensureBucket };
 }

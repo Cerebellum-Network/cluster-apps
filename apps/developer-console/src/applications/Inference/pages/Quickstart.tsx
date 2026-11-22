@@ -14,7 +14,6 @@ import {
 } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
 import { useModels, useOwnerBuckets } from '~/inference/useInference';
@@ -65,7 +64,9 @@ const TabButton = styled('button', { shouldForwardProp: (p) => p !== 'active' })
     background: 'none',
     padding: theme.spacing(1, 0),
     marginRight: theme.spacing(2.5),
-    font: '600 14px/1 inherit',
+    fontWeight: 600,
+    fontSize: 14,
+    lineHeight: 1,
     whiteSpace: 'nowrap',
     color: active ? theme.palette.primary.main : theme.palette.text.secondary,
     borderBottom: `2px solid ${active ? theme.palette.primary.main : 'transparent'}`,
@@ -81,7 +82,9 @@ const StepNo = styled('span')(({ theme }) => ({
   borderRadius: '50%',
   backgroundColor: theme.palette.primary.main,
   color: theme.palette.primary.contrastText,
-  font: '600 12px/1 inherit',
+  fontWeight: 600,
+  fontSize: 12,
+  lineHeight: 1,
   flexShrink: 0,
 }));
 
@@ -184,7 +187,7 @@ function CommonProblems() {
 const QuickstartBody = () => {
   const account = useAccount();
   const owner = account.account ?? null;
-  const { buckets, loading: bucketsLoading, error: bucketsError } = useOwnerBuckets();
+  const { buckets, loading: bucketsLoading, error: bucketsError, ensureBucket } = useOwnerBuckets();
   const { cards, loading: modelsLoading } = useModels();
   const sessionKey = useSessionKey(owner);
 
@@ -205,13 +208,15 @@ const QuickstartBody = () => {
   // A different wallet invalidates a key signed by the previous one.
   useEffect(() => setKey(null), [owner]);
 
-  const bucketId = buckets[0]?.id ?? '';
+  // No bucket yet: the first key makes the one usage bills to (billingBucket.ts).
+  const firstKey = buckets.length === 0;
 
   const create = async () => {
-    if (!bucketId || !owner) return;
+    if (!owner) return;
     setBusy(true);
     setError(null);
     try {
+      const bucketId = await ensureBucket();
       const ttlMs = ttlDays * DAY_MS;
       const token = await account.createInferenceApiKey(BigInt(bucketId), ttlMs);
       const created = { token, expiresAt: Date.now() + ttlMs };
@@ -244,17 +249,6 @@ const QuickstartBody = () => {
             <Typography variant="body2" color="text.secondary">
               Preparing…
             </Typography>
-          ) : buckets.length === 0 ? (
-            <Alert
-              severity="info"
-              action={
-                <Button component={NavLink} to="/content-storage" size="small">
-                  Storage
-                </Button>
-              }
-            >
-              Usage is billed to one of your storage buckets. Create a bucket first, then come back here.
-            </Alert>
           ) : (
             <Stack spacing={2}>
               <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -276,7 +270,9 @@ const QuickstartBody = () => {
                   {key ? 'Create another key' : 'Create key'}
                 </LoadingButton>
                 <Typography variant="body2" color="text.secondary">
-                  Your SSCP wallet asks you to approve it.
+                  {firstKey
+                    ? 'Your SSCP wallet asks you to approve it, and once to set up billing for your account.'
+                    : 'Your SSCP wallet asks you to approve it.'}
                 </Typography>
               </Stack>
               {offerSessionKey && (
@@ -313,7 +309,7 @@ const QuickstartBody = () => {
                 <CopyButton text={key.token} label="Copy key" />
               </Stack>
               <Alert severity="warning" sx={{ marginTop: '12px' }}>
-                Copy it now: <strong>you won’t see it again</strong> after you leave this page. It works until{' '}
+                Copy it now: <strong>you won’t see it again</strong> after you close this. It works until{' '}
                 {fmtDate(key.expiresAt)} and can’t be revoked, so keep it private.
               </Alert>
             </Box>

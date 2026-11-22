@@ -73,7 +73,7 @@ function BaseUrl({ label, url }: { label: string; url: string }) {
 
 const ApiKeys = () => {
   const account = useAccount();
-  const { buckets, loading: bucketsLoading, error: bucketsError } = useOwnerBuckets();
+  const { buckets, loading: bucketsLoading, error: bucketsError, ensureBucket } = useOwnerBuckets();
 
   const [ttlDays, setTtlDays] = useState(30);
   const [busy, setBusy] = useState(false);
@@ -81,15 +81,16 @@ const ApiKeys = () => {
   const [shown, setShown] = useState<Shown | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // The key bills to one of the wallet's buckets, chosen behind the scenes.
-  const bucketId = buckets[0]?.id ?? '';
+  // The key bills to one of the wallet's buckets, chosen behind the scenes; the
+  // first key makes one when there is none (billingBucket.ts).
+  const firstKey = buckets.length === 0;
 
   const generate = async () => {
-    if (!bucketId) return;
     setBusy(true);
     setError(null);
     setCopied(false);
     try {
+      const bucketId = await ensureBucket();
       const ttlMs = ttlDays * DAY_MS;
       const token = await account.createInferenceApiKey(BigInt(bucketId), ttlMs);
       const expiresAt = Date.now() + ttlMs;
@@ -135,17 +136,6 @@ const ApiKeys = () => {
           <Typography variant="body2" color="text.secondary">
             Preparing…
           </Typography>
-        ) : buckets.length === 0 ? (
-          <Alert
-            severity="info"
-            action={
-              <Button component={NavLink} to="/content-storage" size="small">
-                Storage
-              </Button>
-            }
-          >
-            You need a storage bucket to bill inference against. Create one first.
-          </Alert>
         ) : (
           <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <TextField
@@ -166,7 +156,9 @@ const ApiKeys = () => {
               Create key
             </LoadingButton>
             <Typography variant="body2" color="text.secondary">
-              Your SSCP wallet asks you to approve it.
+              {firstKey
+                ? 'Your SSCP wallet asks you to approve it, and once to set up billing for your account.'
+                : 'Your SSCP wallet asks you to approve it.'}
             </Typography>
           </Stack>
         )}

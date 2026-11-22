@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from '@cluster-apps/ui';
 import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { observer } from 'mobx-react-lite';
-import { NavLink } from 'react-router-dom';
 
 import { PageHeader } from '~/components';
 import { useAccount } from '~/hooks';
@@ -11,7 +10,7 @@ import { taskLabel } from '~/inference/model';
 import { useModels, useOwnerBuckets } from '~/inference/useInference';
 import { DEFAULT_PRESET, USAGE_PRESET_KEYS, type UsagePreset } from '~/inference/usageMath';
 import { useUsageData, useUsageKey } from '~/inference/useUsage';
-import UsageView from './usage/UsageView';
+import UsageView, { EmptyUsage } from './usage/UsageView';
 import { color, CONTROL_HEIGHT, text } from '~/theme/tokens';
 
 /**
@@ -144,13 +143,8 @@ const Usage = () => {
   if (error) {
     body = <Alert severity="error">{error}</Alert>;
   } else if (!bucketId) {
-    body = loading || buckets.length > 0 ? (
-      <Muted>Loading…</Muted>
-    ) : (
-      <Alert severity="info" action={<Button component={NavLink} to="/content-storage" size="small">Storage</Button>}>
-        You need a storage bucket to meter inference against. Create one first.
-      </Alert>
-    );
+    // No bucket means no key has ever been made, so nothing was used: the first key creates it.
+    body = loading || buckets.length > 0 ? <Muted>Loading…</Muted> : <EmptyUsage />;
   } else if (key.kind === 'error') {
     body = (
       <Alert severity="error">
