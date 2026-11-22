@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import type { LedgerEntry } from '~/billing/api';
 import { shortDate, signedMoney, money } from '~/billing/format';
+import { color } from '~/theme/tokens';
 
 /**
  * All transactions — the full ledger, paged. The per-month view lives in each
@@ -70,7 +71,7 @@ export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | nu
                 <TableCell>
                   {typeLabel(e.entry_type)}
                 </TableCell>
-                <TableCell align="right" sx={{ color: amt > 0 ? 'success.main' : 'text.primary' }}>
+                <TableCell align="right" sx={{ color: amt > 0 ? color.success : color.text }}>
                   {signedMoney(amt)}
                 </TableCell>
                 <TableCell align="right" sx={{ color: 'text.secondary' }}>

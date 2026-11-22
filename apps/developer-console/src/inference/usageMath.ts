@@ -24,6 +24,7 @@
  *   (stat=max on the gateway), the highest of every scraped sample in the
  *   window, not the value a step happens to land on.
  */
+import { chartOther, chartPalette } from '~/theme/tokens';
 import { nameOf, type Series } from './metricsApi';
 
 export type UsagePreset = '1h' | '24h' | '7d' | '30d';
@@ -372,12 +373,9 @@ export interface StackSeries {
   total: number;
 }
 
-export const MODEL_PALETTE = ['#5b2bc9', '#2f7fd8', '#1f9e8f', '#e3892b', '#c2417a', '#8a6d00', '#9b7be8', '#3bb3a2', '#b4410c', '#5d7a99', '#6f8f1f', '#d95f8e'];
-export const OTHER_COLOR = '#c9c5d3';
-
 /** Model → colour by rank in `rows` (most GPU units first), the same in both charts and the table. */
 export function modelColors(rows: Array<{ model: string }>): Map<string, string> {
-  return new Map(rows.map((r, i) => [r.model, MODEL_PALETTE[i % MODEL_PALETTE.length]]));
+  return new Map(rows.map((r, i) => [r.model, chartPalette[i % chartPalette.length]]));
 }
 
 /** The most series a chart stacks before folding the rest into Other. */
@@ -410,7 +408,7 @@ export function stackSeries(byModel: Map<string, number[]>, totals: ByModel, col
   const restTotal = [...totals].filter(([m]) => !shown.has(m)).reduce((a, [, v]) => a + v, 0);
   return [
     ...top.map(own),
-    { key: '__other', label: `Other (${rest.length} models)`, model: null, color: OTHER_COLOR, data, total: restTotal },
+    { key: '__other', label: `Other (${rest.length} models)`, model: null, color: chartOther, data, total: restTotal },
   ];
 }
 

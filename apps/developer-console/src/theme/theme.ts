@@ -5,7 +5,7 @@ import { color, text } from './tokens';
 
 /**
  * Developer-console theme: the shared @cluster-apps/ui theme (HumanSans, primary
- * #5865F2, page background #F5F7FA, text #1D1B20, 8px/36px buttons) with the
+ * #5865F2, page background color.page (#F5F7FA), text #1D1B20, 8px/36px buttons) with the
  * few component defaults every console page shares, so pages don't restyle them
  * one by one:
  *   - secondary text #5E5C6B (the shared #818083 is below 4.5:1 on white at 13px),

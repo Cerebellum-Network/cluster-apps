@@ -32,9 +32,6 @@ import { BillingPayments } from './BillingPayments';
 import { BillingHistory } from './BillingHistory';
 import { ReplaceCardDialog } from './ReplaceCardDialog';
 
-/** A card's main line (plan name, card on file): body size, bold. */
-const cardValue = { fontSize: 16, lineHeight: '22px', fontWeight: 600 } as const;
-
 /**
  * Billing — one page (mockup board 10): balance, plan and payment method on top,
  * then Bills, one row per month, the open month expanded with its line items.
@@ -246,7 +243,7 @@ const Billing = () => {
           the action pinned to the bottom so the three line up. */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' }, gap: '20px' }}>
         <Section title="Balance" fill>
-          <Typography sx={{ fontSize: 28, lineHeight: '34px', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+          <Typography sx={{ ...text.amount, fontVariantNumeric: 'tabular-nums' }}>
             {balance.loading && bal == null ? '…' : money(bal)}
           </Typography>
           <Typography sx={{ ...text.secondary, marginTop: '4px' }}>{runwayText ?? autoStatus}</Typography>
@@ -258,7 +255,7 @@ const Billing = () => {
           </Stack>
         </Section>
         <Section title="Plan" actions={<ComingSoon />} fill>
-          <Typography sx={cardValue}>Pay as you go</Typography>
+          <Typography sx={text.value}>Pay as you go</Typography>
           <Box sx={{ marginTop: 'auto', paddingTop: '16px' }}>
             <Button variant="outlined" color="secondary" size="small" disabled>
               Change plan
@@ -266,7 +263,7 @@ const Billing = () => {
           </Box>
         </Section>
         <Section title="Payment method" fill>
-          <Typography sx={cardValue}>
+          <Typography sx={text.value}>
             {profile.loading
               ? 'Loading…'
               : card

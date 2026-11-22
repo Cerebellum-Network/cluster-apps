@@ -13,7 +13,6 @@ import {
   inView,
   modelColors,
   NO_FILTER,
-  OTHER_COLOR,
   PREVIOUS_LABEL,
   stackSeries,
   stepPhrase,
@@ -28,14 +27,20 @@ import {
 import UsageChart from './UsageChart';
 import UsageModelsTable from './UsageModelsTable';
 import UsageTiles from './UsageTiles';
-import { color, CONTROL_HEIGHT, text } from '~/theme/tokens';
+import { chartOther, color, CONTROL_HEIGHT, text } from '~/theme/tokens';
 
 /** "N requests were refused at your plan's limit of X at once." with what to do about it. */
 export function UpgradeNotice({ refused, limit }: { refused: number; limit: number | null }) {
   return (
     <Alert
       severity="warning"
-      sx={{ alignItems: 'center', '& .MuiAlert-action': { paddingTop: 0 } }}
+      sx={{
+        alignItems: 'center',
+        backgroundColor: color.warningTint,
+        color: color.text,
+        '& .MuiAlert-icon': { color: color.warning },
+        '& .MuiAlert-action': { paddingTop: 0 },
+      }}
       action={
         <Stack direction="row" alignItems="center" gap="8px" sx={{ paddingRight: '4px' }}>
           <Button size="small" variant="outlined" color="secondary" disabled>
@@ -175,7 +180,7 @@ const UsageView = ({ data, preset, gatewayKey, onAuthError, kindOf = () => 'Mode
     const colors = modelColors(rows);
     return {
       rows,
-      colorOf: (m: string) => colors.get(m) ?? OTHER_COLOR,
+      colorOf: (m: string) => colors.get(m) ?? chartOther,
       // The plan's limit is the account's, whatever is filtered.
       notice: throttleNotice(rows),
       gpu: stepsByModel(data.gpuSteps, data.window),
