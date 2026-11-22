@@ -40,7 +40,8 @@ export const PLOT_HEIGHT = 220;
 
 /**
  * One stacked bar chart by model, with a legend that carries each model's
- * total over the period (the same figure as the tiles and the table).
+ * total over the period (the same figure as the table). The period's total is
+ * the tile's, so the chart doesn't repeat it.
  */
 const UsageChart = ({ title, sub, startsMs, barMs, series, format }: {
   title: string;
@@ -53,16 +54,9 @@ const UsageChart = ({ title, sub, startsMs, barMs, series, format }: {
 }) => {
   const rows = startsMs.map((t, i) => ({ t, ...Object.fromEntries(series.map((s) => [s.key, s.data[i] ?? 0])) }));
   const time = timeAxis(startsMs, barMs);
-  const total = series.reduce((n, s) => n + s.total, 0);
+  // No total in the header: the tile above shows it (one number in one place).
   return (
-    <Section
-      title={title}
-      actions={
-        <Typography sx={text.secondary}>
-          {format(total)} total
-        </Typography>
-      }
-    >
+    <Section title={title}>
       <Typography sx={{ ...text.caption, marginTop: '-8px', marginBottom: '12px' }}>
         {sub}
       </Typography>

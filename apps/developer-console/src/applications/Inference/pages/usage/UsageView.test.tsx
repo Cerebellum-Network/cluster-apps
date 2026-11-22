@@ -28,6 +28,8 @@ describe('UsageView', () => {
     expect(html).toContain('qwen3-embed');
     expect(html).not.toContain('never-used');
     expect(html).toContain('8 / 8');
+    // One number in one place: the period totals are on the tiles, not again in the chart headers.
+    expect(html).not.toMatch(/\d total</);
     expect(html).toContain('>Filter<');
     expect(html).toContain('title="Filter to glm-5.3"');
     // Text stays on the shared scale (18 card titles and below); only icons are larger.
