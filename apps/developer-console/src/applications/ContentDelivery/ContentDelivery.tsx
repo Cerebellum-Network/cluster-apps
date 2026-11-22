@@ -15,6 +15,7 @@ import {
 
 import { useAccount } from '~/hooks';
 import { storageConfig } from '~/storage/storageConfig';
+import { mono, text } from '~/theme/tokens';
 import { PageHeader, Section, ComingSoon } from '~/components';
 
 /**
@@ -144,7 +145,7 @@ const ContentDelivery = () => {
                 padding="10px 14px"
                 borderRadius="8px"
                 border={(theme) => `1px solid ${theme.palette.divider}`}
-                sx={{ font: '13px/1.4 ui-monospace, Menlo, monospace', overflowX: 'auto', whiteSpace: 'nowrap' }}
+                sx={{ font: `13px/1.4 ${mono}`, overflowX: 'auto', whiteSpace: 'nowrap' }}
               >
                 {publicUrl}
               </Box>
@@ -167,7 +168,7 @@ const ContentDelivery = () => {
       {/* Data served — needs the bills feed, so the section holds its place with a
           Coming soon badge rather than a developer note. */}
       <Section title="Data served" actions={<ComingSoon />}>
-        <Typography variant="body2" sx={{ color: '#5E5C6B' }}>
+        <Typography sx={text.secondary}>
           Data served per day, against your plan’s monthly allowance, will show here once your plan is active.
         </Typography>
       </Section>

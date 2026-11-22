@@ -6,3 +6,4 @@ export * from './PageHeader';
 export * from './Section';
 export * from './ComingSoon';
 export * from './Layout';
+export * from './Pill';

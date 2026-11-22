@@ -1,12 +1,6 @@
 /*
- * Inference colour tokens, scoped to `.inference-root` and aligned to the
- * light-only MUI theme (same approach as billing.css).
+ * Inference pages share the console tokens in theme/tokens.ts; this scope class
+ * stays for page-level layout hooks only.
  */
 .inference-root {
-  --i-tx: #1d1b20;
-  --i-tx-dim: #818083;
-  --i-chip: #f5f7fa;
-  /* Code sample surface (quickstart "Show me how"). */
-  --i-code-bg: #0f1729;
-  --i-code-tx: #e2e8f0;
 }

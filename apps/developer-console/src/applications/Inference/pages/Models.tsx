@@ -12,22 +12,23 @@ import {
   TableContainer,
   styled,
 } from '@cluster-apps/ui';
-import { useMemo, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useMemo } from 'react';
+import { NavLink, useSearchParams } from 'react-router-dom';
+import { QuickstartDialog } from './Quickstart';
 
 import { useModels } from '~/inference/useInference';
 import { useBalance } from '~/billing/useBilling';
 import { usd } from '~/billing/format';
-import { PageHeader, Section, ComingSoon } from '~/components';
+import { PageHeader, Section, ComingSoon, Pill } from '~/components';
+import { color, text } from '~/theme/tokens';
 import { atCapacityNotice, taskLabel, type ModelCard, type StatusTone } from '~/inference/model';
 import type { GatewayModelStatus } from '~/inference/gateway';
-import ShowMeHowDialog from '../ShowMeHowDialog';
 
 const TONE_COLOR: Record<StatusTone, string> = {
-  success: '#2e7d32',
-  warning: '#ed6c02',
-  error: '#d32f2f',
-  neutral: '#9e9e9e',
+  success: color.success,
+  warning: color.warning,
+  error: color.danger,
+  neutral: color.textTertiary,
 };
 
 const STATUS_TEXT: Record<GatewayModelStatus, string> = {
@@ -44,18 +45,6 @@ const Dot = styled('span', { shouldForwardProp: (p) => p !== 'tone' })<{ tone: S
   borderRadius: '50%',
   backgroundColor: TONE_COLOR[tone],
   flexShrink: 0,
-}));
-
-const Hero = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: theme.spacing(3),
-  flexWrap: 'wrap',
-  padding: theme.spacing(3, 4),
-  borderRadius: 12,
-  backgroundColor: theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
 }));
 
 function PriceCell({ card }: { card: ModelCard }) {
@@ -81,7 +70,17 @@ function PriceCell({ card }: { card: ModelCard }) {
 const Models = () => {
   const { cards, loading, error, reload } = useModels();
   const balance = useBalance();
-  const [howOpen, setHowOpen] = useState(false);
+  // Get started opens as a dialog here; `?quickstart=1` deep-links to it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const quickstartOpen = searchParams.get('quickstart') === '1';
+  const openQuickstart = () => {
+    searchParams.set('quickstart', '1');
+    setSearchParams(searchParams);
+  };
+  const closeQuickstart = () => {
+    searchParams.delete('quickstart');
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const sorted = useMemo(() => {
     const rank: Record<string, number> = { available: 0, busy: 1, saturated: 2, unavailable: 3 };
@@ -103,40 +102,33 @@ const Models = () => {
         <PageHeader
           title="Models"
           actions={
-            <Typography variant="body2" color="text.secondary">
+            <Typography sx={text.secondary}>
               {balance.loading ? 'Balance …' : `Balance ${usd(balance.data ?? 0)}`}
             </Typography>
           }
         />
       </Box>
 
-      {/* Hero: create a key + call a model. */}
-      <Hero marginBottom="16px">
-        <Box minWidth={0}>
-          <Typography variant="h4" sx={{ color: 'primary.contrastText' }}>
-            Create an API key and call any model from your laptop or app
+      {/* Get started: same card and type scale as the rest of the console. */}
+      <Box marginBottom="16px">
+        <Section
+          title="Call a model from your laptop or app"
+          actions={
+            <Stack direction="row" spacing={1.5}>
+              <Button component={NavLink} to="/inference/keys" variant="outlined" color="secondary">
+                API keys
+              </Button>
+              <Button variant="contained" onClick={openQuickstart}>
+                Get started
+              </Button>
+            </Stack>
+          }
+        >
+          <Typography sx={text.secondary}>
+            Works with the OpenAI and Anthropic SDKs, Claude Code, and editors like Cursor. Speech models take plain HTTP.
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.75)', marginTop: '6px' }}>
-            Works with the OpenAI and Anthropic SDKs. Speech models take plain HTTP.
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1.5} flexShrink={0}>
-          <Button
-            variant="outlined"
-            onClick={() => setHowOpen(true)}
-            sx={{ color: 'primary.contrastText', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'primary.contrastText' } }}
-          >
-            Show me how
-          </Button>
-          <Button
-            component={NavLink}
-            to="/inference/keys"
-            sx={{ backgroundColor: 'primary.contrastText', color: 'primary.main', '&:hover': { backgroundColor: 'rgba(255,255,255,0.9)' } }}
-          >
-            Create API key
-          </Button>
-        </Stack>
-      </Hero>
+        </Section>
+      </Box>
 
       {/* Funds notice (no balance yet). */}
       {!balance.loading && !hasBalance && (
@@ -148,7 +140,7 @@ const Models = () => {
           marginBottom="16px"
           padding="14px 20px"
           borderRadius="12px"
-          sx={{ backgroundColor: 'secondary.light', border: (theme) => `1px solid ${theme.palette.divider}` }}
+          sx={{ backgroundColor: color.primaryTint, border: `1px solid ${color.border}` }}
         >
           <Typography variant="body2">
             Add a card or CERE to start: you get $10 to try, then pay only for what you use.
@@ -167,14 +159,12 @@ const Models = () => {
         justifyContent="space-between"
         spacing={2}
         marginBottom="20px"
-        padding="12px 20px"
-        borderRadius="12px"
-        sx={{ backgroundColor: 'background.default' }}
+        padding="0 22px"
       >
-        <Typography variant="body2" color="text.secondary">
-          Up to 8 requests at once across all models. Plans with higher limits are on the way.
+        <Typography sx={text.secondary}>
+          Up to 8 requests at once across all models.
         </Typography>
-        <ComingSoon />
+        <ComingSoon label="Higher limits coming soon" />
       </Stack>
 
       {notice && (
@@ -202,16 +192,15 @@ const Models = () => {
         </Typography>
       ) : (
         <Section flush>
-          <TableContainer sx={{ '& td': { paddingTop: '16px', paddingBottom: '16px' } }}>
+          <TableContainer sx={{ '& td': { paddingTop: '12px', paddingBottom: '12px' } }}>
             <Table>
             <TableHead>
               <TableRow>
-                <TableCell colSpan={4} sx={{ color: 'text.secondary' }}>
-                  {cards.length} models
-                </TableCell>
-                <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                  Status is live
-                </TableCell>
+                <TableCell sx={{ width: 24, paddingRight: 0 }} />
+                <TableCell>{`${cards.length} models`}</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Price</TableCell>
+                <TableCell align="right">Live status</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -229,15 +218,13 @@ const Models = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {taskLabel(card.task)}
-                    </Typography>
+                    <Pill>{taskLabel(card.task)}</Pill>
                   </TableCell>
                   <TableCell>
                     <PriceCell card={card} />
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2" sx={{ color: TONE_COLOR[card.capacity.tone] }} title={card.capacity.detail || undefined}>
+                    <Typography variant="body2" sx={{ color: TONE_COLOR[card.capacity.tone], fontWeight: 600 }} title={card.capacity.detail || undefined}>
                       {STATUS_TEXT[card.capacity.status]}
                     </Typography>
                   </TableCell>
@@ -249,7 +236,7 @@ const Models = () => {
         </Section>
       )}
 
-      <ShowMeHowDialog open={howOpen} onClose={() => setHowOpen(false)} cards={cards} />
+      <QuickstartDialog open={quickstartOpen} onClose={closeQuickstart} />
     </Box>
   );
 };

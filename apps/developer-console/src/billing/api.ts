@@ -56,10 +56,12 @@ export interface Rates {
 }
 
 // payment-service
+export type CardSummary = { brand: string | null; last4: string | null; exp_month: number | null; exp_year: number | null };
+
 export interface DeveloperProfile {
   account_pubkey: string;
   has_active_card: boolean;
-  card: { brand: string | null; last4: string | null; exp_month: number | null; exp_year: number | null } | null;
+  card: CardSummary | null;
   auto_recharge_threshold_usd: string | null;
   auto_recharge_amount_usd: string | null;
   status: string;
@@ -92,6 +94,12 @@ export class ApiError extends Error {
     this.status = status;
   }
 }
+
+/**
+ * A charge whose outcome is unknown: no answer (status 0) or a server error.
+ * The charge may have gone through, so the user must not be told it didn't.
+ */
+export const isUnconfirmed = (e: unknown): boolean => !(e instanceof ApiError) || e.status === 0 || e.status >= 500;
 
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   let res: Response;
@@ -178,6 +186,21 @@ export const payment = {
           role: 'developer',
           initial_charge_usd: amountUsd.toFixed(2),
           success_url: `${returnTo}?checkout=success`,
+          cancel_url: `${returnTo}?checkout=cancelled`,
+        },
+        newIdempotencyKey(),
+      ),
+    }).then((r) => r.checkout_url),
+  /** Stripe Checkout in setup mode: saves a new card without charging; it becomes the card on file. */
+  replaceCard: (account: string, returnTo: string) =>
+    call<{ checkout_url: string }>(`${pay}/v1/psp-methods`, {
+      method: 'POST',
+      ...json(
+        {
+          account_pubkey: account,
+          role: 'developer',
+          setup_only: true,
+          success_url: `${returnTo}?checkout=card`,
           cancel_url: `${returnTo}?checkout=cancelled`,
         },
         newIdempotencyKey(),

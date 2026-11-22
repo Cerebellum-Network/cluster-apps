@@ -15,9 +15,11 @@ import { NavLink } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
 import { useOwnerBuckets } from '~/inference/useInference';
+import { rememberKey } from '~/inference/sessionKey';
 import { openAiBaseUrl, anthropicBaseUrl, speechHttpUrl } from '~/inference/gateway';
 import { PageHeader, Section, ComingSoon } from '~/components';
 import '~/inference/inference.css';
+import { color, mono, text } from '~/theme/tokens';
 
 /**
  * Inference → API keys (mockup): create a wallet-signed, shown-once COMPUTE
@@ -29,11 +31,11 @@ const TTL_DAYS = [7, 30, 90];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const Mono = styled(Box)(({ theme }) => ({
-  font: '13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace',
+  font: `13px/1.5 ${mono}`,
   wordBreak: 'break-all',
   padding: '12px 14px',
   borderRadius: 8,
-  backgroundColor: '#fff',
+  backgroundColor: color.surface,
   border: `1px solid ${theme.palette.divider}`,
 }));
 
@@ -55,14 +57,14 @@ function BaseUrl({ label, url }: { label: string; url: string }) {
       .catch(() => {});
   };
   return (
-    <Box flex={1} minWidth={0} padding="14px" borderRadius="10px" border={(theme) => `1px solid ${theme.palette.divider}`}>
+    <Box flex={1} minWidth={0} padding="14px 16px" borderRadius="12px" border={`1px solid ${color.border}`}>
       <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="8px">
         <Typography variant="subtitle2">{label}</Typography>
         <Button size="small" variant="outlined" color="secondary" onClick={copy}>
           {copied ? 'Copied' : 'Copy'}
         </Button>
       </Stack>
-      <Typography sx={{ font: '12.5px/1.5 ui-monospace, Menlo, monospace', color: 'var(--i-tx-dim)', wordBreak: 'break-all' }}>
+      <Typography sx={{ font: `12.5px/1.5 ${mono}`, color: color.textSecondary, wordBreak: 'break-all' }}>
         {url}
       </Typography>
     </Box>
@@ -71,7 +73,7 @@ function BaseUrl({ label, url }: { label: string; url: string }) {
 
 const ApiKeys = () => {
   const account = useAccount();
-  const { buckets, loading: bucketsLoading, error: bucketsError } = useOwnerBuckets();
+  const { buckets, loading: bucketsLoading, error: bucketsError, ensureBucket } = useOwnerBuckets();
 
   const [ttlDays, setTtlDays] = useState(30);
   const [busy, setBusy] = useState(false);
@@ -79,18 +81,22 @@ const ApiKeys = () => {
   const [shown, setShown] = useState<Shown | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // The key bills to one of the wallet's buckets, chosen behind the scenes.
-  const bucketId = buckets[0]?.id ?? '';
+  // The key bills to one of the wallet's buckets, chosen behind the scenes; the
+  // first key makes one when there is none (billingBucket.ts).
+  const firstKey = buckets.length === 0;
 
   const generate = async () => {
-    if (!bucketId) return;
     setBusy(true);
     setError(null);
     setCopied(false);
     try {
+      const bucketId = await ensureBucket();
       const ttlMs = ttlDays * DAY_MS;
       const token = await account.createInferenceApiKey(BigInt(bucketId), ttlMs);
-      setShown({ token, expiresAt: Date.now() + ttlMs });
+      const expiresAt = Date.now() + ttlMs;
+      setShown({ token, expiresAt });
+      // Offered as "Use the key you just created" on the Quickstart.
+      if (account.account) rememberKey({ token, expiresAt, account: account.account });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -111,7 +117,14 @@ const ApiKeys = () => {
   return (
     <Box className="inference-root">
       <Box marginBottom="20px">
-        <PageHeader title="API keys" />
+        <PageHeader
+          title="API keys"
+          actions={
+            <Button component={NavLink} to="/inference?quickstart=1" variant="outlined" color="secondary">
+              Get started
+            </Button>
+          }
+        />
       </Box>
 
       <Stack spacing="20px">
@@ -123,17 +136,6 @@ const ApiKeys = () => {
           <Typography variant="body2" color="text.secondary">
             Preparing…
           </Typography>
-        ) : buckets.length === 0 ? (
-          <Alert
-            severity="info"
-            action={
-              <Button component={NavLink} to="/content-storage" size="small">
-                Storage
-              </Button>
-            }
-          >
-            You need a storage bucket to bill inference against. Create one first.
-          </Alert>
         ) : (
           <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <TextField
@@ -150,11 +152,13 @@ const ApiKeys = () => {
                 </MenuItem>
               ))}
             </TextField>
-            <LoadingButton loading={busy} onClick={generate}>
+            <LoadingButton variant="contained" loading={busy} onClick={generate}>
               Create key
             </LoadingButton>
             <Typography variant="body2" color="text.secondary">
-              Your wallet asks you to sign it.
+              {firstKey
+                ? 'Your SSCP wallet asks you to approve it, and once to set up billing for your account.'
+                : 'Your SSCP wallet asks you to approve it.'}
             </Typography>
           </Stack>
         )}
@@ -169,18 +173,18 @@ const ApiKeys = () => {
           <Box
             marginTop="16px"
             padding="16px"
-            borderRadius="10px"
-            sx={{ backgroundColor: 'var(--i-chip)', border: (theme) => `1px solid ${theme.palette.divider}` }}
+            borderRadius="12px"
+            sx={{ backgroundColor: color.inset, border: `1px solid ${color.border}` }}
           >
             <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="8px">
               <Typography variant="subtitle2">New key · expires {fmtDate(shown.expiresAt)}</Typography>
-              <Button size="small" onClick={copyKey}>
+              <Button size="small" variant="outlined" color="secondary" onClick={copyKey}>
                 {copied ? 'Copied' : 'Copy key'}
               </Button>
             </Stack>
             <Mono>{shown.token}</Mono>
             <Typography variant="body2" color="text.secondary" marginTop="10px">
-              <strong style={{ color: 'var(--i-tx)' }}>Shown once.</strong> It <strong style={{ color: 'var(--i-tx)' }}>can’t
+              <strong style={{ color: color.text }}>Shown once.</strong> It <strong style={{ color: color.text }}>can’t
               be revoked</strong>: anyone who has it can spend from your balance until {fmtDate(shown.expiresAt)}.
             </Typography>
           </Box>
@@ -194,13 +198,17 @@ const ApiKeys = () => {
           <BaseUrl label="Anthropic SDK" url={anthropicBaseUrl()} />
           <BaseUrl label="Speech models, plain HTTP" url={speechHttpUrl()} />
         </Stack>
-        <Typography variant="caption" color="text.secondary" display="block" marginTop="12px">
-          The key goes where the SDK expects its API key.
+        <Typography sx={{ ...text.secondary, marginTop: '12px' }}>
+          The key goes where the SDK expects its API key.{' '}
+          <Box component={NavLink} to="/inference?quickstart=1" sx={{ color: color.primary, fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+            See ready-to-run examples in Get started
+          </Box>
+          .
         </Typography>
         </Section>
 
         {/* Your keys — the list + revoke come later. */}
-        <Section title="Your keys" actions={<ComingSoon label="Later" />}>
+        <Section title="Your keys" actions={<ComingSoon />}>
           <Typography variant="body2" color="text.secondary">
             No list and no revoke yet.
           </Typography>

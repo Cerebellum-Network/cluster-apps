@@ -1,214 +1,187 @@
 /**
- * Data hooks for Inference → Usage. Three reads, all scoped to one bucket's
- * short-lived COMPUTE key (minted in memory, never stored):
- *   - useReadKey   — mint the key for the chosen bucket on an explicit click;
- *   - useLiveLimits — poll /limits for the "N of N at once" grid;
- *   - useUsageBoards — range totals (requests/GPU by model, tokens, refusals).
+ * Data hooks for Inference → Usage, all read with one bucket-scoped COMPUTE
+ * token:
+ *   - useUsageKey   — the token: cached per (account, bucket), minted on mount
+ *                     when none is cached (the wallet shows its own consent),
+ *                     re-minted once when the gateway rejects it;
+ *   - useUsageData  — the window's totals, previous-period totals and charts;
+ *   - useModelDetail — an opened row's in-flight peaks and refusals per bar.
+ * The arithmetic is in usageMath.ts.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAccount } from '~/hooks';
-import {
-  getLimits,
-  queryRange,
-  sumSeries,
-  totalsByLabel,
-  peakByBucket,
-  seriesMax,
-  withLabel,
-  GatewayError,
-  type BucketLimits,
-  type GroupTotal,
-  type Peak,
-  type Series,
-} from './metricsApi';
+import type { Series } from './metricsApi';
+import type { UsagePreset, UsageWindow } from './usageMath';
+import { isAuthError, LIMITED, loadUsage, metricsNotConfigured, PEAK, readBars, type UsageState } from './usageReads';
+import { dropUsageToken, readUsageToken, writeUsageToken, USAGE_TOKEN_TTL_MS } from './usageToken';
 
-/** In memory only, for this page's reads — long enough to browse, short enough not to linger. */
-const KEY_TTL_MS = 60 * 60 * 1000;
-/** The limiter moves in seconds; refresh the live grid on this cadence. */
-const LIVE_POLL_MS = 15_000;
-
-export type UsageRange = '24h' | '7d' | '30d';
-/** `chartBucketMs` is the "requests at once" chart's bar width: hourly for 24h, daily beyond. */
-export const USAGE_RANGES: Record<UsageRange, { ms: number; step: string; stepMs: number; chartBucketMs: number }> = {
-  '24h': { ms: 86_400_000, step: '15m', stepMs: 900_000, chartBucketMs: 3_600_000 },
-  '7d': { ms: 7 * 86_400_000, step: '1h', stepMs: 3_600_000, chartBucketMs: 86_400_000 },
-  '30d': { ms: 30 * 86_400_000, step: '6h', stepMs: 21_600_000, chartBucketMs: 86_400_000 },
-};
-export const RANGE_OPTIONS: UsageRange[] = ['24h', '7d', '30d'];
+/** Every failure the page shows, in user words; the raw message goes in a tooltip. */
+export const USAGE_DOWN = 'The usage service isn’t responding. Try Refresh.';
+export const MINT_FAILED = 'Couldn’t get access to your usage. Try Refresh to approve it in your wallet.';
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const statusOf = (e: unknown): number | undefined => (e instanceof GatewayError ? e.status : undefined);
-/** A read key that expired (or never had the scope): the caller re-mints it. */
-const isAuthError = (e: unknown): boolean => e instanceof GatewayError && (e.status === 401 || e.status === 403);
-/** The gateway 503s both when no metrics store is configured and when it fails; only the first is "not here yet". */
-const metricsNotConfigured = (e: unknown): boolean =>
-  e instanceof GatewayError && e.status === 503 && /not configured/i.test(e.message);
+export type { UsageData, UsageState } from './usageReads';
 
-// ── Read key (minted in memory per bucket) ───────────────────────────────────
+// ── Token ────────────────────────────────────────────────────────────────────
 
-export type ReadKey =
-  | { kind: 'idle' }
+export type UsageKey =
   | { kind: 'minting' }
   | { kind: 'ready'; key: string }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string; detail: string };
 
 /**
- * Mint a COMPUTE-only read key for `bucketId`, held in state only. Minting signs
- * with the wallet, which pops a passkey when the signer is cold, so it runs on an
- * explicit `mint()` click (a user gesture) rather than on open — the page shows a
- * "Show usage" button. A bucket change resets to idle so the new bucket is a fresh
- * click. `mint` doubles as the retry.
+ * One mint per (account, bucket) at a time across the app, so React's
+ * double-run effects (and a quick remount) never pop the wallet twice.
  */
-export function useReadKey(bucketId: string | null): { state: ReadKey; mint: () => void; expire: () => void } {
+const inFlight = new Map<string, Promise<string>>();
+
+/** A token rejected within this long of its mint is not re-minted again: one automatic re-mint, then an error. */
+const FRESH_MS = 10 * 60 * 1000;
+
+/**
+ * The usage token for `bucketId`: the cached one, or a fresh one minted on
+ * mount. `onAuthError` (a read got 401/403) drops it and re-mints once; a
+ * freshly minted token rejected again is an error, not a loop of wallet prompts. `retry` (Refresh) mints again.
+ */
+export function useUsageKey(bucketId: string | null): { state: UsageKey; onAuthError: () => void; retry: () => void } {
   const account = useAccount();
   const accountRef = useRef(account);
   accountRef.current = account;
-  const [state, setState] = useState<ReadKey>({ kind: 'idle' });
-  const cancelled = useRef(false);
+  const owner = account.account;
+  /** Which (account, bucket) the state is for: another's token is never handed out, not even for one render. */
+  const source = `${owner}:${bucketId}`;
+  const [tagged, setTagged] = useState<{ for: string; value: UsageKey }>({ for: source, value: { kind: 'minting' } });
+  const setState = useCallback((value: UsageKey) => setTagged({ for: source, value }), [source]);
+  const [attempt, setAttempt] = useState(0);
+  /** When this hook last minted: a token rejected soon after is not stale, the gateway is refusing it. */
+  const mintedAt = useRef(0);
 
-  // A new bucket (or none) drops the held key back to idle.
   useEffect(() => {
-    cancelled.current = false;
-    setState({ kind: 'idle' });
-    return () => { cancelled.current = true; };
-  }, [bucketId]);
-
-  const mint = useCallback(() => {
-    if (!bucketId) return;
+    if (!bucketId) return undefined;
+    let dead = false;
+    const cached = readUsageToken(owner, bucketId);
+    if (cached) {
+      setState({ kind: 'ready', key: cached });
+      return undefined;
+    }
     setState({ kind: 'minting' });
-    accountRef.current.createInferenceApiKey(BigInt(bucketId), KEY_TTL_MS).then(
-      (key) => { if (!cancelled.current) setState({ kind: 'ready', key }); },
-      (e: unknown) => { if (!cancelled.current) setState({ kind: 'error', message: messageOf(e) }); },
+    const id = `${owner}:${bucketId}`;
+    let mint = inFlight.get(id);
+    if (!mint) {
+      const expiresAt = Date.now() + USAGE_TOKEN_TTL_MS;
+      mintedAt.current = Date.now();
+      mint = accountRef.current.createInferenceApiKey(BigInt(bucketId), USAGE_TOKEN_TTL_MS).then((token) => {
+        writeUsageToken(owner, bucketId, token, expiresAt);
+        return token;
+      });
+      inFlight.set(id, mint);
+      const clear = () => inFlight.delete(id);
+      mint.then(clear, clear);
+    }
+    mint.then(
+      (key) => { if (!dead) setState({ kind: 'ready', key }); },
+      (e: unknown) => { if (!dead) setState({ kind: 'error', message: MINT_FAILED, detail: messageOf(e) }); },
     );
-  }, [bucketId]);
+    return () => { dead = true; };
+  }, [owner, bucketId, attempt, setState]);
 
-  // Drop the held key back to idle when a read rejects it (401/403): the 1-hour
-  // key has expired, so the page shows "Show usage" again rather than looping on
-  // a raw 401 (#191 review).
-  const expire = useCallback(() => {
-    setState((s) => (s.kind === 'ready' ? { kind: 'idle' } : s));
+  const onAuthError = useCallback(() => {
+    if (!bucketId) return;
+    dropUsageToken(owner, bucketId);
+    if (Date.now() - mintedAt.current < FRESH_MS) {
+      setState({ kind: 'error', message: USAGE_DOWN, detail: 'The gateway rejected a freshly minted token.' });
+      return;
+    }
+    setAttempt((n) => n + 1);
+  }, [owner, bucketId, setState]);
+
+  const retry = useCallback(() => {
+    mintedAt.current = 0;
+    setAttempt((n) => n + 1);
   }, []);
 
-  return { state, mint, expire };
+  const state: UsageKey = tagged.for === source ? tagged.value : { kind: 'minting' };
+  return { state, onAuthError, retry };
 }
 
-// ── Live limits (polled) ─────────────────────────────────────────────────────
+/**
+ * The window's reads; a refresh keeps the last answer on screen until the new
+ * one lands. The answer is tagged with the token and the preset it was read
+ * with: under another token (another account or bucket) it is dropped, not
+ * shown as "refreshing".
+ */
+export function useUsageData(key: string | null, preset: UsagePreset, reload: number, onAuthError: () => void): UsageState {
+  const tag = `${key}|${preset}`;
+  const [state, setState] = useState<{ tag: string; value: UsageState } | null>(null);
+  const authRef = useRef(onAuthError);
+  authRef.current = onAuthError;
 
-export type Live =
-  | { kind: 'loading' }
-  | { kind: 'error'; message: string; status?: number }
-  | { kind: 'ready'; limits: BucketLimits };
-
-/** /limits, polled while `key` is set. On 401/403 the key is expired via `onExpired`. */
-export function useLiveLimits(key: string | null, onExpired: () => void): Live {
-  const [state, setState] = useState<Live>({ kind: 'loading' });
   useEffect(() => {
     if (!key) return undefined;
     const ctl = new AbortController();
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const tick = () => {
-      getLimits(key, ctl.signal).then(
-        (limits) => {
-          if (ctl.signal.aborted) return;
-          setState({ kind: 'ready', limits });
-          timer = setTimeout(tick, LIVE_POLL_MS);
-        },
-        (e: unknown) => {
-          if (ctl.signal.aborted) return;
-          // An expired key resets the page; don't keep polling a 401.
-          if (isAuthError(e)) { onExpired(); return; }
-          setState({ kind: 'error', message: messageOf(e), status: statusOf(e) });
-          timer = setTimeout(tick, LIVE_POLL_MS);
-        },
-      );
-    };
-    setState({ kind: 'loading' });
-    tick();
-    return () => { ctl.abort(); if (timer) clearTimeout(timer); };
-  }, [key, onExpired]);
-  return state;
-}
-
-// ── Range boards (totals over the selected window) ───────────────────────────
-
-export interface UsageBoards {
-  totalRequests: number;
-  requestsByModel: GroupTotal[];
-  gpuByModel: GroupTotal[];
-  refusalsByReason: GroupTotal[];
-  totalRefusals: number;
-  /** Peak concurrent requests per time bucket, for the "requests at once" chart. */
-  peaks: Peak[];
-  /** The bucket's concurrency limit (0 when the gateway doesn't report it). */
-  concurrencyLimit: number;
-}
-
-export type Boards =
-  | { kind: 'loading' }
-  /** No VictoriaMetrics on this cluster — the board can't exist here yet. */
-  | { kind: 'unavailable' }
-  | { kind: 'error'; message: string; status?: number }
-  | { kind: 'ready'; data: UsageBoards };
-
-async function loadBoards(key: string, range: UsageRange, nowMs: number, signal: AbortSignal): Promise<UsageBoards> {
-  const { ms, step, stepMs, chartBucketMs } = USAGE_RANGES[range];
-  // End at `now`, not the last whole step boundary: a usage page should show the
-  // call you just made, so the current (partial) step is included — its increase()
-  // is the partial total so far. `from` is step-aligned to keep the buckets clean.
-  const toMs = nowMs;
-  const fromMs = Math.floor((nowMs - ms) / stepMs) * stepMs;
-  const counter = (metric: Parameters<typeof queryRange>[1]['metric'], groupBy: Parameters<typeof queryRange>[1]['groupBy']) =>
-    queryRange(key, { metric, groupBy, stat: 'increase', window: step }, fromMs, toMs, step, stepMs, signal);
-
-  // Tokens (inference_gateway_usage_total) are intentionally not read: the series
-  // exist per direction but under-count — ~half the tokens drop (10 of 40 across
-  // two glm-5.3 calls, bucket 577182, 2026-11-19; a short-window increase() probe
-  // read 0). Can't tell gateway counting from an increase() artifact — the metrics
-  // API exposes only rate/increase, never the raw counter. Reliable per-token usage
-  // is the gateway usage journal (D35), so Usage marks tokens "Coming soon" until then.
-  // inflight is a gauge (no stat): its range values give the peak-concurrency
-  // chart (state=used) against the limit (state=max). Extra, like refusals — an
-  // older gateway without it still draws the rest (#191 review, board 7).
-  const extra = (e: unknown): Series[] => {
-    if (signal.aborted || metricsNotConfigured(e)) throw e;
-    return [];
-  };
-  const [req, gpu, limited, inflight] = await Promise.all([
-    counter('inference_gateway_requests_total', 'model'),
-    counter('inference_gateway_gpu_units_total', 'model'),
-    counter('inference_gateway_limited_total', 'reason').catch(extra),
-    queryRange(key, { metric: 'inference_gateway_inflight', groupBy: 'state' }, fromMs, toMs, step, stepMs, signal).catch(extra),
-  ]);
-
-  const nonZero = (g: GroupTotal) => g.total > 0;
-  return {
-    totalRequests: sumSeries(req),
-    requestsByModel: totalsByLabel(req, 'model').filter(nonZero),
-    gpuByModel: totalsByLabel(gpu, 'model').filter(nonZero),
-    refusalsByReason: totalsByLabel(limited, 'reason').filter(nonZero),
-    totalRefusals: sumSeries(limited),
-    peaks: peakByBucket(withLabel(inflight, 'state', 'used'), chartBucketMs),
-    concurrencyLimit: seriesMax(withLabel(inflight, 'state', 'max')),
-  };
-}
-
-export function useUsageBoards(key: string | null, range: UsageRange, reload: number, onExpired: () => void): Boards {
-  const [state, setState] = useState<Boards>({ kind: 'loading' });
-  useEffect(() => {
-    if (!key) return undefined;
-    const ctl = new AbortController();
-    setState({ kind: 'loading' });
-    loadBoards(key, range, Date.now(), ctl.signal).then(
-      (data) => { if (!ctl.signal.aborted) setState({ kind: 'ready', data }); },
+    setState((s) =>
+      s && s.tag === tag && s.value.kind === 'ready'
+        ? { tag, value: { ...s.value, refreshing: true } }
+        : { tag, value: { kind: 'loading' } },
+    );
+    loadUsage(key, preset, Date.now(), ctl.signal).then(
+      (data) => { if (!ctl.signal.aborted) setState({ tag, value: { kind: 'ready', data, refreshing: false } }); },
       (e: unknown) => {
         if (ctl.signal.aborted) return;
-        if (isAuthError(e)) { onExpired(); return; }
-        if (metricsNotConfigured(e)) setState({ kind: 'unavailable' });
-        else setState({ kind: 'error', message: messageOf(e), status: statusOf(e) });
+        if (isAuthError(e)) { authRef.current(); return; }
+        setState({ tag, value: metricsNotConfigured(e) ? { kind: 'unavailable' } : { kind: 'error', message: USAGE_DOWN, detail: messageOf(e) } });
       },
     );
     return () => ctl.abort();
-  }, [key, range, reload, onExpired]);
-  return state;
+    // `tag` carries the key and the preset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tag, reload]);
+
+  if (!key || !state || state.tag !== tag) return { kind: 'loading' };
+  return state.value;
+}
+
+// ── An opened row ────────────────────────────────────────────────────────────
+
+export interface ModelDetail {
+  /** max_over_time of in flight per bar. */
+  peak: Series[];
+  /** 429s per bar, `sum by (reason)`. */
+  refused: Series[];
+}
+
+export type DetailState =
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string; detail: string }
+  | { kind: 'ready'; data: ModelDetail };
+
+/** One opened row's two range reads, filtered to the model. */
+export function useModelDetail(key: string, model: string, w: UsageWindow, onAuthError: () => void): DetailState {
+  // `nowMs` too: a Refresh (manual or auto) reads the opened row again, not only the page.
+  const tag = `${key}|${model}|${w.fromMs}|${w.toMs}|${w.barMs}|${w.nowMs}`;
+  const [state, setState] = useState<{ for: string; model: string; value: DetailState } | null>(null);
+  const authRef = useRef(onAuthError);
+  authRef.current = onAuthError;
+  useEffect(() => {
+    const ctl = new AbortController();
+    // A refresh (auto or manual) keeps the last chart on screen until the new one lands.
+    setState((s) => (s?.value.kind === 'ready' && s.model === model ? s : { for: tag, model, value: { kind: 'loading' } }));
+    Promise.all([
+      readBars(key, { ...PEAK, labels: { ...PEAK.labels, model } }, w, ctl.signal),
+      readBars(key, { metric: LIMITED, groupBy: 'reason', stat: 'increase', labels: { model } }, w, ctl.signal),
+    ]).then(
+      ([peak, refused]) => { if (!ctl.signal.aborted) setState({ for: tag, model, value: { kind: 'ready', data: { peak, refused } } }); },
+      (e: unknown) => {
+        if (ctl.signal.aborted) return;
+        if (isAuthError(e)) { authRef.current(); return; }
+        setState({ for: tag, model, value: { kind: 'error', message: USAGE_DOWN, detail: messageOf(e) } });
+      },
+    );
+    return () => ctl.abort();
+    // `tag` carries the key, model and window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tag]);
+  if (state?.for === tag) return state.value;
+  return state?.model === model && state.value.kind === 'ready' ? state.value : { kind: 'loading' };
 }

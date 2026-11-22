@@ -1,11 +1,8 @@
 /**
  * The Inference Gateway's per-bucket limits and usage metrics, for the Usage
- * board. Structurally ported from ROC (src/features/inferenceLimits/limitsApi.ts
- * + limitsMath.ts) — but with the metric NAMES this gateway actually serves.
- *
- * ROC's whitelist (`inference_gateway_bucket_*` / `model_inflight`) is stale and
- * 400s on the live gateway; the names below were verified against the test
- * deployment on bucket 577182 (2026-11-19). Anything off the whitelist is a 400.
+ * page. Ported from ROC (src/features/inferenceLimits/limitsApi.ts +
+ * limitsMath.ts). The metric names match the gateway's whitelist
+ * (ddc-node cluster/inference-gateway/metrics/query.go); anything off it is a 400.
  *
  * Both routes are scoped to the bucket of the COMPUTE key presented, so a key
  * only ever reads its own bucket's usage.
@@ -43,13 +40,15 @@ export interface BucketLimits {
 }
 
 /**
- * The metrics the gateway serves (verified). Counters end in `_total` and want
- * stat=increase; `inflight` is a gauge. groupBy per metric:
- *   requests_total  → model (also status)
- *   usage_total     → direction (input|output); carries a `unit` axis
- *   gpu_units_total → model
- *   limited_total   → reason (rate_limited|saturated)
- *   inflight        → state (used|max)
+ * The metrics the gateway serves. Counters end in `_total` and take
+ * stat=rate|increase; `inflight` is a gauge that takes stat=max, which the
+ * gateway turns into `max_over_time(inflight[window])` — the peak over every
+ * scraped sample, not only the ones a step lands on. Labels per metric:
+ *   requests_total  → model, status_class, caller
+ *   usage_total     → model, unit (token|second|image), direction (input|output|cached), caller
+ *   gpu_units_total → model, caller
+ *   limited_total   → model, reason (rate_limited = your limit | saturated = model full)
+ *   inflight        → model, state (used | max = the configured limit)
  */
 export type GatewayMetric =
   | 'inference_gateway_requests_total'
@@ -58,16 +57,18 @@ export type GatewayMetric =
   | 'inference_gateway_limited_total'
   | 'inference_gateway_inflight';
 
-export type GroupBy = 'model' | 'direction' | 'reason' | 'status' | 'state' | 'unit';
+export type GroupBy = 'model' | 'direction' | 'reason' | 'status_class' | 'state' | 'unit' | 'caller';
 
 export interface MetricsQuery {
   metric: GatewayMetric;
-  /** A range query when set; an instant query (rate over the last 5m) otherwise. */
+  /** A range query when set; an instant query otherwise. */
   range?: { from: Date; to: Date; step: string };
+  /** An instant query's evaluation time; now when unset. Ignored with `range`. */
+  at?: Date;
   groupBy?: GroupBy;
-  /** Counters only. */
-  stat?: 'rate' | 'increase';
-  /** The increase/rate window per step (usually the step). */
+  /** `rate`/`increase` on counters; `max` (the peak over `window`) on the inflight gauge. */
+  stat?: 'rate' | 'increase' | 'max';
+  /** The stat's lookback: the step for a range query, the whole span for a total. */
   window?: string;
   labels?: Record<string, string>;
 }
@@ -93,61 +94,6 @@ export function toSeries(body: unknown): Series[] {
 
 /** "1338/glm-5.3/v1.0.0" → "glm-5.3"; leaves a bare name untouched. */
 export const nameOf = (modelId: string): string => (modelId.includes('/') ? modelId.split('/')[1] ?? modelId : modelId);
-
-/** Sum of every point across every series — a counter's total over the range. */
-export function sumSeries(series: Series[]): number {
-  let total = 0;
-  for (const s of series) for (const [, v] of s.points) if (Number.isFinite(v)) total += v;
-  return total;
-}
-
-export interface GroupTotal { group: string; total: number }
-
-/**
- * Totals per value of one label, largest first. A series missing the label is
- * bucketed under "". Used for requests-by-model, gpu-by-model, refusals-by-reason.
- */
-export function totalsByLabel(series: Series[], label: string): GroupTotal[] {
-  const by = new Map<string, number>();
-  for (const s of series) {
-    const g = s.labels[label] ?? '';
-    let sum = by.get(g) ?? 0;
-    for (const [, v] of s.points) if (Number.isFinite(v)) sum += v;
-    by.set(g, sum);
-  }
-  return [...by.entries()].map(([group, total]) => ({ group, total })).sort((a, b) => b.total - a.total);
-}
-
-export interface Peak { t: number; peak: number }
-
-/**
- * The highest value in each time bucket across these gauge series — e.g. the
- * daily (or hourly) peak of in-flight requests, for the "requests at once"
- * chart. `bucketMs` floors each point's timestamp; empty buckets are omitted.
- */
-export function peakByBucket(series: Series[], bucketMs: number): Peak[] {
-  const by = new Map<number, number>();
-  for (const s of series) {
-    for (const [t, v] of s.points) {
-      if (!Number.isFinite(v)) continue;
-      const bucket = Math.floor(t / bucketMs) * bucketMs;
-      by.set(bucket, Math.max(by.get(bucket) ?? 0, v));
-    }
-  }
-  return [...by.entries()].map(([t, peak]) => ({ t, peak })).sort((a, b) => a.t - b.t);
-}
-
-/** The largest single point across these series — e.g. the concurrency limit from the `max` gauge. */
-export function seriesMax(series: Series[]): number {
-  let m = 0;
-  for (const s of series) for (const [, v] of s.points) if (Number.isFinite(v)) m = Math.max(m, v);
-  return m;
-}
-
-/** Series carrying a given label value (e.g. the `used` vs `max` state of inflight). */
-export function withLabel(series: Series[], label: string, value: string): Series[] {
-  return series.filter((s) => s.labels[label] === value);
-}
 
 /**
  * [from, to] cut into pieces spanning at most `maxMs`, each starting one step
@@ -221,6 +167,8 @@ export async function queryMetrics(key: string, q: MetricsQuery, signal?: AbortS
     params.set('from', q.range.from.toISOString().replace(/\.\d{3}Z$/, 'Z'));
     params.set('to', q.range.to.toISOString().replace(/\.\d{3}Z$/, 'Z'));
     params.set('step', q.range.step);
+  } else if (q.at) {
+    params.set('to', q.at.toISOString().replace(/\.\d{3}Z$/, 'Z'));
   }
   if (q.groupBy) params.set('groupBy', q.groupBy);
   if (q.stat) params.set('stat', q.stat);
@@ -229,13 +177,35 @@ export async function queryMetrics(key: string, q: MetricsQuery, signal?: AbortS
   return toSeries(await get(`${base()}/api/v1/metrics?${params}`, key, signal));
 }
 
-/** The gateway's default cap on a range query's span (INFERENCE_GATEWAY_METRICS_MAX_WINDOW). */
-export const RANGE_QUERY_MAX_MS = 86_400_000;
-
 /**
- * A counter's total over [fromMs, toMs]: the range split under the gateway's
- * span cap, each chunk summed as step increases, merged back together.
+ * The span one range query may cover. Older gateways cap it at 24h
+ * (INFERENCE_GATEWAY_METRICS_MAX_WINDOW); reading in 24h chunks works on both.
  */
+export const RANGE_QUERY_MAX_MS = 86_400_000;
+/** Chunks read at once, so a 30-day range doesn't fire thirty requests together. */
+const RANGE_QUERY_PARALLEL = 4;
+
+/** `run` over `items`, at most `limit` at a time; the first failure rejects. */
+export async function mapLimited<T, R>(items: T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (!failed && next < items.length) {
+      const i = next++;
+      try {
+        out[i] = await run(items[i]);
+      } catch (e) {
+        failed = true;
+        throw e;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+  return out;
+}
+
+/** A range query split under the span cap, the chunks joined back by labels. */
 export async function queryRange(
   key: string,
   q: Omit<MetricsQuery, 'range'>,
@@ -246,8 +216,8 @@ export async function queryRange(
   signal?: AbortSignal,
 ): Promise<Series[]> {
   const chunks = chunkRange(fromMs, toMs, RANGE_QUERY_MAX_MS, stepMs);
-  const parts = await Promise.all(
-    chunks.map((c) => queryMetrics(key, { ...q, range: { from: new Date(c.from), to: new Date(c.to), step } }, signal)),
+  const parts = await mapLimited(chunks, RANGE_QUERY_PARALLEL, (c) =>
+    queryMetrics(key, { ...q, range: { from: new Date(c.from), to: new Date(c.to), step } }, signal),
   );
   return mergeSeries(parts);
 }

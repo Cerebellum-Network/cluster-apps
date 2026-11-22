@@ -14,21 +14,23 @@ import {
   Alert,
 } from '@cluster-apps/ui';
 import { Dialog, DialogTitle, DialogContent } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { Close, KeyboardArrowRight } from '@mui/icons-material';
 import { observer } from 'mobx-react-lite';
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { useAccount } from '~/hooks';
-import { PageHeader, Section, ComingSoon } from '~/components';
+import { PageHeader, Section, ComingSoon, Pill } from '~/components';
+import { text } from '~/theme/tokens';
 import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
 import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
 import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
-import { readCheckoutAmount } from '~/billing/checkout';
+import { cardReturnStatus, readCardBefore, readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
 import { BillingHistory } from './BillingHistory';
+import { ReplaceCardDialog } from './ReplaceCardDialog';
 
 /**
  * Billing — one page (mockup board 10): balance, plan and payment method on top,
@@ -92,18 +94,26 @@ const Billing = () => {
   // unmounted — shows the confirmation and polls the reload while the webhook
   // lands (#190 review).
   const [checkoutOk, setCheckoutOk] = useState<number | null>(null);
+  // Back from Replace card: the card on file before Stripe (see checkout.ts), until dismissed.
+  const [cardReturn, setCardReturn] = useState<{ before: string | null } | null>(null);
+  const [pollDone, setPollDone] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     const result = q.get('checkout');
     if (!result) return;
-    const paid = readCheckoutAmount();
+    if (result === 'card') setCardReturn({ before: readCardBefore() });
+    const paid = result === 'card' ? null : readCheckoutAmount();
     if (result === 'success') setCheckoutOk(paid ?? 0);
     q.delete('checkout');
     const rest = q.toString();
     window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash);
     reloadPayments();
     const t = setInterval(reloadPayments, 3000);
-    const stop = setTimeout(() => clearInterval(t), 30_000);
+    const stop = setTimeout(() => {
+      clearInterval(t);
+      setPollDone(true);
+    }, 30_000);
     return () => {
       clearInterval(t);
       clearTimeout(stop);
@@ -151,6 +161,8 @@ const Billing = () => {
   };
 
   const card = profile.data?.has_active_card ? profile.data.card : null;
+  // The new card shows only once the PSP webhook lands: "saving" until the profile has it.
+  const cardStatus = cardReturn && cardReturnStatus(cardReturn.before, profile.data ? card : undefined, pollDone);
   const autoOn = profile.data?.auto_recharge_threshold_usd && profile.data?.auto_recharge_amount_usd;
   const autoStatus = autoOn
     ? `Auto top-up ${money(profile.data!.auto_recharge_amount_usd)} below ${money(profile.data!.auto_recharge_threshold_usd)}`
@@ -201,11 +213,6 @@ const Billing = () => {
       <PageHeader
         title="Billing"
         subtitle="US dollars"
-        actions={
-          <Button variant="contained" onClick={() => setAddOpen((o) => !o)}>
-            Add funds
-          </Button>
-        }
       />
 
       {(bills.error || balance.error) && (
@@ -214,68 +221,83 @@ const Billing = () => {
         </Typography>
       )}
 
+      {cardStatus === 'saving' && <Alert severity="info">Card saved, updating…</Alert>}
+      {cardStatus === 'updated' && (
+        <Alert severity="success" onClose={() => setCardReturn(null)}>
+          Card updated. New payments use it.
+        </Alert>
+      )}
+      {cardStatus === 'slow' && (
+        <Alert severity="warning" onClose={() => setCardReturn(null)}>
+          We’re still saving your card. Refresh in a minute.
+        </Alert>
+      )}
+
       {checkoutOk != null && (
         <Alert severity="success" onClose={() => setCheckoutOk(null)}>
           {checkoutOk > 0 ? `${money(checkoutOk)} added.` : 'Payment received.'}
         </Alert>
       )}
 
-      {/* Balance / Plan / Payment method */}
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing="20px" alignItems="stretch">
-        <Box flex={1}>
-          <Section>
-            <Typography sx={{ fontSize: 12, color: 'text.secondary' }}>Balance</Typography>
-            <Typography sx={{ fontSize: 32, fontWeight: 700, marginTop: '4px', lineHeight: 1.1 }}>
-              {balance.loading && bal == null ? '…' : money(bal)}
-            </Typography>
-            {runwayText && <Typography sx={{ fontSize: 13, color: 'text.secondary', marginTop: '2px' }}>{runwayText}</Typography>}
-            <Stack direction="row" alignItems="center" spacing={1} marginTop="14px">
-              <Button variant="contained" size="small" onClick={() => setAddOpen(true)}>
-                Add funds
-              </Button>
-              <Typography sx={{ fontSize: 13, color: 'text.secondary' }}>· {autoStatus}</Typography>
-            </Stack>
-          </Section>
-        </Box>
-        <Box flex={1}>
-          <Section title="Plan" actions={<ComingSoon />}>
-            <Typography sx={{ fontSize: 18, fontWeight: 700 }}>Pay as you go</Typography>
-            <Typography sx={{ fontSize: 13, color: 'text.secondary', marginTop: '2px' }}>
-              Free and Pro plans are on the way.
-            </Typography>
-            <Button variant="outlined" color="secondary" size="small" disabled sx={{ marginTop: '12px' }}>
+      {/* Balance / Plan / Payment method: equal-height cards, one title style,
+          the action pinned to the bottom so the three line up. */}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' }, gap: '20px' }}>
+        <Section title="Balance" fill>
+          <Typography sx={{ ...text.amount, fontVariantNumeric: 'tabular-nums' }}>
+            {balance.loading && bal == null ? '…' : money(bal)}
+          </Typography>
+          <Typography sx={{ ...text.secondary, marginTop: '4px' }}>{runwayText ?? autoStatus}</Typography>
+          <Stack direction="row" alignItems="center" spacing={1.5} sx={{ marginTop: 'auto', paddingTop: '16px' }}>
+            <Button variant="outlined" color="secondary" size="small" onClick={() => setAddOpen(true)}>
+              Add funds
+            </Button>
+            {runwayText && <Typography sx={text.secondary}>{autoStatus}</Typography>}
+          </Stack>
+        </Section>
+        <Section title="Plan" actions={<ComingSoon />} fill>
+          <Typography sx={text.value}>Pay as you go</Typography>
+          <Box sx={{ marginTop: 'auto', paddingTop: '16px' }}>
+            <Button variant="outlined" color="secondary" size="small" disabled>
               Change plan
             </Button>
-          </Section>
-        </Box>
-        <Box flex={1}>
-          <Section title="Payment method">
-            <Typography sx={{ fontSize: 18, fontWeight: 700 }}>
-              {profile.loading
-                ? 'Loading…'
-                : card
-                  ? `${brandName(card.brand)} ···· ${card.last4 ?? '••••'}`
-                  : 'No card on file'}
+          </Box>
+        </Section>
+        <Section title="Payment method" fill>
+          <Typography sx={text.value}>
+            {profile.loading
+              ? 'Loading…'
+              : card
+                ? `${brandName(card.brand)} ···· ${card.last4 ?? '••••'}`
+                : 'No card on file'}
+          </Typography>
+          {card?.exp_month && card.exp_year && (
+            <Typography sx={{ ...text.secondary, marginTop: '4px' }}>
+              {`Expires ${String(card.exp_month).padStart(2, '0')}/${card.exp_year}`}
             </Typography>
-            {card && (
-              <Stack direction="row" alignItems="center" spacing={1} marginTop="10px">
-                <Button variant="outlined" color="secondary" size="small" disabled>
-                  Replace
-                </Button>
-                <ComingSoon />
-              </Stack>
-            )}
-          </Section>
-        </Box>
-      </Stack>
+          )}
+          {!profile.loading && (
+            <Box sx={{ marginTop: 'auto', paddingTop: '16px' }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                disabled={!pubkey}
+                onClick={() => setCardOpen(true)}
+              >
+                {card ? 'Replace card' : 'Add card'}
+              </Button>
+            </Box>
+          )}
+        </Section>
+      </Box>
 
-      {/* Add funds dialog (mockup board 11). Opened from the page header and the
-          balance card; the account menu / low-balance alert deep-link to it. */}
+      {/* Add funds dialog (mockup board 11). Opened from the balance card; the
+          account menu and the low-balance alert deep-link to it (?add=1). */}
       <Dialog open={addOpen && !!pubkey} onClose={closeAdd} maxWidth="md" fullWidth>
         <DialogTitle sx={{ paddingBottom: 1 }}>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             Add funds
-            <IconButton size="small" onClick={closeAdd}>
+            <IconButton size="small" aria-label="Close" onClick={closeAdd}>
               <Close sx={{ fontSize: 18 }} />
             </IconButton>
           </Stack>
@@ -296,6 +318,8 @@ const Billing = () => {
         </DialogContent>
       </Dialog>
 
+      {pubkey && <ReplaceCardDialog open={cardOpen} account={pubkey} card={card} onClose={() => setCardOpen(false)} />}
+
       {/* Bills, one row per month */}
       <Section title="Bills" flush>
         {loading && months.length === 0 ? (
@@ -312,10 +336,10 @@ const Billing = () => {
           <Table>
             <TableHead>
               <TableRow>
+                <TableCell sx={{ width: 40 }} />
                 <TableCell>Month</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Total</TableCell>
-                <TableCell align="right" sx={{ width: 40 }} />
               </TableRow>
             </TableHead>
             <TableBody>
@@ -328,17 +352,30 @@ const Billing = () => {
                       onClick={() => setOpenMonth(open ? null : m.month)}
                       sx={{ cursor: 'pointer', '& > td': { borderBottom: open ? 'none' : undefined } }}
                     >
+                      {/* The toggle is a real button (keyboard, aria-expanded), like the Usage models table; the row click is a shortcut. */}
+                      <TableCell sx={{ paddingRight: 0 }}>
+                        <IconButton
+                          size="small"
+                          aria-expanded={open}
+                          aria-label={`${open ? 'Hide' : 'Show'} the ${monthLabel(m.month)} bill`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMonth(open ? null : m.month);
+                          }}
+                        >
+                          <KeyboardArrowRight sx={{ fontSize: 20, transition: 'transform 150ms', transform: open ? 'rotate(90deg)' : 'none' }} />
+                        </IconButton>
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2">{monthLabel(m.month)}</Typography>
                         <Typography variant="caption" color="text.secondary">
                           {summaryFor(m)}
                         </Typography>
                       </TableCell>
-                      <TableCell sx={{ textTransform: 'capitalize' }}>{m.status}</TableCell>
-                      <TableCell align="right">{money(m.total_usd)}</TableCell>
-                      <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                        {open ? '▾' : '▸'}
+                      <TableCell>
+                        <Pill tone={m.status === 'settled' ? 'success' : 'neutral'}>{m.status === 'settled' ? 'Settled' : 'Estimated'}</Pill>
                       </TableCell>
+                      <TableCell align="right">{money(m.total_usd)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell colSpan={4} sx={{ p: 0, borderBottom: open ? undefined : 'none' }}>

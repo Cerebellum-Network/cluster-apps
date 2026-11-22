@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Box, Stack, Typography, Logo } from '@cluster-apps/ui';
 
 import { DDC_CLUSTER_NAME } from '~/constants';
+import { color } from '~/theme/tokens';
 import { AccountDropdown } from '../AccountDropdown';
 
 export type AppHeaderProps = {
@@ -24,15 +25,15 @@ const AppHeader = ({ right }: AppHeaderProps) => (
       alignItems: 'center',
       justifyContent: 'space-between',
       padding: '0 24px',
-      backgroundColor: '#fff',
-      borderBottom: '1px solid #E3E4EE',
+      backgroundColor: color.surface,
+      borderBottom: `1px solid ${color.border}`,
     }}
   >
     <Logo>
       <Typography sx={{ fontSize: 15, fontWeight: 700, lineHeight: 1.15, color: 'text.primary' }}>
         {DDC_CLUSTER_NAME} Developer Console
       </Typography>
-      <Typography sx={{ fontSize: 12, color: '#818083', lineHeight: 1.2 }}>Powered by Cere Network</Typography>
+      <Typography sx={{ fontSize: 12, color: color.textTertiary, lineHeight: 1.2 }}>Powered by Cere Network</Typography>
     </Logo>
     <Stack direction="row" spacing={1.5} alignItems="center">
       {right}

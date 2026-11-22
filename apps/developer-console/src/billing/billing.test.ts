@@ -3,6 +3,8 @@ import { describe, it, expect } from 'vitest';
 import { usd, usdBalance, money, signedMoney, monthLabel, brandName, runway } from './format';
 import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding } from './model';
 import type { Bills, Rates, LedgerEntry } from './api';
+import { ApiError, isUnconfirmed, type CardSummary } from './api';
+import { cardReturnStatus, cardSignature } from './checkout';
 
 /**
  * These pin the billing port's pure layer (format + model), copied byte-for-byte
@@ -163,5 +165,53 @@ describe('balanceBox / monthFunding (ledger → balance box)', () => {
   it('monthFunding splits cost into card vs balance', () => {
     expect(monthFunding(ledger, '2026-11', 2)).toEqual({ card: 2, fromBalance: 0 }); // card covers it
     expect(monthFunding(ledger, '2026-11', 15)).toEqual({ card: 10, fromBalance: 5 }); // card + balance
+  });
+});
+
+
+describe('back from Replace card', () => {
+  const visa: CardSummary = { brand: 'visa', last4: '4242', exp_month: 4, exp_year: 2030 };
+  const amex: CardSummary = { brand: 'amex', last4: '0005', exp_month: 1, exp_year: 2031 };
+
+  it('says "saving" until the profile shows a different card, then "updated"', () => {
+    const before = cardSignature(visa);
+    expect(cardReturnStatus(before, undefined, false)).toBe('saving'); // profile loading
+    expect(cardReturnStatus(before, visa, false)).toBe('saving'); // webhook not in yet
+    expect(cardReturnStatus(before, amex, false)).toBe('updated');
+    expect(cardReturnStatus(before, amex, true)).toBe('updated');
+  });
+
+  it('says "slow" when the poll ended with no change', () => {
+    expect(cardReturnStatus(cardSignature(visa), visa, true)).toBe('slow');
+    expect(cardReturnStatus(cardSignature(null), null, true)).toBe('slow');
+  });
+
+  it('treats a first card (none before) as the change', () => {
+    expect(cardReturnStatus(cardSignature(null), null, false)).toBe('saving');
+    expect(cardReturnStatus(cardSignature(null), visa, false)).toBe('updated');
+  });
+
+  it('with nothing stashed, any card counts as the new one', () => {
+    expect(cardReturnStatus(null, visa, false)).toBe('updated');
+    expect(cardReturnStatus(null, null, true)).toBe('slow');
+  });
+
+  it('sees a new expiry on the same card number as a change', () => {
+    expect(cardReturnStatus(cardSignature(visa), { ...visa, exp_year: 2032 }, false)).toBe('updated');
+  });
+});
+
+describe('top-up failures', () => {
+  it('never calls a charge failed when it may have gone through', () => {
+    expect(isUnconfirmed(new ApiError(0, 'The service did not respond.'))).toBe(true);
+    expect(isUnconfirmed(new ApiError(502, 'bad gateway'))).toBe(true);
+    expect(isUnconfirmed(new ApiError(500, 'oops'))).toBe(true);
+    expect(isUnconfirmed(new TypeError('Failed to fetch'))).toBe(true);
+  });
+
+  it('treats a 4xx as a definite answer', () => {
+    expect(isUnconfirmed(new ApiError(402, 'card declined'))).toBe(false);
+    expect(isUnconfirmed(new ApiError(400, 'amount too large'))).toBe(false);
+    expect(isUnconfirmed(new ApiError(409, 'idempotency conflict'))).toBe(false);
   });
 });

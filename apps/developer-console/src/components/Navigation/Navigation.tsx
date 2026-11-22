@@ -3,6 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Box, Stack, Typography } from '@cluster-apps/ui';
 
 import type { AppGroup, Application } from '~/applications';
+import { color } from '~/theme/tokens';
 import NavigationItem from './NavigationItem';
 
 export type NavigationProps = {
@@ -16,8 +17,9 @@ const GROUPS: { id: AppGroup; label: string }[] = [
 ];
 
 // 13px sentence-case group heading (#192 review): not uppercase, no divider.
+// Secondary, not tertiary: tertiary is below 4.5:1 on white at 13px.
 const GroupLabel = ({ children }: { children: ReactNode }) => (
-  <Typography sx={{ fontSize: 13, color: '#818083', paddingLeft: 1.5, marginBottom: 0.5 }}>{children}</Typography>
+  <Typography sx={{ fontSize: 13, color: color.textSecondary, paddingLeft: 1.5, marginBottom: 0.5 }}>{children}</Typography>
 );
 
 const Navigation = ({ items, footer }: NavigationProps) => (

@@ -1,0 +1,83 @@
+import { describe, it, expect } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+
+import UsageView, { EmptyUsage } from './UsageView';
+import UsageModelsTable from './UsageModelsTable';
+import { usageRows } from '../../../../inference/usageMath';
+import { usageFixture } from './usageFixture';
+import type { UsageData } from '~/inference/useUsage';
+
+const render = (data: UsageData) =>
+  renderToStaticMarkup(
+    <MemoryRouter>
+      <UsageView data={data} preset="24h" gatewayKey="k" onAuthError={() => {}} />
+    </MemoryRouter>,
+  );
+
+describe('UsageView', () => {
+  it('renders the notice, tiles, charts and only the models used', () => {
+    const html = render(usageFixture);
+    expect(html).toContain('37 requests were refused at your plan’s limit of 8 at once.');
+    expect(html).toContain('Upgrade plan');
+    expect(html).toContain('Talk to us');
+    for (const tile of ['GPU units', 'Requests', 'Refused (429)', 'Closest to limit']) expect(html).toContain(`aria-label="${tile}"`);
+    expect(html).toContain('41'); // refused total
+    expect(html).toContain('37 your limit · 4 model full');
+    expect(html).toContain('↑ 38.6% vs the previous 24 hours'); // GPU 415.7 vs 300
+    expect(html).toContain('per 15 minutes, by model');
+    expect(html).toContain('glm-5.3');
+    expect(html).toContain('qwen3-embed');
+    expect(html).not.toContain('never-used');
+    expect(html).toContain('8 / 8');
+    // One number in one place: the period totals are on the tiles, not again in the chart headers.
+    expect(html).not.toMatch(/\d total</);
+    expect(html).toContain('>Filter<');
+    expect(html).toContain('title="Filter to glm-5.3"');
+    // Text stays on the shared scale (18 card titles and below); only icons are larger.
+    const text = (html.match(/\.css-[\w-]+\{[^}]*\}/g) ?? []).filter((r) => !/icon/i.test(r));
+    expect(text.filter((r) => /font-size:(19|2\d|3\d)px/.test(r))).toEqual([]);
+  });
+
+  it('shows the empty state with a way to the quickstart when nothing was used', () => {
+    const empty: UsageData = {
+      ...usageFixture,
+      reads: {
+        ...usageFixture.reads,
+        gpu: new Map(), requests: new Map(), tokensIn: new Map(), tokensCached: new Map(), tokensOut: new Map(),
+        peak: new Map(), refusedLimit: new Map(), refusedFull: new Map(),
+      },
+      gpuSteps: [],
+      requestSteps: [],
+    };
+    const html = render(empty);
+    expect(html).toBe(renderToStaticMarkup(<MemoryRouter><EmptyUsage /></MemoryRouter>));
+    expect(html).toContain('No usage yet');
+    expect(html).toContain('href="/inference?quickstart=1"');
+    expect(html).toContain('>Get started<');
+  });
+
+  it('has no upgrade notice when refusals were only "model full"', () => {
+    const html = render({ ...usageFixture, reads: { ...usageFixture.reads, refusedLimit: new Map() } });
+    expect(html).not.toContain('Upgrade plan');
+  });
+
+  it('gives each model in view its share of the models in view; a filtered-away one has none', () => {
+    const rows = usageRows(usageFixture.reads);
+    const table = (inView: (m: string) => boolean) =>
+      renderToStaticMarkup(
+        <UsageModelsTable
+          rows={rows} colorOf={() => '#000'} isInView={inView} selected={[]} onPickModel={() => {}} kindOf={() => 'Chat'}
+          selectedKinds={[]} onPickKind={() => {}} gatewayKey="k" window={usageFixture.window} tokensAvailable onAuthError={() => {}}
+        />,
+      );
+    const all = table(() => true);
+    expect(all).toContain('>99.2%<'); // glm-5.3: 412.5 of 415.7
+    expect(all).toContain('>0.8%<');
+    const one = table((m) => m === 'qwen3-embed');
+    expect(one).toContain('>100.0%<');
+    expect(one).not.toContain('>99.2%<');
+    expect(one).toContain('>—<');
+  });
+});
+
