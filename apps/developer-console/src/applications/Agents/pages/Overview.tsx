@@ -6,6 +6,7 @@ import { NavLink } from 'react-router-dom';
 import { PageHeader, Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useAgentDefinitions } from '~/compute/agentHooks';
+import { bucketList, bucketNames } from '~/compute/agentStore';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
@@ -24,8 +25,8 @@ cere agent runs`;
 const Overview = () => {
   const account = useAccount();
   const { bucketId } = useCompute();
-  const buckets = account.buckets?.map((b) => b.name);
-  const defs = useAgentDefinitions(buckets);
+  const list = bucketList(account.buckets, account.bucketsError);
+  const defs = useAgentDefinitions(bucketNames(list));
   const secrets = useSecrets();
   const runs = useSandboxes({ label: [`${LABEL.kind}:${AGENT_RUN_KIND}`] });
   const [adding, setAdding] = useState(false);
@@ -55,6 +56,12 @@ const Overview = () => {
         </Alert>
       )}
 
+      {list.state === 'stale' && (
+        <Alert severity="warning" sx={{ marginBottom: '12px' }}>
+          Couldn’t refresh your bucket list, so definitions in a bucket created since may be missing: {list.error}
+        </Alert>
+      )}
+
       {defs.failed.map((f) => (
         <Alert key={f.bucket} severity="warning" sx={{ marginBottom: '12px' }}>
           Couldn’t list definitions in bucket {f.bucket}: {f.error}
@@ -68,6 +75,8 @@ const Overview = () => {
         </Stack>
       ) : defs.error ? (
         <ReadError what="agent definitions" error={defs.error} />
+      ) : list.state === 'unreadable' ? (
+        <ReadError what="your buckets, where agent definitions live" error={list.error} />
       ) : defs.agents.length === 0 ? (
         <Section>
           <Typography sx={text.body}>

@@ -41,6 +41,8 @@ export interface Account {
   readonly deposit?: number;
   readonly buckets?: Bucket[];
   readonly bucketsLoading?: boolean;
+  /** Why the last bucket listing failed (then `buckets` is stale or empty), or null. */
+  readonly bucketsError?: string | null;
   readonly status: AccountStatus;
   /** Whether this wallet has authorized the storage gateway (gates the revoke control). */
   readonly gatewayAuthorized?: boolean;

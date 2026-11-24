@@ -24,6 +24,30 @@ export interface StoredAgent {
 
 const nameFromKey = (key: string) => key.slice(AGENTS_PREFIX.length).replace(/\.json$/, '');
 
+/**
+ * The wallet's gateway buckets as the Agents pages see them. Definitions live
+ * in those buckets, so an empty list means "no definitions" only when the
+ * listing worked: a failed one (gateway down, credential refused, no wallet
+ * signature) must not read as an empty bucket.
+ */
+export type BucketList =
+  | { state: 'loading' }
+  | { state: 'ok'; names: string[] }
+  /** The last listing failed; `names` is the list from before it. */
+  | { state: 'stale'; names: string[]; error: string }
+  /** The listing failed and there is no earlier list. */
+  | { state: 'unreadable'; error: string };
+
+export function bucketList(buckets: { name: string }[] | undefined, error: string | null | undefined): BucketList {
+  const names = buckets?.map((b) => b.name);
+  if (error) return names?.length ? { state: 'stale', names, error } : { state: 'unreadable', error };
+  return names ? { state: 'ok', names } : { state: 'loading' };
+}
+
+/** The bucket names to read definitions from: undefined while loading, [] when unreadable. */
+export const bucketNames = (l: BucketList): string[] | undefined =>
+  l.state === 'loading' ? undefined : l.state === 'unreadable' ? [] : l.names;
+
 type Store = Pick<BucketStorage, 'listObjects' | 'readObject' | 'uploadObject' | 'deleteObject'>;
 
 /** Every `cere/agents/*.json` in `buckets`, parsed and checked. One unreadable bucket does not hide the others. */

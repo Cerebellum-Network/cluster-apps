@@ -33,6 +33,7 @@ export class AccountStore implements Account {
   private session: SessionInput | null = null;
   private _buckets?: Bucket[];
   private _bucketsLoading = false;
+  private _bucketsError: string | null = null;
   private _deposit?: bigint;
   private _balance?: bigint;
   private _gatewayAuthorized = false;
@@ -96,6 +97,7 @@ export class AccountStore implements Account {
     runInAction(() => {
       this._buckets = undefined;
       this._bucketsLoading = false;
+      this._bucketsError = null;
       this._deposit = undefined;
       this._balance = undefined;
       this._gatewayAuthorized = false;
@@ -130,6 +132,14 @@ export class AccountStore implements Account {
   get bucketsLoading() {
     return this._bucketsLoading;
   }
+  /**
+   * Why the last bucket listing failed, or null. While set, `buckets` is the
+   * list from before the failure (or [] when there was none), so an empty list
+   * does not mean "no buckets".
+   */
+  get bucketsError() {
+    return this._bucketsError;
+  }
   /** Whether this wallet has authorized the storage gateway (observable). */
   get gatewayAuthorized() {
     return this._gatewayAuthorized;
@@ -140,6 +150,7 @@ export class AccountStore implements Account {
     if (!this.session?.account) {
       runInAction(() => {
         this._buckets = undefined;
+        this._bucketsError = null;
       });
       return;
     }
@@ -161,12 +172,15 @@ export class AccountStore implements Account {
       );
       runInAction(() => {
         this._buckets = buckets;
+        this._bucketsError = null;
       });
     } catch (e) {
       Reporting.error(e);
-      // Keep whatever we had rather than flipping a populated list to empty.
+      // Keep whatever we had rather than flipping a populated list to empty,
+      // and say that the listing failed so pages don't read [] as "no buckets".
       runInAction(() => {
         this._buckets = this._buckets ?? [];
+        this._bucketsError = e instanceof Error ? e.message : String(e);
       });
     } finally {
       runInAction(() => {

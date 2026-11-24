@@ -46,6 +46,11 @@ const BucketAccess = observer(() => {
     setError(null);
     setShown(null);
     try {
+      // An empty list after a failed listing is not "no buckets": creating one
+      // then would leave the wallet with a bucket it did not ask for.
+      if (!chosen && account.bucketsError) {
+        throw new Error(`Couldn’t list your buckets (${account.bucketsError}), so no new one is created. Try again.`);
+      }
       const target = chosen || (await account.createBucket());
       const c = await account.createS3Credential(S3_LABEL);
       setShown({ id: c.accessKeyId, secret: c.secretAccessKey, bucket: target, expiresAt: c.expiresAt });
