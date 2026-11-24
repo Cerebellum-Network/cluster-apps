@@ -6,7 +6,8 @@ import { createChainClient } from '~/storage/ddc/chainClient';
 import { createBucketStorage } from '~/storage/ddc/bucketStorage';
 import { createDdcSigner } from '~/storage/ddc/signer';
 import { createGatewayClient } from '~/storage/ddc/gatewayClient';
-import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
+import { gatewayPubKeyToSs58, registerGatewayCredential } from '~/storage/ddc/gatewayCredential';
+import type { GatewayCredentials } from '~/storage/ddc/gatewayClient';
 import { generateBucketName } from '~/storage/gatewayBuckets';
 import { buildInferenceApiKey } from '~/inference/inferenceKey';
 import type { CefSigner } from '@cef-ai/wallet';
@@ -285,6 +286,16 @@ export class AccountStore implements Account {
     this.requireAccount();
     const signer = createDdcSigner(() => this.requireSigner());
     return buildInferenceApiKey(signer, { bucketId, expiresInMs: ttlMs });
+  }
+
+  /**
+   * A separate S3 gateway credential for another client (the `cere` CLI): its
+   * own label at the gateway, not the console's cached one, so handing it out
+   * never shares the console's credential. Signs, so call from a user gesture.
+   */
+  async createS3Credential(label: string): Promise<GatewayCredentials> {
+    this.requireAccount();
+    return registerGatewayCredential(() => this.requireSigner(), this.gateway, label);
   }
 
   async topUp(amount: number) {

@@ -6,6 +6,7 @@ import { PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useCompute } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
+import { storageConfig } from '~/storage/storageConfig';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, StepTitle, useCopy } from '../components/bits';
 import { BucketChip } from '../components/ui';
@@ -21,6 +22,150 @@ const fmtDate = (ms: number) =>
     hour: '2-digit',
     minute: '2-digit',
   });
+
+const S3_LABEL = 'cere-cli';
+
+/**
+ * A DDC S3 gateway credential for `cere agent list|show|push|pull|delete`,
+ * which keep agent definitions in one of the wallet's buckets. Its own label
+ * at the gateway (never the console's cached credential); wallet-wide; lives
+ * as long as its 24-hour delegation token.
+ */
+const BucketAccess = observer(() => {
+  const account = useAccount();
+  const buckets = account.buckets?.map((b) => b.name) ?? [];
+  const [bucket, setBucket] = useState('');
+  const chosen = bucket || buckets[0] || '';
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [shown, setShown] = useState<{ id: string; secret: string; bucket: string; expiresAt?: number } | null>(null);
+  const [copied, copy] = useCopy();
+
+  const create = async () => {
+    setBusy(true);
+    setError(null);
+    setShown(null);
+    try {
+      const target = chosen || (await account.createBucket());
+      const c = await account.createS3Credential(S3_LABEL);
+      setShown({ id: c.accessKeyId, secret: c.secretAccessKey, bucket: target, expiresAt: c.expiresAt });
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Agent definitions in your bucket">
+      <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
+        <Box component="span" sx={{ fontFamily: mono }}>
+          cere agent push
+        </Box>
+        ,{' '}
+        <Box component="span" sx={{ fontFamily: mono }}>
+          list
+        </Box>{' '}
+        and{' '}
+        <Box component="span" sx={{ fontFamily: mono }}>
+          pull
+        </Box>{' '}
+        keep definitions at{' '}
+        <Box component="span" sx={{ fontFamily: mono }}>
+          cere/agents/&lt;name&gt;.json
+        </Box>{' '}
+        in a bucket, through the DDC S3 gateway. They need an S3 credential of their own.
+      </Typography>
+      <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
+        {buckets.length > 0 && (
+          <TextField
+            select
+            label="Bucket"
+            value={chosen}
+            onChange={(e) => setBucket(e.target.value)}
+            size="small"
+            sx={{ minWidth: 220 }}
+          >
+            {buckets.map((b) => (
+              <MenuItem key={b} value={b}>
+                <Box component="span" sx={{ fontFamily: mono, fontSize: 13 }}>
+                  {b}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+        <LoadingButton variant="contained" loading={busy} onClick={create}>
+          Create S3 credential
+        </LoadingButton>
+        <Typography sx={text.secondary}>
+          {buckets.length
+            ? 'Your SSCP wallet asks you to approve it.'
+            : 'Creates a bucket first; your SSCP wallet asks you to approve both.'}
+        </Typography>
+      </Stack>
+      {error && (
+        <Alert severity="error" sx={{ marginTop: '16px' }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      {shown && (
+        <Box
+          marginTop="16px"
+          padding="16px"
+          borderRadius="12px"
+          sx={{ backgroundColor: color.inset, border: `1px solid ${color.border}` }}
+        >
+          <Stack spacing="10px">
+            <Typography variant="subtitle2">
+              Access key ID{' '}
+              <Box component="span" sx={{ fontFamily: mono, fontWeight: 400 }}>
+                {shown.id}
+              </Box>
+              {shown.expiresAt ? ` · expires ${fmtDate(shown.expiresAt)}` : ''}
+            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" gap="12px">
+              <Box
+                sx={{
+                  font: `13px/1.5 ${mono}`,
+                  wordBreak: 'break-all',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: color.surface,
+                  border: `1px solid ${color.border}`,
+                  flex: 1,
+                }}
+              >
+                {shown.secret}
+              </Box>
+              <Button size="small" variant="outlined" color="secondary" onClick={() => copy(shown.secret)}>
+                {copied ? 'Copied' : 'Copy secret'}
+              </Button>
+            </Stack>
+            <Typography sx={text.secondary}>
+              <strong style={{ color: color.text }}>Shown once.</strong> Copy the secret, then pipe it in so it never
+              lands in your shell history:
+            </Typography>
+            <CodeBlock
+              code={`pbpaste | cere login --s3-access-key-id ${shown.id} --s3-bucket ${shown.bucket} \\\n  --s3-endpoint ${storageConfig.ddcS3GatewayUrl} --s3-secret-stdin`}
+            />
+            <Typography sx={text.caption}>
+              On Linux use{' '}
+              <Box component="span" sx={{ fontFamily: mono }}>
+                xclip -o -selection clipboard
+              </Box>{' '}
+              (or a file) instead of{' '}
+              <Box component="span" sx={{ fontFamily: mono }}>
+                pbpaste
+              </Box>
+              . The credential works for every bucket of this wallet until it expires.
+            </Typography>
+          </Stack>
+        </Box>
+      )}
+    </Section>
+  );
+});
 
 /**
  * CLI access: a COMPUTE token for the `cere` CLI and the Python SDK, signed by
@@ -161,6 +306,8 @@ const CliAccess = () => {
             </Box>
           </Stack>
         </Section>
+
+        <BucketAccess />
       </Stack>
     </Box>
   );

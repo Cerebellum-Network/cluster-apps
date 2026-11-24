@@ -1,3 +1,4 @@
+import type { GatewayCredentials } from '~/storage/ddc/gatewayClient';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 
@@ -53,6 +54,12 @@ export interface Account {
    * `bucketId`, signed by this wallet. Shown once; stateless (expires only).
    */
   createInferenceApiKey(bucketId: bigint, ttlMs: number): Promise<string>;
+  /**
+   * Register a separate DDC S3 gateway credential (its own label) to hand to
+   * another client, e.g. the `cere` CLI for agent definitions. Wallet-wide,
+   * lives as long as its 24h delegation token. Shown once by the caller.
+   */
+  createS3Credential(label: string): Promise<GatewayCredentials>;
   /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
   revokeGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;
