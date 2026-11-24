@@ -6,6 +6,7 @@ A collection Web Applications to manage a DDC Cluster
 
 - [Developer Console](apps/developer-console/README.md)
 - [Node Provider Console](apps/node-provider)
+- [Cluster Console](apps/cluster-console/README.md)
 - [Global Registry](apps/global-registry)
 
 ## Releases

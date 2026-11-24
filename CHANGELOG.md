@@ -2,7 +2,7 @@
 
 ### vNext
 
--
+- [Cluster Console] v0.1.0: new app for the cluster manager: SSCP wallet challenge sign-in with roles from the blockchain; Overview, Nodes, Sandboxes, Placements, Egress log, Usage records and Inference from the cluster's console backend; missing sources shown as missing
 
 ### [Developer Console] v0.17.0
 
