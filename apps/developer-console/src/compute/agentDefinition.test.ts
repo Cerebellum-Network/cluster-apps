@@ -32,12 +32,23 @@ describe('validateAgentDefinition', () => {
       harness: 'container',
       model: { base_url: 'nope' },
       egress: { allow: [{ host: 'a', methods: ['get'] }] },
+      policy: 'anything',
+      timeout_s: 90_000,
+      files: { '../etc/passwd': 'x' },
     });
-    expect(errs.join('\n')).toMatch(/schema/);
-    expect(errs.join('\n')).toMatch(/"name"/);
-    expect(errs.join('\n')).toMatch(/"command" is required/);
-    expect(errs.join('\n')).toMatch(/base_url/);
-    expect(errs.join('\n')).toMatch(/upper-case/);
+    const all = errs.join('\n');
+    expect(all).toMatch(/schema/);
+    expect(all).toMatch(/"name"/);
+    expect(all).toMatch(/"command" is required/);
+    expect(all).toMatch(/base_url/);
+    expect(all).toMatch(/upper-case/);
+    expect(all).toMatch(/"policy"/);
+    expect(all).toMatch(/"timeout_s"/);
+    expect(all).toMatch(/not a usable path/);
+  });
+  it('uses the CLI’s name rule and lets the model go without a credential', () => {
+    expect(validateAgentDefinition({ ...GOOD, name: 'my_agent' })).toHaveLength(1);
+    expect(validateAgentDefinition({ ...GOOD, model: { base_url: GOOD.model.base_url, model: 'm' } })).toEqual([]);
   });
   it('parses text and reports bad JSON', () => {
     expect(parseAgentDefinition(JSON.stringify(GOOD)).def?.name).toBe('research');

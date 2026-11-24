@@ -15,7 +15,7 @@ export interface AgentModel {
   base_url: string;
   model: string;
   /** The bucket secret the egress proxy injects on calls to the model host. */
-  credential: string;
+  credential?: string;
 }
 
 export interface AgentDefinition {
@@ -39,8 +39,11 @@ export interface AgentDefinition {
   files?: Record<string, string>;
 }
 
-/** Usable as a file name in the bucket and as a label value. */
-export const AGENT_NAME_RE = /^[a-z0-9][a-z0-9._-]{0,62}$/;
+/** Usable as a file name in the bucket and as a label value; the same rule as the CLI. */
+export const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
+/** The longest a sandbox may live (`SANDBOX_MAX_TIMEOUT`). */
+export const AGENT_MAX_TIMEOUT_S = 24 * 3600;
+export const AGENT_POLICIES = ['read-only', 'read-write'];
 
 const METHODS: HttpMethod[] = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
@@ -56,7 +59,7 @@ export function validateAgentDefinition(doc: unknown): string[] {
   if (!isObj(doc)) return ['The definition is not a JSON object.'];
   if (doc.schema !== AGENT_SCHEMA) errs.push(`"schema" must be "${AGENT_SCHEMA}".`);
   if (typeof doc.name !== 'string' || !AGENT_NAME_RE.test(doc.name))
-    errs.push('"name" must be lowercase letters, digits, dots, dashes or underscores (up to 63).');
+    errs.push('"name" must be lowercase letters, digits and dashes (up to 63).');
   if (doc.harness !== 'claude-code' && doc.harness !== 'container')
     errs.push('"harness" must be "claude-code" or "container".');
   if (typeof doc.image !== 'string' || !doc.image.trim()) errs.push('"image" is required.');
@@ -74,12 +77,16 @@ export function validateAgentDefinition(doc: unknown): string[] {
     if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:'))
       errs.push('"model.base_url" must be an http(s) URL.');
     if (typeof m.model !== 'string' || !m.model) errs.push('"model.model" is required.');
-    if (typeof m.credential !== 'string' || !m.credential)
-      errs.push('"model.credential" names the secret for the model.');
+    if (m.credential !== undefined && typeof m.credential !== 'string') errs.push('"model.credential" names a secret.');
   }
   if (doc.tools !== undefined && !isStrArray(doc.tools)) errs.push('"tools" must be a list of tool names.');
-  if (doc.timeout_s !== undefined && !(typeof doc.timeout_s === 'number' && doc.timeout_s > 0))
-    errs.push('"timeout_s" must be a positive number of seconds.');
+  const t = doc.timeout_s;
+  if (t !== undefined && !(typeof t === 'number' && t >= 0 && t <= AGENT_MAX_TIMEOUT_S))
+    errs.push(`"timeout_s" must be between 0 and ${AGENT_MAX_TIMEOUT_S} seconds.`);
+  if (doc.policy !== undefined && doc.policy !== '' && !AGENT_POLICIES.includes(String(doc.policy)))
+    errs.push(`"policy" must be ${AGENT_POLICIES.map((p) => `"${p}"`).join(' or ')}.`);
+  if (doc.max_turns !== undefined && !(typeof doc.max_turns === 'number' && doc.max_turns >= 0))
+    errs.push('"max_turns" must not be negative.');
   if (doc.resources !== undefined) {
     if (!isObj(doc.resources)) errs.push('"resources" must be an object.');
     else {
@@ -101,6 +108,9 @@ export function validateAgentDefinition(doc: unknown): string[] {
   }
   if (doc.files !== undefined && !(isObj(doc.files) && Object.values(doc.files).every((v) => typeof v === 'string')))
     errs.push('"files" must map paths to text content.');
+  else if (isObj(doc.files))
+    for (const p of Object.keys(doc.files))
+      if (!p || p.includes('..')) errs.push(`"files": "${p}" is not a usable path.`);
   return errs;
 }
 

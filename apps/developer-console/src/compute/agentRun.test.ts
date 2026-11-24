@@ -116,17 +116,17 @@ function fakeClient(opts: {
 }
 
 describe('buildCreateRequest', () => {
-  it('starts sleep infinity with the model rule first, the labels and the model environment', () => {
+  it('starts sleep infinity with the definition rules then the model rule, the labels and the model environment', () => {
     const req = buildCreateRequest(SRE, '01jdx3q4w8m2v6r9t0kz5c7b1n');
     expect(req.command).toEqual(['sleep', 'infinity']);
     expect(req.timeout_s).toBe(900 + 120);
-    expect(req.egress?.allow[0]).toEqual({
+    expect(req.egress?.allow[1]).toEqual({
       host: 'inference-gateway.compute.test.ddcdragon.com',
-      methods: ['POST', 'GET'],
+      methods: ['GET', 'POST'],
       path_prefix: '/anthropic',
       credential: 'ddc-inference',
     });
-    expect(req.egress?.allow[1]).toEqual(SRE.egress!.allow[0]);
+    expect(req.egress?.allow[0]).toEqual(SRE.egress!.allow[0]);
     expect(req.labels).toEqual({
       'cere.kind': 'agent-run',
       'cere.agent': 'sre',
@@ -146,7 +146,7 @@ describe('buildCreateRequest', () => {
   it('leaves path_prefix out for a base URL at the host root', () => {
     expect(modelRule({ ...SRE, model: { ...SRE.model, base_url: 'https://m.example/' } })).toEqual({
       host: 'm.example',
-      methods: ['POST', 'GET'],
+      methods: ['GET', 'POST'],
       credential: 'ddc-inference',
     });
   });

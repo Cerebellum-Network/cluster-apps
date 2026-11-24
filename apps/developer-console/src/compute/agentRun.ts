@@ -113,15 +113,15 @@ export interface RunOptions {
   sleep?: (ms: number) => Promise<void>;
 }
 
-/** The model host as an egress rule: POST and GET under the base URL's path, with the model's credential. */
+/** The model host as an egress rule: GET and POST under the base URL's path, with the model's credential (as the CLI adds it). */
 export function modelRule(def: AgentDefinition): EgressRule {
   const u = new URL(def.model.base_url);
   const path = u.pathname.replace(/\/+$/, '');
   return {
     host: u.hostname,
-    methods: ['POST', 'GET'],
+    methods: ['GET', 'POST'],
     ...(path ? { path_prefix: path } : {}),
-    credential: def.model.credential,
+    ...(def.model.credential ? { credential: def.model.credential } : {}),
   };
 }
 
@@ -147,7 +147,7 @@ export function buildCreateRequest(def: AgentDefinition, runId: string): CreateS
       CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: '1',
       DISABLE_AUTOUPDATER: '1',
     },
-    egress: { allow: [modelRule(def), ...(def.egress?.allow ?? [])] },
+    egress: { allow: [...(def.egress?.allow ?? []), modelRule(def)] },
     labels: {
       [LABEL.kind]: AGENT_RUN_KIND,
       [LABEL.agent]: def.name,
