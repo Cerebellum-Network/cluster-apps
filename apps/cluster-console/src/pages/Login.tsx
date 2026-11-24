@@ -5,6 +5,7 @@ import { Button, CircularProgress } from '@mui/material';
 import { color, text } from '~/components/ui';
 import { shortKey } from '~/format';
 import { useSession } from '~/session/SessionProvider';
+import { useWalletSignIn } from '~/session/useWalletSignIn';
 
 /**
  * Sign-in: connect the SSCP wallet, then sign the console backend's challenge.
@@ -12,12 +13,26 @@ import { useSession } from '~/session/SessionProvider';
  * no role in this cluster is told so.
  */
 export function Login() {
-  const s = useSession();
+  const session = useSession();
   const location = useLocation();
-  if (s.step === 'signed-in') {
+  if (session.info) {
     const from = (location.state as { from?: string } | null)?.from ?? '/';
     return <Navigate to={from} replace />;
   }
+  if (session.restoring) {
+    return (
+      <Stack minHeight="100vh" alignItems="center" justifyContent="center" spacing={1}>
+        <CircularProgress size={24} />
+        <Typography sx={text.secondary}>Checking your session…</Typography>
+      </Stack>
+    );
+  }
+  return <SignIn />;
+}
+
+function SignIn() {
+  const s = useWalletSignIn();
+  const step = s.account ? 'challenge' : 'wallet';
   return (
     <Stack
       minHeight="100vh"
@@ -46,13 +61,13 @@ export function Login() {
         <Stack spacing={1.5} sx={{ marginTop: 3 }}>
           <Step
             n={1}
-            done={s.step === 'challenge'}
+            done={step === 'challenge'}
             title="Connect your SSCP wallet"
-            sub={s.walletAccount ? `Account ${shortKey(s.walletAccount)}` : 'Passkey sign-in at the wallet'}
+            sub={s.account ? `Account ${shortKey(s.account)}` : 'Passkey sign-in at the wallet'}
           >
-            {s.step === 'wallet' && (
-              <Button variant="contained" fullWidth onClick={s.connectWallet} disabled={s.walletBusy}>
-                {s.walletBusy ? 'Waiting for the wallet…' : 'Connect SSCP wallet'}
+            {step === 'wallet' && (
+              <Button variant="contained" fullWidth onClick={s.connect} disabled={s.busy}>
+                {s.busy ? 'Waiting for the wallet…' : 'Connect SSCP wallet'}
               </Button>
             )}
           </Step>
@@ -62,12 +77,12 @@ export function Login() {
             title="Sign the cluster challenge"
             sub="Proves you hold the account. It moves no money and signs no transaction."
           >
-            {s.step === 'challenge' && (
+            {step === 'challenge' && (
               <Stack direction="row" spacing={1}>
-                <Button variant="contained" fullWidth onClick={s.signChallenge} disabled={s.signing}>
+                <Button variant="contained" fullWidth onClick={s.sign} disabled={s.signing}>
                   {s.signing ? 'Signing…' : 'Sign and continue'}
                 </Button>
-                <Button variant="text" color="secondary" onClick={s.signOut} disabled={s.signing}>
+                <Button variant="text" color="secondary" onClick={s.useAnother} disabled={s.signing}>
                   Use another wallet
                 </Button>
               </Stack>
@@ -75,12 +90,6 @@ export function Login() {
           </Step>
         </Stack>
 
-        {s.step === 'restoring' && (
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ marginTop: 2 }}>
-            <CircularProgress size={16} />
-            <Typography sx={text.secondary}>Checking your session…</Typography>
-          </Stack>
-        )}
         {s.error && (
           <Typography role="alert" sx={{ marginTop: 2, fontSize: 13, color: color.danger }}>
             {s.error}

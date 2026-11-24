@@ -1,42 +1,31 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useWalletConnect } from '@cef-ai/wallet-react';
 
 import { ApiError, ConsoleApi } from '~/api/client';
-import { signIn as signInWithWallet } from '~/api/signIn';
 import type { SessionInfo } from '~/api/types';
 import { config } from '~/config';
 
 import { clearStored, loadStored, saveStored } from './storage';
 
 /**
- * Two steps, both explicit:
- *  1. the SSCP wallet connects (passkey, at the wallet origin);
- *  2. the wallet signs the console backend's challenge, and the backend reads
- *     the account's roles from the blockchain and returns a session.
- * The console is signed in when it holds a backend session the backend still
- * accepts; the wallet is needed only to get one.
+ * The console is signed in when it holds a console-backend session the backend
+ * still accepts. The SSCP wallet is needed only to get one, so it lives on the
+ * sign-in page (`useWalletSignIn`), not here: signed-in pages never load the
+ * wallet.
  */
-export type SignInStep = 'restoring' | 'wallet' | 'challenge' | 'signed-in';
-
 export interface Session {
-  step: SignInStep;
+  restoring: boolean;
   info: SessionInfo | null;
-  /** Hex account of the connected wallet (before the challenge is signed). */
-  walletAccount: string | null;
-  walletBusy: boolean;
-  signing: boolean;
-  error: string | null;
-  connectWallet: () => void;
-  signChallenge: () => void;
+  /** Set by the sign-in page after the backend accepted the wallet's signature. */
+  adopt: (s: SessionInfo) => void;
   signOut: () => void;
+  /** Why the last session ended or could not be restored, if not a plain expiry. */
+  error: string | null;
   api: ConsoleApi;
 }
 
 const SessionContext = createContext<Session | null>(null);
 
-const normalize = (pk: string) => pk.trim().toLowerCase().replace(/^0x/, '');
-
-const describe = (e: unknown): string => {
+export const describeError = (e: unknown): string => {
   if (e instanceof ApiError) {
     switch (e.code) {
       case 'no_role':
@@ -51,17 +40,10 @@ const describe = (e: unknown): string => {
 };
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const w = useWalletConnect({
-    appId: config.appId,
-    appName: config.appName,
-    walletOrigin: config.walletOrigin,
-    transport: config.walletTransport,
-  });
   const tokenRef = useRef<string | null>(loadStored()?.token ?? null);
   const api = useMemo(() => new ConsoleApi(config.consoleBackendUrl, () => tokenRef.current), []);
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [restoring, setRestoring] = useState(() => tokenRef.current !== null);
-  const [signing, setSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const drop = useCallback(() => {
@@ -81,7 +63,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .catch((e) => {
         if (!live) return;
         drop();
-        if (!(e instanceof ApiError && e.isUnauthorized)) setError(describe(e));
+        if (!(e instanceof ApiError && e.isUnauthorized)) setError(describeError(e));
       })
       .finally(() => live && setRestoring(false));
     return () => {
@@ -89,55 +71,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [api, drop]);
 
-  const walletAccount = w.wallet ? normalize(w.wallet.publicKeyHex) : null;
-
-  const signChallenge = useCallback(() => {
-    if (!w.wallet || !walletAccount) return;
-    setSigning(true);
-    setError(null);
-    signInWithWallet(api, walletAccount, w.wallet.signer)
-      .then((s) => {
-        tokenRef.current = s.session ?? null;
-        saveStored({ token: s.session!, account: s.account, expiresAt: s.expires_at });
-        setInfo({ ...s, session: undefined });
-      })
-      .catch((e) => setError(describe(e)))
-      .finally(() => setSigning(false));
-  }, [api, w.wallet, walletAccount]);
-
-  const value = useMemo<Session>(() => {
-    let step: SignInStep;
-    if (restoring) step = 'restoring';
-    else if (info) step = 'signed-in';
-    else if (w.wallet) step = 'challenge';
-    else step = 'wallet';
-    return {
-      step,
-      info,
-      walletAccount,
-      walletBusy: w.status === 'connecting' || w.status === 'registering' || w.status === 'resuming',
-      signing,
-      error: error ?? (step === 'wallet' ? w.error : null),
-      connectWallet: () => {
-        setError(null);
-        void w.connect().catch(() => {});
-      },
-      signChallenge,
-      signOut: () => {
-        drop();
-        setError(null);
-        void w.logout().catch(() => {});
-      },
-      api,
-    };
-  }, [restoring, info, w, walletAccount, signing, error, signChallenge, drop, api]);
-
   // A 401 anywhere means the session ended: back to sign-in.
   useEffect(() => {
     const onExpired = () => drop();
     window.addEventListener('cluster-console:session-expired', onExpired);
     return () => window.removeEventListener('cluster-console:session-expired', onExpired);
   }, [drop]);
+
+  const value = useMemo<Session>(
+    () => ({
+      restoring,
+      info,
+      error,
+      api,
+      adopt: (s) => {
+        tokenRef.current = s.session ?? null;
+        if (s.session) saveStored({ token: s.session, account: s.account, expiresAt: s.expires_at });
+        setError(null);
+        setInfo({ ...s, session: undefined });
+      },
+      signOut: () => {
+        drop();
+        setError(null);
+      },
+    }),
+    [restoring, info, error, api, drop],
+  );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -20,15 +20,14 @@ import { SessionProvider, useSession } from '~/session/SessionProvider';
 function RequireSession() {
   const s = useSession();
   const location = useLocation();
-  if (s.step === 'restoring') {
+  if (s.restoring) {
     return (
       <Stack minHeight="100vh" alignItems="center" justifyContent="center">
         <CircularProgress size={28} aria-label="Checking your session" />
       </Stack>
     );
   }
-  if (s.step !== 'signed-in')
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  if (!s.info) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   return <Outlet />;
 }
 
