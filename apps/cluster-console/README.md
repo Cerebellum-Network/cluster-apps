@@ -46,7 +46,7 @@ allows `https://localhost:5173` (certificates from `mkcert localhost`). Set `VIT
 popup instead.
 
 Runtime config (`/config.js`, mounted by the `cef-cluster-console` Helm chart): `consoleBackendUrl`, `walletOrigin`,
-`walletTransport`, `network`. Image: `cerebellumnetwork/cluster-console` (`.github/workflows/docker-build-cluster-console.yml`).
+`walletTransport`, `network`. Image: `cerebellumnetwork/cluster-console` (`.github/workflows/docker-build.yml` with `app: cluster-console`).
 
 ```bash
 npm run check-types -w apps/cluster-console

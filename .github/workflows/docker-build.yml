@@ -1,9 +1,10 @@
-name: Build developer console image
+name: Build console image
 
-# Builds and pushes the Developer Console SPA (cerebellumnetwork/developer-console)
-# from apps/developer-console, built with the monorepo root as the Docker context.
-# The dragon-ansible pin `version_developer_console` expects a v-prefixed semver
-# tag such as v0.1.0.
+# Builds and pushes one console SPA from apps/<app>, built with the monorepo root
+# as the Docker context: cerebellumnetwork/developer-console (the default) or
+# cerebellumnetwork/cluster-console. The dragon-ansible pins
+# `version_developer_console` / `version_cluster_console` expect a v-prefixed
+# semver tag such as v0.1.0.
 on:
   workflow_dispatch:
     inputs:
@@ -11,16 +12,25 @@ on:
         description: 'Image tag to push (v-prefixed semver, e.g. v0.1.0).'
         required: true
         type: string
+      app:
+        description: 'Which console to build.'
+        required: false
+        type: choice
+        options:
+          - developer-console
+          - cluster-console
+        default: developer-console
 
 concurrency:
-  group: docker-build-${{ github.ref }}
+  group: docker-build-${{ inputs.app || 'developer-console' }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  IMAGE: cerebellumnetwork/developer-console
+  APP: ${{ inputs.app || 'developer-console' }}
+  IMAGE: cerebellumnetwork/${{ inputs.app || 'developer-console' }}
 
 jobs:
   build:
@@ -63,7 +73,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/developer-console/Dockerfile
+          file: apps/${{ env.APP }}/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ inputs.tag }}
