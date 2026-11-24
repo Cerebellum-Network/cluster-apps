@@ -21,12 +21,12 @@ const DAC: Record<DacStatus, { label: string; fg: string; bg: string; title: str
   failed: { label: 'Failed', fg: color.danger, bg: '#FDECEC', title: 'The node’s DAC agent refused the record.' },
 };
 
-export const DacPill = ({ status }: { status: DacStatus }) => {
+export const DacPill = ({ status, error }: { status: DacStatus; error?: string | null }) => {
   const d = DAC[status] ?? DAC.pending;
   return (
     <Box
       component="span"
-      title={d.title}
+      title={error ? `${d.title} ${error}` : d.title}
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -122,7 +122,7 @@ const RecordsTable = ({
                 {fmtBytes(r.net_egress_bytes)} / {fmtBytes(r.net_ingress_bytes)}
               </TableCell>
               <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                <DacPill status={r.dac_status} />
+                <DacPill status={r.dac_status} error={r.dac_error} />
                 <Typography
                   sx={{ ...text.caption, fontFamily: mono, marginTop: '3px' }}
                   title={`record ${r.record_id}\nnode ${r.node}\ncpuUnits ${fmtUnits(r.cpu_units)}\nramUnits ${fmtUnits(r.ram_units)}`}

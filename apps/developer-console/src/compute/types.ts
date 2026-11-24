@@ -209,6 +209,8 @@ export interface UsageRecord {
   ram_units: string;
   tca_id: number;
   dac_status: DacStatus;
+  /** Why the DAC agent refused the record, when it did. */
+  dac_error?: string | null;
   dac_updated_at: string | null;
 }
 
