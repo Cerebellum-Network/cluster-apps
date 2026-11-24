@@ -291,7 +291,7 @@ const AgentDetail = () => {
               variant="contained"
               fullWidth
               sx={{ marginTop: '10px' }}
-              disabled={!def || !input.trim() || missing.length > 0 || !secrets.data}
+              disabled={!def || !input.trim() || missing.length > 0 || (secrets.loading && !secrets.data)}
               onClick={run}
             >
               Run agent

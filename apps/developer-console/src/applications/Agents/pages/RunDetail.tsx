@@ -78,8 +78,11 @@ function useRunFile(sb: Sandbox | null, name: string, pollMs: number | null, ver
       if (t) window.clearInterval(t);
     };
   }, [client, account, id, name, running, retained, pollMs, bucketsKey, version]);
-  return state;
+  // Nothing to read (no sandbox yet, or this tab streams the run itself): not "loading".
+  return id ? state : NO_FILE;
 }
+
+const NO_FILE: FileState = { text: null, from: null, error: null, loading: false };
 
 const Output = ({ output, from }: { output: RunOutput | null; from?: string | null }) => {
   if (!output) return <Typography sx={text.secondary}>No output yet.</Typography>;
@@ -324,7 +327,7 @@ const RunDetail = () => {
           {tab === 'did' ? (
             <Box>
               <Label>
-                {live && live.events.length
+                {driving || (live && live.events.length)
                   ? 'Live from the runner'
                   : transcript.from
                     ? `From transcript.jsonl in the ${transcript.from}`
