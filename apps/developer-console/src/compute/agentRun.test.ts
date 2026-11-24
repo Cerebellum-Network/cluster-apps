@@ -23,7 +23,11 @@ const SRE: AgentDefinition = {
   image: 'cerebellumnetwork/ddc-agent-runner:0.1.0',
   command: null,
   system_prompt: 'You are an SRE engineer.',
-  model: { base_url: 'https://inference-gateway.compute.test.ddcdragon.com/anthropic', model: 'm1', credential: 'ddc-inference' },
+  model: {
+    base_url: 'https://inference-gateway.compute.test.ddcdragon.com/anthropic',
+    model: 'm1',
+    credential: 'ddc-inference',
+  },
   tools: ['Bash'],
   resources: { cpu: 1, memory_mib: 2048 },
   timeout_s: 900,
@@ -58,8 +62,18 @@ const sandbox = (over: Partial<Sandbox>): Sandbox => ({
 });
 
 /** A compute client that behaves like the gateway for one run, recording what it was asked. */
-function fakeClient(opts: { stdout: string[]; output?: string | null; exitCode?: number; startStatus?: Sandbox['status'] }) {
-  const log: { created?: CreateSandboxRequest; files: Record<string, string>; exec?: ExecRequest; terminated?: { retain?: string[]; reason?: string } } = { files: {} };
+function fakeClient(opts: {
+  stdout: string[];
+  output?: string | null;
+  exitCode?: number;
+  startStatus?: Sandbox['status'];
+}) {
+  const log: {
+    created?: CreateSandboxRequest;
+    files: Record<string, string>;
+    exec?: ExecRequest;
+    terminated?: { retain?: string[]; reason?: string };
+  } = { files: {} };
   let polls = 0;
   const client = {
     baseUrl: 'x',
@@ -69,7 +83,10 @@ function fakeClient(opts: { stdout: string[]; output?: string | null; exitCode?:
     },
     getSandbox: async () => {
       polls += 1;
-      return sandbox({ status: polls < 2 ? 'starting' : (opts.startStatus ?? 'running'), exit_reason: opts.startStatus === 'failed' ? 'failed: image pull x' : null });
+      return sandbox({
+        status: polls < 2 ? 'starting' : (opts.startStatus ?? 'running'),
+        exit_reason: opts.startStatus === 'failed' ? 'failed: image pull x' : null,
+      });
     },
     putFile: async (_id: string, path: string, body: string) => {
       log.files[path] = body;
@@ -138,7 +155,12 @@ describe('buildCreateRequest', () => {
 describe('runFiles', () => {
   it('writes agent.json, input.txt and the definition files under /workspace', () => {
     const files = runFiles(SRE, 'status?');
-    expect(files.map((f) => f.path)).toEqual(['/workspace/agent.json', '/workspace/input.txt', '/workspace/notes/a.md', '/etc/x']);
+    expect(files.map((f) => f.path)).toEqual([
+      '/workspace/agent.json',
+      '/workspace/input.txt',
+      '/workspace/notes/a.md',
+      '/etc/x',
+    ]);
     expect(JSON.parse(files[0].body)).toEqual(SRE);
     expect(files[1].body).toBe('status?');
   });
@@ -188,10 +210,19 @@ describe('runAgent', () => {
     expect(res.output?.output).toBe('# Status\nall good');
     expect(res.sandbox?.status).toBe('terminated');
     expect(steps).toEqual(['create', 'start', 'files', 'run', 'collect', 'save', 'terminate', 'done']);
-    expect(log.exec).toEqual({ command: ['ddc-agent-run', '/workspace/agent.json', '/workspace/input.txt'], timeout_s: 900, workdir: '/workspace' });
+    expect(log.exec).toEqual({
+      command: ['ddc-agent-run', '/workspace/agent.json', '/workspace/input.txt'],
+      timeout_s: 900,
+      workdir: '/workspace',
+    });
     expect(Object.keys(log.files)).toContain('/workspace/input.txt');
     expect(log.terminated).toEqual({ retain: RETAINED_FILES, reason: 'agent run finished' });
-    expect(events.filter((e) => e.event !== 'raw').map((e) => e.event)).toEqual(['log', 'tool_call', 'tool_result', 'done']);
+    expect(events.filter((e) => e.event !== 'raw').map((e) => e.event)).toEqual([
+      'log',
+      'tool_call',
+      'tool_result',
+      'done',
+    ]);
     expect(events).toContainEqual({ event: 'raw', stream: 'stderr', text: 'a warning' });
     expect(saved).toEqual([{ id: 'sb-1', names: ['output.json', 'transcript.jsonl'] }]);
     expect(res.saved).toEqual(['cere/runs/sb-1/output.json', 'cere/runs/sb-1/transcript.jsonl']);

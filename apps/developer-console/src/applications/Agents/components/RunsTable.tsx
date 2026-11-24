@@ -76,9 +76,14 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
         </TableHead>
         <TableBody>
           {rows.map((r) => {
-            const end = r.sandbox?.ended_at ? Date.parse(r.sandbox.ended_at) : r.endedAt ?? now;
+            const end = r.sandbox?.ended_at ? Date.parse(r.sandbox.ended_at) : (r.endedAt ?? now);
             return (
-              <TableRow key={r.runId} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/agents/runs/${r.runId}`)}>
+              <TableRow
+                key={r.runId}
+                hover
+                sx={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/agents/runs/${r.runId}`)}
+              >
                 <TableCell>
                   <Box component="span" sx={{ fontFamily: mono, fontSize: 13, fontWeight: 600 }}>
                     {shortId(r.runId)}
@@ -104,11 +109,25 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
                     <Typography sx={text.secondary}>creating…</Typography>
                   )}
                 </TableCell>
-                <TableCell sx={{ color: color.textSecondary }}>{fmtAgo(new Date(r.startedAt).toISOString(), now)}</TableCell>
-                <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>{fmtDuration((end - r.startedAt) / 1000)}</TableCell>
+                <TableCell sx={{ color: color.textSecondary }}>
+                  {fmtAgo(new Date(r.startedAt).toISOString(), now)}
+                </TableCell>
+                <TableCell sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtDuration((end - r.startedAt) / 1000)}
+                </TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                   {r.sandbox ? (
-                    <Box component={NavLink} to={`/sandboxes/list/${r.sandbox.id}`} sx={{ fontFamily: mono, fontSize: 12.5, color: color.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                    <Box
+                      component={NavLink}
+                      to={`/sandboxes/list/${r.sandbox.id}`}
+                      sx={{
+                        fontFamily: mono,
+                        fontSize: 12.5,
+                        color: color.primary,
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
                       {shortId(r.sandbox.id)}
                     </Box>
                   ) : (
@@ -118,7 +137,9 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
                 <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                   {r.sandbox ? (
                     <>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{fmtQty(r.sandbox.usage.cpu_s)} CPU-s</Typography>
+                      <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
+                        {fmtQty(r.sandbox.usage.cpu_s)} CPU-s
+                      </Typography>
                       <Typography sx={text.caption}>{fmtQty(r.sandbox.usage.ram_gib_s)} GiB-s</Typography>
                     </>
                   ) : (

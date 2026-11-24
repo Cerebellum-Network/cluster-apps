@@ -50,14 +50,30 @@ export function foldEvents(events: RunEvent[]): RunItem[] {
         const i = tools.get(e.id);
         const row = i !== undefined ? items[i] : undefined;
         if (row?.kind === 'tool') items[i!] = { ...row, status: e.is_error ? 'error' : 'ok', output: e.output };
-        else items.push({ kind: 'tool', id: e.id, tool: 'tool', input: '', status: e.is_error ? 'error' : 'ok', output: e.output });
+        else
+          items.push({
+            kind: 'tool',
+            id: e.id,
+            tool: 'tool',
+            input: '',
+            status: e.is_error ? 'error' : 'ok',
+            output: e.output,
+          });
         break;
       }
       case 'denied': {
         const i = e.id ? tools.get(e.id) : undefined;
         const row = i !== undefined ? items[i] : undefined;
         if (row?.kind === 'tool') items[i!] = { ...row, status: 'denied', output: e.reason };
-        else items.push({ kind: 'tool', id: e.id || `denied-${++anon}`, tool: e.tool, input: summariseInput(e.input), status: 'denied', output: e.reason });
+        else
+          items.push({
+            kind: 'tool',
+            id: e.id || `denied-${++anon}`,
+            tool: e.tool,
+            input: summariseInput(e.input),
+            status: 'denied',
+            output: e.reason,
+          });
         break;
       }
       default:
@@ -67,11 +83,27 @@ export function foldEvents(events: RunEvent[]): RunItem[] {
   return items;
 }
 
-type Block = { _type?: string; text?: unknown; id?: unknown; name?: unknown; input?: unknown; tool_use_id?: unknown; content?: unknown; is_error?: unknown };
+type Block = {
+  _type?: string;
+  text?: unknown;
+  id?: unknown;
+  name?: unknown;
+  input?: unknown;
+  tool_use_id?: unknown;
+  content?: unknown;
+  is_error?: unknown;
+};
 
 const contentText = (c: unknown): string => {
   if (typeof c === 'string') return c;
-  if (Array.isArray(c)) return c.map((p) => (p && typeof p === 'object' && typeof (p as { text?: unknown }).text === 'string' ? (p as { text: string }).text : '')).join('\n');
+  if (Array.isArray(c))
+    return c
+      .map((p) =>
+        p && typeof p === 'object' && typeof (p as { text?: unknown }).text === 'string'
+          ? (p as { text: string }).text
+          : '',
+      )
+      .join('\n');
   return c == null ? '' : JSON.stringify(c);
 };
 
@@ -81,7 +113,11 @@ const contentText = (c: unknown): string => {
  * results), ResultMessage, and `error`. Lines it doesn't know are skipped;
  * a line that isn't JSON is shown as is.
  */
-export function transcriptItems(jsonl: string): { items: RunItem[]; prompt: string | null; result: Record<string, unknown> | null } {
+export function transcriptItems(jsonl: string): {
+  items: RunItem[];
+  prompt: string | null;
+  result: Record<string, unknown> | null;
+} {
   const items: RunItem[] = [];
   const tools = new Map<string, number>();
   let prompt: string | null = null;

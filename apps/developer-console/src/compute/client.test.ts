@@ -39,10 +39,31 @@ const BASE = 'https://agent-gateway.example';
 
 describe('createComputeClient', () => {
   it('sends the token as a bearer and lists with repeated label filters', async () => {
-    const { calls, fetchImpl } = stubFetch(() => json(200, { items: [{ id: 'sb-1' }], next_cursor: null }));
+    // Go sends empty lists as null; the client hands pages empty values instead.
+    const { calls, fetchImpl } = stubFetch(() =>
+      json(200, {
+        items: [
+          { id: 'sb-1', labels: null, retained: null, env_keys: null, egress: { allow: null }, usage: { cpu_s: 2 } },
+        ],
+        next_cursor: null,
+      }),
+    );
     const c = createComputeClient('tok', `${BASE}/`, fetchImpl);
-    const page = await c.listSandboxes({ status: 'running', label: ['cere.kind:agent-run', 'cere.agent:sre'], limit: 100 });
-    expect(page).toEqual({ items: [{ id: 'sb-1' }], next_cursor: null });
+    const page = await c.listSandboxes({
+      status: 'running',
+      label: ['cere.kind:agent-run', 'cere.agent:sre'],
+      limit: 100,
+    });
+    expect(page.next_cursor).toBeNull();
+    expect(page.items[0]).toMatchObject({
+      id: 'sb-1',
+      labels: {},
+      retained: [],
+      env_keys: [],
+      egress: { allow: [] },
+      command: [],
+    });
+    expect(page.items[0].usage).toMatchObject({ cpu_s: 2, ram_gib_s: 0 });
     expect(calls[0].headers.Authorization).toBe('Bearer tok');
     expect(calls[0].url).toBe(
       `${BASE}/v1/sandboxes?status=running&label=cere.kind%3Aagent-run&label=cere.agent%3Asre&limit=100`,
@@ -50,7 +71,9 @@ describe('createComputeClient', () => {
   });
 
   it('creates with a JSON body and terminates with retain and reason', async () => {
-    const { calls, fetchImpl } = stubFetch((c) => json(c.method === 'POST' ? 201 : 200, { id: 'sb-1', status: 'starting' }));
+    const { calls, fetchImpl } = stubFetch((c) =>
+      json(c.method === 'POST' ? 201 : 200, { id: 'sb-1', status: 'starting' }),
+    );
     const c = createComputeClient('tok', BASE, fetchImpl);
     await c.createSandbox({ image: 'python:3.12-slim', resources: { cpu: 1, memory_mib: 1024 } });
     expect(calls[0].method).toBe('POST');
@@ -85,7 +108,12 @@ describe('createComputeClient', () => {
     expect(calls[0].url).toBe(`${BASE}/v1/sandboxes/sb-1/exec?stream=1`);
     expect(calls[0].headers.Accept).toBe('text/event-stream');
     expect(exit).toEqual({ exit_code: 3, duration_ms: 12, timed_out: false });
-    expect(events.filter((e) => e.type === 'stdout').map((e) => (e as { data: string }).data).join('')).toBe('hello world\n');
+    expect(
+      events
+        .filter((e) => e.type === 'stdout')
+        .map((e) => (e as { data: string }).data)
+        .join(''),
+    ).toBe('hello world\n');
     expect(events.some((e) => e.type === 'stderr' && e.data === 'warn\n')).toBe(true);
   });
 
@@ -97,7 +125,9 @@ describe('createComputeClient', () => {
 
   it('reads logs until end, and puts files as raw bodies', async () => {
     const { calls, fetchImpl } = stubFetch((c) =>
-      c.url.includes('/logs') ? sse('event: stdout\ndata: {"data":"a\\n"}\n\nevent: end\ndata: {}\n\n') : new Response(null, { status: 204 }),
+      c.url.includes('/logs')
+        ? sse('event: stdout\ndata: {"data":"a\\n"}\n\nevent: end\ndata: {}\n\n')
+        : new Response(null, { status: 204 }),
     );
     const c = createComputeClient('tok', BASE, fetchImpl);
     const seen: string[] = [];
@@ -112,7 +142,9 @@ describe('createComputeClient', () => {
 
   it('puts a secret without echoing it and lists names only', async () => {
     const { calls, fetchImpl } = stubFetch((c) =>
-      c.method === 'PUT' ? new Response(null, { status: 204 }) : json(200, { items: [{ name: 'gh', type: 'header', header: 'Authorization' }] }),
+      c.method === 'PUT'
+        ? new Response(null, { status: 204 })
+        : json(200, { items: [{ name: 'gh', type: 'header', header: 'Authorization' }] }),
     );
     const c = createComputeClient('tok', BASE, fetchImpl);
     await c.putSecret('gh', { type: 'header', header: 'Authorization', value: 'Bearer x' });

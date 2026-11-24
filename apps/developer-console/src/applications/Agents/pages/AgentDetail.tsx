@@ -22,7 +22,19 @@ import { missingSecrets } from '../components/definition';
 import { Label } from '../components/RunItems';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 
-const Rule = ({ host, methods, path, credential, note }: { host: string; methods: string[]; path?: string; credential?: string; note?: ReactNode }) => (
+const Rule = ({
+  host,
+  methods,
+  path,
+  credential,
+  note,
+}: {
+  host: string;
+  methods: string[];
+  path?: string;
+  credential?: string;
+  note?: ReactNode;
+}) => (
   <Stack direction="row" alignItems="center" justifyContent="space-between" gap="10px" sx={{ padding: '6px 0' }}>
     <Box minWidth={0}>
       <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, fontWeight: 600 }}>
@@ -43,12 +55,27 @@ const Definition = ({ def }: { def: AgentDefinition }) => {
   return (
     <Stack spacing="20px">
       {def.description && <Typography sx={text.body}>{def.description}</Typography>}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.3fr) minmax(0, 1fr)' }, gap: '20px' }}>
+      <Box
+        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.3fr) minmax(0, 1fr)' }, gap: '20px' }}
+      >
         <Box minWidth={0}>
           <Label>{def.harness === 'container' ? 'Command' : 'System prompt'}</Label>
           <Box
             component="pre"
-            sx={{ margin: 0, padding: '12px 14px', borderRadius: '10px', border: `1px solid ${color.border}`, backgroundColor: color.inset, fontFamily: mono, fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: color.text, maxHeight: 300, overflow: 'auto' }}
+            sx={{
+              margin: 0,
+              padding: '12px 14px',
+              borderRadius: '10px',
+              border: `1px solid ${color.border}`,
+              backgroundColor: color.inset,
+              fontFamily: mono,
+              fontSize: 12.5,
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              color: color.text,
+              maxHeight: 300,
+              overflow: 'auto',
+            }}
           >
             {def.harness === 'container' ? (def.command ?? []).join(' ') : def.system_prompt || '(none)'}
           </Box>
@@ -87,12 +114,20 @@ const Definition = ({ def }: { def: AgentDefinition }) => {
       <Box>
         <Label>Network access on every run’s sandbox</Label>
         <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '12px', padding: '6px 14px' }}>
-          <Rule host={m.host} methods={m.methods} path={m.path_prefix} credential={m.credential} note="The model, added by the run" />
+          <Rule
+            host={m.host}
+            methods={m.methods}
+            path={m.path_prefix}
+            credential={m.credential}
+            note="The model, added by the run"
+          />
           {(def.egress?.allow ?? []).map((r, i) => (
             <Rule key={i} host={r.host} methods={r.methods} path={r.path_prefix} credential={r.credential} />
           ))}
         </Box>
-        <Typography sx={{ ...text.caption, marginTop: '6px' }}>Everything else is refused by the egress proxy and shows in the run’s egress log.</Typography>
+        <Typography sx={{ ...text.caption, marginTop: '6px' }}>
+          Everything else is refused by the egress proxy and shows in the run’s egress log.
+        </Typography>
       </Box>
     </Stack>
   );
@@ -119,12 +154,18 @@ const AgentDetail = () => {
         <CircularProgress size={24} />
       </Box>
     ) : (
-      <ReadError what={`agent ${name}`} error={defs.error ?? `there is no cere/agents/${name}.json in bucket ${bucket}`} />
+      <ReadError
+        what={`agent ${name}`}
+        error={defs.error ?? `there is no cere/agents/${name}.json in bucket ${bucket}`}
+      />
     );
   }
   const def = stored.def;
   const missing = def ? missingSecrets(def, secrets.data) : [];
-  const rows = runRows(runs.data?.items ?? [], liveRuns().filter((r) => r.def.name === name));
+  const rows = runRows(
+    runs.data?.items ?? [],
+    liveRuns().filter((r) => r.def.name === name),
+  );
 
   const run = () => {
     if (!def || !input.trim()) return;
@@ -154,11 +195,22 @@ const AgentDetail = () => {
   return (
     <Box>
       <Box sx={{ marginBottom: '6px' }}>
-        <Box component={NavLink} to="/agents" sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}>
+        <Box
+          component={NavLink}
+          to="/agents"
+          sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
+        >
           Agents
         </Box>
       </Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} marginBottom="16px" flexWrap="wrap">
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap={2}
+        marginBottom="16px"
+        flexWrap="wrap"
+      >
         <Stack direction="row" alignItems="baseline" gap="12px" flexWrap="wrap">
           <Typography component="h1" sx={text.pageTitle}>
             {name}
@@ -178,10 +230,24 @@ const AgentDetail = () => {
         </Alert>
       )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 380px' }, gap: '16px', alignItems: 'start' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 380px' },
+          gap: '16px',
+          alignItems: 'start',
+        }}
+      >
         <Section>
           <Box marginTop="-8px" marginBottom="18px">
-            <Tabs value={tab} onChange={setTab} tabs={[{ id: 'definition', label: 'Definition' }, { id: 'json', label: 'JSON' }]} />
+            <Tabs
+              value={tab}
+              onChange={setTab}
+              tabs={[
+                { id: 'definition', label: 'Definition' },
+                { id: 'json', label: 'JSON' },
+              ]}
+            />
           </Box>
           {tab === 'json' ? (
             <CodeBlock code={def ? JSON.stringify(def, null, 2) : stored.errors.join('\n')} />
@@ -216,11 +282,18 @@ const AgentDetail = () => {
             />
             {missing.length > 0 && (
               <Alert severity="warning" sx={{ marginTop: '10px' }}>
-                The run needs the secret{missing.length > 1 ? 's' : ''} {missing.join(', ')}, which this bucket doesn’t hold. Add{' '}
-                {missing.length > 1 ? 'them' : 'it'} under <NavLink to="/sandboxes/secrets">Sandboxes › Secrets</NavLink>.
+                The run needs the secret{missing.length > 1 ? 's' : ''} {missing.join(', ')}, which this bucket doesn’t
+                hold. Add {missing.length > 1 ? 'them' : 'it'} under{' '}
+                <NavLink to="/sandboxes/secrets">Sandboxes › Secrets</NavLink>.
               </Alert>
             )}
-            <Button variant="contained" fullWidth sx={{ marginTop: '10px' }} disabled={!def || !input.trim() || missing.length > 0 || !secrets.data} onClick={run}>
+            <Button
+              variant="contained"
+              fullWidth
+              sx={{ marginTop: '10px' }}
+              disabled={!def || !input.trim() || missing.length > 0 || !secrets.data}
+              onClick={run}
+            >
               Run agent
             </Button>
           </Section>

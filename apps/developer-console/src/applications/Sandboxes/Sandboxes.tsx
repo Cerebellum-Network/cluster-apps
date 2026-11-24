@@ -25,7 +25,7 @@ const Sandboxes = () => (
       <Route
         path="*"
         element={
-          <ComputeGate>
+          <ComputeGate title="Sandboxes">
             <Routes>
               <Route path="list" element={<SandboxList />} />
               <Route path="list/:id" element={<SandboxDetail />} />

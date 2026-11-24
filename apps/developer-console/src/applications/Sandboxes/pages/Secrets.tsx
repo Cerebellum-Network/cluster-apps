@@ -14,7 +14,15 @@ import {
   TextField,
   Typography,
 } from '@cluster-apps/ui';
-import { Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton } from '@mui/material';
+import {
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  IconButton,
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
 import { PageHeader, Section } from '~/components';
@@ -95,7 +103,9 @@ const SecretDialog = ({ name: initial, onClose }: { name?: string; onClose: (sav
           {header.toLowerCase() === 'authorization' && (
             <FormControlLabel
               control={<Checkbox size="small" checked={bearer} onChange={(e) => setBearer(e.target.checked)} />}
-              label={<Typography sx={text.secondary}>It’s a bearer token: send it as “Bearer &lt;value&gt;”</Typography>}
+              label={
+                <Typography sx={text.secondary}>It’s a bearer token: send it as “Bearer &lt;value&gt;”</Typography>
+              }
             />
           )}
           {error && <Alert severity="error">{error}</Alert>}
@@ -113,7 +123,15 @@ const SecretDialog = ({ name: initial, onClose }: { name?: string; onClose: (sav
   );
 };
 
-const DeleteDialog = ({ name, inUse, onClose }: { name: string; inUse: number; onClose: (deleted?: boolean) => void }) => {
+const DeleteDialog = ({
+  name,
+  inUse,
+  onClose,
+}: {
+  name: string;
+  inUse: number;
+  onClose: (deleted?: boolean) => void;
+}) => {
   const client = useComputeClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -223,7 +241,10 @@ const Secrets = () => {
                     <TableCell>
                       <Stack direction="row" alignItems="center" gap="8px" sx={{ color: sbColor.credential }}>
                         <KeyGlyph size={14} />
-                        <Box component="span" sx={{ fontFamily: mono, fontSize: 13.5, fontWeight: 600, color: color.text }}>
+                        <Box
+                          component="span"
+                          sx={{ fontFamily: mono, fontSize: 13.5, fontWeight: 600, color: color.text }}
+                        >
                           {s.name}
                         </Box>
                       </Stack>
@@ -253,7 +274,12 @@ const Secrets = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Stack direction="row" gap="8px" justifyContent="flex-end">
-                        <Button size="small" variant="outlined" color="secondary" onClick={() => setDialog({ name: s.name })}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="secondary"
+                          onClick={() => setDialog({ name: s.name })}
+                        >
                           Replace value
                         </Button>
                         <Button size="small" variant="text" color="error" onClick={() => setDeleting(s.name)}>
@@ -266,7 +292,9 @@ const Secrets = () => {
                 {!loading && (data ?? []).length === 0 && (
                   <TableRow>
                     <TableCell colSpan={6} sx={{ textAlign: 'center', padding: '32px' }}>
-                      <Typography sx={text.secondary}>No secrets yet. Add one, then name it in a sandbox’s egress rule.</Typography>
+                      <Typography sx={text.secondary}>
+                        No secrets yet. Add one, then name it in a sandbox’s egress rule.
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 )}
@@ -277,7 +305,10 @@ const Secrets = () => {
       </Section>
 
       <Typography sx={{ ...text.caption, marginTop: '12px' }}>
-        From a terminal: <Box component="span" sx={{ fontFamily: mono }}>cere secret set &lt;name&gt; --header Authorization --bearer-stdin</Box>{' '}
+        From a terminal:{' '}
+        <Box component="span" sx={{ fontFamily: mono }}>
+          cere secret set &lt;name&gt; --header Authorization --bearer-stdin
+        </Box>{' '}
         reads the value from a pipe, so it never appears in your shell history.
       </Typography>
 

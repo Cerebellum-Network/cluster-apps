@@ -72,28 +72,55 @@ const Overview = () => {
         <Section>
           <Typography sx={text.body}>
             No agent definitions in your buckets yet. Add one here, or push one from a terminal (below). They live at{' '}
-            <Box component="span" sx={{ fontFamily: mono }}>cere/agents/&lt;name&gt;.json</Box>.
+            <Box component="span" sx={{ fontFamily: mono }}>
+              cere/agents/&lt;name&gt;.json
+            </Box>
+            .
           </Typography>
         </Section>
       ) : (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' }, gap: '16px', marginBottom: '16px' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' },
+            gap: '16px',
+            marginBottom: '16px',
+          }}
+        >
           {defs.agents.map((a) => {
             const missing = a.def ? missingSecrets(a.def, secrets.data) : [];
             return (
               <Box
                 key={`${a.bucket}/${a.key}`}
-                sx={{ backgroundColor: color.surface, border: `1px solid ${color.border}`, borderRadius: '16px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}
+                sx={{
+                  backgroundColor: color.surface,
+                  border: `1px solid ${color.border}`,
+                  borderRadius: '16px',
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
               >
                 <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap="10px">
                   <Box minWidth={0}>
                     <Box
                       component={NavLink}
                       to={agentPath(a.bucket, a.name)}
-                      sx={{ fontSize: 17, fontWeight: 700, color: color.text, textDecoration: 'none', '&:hover': { color: color.primary } }}
+                      sx={{
+                        fontSize: 17,
+                        fontWeight: 700,
+                        color: color.text,
+                        textDecoration: 'none',
+                        '&:hover': { color: color.primary },
+                      }}
                     >
                       {a.name}
                     </Box>
-                    <Typography sx={{ fontFamily: mono, fontSize: 12, color: color.textTertiary }} title={`${a.bucket}/${a.key}`}>
+                    <Typography
+                      sx={{ fontFamily: mono, fontSize: 12, color: color.textTertiary }}
+                      title={`${a.bucket}/${a.key}`}
+                    >
                       {a.bucket}
                     </Typography>
                   </Box>
@@ -117,7 +144,8 @@ const Overview = () => {
                     </Stack>
                     {missing.length > 0 && (
                       <Typography sx={{ ...text.caption, color: color.warning }}>
-                        Needs the secret{missing.length > 1 ? 's' : ''} {missing.join(', ')}. Add {missing.length > 1 ? 'them' : 'it'} under{' '}
+                        Needs the secret{missing.length > 1 ? 's' : ''} {missing.join(', ')}. Add{' '}
+                        {missing.length > 1 ? 'them' : 'it'} under{' '}
                         <NavLink to="/sandboxes/secrets">Sandboxes › Secrets</NavLink>.
                       </Typography>
                     )}
@@ -126,7 +154,13 @@ const Overview = () => {
                   <Typography sx={{ ...text.caption, color: color.warning }}>{a.errors.join(' ')}</Typography>
                 )}
                 <Stack direction="row" justifyContent="flex-end" gap="8px" marginTop="auto" paddingTop="6px">
-                  <Button size="small" variant={a.def ? 'contained' : 'outlined'} color={a.def ? 'primary' : 'secondary'} component={NavLink} to={agentPath(a.bucket, a.name)}>
+                  <Button
+                    size="small"
+                    variant={a.def ? 'contained' : 'outlined'}
+                    color={a.def ? 'primary' : 'secondary'}
+                    component={NavLink}
+                    to={agentPath(a.bucket, a.name)}
+                  >
                     {a.def ? 'Open and run' : 'Open'}
                   </Button>
                 </Stack>
@@ -136,7 +170,9 @@ const Overview = () => {
         </Box>
       )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.6fr) minmax(0, 1fr)' }, gap: '16px' }}>
+      <Box
+        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.6fr) minmax(0, 1fr)' }, gap: '16px' }}
+      >
         <Section
           title="Recent runs"
           flush
@@ -156,8 +192,8 @@ const Overview = () => {
         </Section>
         <Section title="From a terminal">
           <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
-            The CLI runs the same definitions the same way: a sandbox per run, with the same labels, so its runs show here
-            too.
+            The CLI runs the same definitions the same way: a sandbox per run, with the same labels, so its runs show
+            here too.
           </Typography>
           <CodeBlock code={FROM_A_TERMINAL} />
         </Section>

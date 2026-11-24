@@ -13,27 +13,74 @@ const TOOL_TONE: Record<ToolStatus, { fg: string; bg: string; label: string }> =
   denied: { fg: sbColor.deniedText, bg: sbColor.deniedTint, label: 'denied' },
 };
 
-export const Label = ({ children }: { children: ReactNode }) => <Typography sx={{ ...text.label, marginBottom: '6px' }}>{children}</Typography>;
+export const Label = ({ children }: { children: ReactNode }) => (
+  <Typography sx={{ ...text.label, marginBottom: '6px' }}>{children}</Typography>
+);
 
 const ToolRow = ({ item }: { item: Extract<RunItem, { kind: 'tool' }> }) => {
   const tone = TOOL_TONE[item.status];
   const refused = item.status === 'denied';
   return (
-    <Box sx={{ border: `1px solid ${refused ? '#F3C2C2' : color.border}`, backgroundColor: refused ? sbColor.deniedTint : color.surface, borderRadius: '10px', padding: '9px 12px' }}>
+    <Box
+      sx={{
+        border: `1px solid ${refused ? '#F3C2C2' : color.border}`,
+        backgroundColor: refused ? sbColor.deniedTint : color.surface,
+        borderRadius: '10px',
+        padding: '9px 12px',
+      }}
+    >
       <Stack direction="row" alignItems="center" gap="8px" minWidth={0}>
-        <Box component="span" sx={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: color.primaryDark, flexShrink: 0 }}>
+        <Box
+          component="span"
+          sx={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: color.primaryDark, flexShrink: 0 }}
+        >
           {item.tool}
         </Box>
-        <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.input}>
+        <Box
+          component="span"
+          sx={{
+            fontFamily: mono,
+            fontSize: 12.5,
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={item.input}
+        >
           {item.input}
         </Box>
-        <Box component="span" sx={{ fontSize: 11.5, fontWeight: 700, padding: '2px 7px', borderRadius: '999px', color: tone.fg, backgroundColor: tone.bg, flexShrink: 0 }}>
-          {item.status === 'running' ? <CircularProgress size={9} thickness={7} sx={{ color: tone.fg, verticalAlign: '-1px' }} /> : tone.label}
+        <Box
+          component="span"
+          sx={{
+            fontSize: 11.5,
+            fontWeight: 700,
+            padding: '2px 7px',
+            borderRadius: '999px',
+            color: tone.fg,
+            backgroundColor: tone.bg,
+            flexShrink: 0,
+          }}
+        >
+          {item.status === 'running' ? (
+            <CircularProgress size={9} thickness={7} sx={{ color: tone.fg, verticalAlign: '-1px' }} />
+          ) : (
+            tone.label
+          )}
         </Box>
       </Stack>
       {item.output && item.status !== 'running' && (
         <Typography
-          sx={{ ...text.caption, marginTop: '5px', fontFamily: mono, whiteSpace: 'pre-wrap', color: refused ? sbColor.deniedText : color.textSecondary, maxHeight: 96, overflow: 'auto' }}
+          sx={{
+            ...text.caption,
+            marginTop: '5px',
+            fontFamily: mono,
+            whiteSpace: 'pre-wrap',
+            color: refused ? sbColor.deniedText : color.textSecondary,
+            maxHeight: 96,
+            overflow: 'auto',
+          }}
         >
           {item.output.length > 2000 ? `${item.output.slice(0, 2000)}…` : item.output}
         </Typography>
@@ -43,7 +90,15 @@ const ToolRow = ({ item }: { item: Extract<RunItem, { kind: 'tool' }> }) => {
 };
 
 /** What an agent did, row by row: its text, each tool call with its result or refusal, and log lines. */
-export const RunItems = ({ items, working, follow = true }: { items: RunItem[]; working?: boolean; follow?: boolean }) => {
+export const RunItems = ({
+  items,
+  working,
+  follow = true,
+}: {
+  items: RunItem[];
+  working?: boolean;
+  follow?: boolean;
+}) => {
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (follow && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
@@ -58,7 +113,16 @@ export const RunItems = ({ items, working, follow = true }: { items: RunItem[]; 
             <Markdown source={it.text} />
           </Box>
         ) : (
-          <Typography key={i} sx={{ fontFamily: mono, fontSize: 12, color: it.stream === 'stderr' ? color.warning : color.textTertiary, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          <Typography
+            key={i}
+            sx={{
+              fontFamily: mono,
+              fontSize: 12,
+              color: it.stream === 'stderr' ? color.warning : color.textTertiary,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
             {it.text}
           </Typography>
         ),

@@ -27,7 +27,10 @@ const nameFromKey = (key: string) => key.slice(AGENTS_PREFIX.length).replace(/\.
 type Store = Pick<BucketStorage, 'listObjects' | 'readObject' | 'uploadObject' | 'deleteObject'>;
 
 /** Every `cere/agents/*.json` in `buckets`, parsed and checked. One unreadable bucket does not hide the others. */
-export async function listAgents(storage: Store, buckets: string[]): Promise<{ agents: StoredAgent[]; failed: { bucket: string; error: string }[] }> {
+export async function listAgents(
+  storage: Store,
+  buckets: string[],
+): Promise<{ agents: StoredAgent[]; failed: { bucket: string; error: string }[] }> {
   const failed: { bucket: string; error: string }[] = [];
   const perBucket = await Promise.all(
     buckets.map(async (bucket) => {
@@ -52,11 +55,23 @@ async function readStored(storage: Store, bucket: string, key: string): Promise<
     const { def, errors } = parseAgentDefinition(text);
     const fileName = nameFromKey(key);
     if (def && def.name !== fileName) {
-      return { bucket, key, name: def.name, def: null, errors: [`The file is ${key} but its "name" is "${def.name}".`] };
+      return {
+        bucket,
+        key,
+        name: def.name,
+        def: null,
+        errors: [`The file is ${key} but its "name" is "${def.name}".`],
+      };
     }
     return { bucket, key, name: def?.name ?? fileName, def, errors };
   } catch (e) {
-    return { bucket, key, name: nameFromKey(key), def: null, errors: [`Couldn’t read it: ${e instanceof Error ? e.message : String(e)}`] };
+    return {
+      bucket,
+      key,
+      name: nameFromKey(key),
+      def: null,
+      errors: [`Couldn’t read it: ${e instanceof Error ? e.message : String(e)}`],
+    };
   }
 }
 
@@ -100,7 +115,12 @@ export async function saveRunFiles(
 }
 
 /** A run's file from the bucket copy, from whichever of `buckets` has it; null when none does. */
-export async function readRunFile(storage: Store, buckets: string[], sandboxId: string, name: string): Promise<{ bucket: string; text: string } | null> {
+export async function readRunFile(
+  storage: Store,
+  buckets: string[],
+  sandboxId: string,
+  name: string,
+): Promise<{ bucket: string; text: string } | null> {
   for (const bucket of buckets) {
     try {
       const objects = await storage.listObjects(bucket, runPrefix(sandboxId));

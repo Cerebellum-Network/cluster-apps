@@ -49,7 +49,10 @@ export function useComputeToken(
   const owner = account.account;
   /** Which (account, bucket) the state is for: another's token is never handed out, not even for one render. */
   const source = `${owner}:${bucketId}`;
-  const [tagged, setTagged] = useState<{ for: string; value: ComputeToken }>({ for: source, value: { kind: 'minting' } });
+  const [tagged, setTagged] = useState<{ for: string; value: ComputeToken }>({
+    for: source,
+    value: { kind: 'minting' },
+  });
   const setState = useCallback((value: ComputeToken) => setTagged({ for: source, value }), [source]);
   const [attempt, setAttempt] = useState(0);
   /** When this hook last minted: a token rejected soon after is not stale, the gateway is refusing it. */

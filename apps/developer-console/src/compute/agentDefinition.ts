@@ -71,9 +71,11 @@ export function validateAgentDefinition(doc: unknown): string[] {
     } catch {
       url = null;
     }
-    if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) errs.push('"model.base_url" must be an http(s) URL.');
+    if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:'))
+      errs.push('"model.base_url" must be an http(s) URL.');
     if (typeof m.model !== 'string' || !m.model) errs.push('"model.model" is required.');
-    if (typeof m.credential !== 'string' || !m.credential) errs.push('"model.credential" names the secret for the model.');
+    if (typeof m.credential !== 'string' || !m.credential)
+      errs.push('"model.credential" names the secret for the model.');
   }
   if (doc.tools !== undefined && !isStrArray(doc.tools)) errs.push('"tools" must be a list of tool names.');
   if (doc.timeout_s !== undefined && !(typeof doc.timeout_s === 'number' && doc.timeout_s > 0))

@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { Alert, Box, Button, IconButton, LoadingButton, MenuItem, Stack, TextField, Typography } from '@cluster-apps/ui';
+import {
+  Alert,
+  Box,
+  Button,
+  IconButton,
+  LoadingButton,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@cluster-apps/ui';
 import { Autocomplete, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
@@ -98,7 +108,8 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     }
   };
 
-  const setRule = (i: number, patch: Partial<Rule>) => setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const setRule = (i: number, patch: Partial<Rule>) =>
+    setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   return (
     <>
@@ -110,7 +121,13 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             value={image}
             onInputChange={(_, v) => setImage(v)}
             renderInput={(p) => (
-              <TextField {...p} label="Image" size="small" helperText="Any public registry image." InputProps={{ ...p.InputProps, sx: { fontFamily: mono, fontSize: 13 } }} />
+              <TextField
+                {...p}
+                label="Image"
+                size="small"
+                helperText="Any public registry image."
+                InputProps={{ ...p.InputProps, sx: { fontFamily: mono, fontSize: 13 } }}
+              />
             )}
           />
           <TextField
@@ -124,14 +141,28 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
           />
           <Stack direction="row" spacing={2}>
-            <TextField select label="CPU" value={String(cpu)} onChange={(e) => setCpu(Number(e.target.value))} size="small" fullWidth>
+            <TextField
+              select
+              label="CPU"
+              value={String(cpu)}
+              onChange={(e) => setCpu(Number(e.target.value))}
+              size="small"
+              fullWidth
+            >
               {CPUS.map((c) => (
                 <MenuItem key={c} value={String(c)}>
                   {c} vCPU
                 </MenuItem>
               ))}
             </TextField>
-            <TextField select label="Memory" value={String(memory)} onChange={(e) => setMemory(Number(e.target.value))} size="small" fullWidth>
+            <TextField
+              select
+              label="Memory"
+              value={String(memory)}
+              onChange={(e) => setMemory(Number(e.target.value))}
+              size="small"
+              fullWidth
+            >
               {MEMORY.map((m) => (
                 <MenuItem key={m} value={String(m)}>
                   {m >= 1024 ? `${m / 1024} GiB` : `${m} MiB`}
@@ -140,14 +171,28 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             </TextField>
           </Stack>
           <Stack direction="row" spacing={2}>
-            <TextField select label="Stops after" value={String(timeout)} onChange={(e) => setTimeoutS(Number(e.target.value))} size="small" fullWidth>
+            <TextField
+              select
+              label="Stops after"
+              value={String(timeout)}
+              onChange={(e) => setTimeoutS(Number(e.target.value))}
+              size="small"
+              fullWidth
+            >
               {TIMEOUTS.map((t) => (
                 <MenuItem key={t.s} value={String(t.s)}>
                   {t.label}
                 </MenuItem>
               ))}
             </TextField>
-            <TextField select label="Stops when idle" value={String(idle)} onChange={(e) => setIdle(Number(e.target.value))} size="small" fullWidth>
+            <TextField
+              select
+              label="Stops when idle"
+              value={String(idle)}
+              onChange={(e) => setIdle(Number(e.target.value))}
+              size="small"
+              fullWidth
+            >
               {IDLE.map((t) => (
                 <MenuItem key={t.s} value={String(t.s)}>
                   {t.label}
@@ -187,8 +232,8 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
           <Box>
             <Typography sx={{ fontSize: 14, fontWeight: 700 }}>Network access</Typography>
             <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-              None by default. The egress proxy allows only the hosts and methods listed here and refuses the rest.
-              Pick a secret to have the proxy add it to matching requests; the sandbox never sees its value.
+              None by default. The egress proxy allows only the hosts and methods listed here and refuses the rest. Pick
+              a secret to have the proxy add it to matching requests; the sandbox never sees its value.
             </Typography>
             <Stack spacing={1}>
               {rules.map((r, i) => (
@@ -241,7 +286,11 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
                       </MenuItem>
                     ))}
                   </TextField>
-                  <IconButton aria-label="Remove host" size="small" onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}>
+                  <IconButton
+                    aria-label="Remove host"
+                    size="small"
+                    onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}
+                  >
                     <CloseIcon fontSize="small" />
                   </IconButton>
                 </Stack>

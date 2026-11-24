@@ -64,7 +64,12 @@ function useRunFile(sb: Sandbox | null, name: string, pollMs: number | null, ver
         }
       }
       const copy = await readRunFile(account.storage, bucketsKey ? bucketsKey.split(',') : [], id, name);
-      if (alive) setState(copy ? { text: copy.text, from: 'bucket', error: null, loading: false } : { text: null, from: null, error: null, loading: false });
+      if (alive)
+        setState(
+          copy
+            ? { text: copy.text, from: 'bucket', error: null, loading: false }
+            : { text: null, from: null, error: null, loading: false },
+        );
     };
     void read();
     const t = pollMs && running ? window.setInterval(read, pollMs) : undefined;
@@ -86,13 +91,28 @@ const Output = ({ output, from }: { output: RunOutput | null; from?: string | nu
           {output.error}
         </Alert>
       )}
-      {output.output ? <Markdown source={output.output} /> : <Typography sx={text.secondary}>The agent returned no text.</Typography>}
-      <Stack direction="row" gap="16px" flexWrap="wrap" marginTop="12px" sx={{ ...text.caption, fontVariantNumeric: 'tabular-nums' }}>
+      {output.output ? (
+        <Markdown source={output.output} />
+      ) : (
+        <Typography sx={text.secondary}>The agent returned no text.</Typography>
+      )}
+      <Stack
+        direction="row"
+        gap="16px"
+        flexWrap="wrap"
+        marginTop="12px"
+        sx={{ ...text.caption, fontVariantNumeric: 'tabular-nums' }}
+      >
         {output.turns != null && <span>{output.turns} model turns</span>}
-        {output.tool_calls != null && <span>{output.tool_calls} tool calls{output.denied ? `, ${output.denied} refused by the policy` : ''}</span>}
+        {output.tool_calls != null && (
+          <span>
+            {output.tool_calls} tool calls{output.denied ? `, ${output.denied} refused by the policy` : ''}
+          </span>
+        )}
         {typeof usage.input_tokens === 'number' && (
           <span>
-            {usage.input_tokens.toLocaleString('en-US')} input / {Number(usage.output_tokens ?? 0).toLocaleString('en-US')} output tokens, as the harness reports them
+            {usage.input_tokens.toLocaleString('en-US')} input /{' '}
+            {Number(usage.output_tokens ?? 0).toLocaleString('en-US')} output tokens, as the harness reports them
           </span>
         )}
         {output.duration_s != null && <span>{fmtDuration(output.duration_s)}</span>}
@@ -143,16 +163,35 @@ const RunDetail = () => {
   return (
     <Box>
       <Box sx={{ marginBottom: '6px' }}>
-        <Box component={NavLink} to="/agents/runs" sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}>
+        <Box
+          component={NavLink}
+          to="/agents/runs"
+          sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
+        >
           Runs
         </Box>
       </Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} marginBottom="16px" flexWrap="wrap">
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap={2}
+        marginBottom="16px"
+        flexWrap="wrap"
+      >
         <Stack direction="row" alignItems="center" gap="12px" flexWrap="wrap">
           <Typography component="h1" sx={{ ...text.pageTitle, fontFamily: mono, fontSize: 20 }}>
             {runId}
           </Typography>
-          {driving ? <Pill tone="primary">Running</Pill> : live?.result?.error ? <Pill tone="warning">Failed</Pill> : ended ? <Pill tone="success">Done</Pill> : <Pill tone="primary">Running elsewhere</Pill>}
+          {driving ? (
+            <Pill tone="primary">Running</Pill>
+          ) : live?.result?.error ? (
+            <Pill tone="warning">Failed</Pill>
+          ) : ended ? (
+            <Pill tone="success">Done</Pill>
+          ) : (
+            <Pill tone="primary">Running elsewhere</Pill>
+          )}
           <Typography sx={text.secondary}>
             {agent} · {harness} · {fmtDuration((end - started) / 1000)}
           </Typography>
@@ -165,14 +204,38 @@ const RunDetail = () => {
       </Stack>
 
       {sb && (
-        <Stack direction="row" alignItems="center" gap="12px" flexWrap="wrap" sx={{ padding: '10px 14px', borderRadius: '10px', border: `1px dashed ${color.border}`, backgroundColor: color.inset, marginBottom: '16px' }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          gap="12px"
+          flexWrap="wrap"
+          sx={{
+            padding: '10px 14px',
+            borderRadius: '10px',
+            border: `1px dashed ${color.border}`,
+            backgroundColor: color.inset,
+            marginBottom: '16px',
+          }}
+        >
           <Typography sx={{ ...text.secondary, color: color.text }}>Sandbox</Typography>
-          <Box component={NavLink} to={`/sandboxes/list/${sb.id}`} sx={{ fontFamily: mono, fontSize: 13, fontWeight: 700, color: color.primary, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+          <Box
+            component={NavLink}
+            to={`/sandboxes/list/${sb.id}`}
+            sx={{
+              fontFamily: mono,
+              fontSize: 13,
+              fontWeight: 700,
+              color: color.primary,
+              textDecoration: 'none',
+              '&:hover': { textDecoration: 'underline' },
+            }}
+          >
             {sb.id}
           </Box>
           <SandboxStatusLabel status={sb.status} reason={!isLive(sb.status) ? sb.exit_reason : undefined} />
           <Typography sx={text.secondary}>
-            node <Mono title={sb.node}>{shortNode(sb.node)}</Mono> · {fmtQty(sb.usage.cpu_s)} CPU-s · {fmtQty(sb.usage.ram_gib_s)} GiB-s
+            node <Mono title={sb.node}>{shortNode(sb.node)}</Mono> · {fmtQty(sb.usage.cpu_s)} CPU-s ·{' '}
+            {fmtQty(sb.usage.ram_gib_s)} GiB-s
           </Typography>
         </Stack>
       )}
@@ -184,14 +247,24 @@ const RunDetail = () => {
       )}
       {!live && sb && isLive(sb.status) && (
         <Alert severity="info" sx={{ marginBottom: '16px' }}>
-          Another client (the CLI, the SDK or another tab) is driving this run. Its transcript below is read from the sandbox every few seconds.
+          Another client (the CLI, the SDK or another tab) is driving this run. Its transcript below is read from the
+          sandbox every few seconds.
         </Alert>
       )}
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' }, gap: '16px', alignItems: 'start' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' },
+          gap: '16px',
+          alignItems: 'start',
+        }}
+      >
         <Stack gap="16px" minWidth={0}>
           <Section title="Input">
-            <Typography sx={{ ...text.body, whiteSpace: 'pre-wrap' }}>{input ?? (inputFile.loading ? 'Reading…' : 'Not kept.')}</Typography>
+            <Typography sx={{ ...text.body, whiteSpace: 'pre-wrap' }}>
+              {input ?? (inputFile.loading ? 'Reading…' : 'Not kept.')}
+            </Typography>
           </Section>
           {live && (
             <Section title="Steps">
@@ -202,10 +275,19 @@ const RunDetail = () => {
                   const current = !done && i === stepIndex;
                   return (
                     <Stack key={s.id} direction="row" alignItems="center" gap="10px">
-                      <Box sx={{ width: 18, textAlign: 'center', color: done ? color.success : current ? color.primary : color.textTertiary, fontWeight: 700 }}>
+                      <Box
+                        sx={{
+                          width: 18,
+                          textAlign: 'center',
+                          color: done ? color.success : current ? color.primary : color.textTertiary,
+                          fontWeight: 700,
+                        }}
+                      >
                         {done ? '✓' : current ? <CircularProgress size={12} thickness={6} /> : '·'}
                       </Box>
-                      <Typography sx={{ ...text.body, color: done || current ? color.text : color.textTertiary }}>{s.label}</Typography>
+                      <Typography sx={{ ...text.body, color: done || current ? color.text : color.textTertiary }}>
+                        {s.label}
+                      </Typography>
                     </Stack>
                   );
                 })}

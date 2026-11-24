@@ -9,6 +9,7 @@
  */
 import { computeConfig } from './computeConfig';
 import { parseData, readSse } from './sse';
+import { EMPTY_USAGE } from './types';
 import type {
   CreateSandboxRequest,
   EgressDecision,
@@ -130,6 +131,24 @@ async function failure(res: Response): Promise<ComputeError> {
   return new ComputeError(res.status, message || `${res.status} ${res.statusText}`.trim(), code);
 }
 
+/**
+ * Lists the Go services send as `null` when empty (labels, env_keys, retained,
+ * egress.allow, command) become empty values, and usage gets every field, so
+ * pages never meet a null where the contract has a list.
+ */
+export function normSandbox(s: Sandbox): Sandbox {
+  return {
+    ...s,
+    command: s.command ?? [],
+    env_keys: s.env_keys ?? [],
+    labels: s.labels ?? {},
+    retained: s.retained ?? [],
+    egress: { allow: s.egress?.allow ?? [] },
+    resources: { ...s.resources },
+    usage: { ...EMPTY_USAGE, ...(s.usage ?? {}) },
+  };
+}
+
 const page = <T>(body: unknown): Page<T> => {
   const b = (body ?? {}) as { items?: T[] | null; next_cursor?: string | null };
   return { items: Array.isArray(b.items) ? b.items : [], next_cursor: b.next_cursor || null };
@@ -144,7 +163,11 @@ export function createComputeClient(
   const auth = { Authorization: `Bearer ${token}` };
   const sb = (id: string) => `/v1/sandboxes/${encodeURIComponent(id)}`;
 
-  async function send(method: string, path: string, init: { body?: BodyInit; json?: unknown; headers?: Record<string, string>; signal?: AbortSignal } = {}): Promise<Response> {
+  async function send(
+    method: string,
+    path: string,
+    init: { body?: BodyInit; json?: unknown; headers?: Record<string, string>; signal?: AbortSignal } = {},
+  ): Promise<Response> {
     const headers: Record<string, string> = { ...auth, ...init.headers };
     let body = init.body;
     if (init.json !== undefined) {
@@ -164,8 +187,17 @@ export function createComputeClient(
   }
 
   /** Open an SSE route and feed each event to `on`; resolves when the stream closes. */
-  async function sse(method: 'GET' | 'POST', path: string, on: (event: string, data: unknown) => void, init: { json?: unknown; signal?: AbortSignal }): Promise<void> {
-    const res = await send(method, path, { json: init.json, signal: init.signal, headers: { Accept: 'text/event-stream' } });
+  async function sse(
+    method: 'GET' | 'POST',
+    path: string,
+    on: (event: string, data: unknown) => void,
+    init: { json?: unknown; signal?: AbortSignal },
+  ): Promise<void> {
+    const res = await send(method, path, {
+      json: init.json,
+      signal: init.signal,
+      headers: { Accept: 'text/event-stream' },
+    });
     if (!res.body) throw new ComputeError(502, 'The gateway sent no stream.');
     await readSse(res.body, (m) => on(m.event, parseData(m.data)), init.signal);
   }
@@ -179,12 +211,21 @@ export function createComputeClient(
   return {
     baseUrl: base,
 
-    listSandboxes: async (q, signal) =>
-      page<Sandbox>(await json('GET', `/v1/sandboxes${queryString({ ...q, label: q?.label })}`, { signal })),
-    getSandbox: (id, signal) => json<Sandbox>('GET', sb(id), { signal }),
-    createSandbox: (req, signal) => json<Sandbox>('POST', '/v1/sandboxes', { json: req, signal }),
-    terminate: (id, opts, signal) =>
-      json<Sandbox>('DELETE', `${sb(id)}${queryString({ retain: opts?.retain?.join(','), reason: opts?.reason })}`, { signal }),
+    async listSandboxes(q, signal) {
+      const p = page<Sandbox>(await json('GET', `/v1/sandboxes${queryString({ ...q, label: q?.label })}`, { signal }));
+      return { ...p, items: p.items.map(normSandbox) };
+    },
+    getSandbox: async (id, signal) => normSandbox(await json<Sandbox>('GET', sb(id), { signal })),
+    createSandbox: async (req, signal) =>
+      normSandbox(await json<Sandbox>('POST', '/v1/sandboxes', { json: req, signal })),
+    terminate: async (id, opts, signal) =>
+      normSandbox(
+        await json<Sandbox>(
+          'DELETE',
+          `${sb(id)}${queryString({ retain: opts?.retain?.join(','), reason: opts?.reason })}`,
+          { signal },
+        ),
+      ),
     exec: (id, req, signal) => json<ExecResult>('POST', `${sb(id)}/exec`, { json: req, signal }),
 
     async execStream(id, req, onEvent, signal) {
@@ -198,7 +239,12 @@ export function createComputeClient(
             onEvent({ type: event, data: chunk(data) });
           } else if (event === 'exit') {
             const d = (data ?? {}) as Partial<ExecExit>;
-            exit = { exit_code: Number(d.exit_code ?? -1), duration_ms: Number(d.duration_ms ?? 0), timed_out: !!d.timed_out };
+            exit = {
+              exit_code: Number(d.exit_code ?? -1),
+              duration_ms: Number(d.duration_ms ?? 0),
+              timed_out: !!d.timed_out,
+              ...(d.error ? { error: String(d.error) } : {}),
+            };
             onEvent({ type: 'exit', exit });
           } else if (event === 'error') {
             const d = (data ?? {}) as { error?: string; code?: string };
@@ -219,7 +265,8 @@ export function createComputeClient(
         signal,
       });
     },
-    getFile: async (id, path, signal) => (await send('GET', `${sb(id)}/files${queryString({ path })}`, { signal })).blob(),
+    getFile: async (id, path, signal) =>
+      (await send('GET', `${sb(id)}/files${queryString({ path })}`, { signal })).blob(),
 
     async logs(id, onEvent, signal) {
       await sse(
@@ -236,10 +283,12 @@ export function createComputeClient(
     usage: (id, signal) => json<Usage>('GET', `${sb(id)}/usage`, { signal }),
 
     listSecrets: async (signal) => page<SecretSummary>(await json('GET', '/v1/secrets', { signal })).items,
-    putSecret: (name, input, signal) => json<void>('PUT', `/v1/secrets/${encodeURIComponent(name)}`, { json: input, signal }),
+    putSecret: (name, input, signal) =>
+      json<void>('PUT', `/v1/secrets/${encodeURIComponent(name)}`, { json: input, signal }),
     deleteSecret: (name, signal) => json<void>('DELETE', `/v1/secrets/${encodeURIComponent(name)}`, { signal }),
 
-    egressLog: async (q, signal) => page<EgressEntry>(await json('GET', `/v1/egress/log${queryString({ ...q })}`, { signal })),
+    egressLog: async (q, signal) =>
+      page<EgressEntry>(await json('GET', `/v1/egress/log${queryString({ ...q })}`, { signal })),
     usageRecords: async (q, signal) =>
       page<UsageRecord>(await json('GET', `/v1/usage/records${queryString({ ...q })}`, { signal })),
   };

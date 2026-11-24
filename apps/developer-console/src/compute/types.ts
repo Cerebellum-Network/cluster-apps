@@ -124,6 +124,8 @@ export interface ExecExit {
   exit_code: number;
   duration_ms: number;
   timed_out: boolean;
+  /** Set when the node could not run or finish the command (not the command's own failure). */
+  error?: string;
 }
 
 /** `POST /v1/sandboxes/{id}/exec?stream=1` events. */

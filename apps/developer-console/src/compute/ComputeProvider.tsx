@@ -34,7 +34,8 @@ const TOKEN_MESSAGES = {
   rejected: 'The compute gateway refused your access. Try again.',
 };
 
-const ComputeContext = createContext<Compute | null>(null);
+/** Exported for render tests, which provide a fixed value. */
+export const ComputeContext = createContext<Compute | null>(null);
 
 export function ComputeProvider({ children }: { children: ReactNode }) {
   const { buckets, loading, error: bucketsError, ensureBucket } = useOwnerBuckets();

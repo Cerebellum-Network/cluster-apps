@@ -13,7 +13,17 @@ const REASON_MAX = 120;
  * Terminate: `DELETE /v1/sandboxes/{id}?retain=…&reason=…`. Retained files
  * (each ≤ 16 MiB) stay readable from the Files tab after the sandbox ends.
  */
-const TerminateDialog = ({ sb, open, onClose, onDone }: { sb: Sandbox; open: boolean; onClose: () => void; onDone: (s: Sandbox) => void }) => {
+const TerminateDialog = ({
+  sb,
+  open,
+  onClose,
+  onDone,
+}: {
+  sb: Sandbox;
+  open: boolean;
+  onClose: () => void;
+  onDone: (s: Sandbox) => void;
+}) => {
   const client = useComputeClient();
   const [retain, setRetain] = useState('');
   const [reason, setReason] = useState('');
@@ -29,7 +39,9 @@ const TerminateDialog = ({ sb, open, onClose, onDone }: { sb: Sandbox; open: boo
     setBusy(true);
     setError(null);
     try {
-      onDone(await client.terminate(sb.id, { retain: paths.length ? paths : undefined, reason: reason.trim() || undefined }));
+      onDone(
+        await client.terminate(sb.id, { retain: paths.length ? paths : undefined, reason: reason.trim() || undefined }),
+      );
       onClose();
     } catch (e) {
       setError(errorMessage(e));
@@ -55,7 +67,11 @@ const TerminateDialog = ({ sb, open, onClose, onDone }: { sb: Sandbox; open: boo
             size="small"
             placeholder="/workspace/output.json"
             error={!!bad}
-            helperText={bad ? `${bad} is not an absolute path.` : 'Absolute paths, one per line or comma-separated; each up to 16 MiB.'}
+            helperText={
+              bad
+                ? `${bad} is not an absolute path.`
+                : 'Absolute paths, one per line or comma-separated; each up to 16 MiB.'
+            }
             InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
           />
           <TextField

@@ -11,7 +11,15 @@ import { CredentialChip, DecisionPill, sbColor } from '../ui';
  * refused or failed upstream, and which secret the proxy added. A host not on
  * the list is refused at CONNECT, before any request, so it has no path.
  */
-const EgressTable = ({ entries, showSandbox, empty }: { entries: EgressEntry[]; showSandbox?: boolean; empty?: string }) => {
+const EgressTable = ({
+  entries,
+  showSandbox,
+  empty,
+}: {
+  entries: EgressEntry[];
+  showSandbox?: boolean;
+  empty?: string;
+}) => {
   const head = { backgroundColor: color.inset };
   return (
     <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '12px', overflow: 'auto', maxHeight: 520 }}>
@@ -34,7 +42,14 @@ const EgressTable = ({ entries, showSandbox, empty }: { entries: EgressEntry[]; 
             const refused = e.decision === 'denied';
             return (
               <TableRow key={e.id} sx={{ backgroundColor: refused ? sbColor.deniedTint : undefined }}>
-                <TableCell sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', color: color.textSecondary, fontSize: 13 }}>
+                <TableCell
+                  sx={{
+                    whiteSpace: 'nowrap',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: color.textSecondary,
+                    fontSize: 13,
+                  }}
+                >
                   {fmtDateTime(e.ts)}
                 </TableCell>
                 <TableCell>
@@ -43,7 +58,11 @@ const EgressTable = ({ entries, showSandbox, empty }: { entries: EgressEntry[]; 
                 {showSandbox && (
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>
                     {e.sandbox_id ? (
-                      <Box component={NavLink} to={`/sandboxes/list/${e.sandbox_id}`} sx={{ fontFamily: mono, fontSize: 12.5, color: color.primary, textDecoration: 'none' }}>
+                      <Box
+                        component={NavLink}
+                        to={`/sandboxes/list/${e.sandbox_id}`}
+                        sx={{ fontFamily: mono, fontSize: 12.5, color: color.primary, textDecoration: 'none' }}
+                      >
                         {shortId(e.sandbox_id)}
                       </Box>
                     ) : (
@@ -53,12 +72,27 @@ const EgressTable = ({ entries, showSandbox, empty }: { entries: EgressEntry[]; 
                 )}
                 <TableCell sx={{ maxWidth: 380 }}>
                   <Stack direction="row" gap="8px" alignItems="baseline" minWidth={0}>
-                    <Box component="span" sx={{ fontFamily: mono, fontSize: 12, fontWeight: 700, color: color.textSecondary, flexShrink: 0 }}>
+                    <Box
+                      component="span"
+                      sx={{
+                        fontFamily: mono,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: color.textSecondary,
+                        flexShrink: 0,
+                      }}
+                    >
                       {e.method}
                     </Box>
                     <Box
                       component="span"
-                      sx={{ fontFamily: mono, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      sx={{
+                        fontFamily: mono,
+                        fontSize: 12.5,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
                       title={`${e.host}${e.path ?? ''}`}
                     >
                       <strong>{e.host}</strong>
@@ -68,7 +102,11 @@ const EgressTable = ({ entries, showSandbox, empty }: { entries: EgressEntry[]; 
                     </Box>
                   </Stack>
                   {e.reason && (
-                    <Typography sx={{ fontSize: 12, color: refused ? sbColor.deniedText : color.warning, marginTop: '2px' }}>{e.reason}</Typography>
+                    <Typography
+                      sx={{ fontSize: 12, color: refused ? sbColor.deniedText : color.warning, marginTop: '2px' }}
+                    >
+                      {e.reason}
+                    </Typography>
                   )}
                 </TableCell>
                 <TableCell sx={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, whiteSpace: 'nowrap' }}>
@@ -83,7 +121,15 @@ const EgressTable = ({ entries, showSandbox, empty }: { entries: EgressEntry[]; 
                 <TableCell>
                   <CredentialChip name={e.credential} />
                 </TableCell>
-                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, whiteSpace: 'nowrap', color: color.textSecondary }}>
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontVariantNumeric: 'tabular-nums',
+                    fontSize: 13,
+                    whiteSpace: 'nowrap',
+                    color: color.textSecondary,
+                  }}
+                >
                   {fmtBytes(e.bytes_up)} / {fmtBytes(e.bytes_down)}
                 </TableCell>
               </TableRow>

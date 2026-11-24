@@ -1,5 +1,15 @@
 import { useMemo, useState } from 'react';
-import { Box, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@cluster-apps/ui';
+import {
+  Box,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from '@cluster-apps/ui';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { NavLink } from 'react-router-dom';
 
@@ -24,7 +34,15 @@ const CPU_COLOR = chartPalette[0];
 const RAM_COLOR = chartPalette[2];
 
 const Tile = ({ label, value, sub }: { label: string; value: string; sub: string }) => (
-  <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '16px', backgroundColor: color.surface, padding: '16px 18px', minWidth: 0 }}>
+  <Box
+    sx={{
+      border: `1px solid ${color.border}`,
+      borderRadius: '16px',
+      backgroundColor: color.surface,
+      padding: '16px 18px',
+      minWidth: 0,
+    }}
+  >
     <Typography sx={text.secondary}>{label}</Typography>
     <Typography sx={{ ...text.title, fontVariantNumeric: 'tabular-nums', marginTop: '6px' }}>{value}</Typography>
     <Typography sx={{ ...text.caption, marginTop: '2px' }}>{sub}</Typography>
@@ -46,15 +64,40 @@ function bars(records: UsageRecord[], fromMs: number, toMs: number, barMs: numbe
 }
 
 /** One measure over time: a single series, so the title names it and there is no legend. */
-const SeriesChart = ({ title, rows, dataKey, fill, unit, barMs }: { title: string; rows: ReturnType<typeof bars>; dataKey: 'cpu' | 'ram'; fill: string; unit: string; barMs: number }) => {
+const SeriesChart = ({
+  title,
+  rows,
+  dataKey,
+  fill,
+  unit,
+  barMs,
+}: {
+  title: string;
+  rows: ReturnType<typeof bars>;
+  dataKey: 'cpu' | 'ram';
+  fill: string;
+  unit: string;
+  barMs: number;
+}) => {
   const tick = (t: number) => (barMs >= 3600_000 ? fmtDateTime(t).replace(/:\d\d$/, '') : fmtClock(t).slice(0, 5));
   return (
     <Section title={title}>
-      <Box role="img" aria-label={`${title}, one bar per ${barMs / 60_000} minutes`} sx={{ width: '100%', height: 200 }}>
+      <Box
+        role="img"
+        aria-label={`${title}, one bar per ${barMs / 60_000} minutes`}
+        sx={{ width: '100%', height: 200 }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barCategoryGap={2}>
             <CartesianGrid vertical={false} stroke={color.grid} />
-            <XAxis dataKey="t" tickFormatter={tick} minTickGap={40} tick={TICK} tickLine={false} stroke={color.border} />
+            <XAxis
+              dataKey="t"
+              tickFormatter={tick}
+              minTickGap={40}
+              tick={TICK}
+              tickLine={false}
+              stroke={color.border}
+            />
             <YAxis width={52} tickFormatter={(v: number) => fmtQty(v)} tick={TICK} tickLine={false} axisLine={false} />
             <Tooltip
               cursor={{ fill: color.grid }}
@@ -83,7 +126,10 @@ const Usage = () => {
   const since = useMemo(() => new Date(Date.now() - w.ms).toISOString(), [w.ms]);
   const { data, error } = useUsageRecords({ since });
   const sandboxes = useSandboxes();
-  const records = useMemo(() => [...(data?.items ?? [])].sort((a, b) => Date.parse(b.period_end) - Date.parse(a.period_end)), [data]);
+  const records = useMemo(
+    () => [...(data?.items ?? [])].sort((a, b) => Date.parse(b.period_end) - Date.parse(a.period_end)),
+    [data],
+  );
   const total = sumRecords(records);
   const dac = { pushed: 0, pending: 0, failed: 0 };
   for (const r of records) dac[r.dac_status] = (dac[r.dac_status] ?? 0) + 1;
@@ -92,9 +138,21 @@ const Usage = () => {
   const bySandbox = useMemo(() => {
     const m = new Map<string, UsageRecord[]>();
     for (const r of records) m.set(r.sandbox_id, [...(m.get(r.sandbox_id) ?? []), r]);
-    const labels = new Map((sandboxes.data?.items ?? []).map((s) => [s.id, s.labels['cere.agent'] ? `agent ${s.labels['cere.agent']}` : s.image]));
+    const labels = new Map(
+      (sandboxes.data?.items ?? []).map((s) => [
+        s.id,
+        s.labels['cere.agent'] ? `agent ${s.labels['cere.agent']}` : s.image,
+      ]),
+    );
     return [...m.entries()]
-      .map(([id, rs]) => ({ id, label: labels.get(id) ?? '', n: rs.length, ...sumRecords(rs), cpuUnits: sumUnits(rs.map((r) => r.cpu_units)), ramUnits: sumUnits(rs.map((r) => r.ram_units)) }))
+      .map(([id, rs]) => ({
+        id,
+        label: labels.get(id) ?? '',
+        n: rs.length,
+        ...sumRecords(rs),
+        cpuUnits: sumUnits(rs.map((r) => r.cpu_units)),
+        ramUnits: sumUnits(rs.map((r) => r.ram_units)),
+      }))
       .sort((a, b) => b.cpu_s - a.cpu_s);
   }, [records, sandboxes.data]);
 
@@ -115,7 +173,11 @@ const Usage = () => {
           </Chip>
         ))}
         <Box flex={1} />
-        {error && data && <Typography sx={{ ...text.caption, color: color.danger }} title={error}>Refresh failed; showing the last read.</Typography>}
+        {error && data && (
+          <Typography sx={{ ...text.caption, color: color.danger }} title={error}>
+            Refresh failed; showing the last read.
+          </Typography>
+        )}
         {data?.truncated && <Typography sx={text.caption}>The newest {records.length} records.</Typography>}
       </Stack>
 
@@ -123,7 +185,14 @@ const Usage = () => {
         <ReadError what="usage records" error={error} />
       ) : (
         <>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: '12px', marginBottom: '16px' }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' },
+              gap: '12px',
+              marginBottom: '16px',
+            }}
+          >
             <Tile label="CPU-seconds" value={fmtQty(total.cpu_s)} sub="one vCPU busy for one second" />
             <Tile label="GiB-seconds" value={fmtQty(total.ram_gib_s)} sub="one GiB of memory held for one second" />
             <Tile
@@ -131,10 +200,21 @@ const Usage = () => {
               value={String(records.length)}
               sub={`${dac.pushed} pushed to DAC · ${dac.pending} pending · ${dac.failed} failed`}
             />
-            <Tile label="Network" value={fmtBytes(total.net_egress_bytes + total.net_ingress_bytes)} sub={`out ${fmtBytes(total.net_egress_bytes)} · in ${fmtBytes(total.net_ingress_bytes)} (measured, not billed)`} />
+            <Tile
+              label="Network"
+              value={fmtBytes(total.net_egress_bytes + total.net_ingress_bytes)}
+              sub={`out ${fmtBytes(total.net_egress_bytes)} · in ${fmtBytes(total.net_ingress_bytes)} (measured, not billed)`}
+            />
           </Box>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: '16px', marginBottom: '16px' }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+              gap: '16px',
+              marginBottom: '16px',
+            }}
+          >
             <SeriesChart title="CPU-seconds" rows={rows} dataKey="cpu" fill={CPU_COLOR} unit="CPU-s" barMs={w.barMs} />
             <SeriesChart title="GiB-seconds" rows={rows} dataKey="ram" fill={RAM_COLOR} unit="GiB-s" barMs={w.barMs} />
           </Box>
@@ -156,8 +236,20 @@ const Usage = () => {
                   <TableBody>
                     {bySandbox.map((r) => (
                       <TableRow key={r.id} hover>
-                        <TableCell sx={{ whiteSpace: 'nowrap', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <Box component={NavLink} to={`/sandboxes/list/${r.id}`} sx={{ fontFamily: mono, fontSize: 12.5, color: color.text, textDecoration: 'none', '&:hover': { color: color.primary } }}>
+                        <TableCell
+                          sx={{ whiteSpace: 'nowrap', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        >
+                          <Box
+                            component={NavLink}
+                            to={`/sandboxes/list/${r.id}`}
+                            sx={{
+                              fontFamily: mono,
+                              fontSize: 12.5,
+                              color: color.text,
+                              textDecoration: 'none',
+                              '&:hover': { color: color.primary },
+                            }}
+                          >
                             {shortId(r.id)}
                           </Box>
                           {r.label && (
@@ -175,10 +267,16 @@ const Usage = () => {
                         <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                           {fmtQty(r.ram_gib_s)}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontFamily: mono, fontSize: 12 }}>
+                        <TableCell
+                          align="right"
+                          sx={{ fontVariantNumeric: 'tabular-nums', fontFamily: mono, fontSize: 12 }}
+                        >
                           {fmtUnits(r.cpuUnits)}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontFamily: mono, fontSize: 12 }}>
+                        <TableCell
+                          align="right"
+                          sx={{ fontVariantNumeric: 'tabular-nums', fontFamily: mono, fontSize: 12 }}
+                        >
                           {fmtUnits(r.ramUnits)}
                         </TableCell>
                       </TableRow>
@@ -198,10 +296,14 @@ const Usage = () => {
 
           <Section title="Usage records">
             <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
-              Each record is signed with its node’s key and pushed to that node’s DAC agent, which files it under its TCA
-              (the minute it closed). CPU and RAM units are the record’s own fields: seconds × 10¹¹.
+              Each record is signed with its node’s key and pushed to that node’s DAC agent, which files it under its
+              TCA (the minute it closed). CPU and RAM units are the record’s own fields: seconds × 10¹¹.
             </Typography>
-            <RecordsTable records={records.slice(0, 200)} showSandbox empty={data ? 'No records in this window.' : 'Reading…'} />
+            <RecordsTable
+              records={records.slice(0, 200)}
+              showSandbox
+              empty={data ? 'No records in this window.' : 'Reading…'}
+            />
           </Section>
         </>
       )}

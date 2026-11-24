@@ -13,4 +13,5 @@ export function missingSecrets(def: AgentDefinition, have: SecretSummary[] | und
   return neededSecrets(def).filter((n) => !have.some((s) => s.name === n));
 }
 
-export const agentPath = (bucket: string, name: string) => `/agents/a/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;
+export const agentPath = (bucket: string, name: string) =>
+  `/agents/a/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;

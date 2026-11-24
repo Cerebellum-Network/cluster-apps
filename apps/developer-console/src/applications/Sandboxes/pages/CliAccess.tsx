@@ -13,7 +13,14 @@ import { BucketChip } from '../components/ui';
 const TTL_DAYS = [1, 7, 30];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const fmtDate = (ms: number) => new Date(ms).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const fmtDate = (ms: number) =>
+  new Date(ms).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
 /**
  * CLI access: a COMPUTE token for the `cere` CLI and the Python SDK, signed by
@@ -59,7 +66,14 @@ const CliAccess = () => {
       <Stack spacing="16px" maxWidth={860}>
         <Section title="Create a token">
           <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
-            <TextField select label="Expires in" value={String(ttlDays)} onChange={(e) => setTtlDays(Number(e.target.value))} size="small" sx={{ minWidth: 140 }}>
+            <TextField
+              select
+              label="Expires in"
+              value={String(ttlDays)}
+              onChange={(e) => setTtlDays(Number(e.target.value))}
+              size="small"
+              sx={{ minWidth: 140 }}
+            >
               {TTL_DAYS.map((d) => (
                 <MenuItem key={d} value={String(d)}>
                   {d === 1 ? '1 day' : `${d} days`}
@@ -77,7 +91,12 @@ const CliAccess = () => {
             </Alert>
           )}
           {shown && (
-            <Box marginTop="16px" padding="16px" borderRadius="12px" sx={{ backgroundColor: color.inset, border: `1px solid ${color.border}` }}>
+            <Box
+              marginTop="16px"
+              padding="16px"
+              borderRadius="12px"
+              sx={{ backgroundColor: color.inset, border: `1px solid ${color.border}` }}
+            >
               <Stack direction="row" alignItems="center" justifyContent="space-between" marginBottom="8px" gap="12px">
                 <Typography variant="subtitle2">
                   Token for bucket {shown.bucket} · expires {fmtDate(shown.expiresAt)}
@@ -86,13 +105,23 @@ const CliAccess = () => {
                   {copied ? 'Copied' : 'Copy token'}
                 </Button>
               </Stack>
-              <Box sx={{ font: `13px/1.5 ${mono}`, wordBreak: 'break-all', padding: '12px 14px', borderRadius: '8px', backgroundColor: color.surface, border: `1px solid ${color.border}` }}>
+              <Box
+                sx={{
+                  font: `13px/1.5 ${mono}`,
+                  wordBreak: 'break-all',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: color.surface,
+                  border: `1px solid ${color.border}`,
+                }}
+              >
                 {shown.token}
               </Box>
               <Typography sx={{ ...text.secondary, marginTop: '10px' }}>
-                <strong style={{ color: color.text }}>Shown once.</strong> It <strong style={{ color: color.text }}>can’t be revoked</strong>: anyone
-                who has it can run sandboxes billed to bucket {shown.bucket} until {fmtDate(shown.expiresAt)}. Keep it in the CLI’s
-                config, not in code.
+                <strong style={{ color: color.text }}>Shown once.</strong> It{' '}
+                <strong style={{ color: color.text }}>can’t be revoked</strong>: anyone who has it can run sandboxes
+                billed to bucket {shown.bucket} until {fmtDate(shown.expiresAt)}. Keep it in the CLI’s config, not in
+                code.
               </Typography>
             </Box>
           )}
@@ -104,15 +133,31 @@ const CliAccess = () => {
               <StepTitle no={1} title="Sign the CLI in" />
               <CodeBlock code="cere login" />
               <Typography sx={{ ...text.secondary, marginTop: '8px' }}>
-                Paste the token when it asks. It is saved in <Box component="span" sx={{ fontFamily: mono }}>~/.config/cere/config.json</Box> (mode 0600);{' '}
-                <Box component="span" sx={{ fontFamily: mono }}>cere whoami</Box> shows the bucket and the expiry. The CLI calls{' '}
-                <Box component="span" sx={{ fontFamily: mono }}>{gatewayUrl}</Box>; add <Box component="span" sx={{ fontFamily: mono }}>--api-url</Box> if yours is elsewhere.
+                Paste the token when it asks. It is saved in{' '}
+                <Box component="span" sx={{ fontFamily: mono }}>
+                  ~/.config/cere/config.json
+                </Box>{' '}
+                (mode 0600);{' '}
+                <Box component="span" sx={{ fontFamily: mono }}>
+                  cere whoami
+                </Box>{' '}
+                shows the bucket and the expiry. The CLI calls{' '}
+                <Box component="span" sx={{ fontFamily: mono }}>
+                  {gatewayUrl}
+                </Box>
+                ; add{' '}
+                <Box component="span" sx={{ fontFamily: mono }}>
+                  --api-url
+                </Box>{' '}
+                if yours is elsewhere.
               </Typography>
             </Box>
             <Box>
               <StepTitle no={2} title="Or use it from the environment" />
               <CodeBlock code={`export CERE_TOKEN=<the token>\nexport CERE_API_URL=${gatewayUrl}`} />
-              <Typography sx={{ ...text.secondary, marginTop: '8px' }}>The CLI and the Python SDK both read these, ahead of the config file.</Typography>
+              <Typography sx={{ ...text.secondary, marginTop: '8px' }}>
+                The CLI and the Python SDK both read these, ahead of the config file.
+              </Typography>
             </Box>
           </Stack>
         </Section>

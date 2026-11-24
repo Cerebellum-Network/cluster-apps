@@ -30,7 +30,11 @@ export function parseFileList(stdout: string): FileEntry[] {
     .split('\n')
     .map((l) => l.split('\t'))
     .filter((p) => p.length >= 3 && p[2])
-    .map(([size, mtime, ...path]) => ({ path: path.join('\t'), size: Number(size) || 0, mtime: Number(mtime) || null }));
+    .map(([size, mtime, ...path]) => ({
+      path: path.join('\t'),
+      size: Number(size) || 0,
+      mtime: Number(mtime) || null,
+    }));
 }
 
 const looksBinary = (bytes: Uint8Array) => bytes.subarray(0, 4096).some((b) => b === 0);
@@ -83,7 +87,8 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
       .getFile(sb.id, open)
       .then(async (blob) => {
         if (!alive) return;
-        if (blob.size > PREVIEW_MAX_BYTES) return setPreview({ path: open, note: `${fmtBytes(blob.size)}: too large to show here. Download it.` });
+        if (blob.size > PREVIEW_MAX_BYTES)
+          return setPreview({ path: open, note: `${fmtBytes(blob.size)}: too large to show here. Download it.` });
         const bytes = new Uint8Array(await blob.arrayBuffer());
         if (!alive) return;
         if (looksBinary(bytes)) return setPreview({ path: open, note: `Binary, ${fmtBytes(blob.size)}. Download it.` });
@@ -92,7 +97,10 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
       .catch((e: unknown) => {
         if (!alive) return;
         const gone = e instanceof ComputeError && e.status === 410;
-        setPreview({ path: open, note: gone ? 'Gone: the node no longer keeps this file.' : `Couldn’t read it: ${errorMessage(e)}` });
+        setPreview({
+          path: open,
+          note: gone ? 'Gone: the node no longer keeps this file.' : `Couldn’t read it: ${errorMessage(e)}`,
+        });
       });
     return () => {
       alive = false;
@@ -112,7 +120,10 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
     e.target.value = '';
     if (!file) return;
     if (file.size > FILE_MAX_BYTES) {
-      setNotice({ kind: 'error', text: `${file.name} is ${fmtBytes(file.size)}; a file can be at most ${fmtBytes(FILE_MAX_BYTES)}.` });
+      setNotice({
+        kind: 'error',
+        text: `${file.name} is ${fmtBytes(file.size)}; a file can be at most ${fmtBytes(FILE_MAX_BYTES)}.`,
+      });
       return;
     }
     const target = uploadPath.endsWith('/') ? `${uploadPath}${file.name}` : uploadPath;
@@ -133,7 +144,10 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
   if (!live && sb.retained.length === 0) {
     return (
       <Typography sx={text.secondary}>
-        This sandbox has ended and kept no files. To keep files, terminate with <Box component="span" sx={{ fontFamily: mono }}>retain=</Box>{' '}
+        This sandbox has ended and kept no files. To keep files, terminate with{' '}
+        <Box component="span" sx={{ fontFamily: mono }}>
+          retain=
+        </Box>{' '}
         paths (the Terminate button offers it).
       </Typography>
     );
@@ -153,7 +167,13 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
             InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
           />
           <input ref={picker} type="file" hidden onChange={upload} />
-          <Button variant="outlined" color="secondary" disabled={uploading || !uploadPath.startsWith('/')} onClick={() => picker.current?.click()} sx={{ alignSelf: 'flex-start' }}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            disabled={uploading || !uploadPath.startsWith('/')}
+            onClick={() => picker.current?.click()}
+            sx={{ alignSelf: 'flex-start' }}
+          >
             {uploading ? 'Uploading…' : 'Upload a file'}
           </Button>
         </Stack>
@@ -163,7 +183,13 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
           {notice.text}
         </Alert>
       )}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 0.9fr) minmax(0, 1.6fr)' }, gap: '14px' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 0.9fr) minmax(0, 1.6fr)' },
+          gap: '14px',
+        }}
+      >
         <Box minWidth={0}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" marginBottom="8px">
             <Typography sx={text.secondary}>
@@ -208,7 +234,17 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
                   '&:hover': { backgroundColor: open === f.path ? color.primaryTint : color.inset },
                 }}
               >
-                <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, color: color.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <Box
+                  component="span"
+                  sx={{
+                    fontFamily: mono,
+                    fontSize: 12.5,
+                    color: color.text,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {live ? f.path.replace(new RegExp(`^${dir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/?`), '') : f.path}
                 </Box>
                 {f.size >= 0 && (
@@ -219,12 +255,22 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
                 )}
               </Box>
             ))}
-            {files && files.length === 0 && <Typography sx={{ ...text.secondary, padding: '12px' }}>No files yet.</Typography>}
+            {files && files.length === 0 && (
+              <Typography sx={{ ...text.secondary, padding: '12px' }}>No files yet.</Typography>
+            )}
           </Box>
         </Box>
         <Box minWidth={0}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" marginBottom="8px" gap="8px">
-            <Typography sx={{ ...text.secondary, fontFamily: open ? mono : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <Typography
+              sx={{
+                ...text.secondary,
+                fontFamily: open ? mono : undefined,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {open ?? 'Pick a file to read it.'}
             </Typography>
             {open && (

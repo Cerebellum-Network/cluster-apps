@@ -83,7 +83,9 @@ export function shortImage(image: string): string {
 }
 
 /** Sum CPU-seconds and GiB-seconds over usage records (the billed quantities). */
-export function sumRecords(rs: { cpu_s: number; ram_gib_s: number; net_egress_bytes: number; net_ingress_bytes: number }[]) {
+export function sumRecords(
+  rs: { cpu_s: number; ram_gib_s: number; net_egress_bytes: number; net_ingress_bytes: number }[],
+) {
   return rs.reduce(
     (a, r) => ({
       cpu_s: a.cpu_s + r.cpu_s,

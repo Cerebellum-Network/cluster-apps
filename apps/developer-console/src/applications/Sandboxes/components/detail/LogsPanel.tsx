@@ -75,7 +75,10 @@ const LogsPanel = ({ id, status }: { id: string; status: SandboxStatus }) => {
               Read again
             </Button>
           )}
-          <Box component="label" sx={{ ...text.secondary, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+          <Box
+            component="label"
+            sx={{ ...text.secondary, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+          >
             <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} />
             Follow
           </Box>

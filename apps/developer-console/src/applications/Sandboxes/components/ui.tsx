@@ -59,7 +59,9 @@ export const SandboxStatusLabel = ({ status, reason }: { status: SandboxStatus; 
     <StatusDot status={status} />
     <Typography
       component="span"
-      title={status === 'unknown' ? 'The node has not reported for a while. The sandbox may still be running.' : undefined}
+      title={
+        status === 'unknown' ? 'The node has not reported for a while. The sandbox may still be running.' : undefined
+      }
       sx={{ fontSize: 14, fontWeight: 600, color: status === 'terminated' ? color.textSecondary : sbColor[status] }}
     >
       {STATUS_LABEL[status] ?? status}

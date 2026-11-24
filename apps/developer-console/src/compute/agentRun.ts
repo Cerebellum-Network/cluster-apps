@@ -53,7 +53,14 @@ export type RunEvent =
   | { event: 'tool_result'; id: string; output: string; is_error: boolean; ts?: number }
   | { event: 'denied'; tool: string; input: unknown; reason: string; id?: string; ts?: number }
   | { event: 'output'; output: string; ts?: number }
-  | { event: 'done'; turns: number; tool_calls: number; error: string | null; model_usage: Record<string, unknown>; ts?: number }
+  | {
+      event: 'done';
+      turns: number;
+      tool_calls: number;
+      error: string | null;
+      model_usage: Record<string, unknown>;
+      ts?: number;
+    }
   /** A stdout line that is not an event, or a stderr line. */
   | { event: 'raw'; stream: 'stdout' | 'stderr'; text: string };
 
@@ -235,7 +242,9 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
       setSandbox(sb);
     }
     if (sb.status !== 'running') {
-      throw new Error(`The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before the run: ${sb.exit_reason ?? sb.status}.`);
+      throw new Error(
+        `The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before the run: ${sb.exit_reason ?? sb.status}.`,
+      );
     }
 
     // 2. Files.
@@ -275,7 +284,8 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     step('collect');
     result.output = await readOutput(client, sb.id, signal);
     if (!result.output && stdoutLines.length) result.output = { output: stdoutLines.join('\n') };
-    if (!result.output) result.error = `The agent wrote no /workspace/output.json. ${stderrTail.slice(-3).join(' | ')}`.trim();
+    if (!result.output)
+      result.error = `The agent wrote no /workspace/output.json. ${stderrTail.slice(-3).join(' | ')}`.trim();
     else if (result.output.error) result.error = result.output.error;
     else if (result.exit.timed_out) result.error = `The run hit its ${agentTimeout(def)} s limit.`;
     else if (result.exit.exit_code !== 0)
@@ -293,7 +303,11 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
         try {
           result.saved = await save(sb.id, files);
         } catch (e) {
-          progress.event?.({ event: 'raw', stream: 'stderr', text: `Couldn’t copy the run to the bucket: ${errorMessage(e)}` });
+          progress.event?.({
+            event: 'raw',
+            stream: 'stderr',
+            text: `Couldn’t copy the run to the bucket: ${errorMessage(e)}`,
+          });
         }
       }
     }

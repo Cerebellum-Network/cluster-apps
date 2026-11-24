@@ -128,10 +128,16 @@ const ExecPanel = ({
           </Box>
         ))}
       </Stack>
-      <Terminal ref={box} sx={{ height: 340, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }} onClick={() => input.current?.focus()}>
+      <Terminal
+        ref={box}
+        sx={{ height: 340, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}
+        onClick={() => input.current?.focus()}
+      >
         {runs.length === 0 && (
           <Box component="span" sx={{ color: sbColor.termDim }}>
-            {live ? 'Type a command below, or pick one above.' : 'This sandbox is not running, so it can’t run commands.'}
+            {live
+              ? 'Type a command below, or pick one above.'
+              : 'This sandbox is not running, so it can’t run commands.'}
           </Box>
         )}
         {runs.map((r, i) => (
@@ -149,7 +155,8 @@ const ExecPanel = ({
             ))}
             {r.exit ? (
               <Box sx={{ color: r.exit.exit_code === 0 ? sbColor.termDim : sbColor.termWarn, fontSize: 11.5 }}>
-                exit {r.exit.exit_code} · {r.exit.duration_ms} ms{r.exit.timed_out ? ' · timed out' : ''}
+                {r.exit.error ? `${r.exit.error} · ` : ''}exit {r.exit.exit_code} · {r.exit.duration_ms} ms
+                {r.exit.timed_out ? ' · timed out' : ''}
               </Box>
             ) : r.error ? (
               <Box sx={{ color: sbColor.termWarn, fontSize: 11.5 }}>{r.error}</Box>
@@ -198,11 +205,23 @@ const ExecPanel = ({
           }}
         />
         {busy ? (
-          <Button size="small" variant="outlined" color="secondary" onClick={() => ctl.current?.abort()} sx={{ color: sbColor.termText }}>
+          <Button
+            size="small"
+            variant="outlined"
+            color="secondary"
+            onClick={() => ctl.current?.abort()}
+            sx={{ color: sbColor.termText }}
+          >
             Stop
           </Button>
         ) : (
-          <Button type="submit" size="small" variant="contained" disabled={!live || !cmd.trim()} sx={{ '&.Mui-disabled': { backgroundColor: '#2A3550', color: sbColor.termDim } }}>
+          <Button
+            type="submit"
+            size="small"
+            variant="contained"
+            disabled={!live || !cmd.trim()}
+            sx={{ '&.Mui-disabled': { backgroundColor: '#2A3550', color: sbColor.termDim } }}
+          >
             Run
           </Button>
         )}

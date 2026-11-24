@@ -32,7 +32,9 @@ const Runs = () => {
           <RunsTable rows={rows} empty={runs.data ? 'No runs yet. Run an agent from its page.' : 'Reading…'} />
         )}
       </Section>
-      {runs.data?.truncated && <Typography sx={{ ...text.caption, marginTop: '8px' }}>The newest {runs.data.items.length} shown.</Typography>}
+      {runs.data?.truncated && (
+        <Typography sx={{ ...text.caption, marginTop: '8px' }}>The newest {runs.data.items.length} shown.</Typography>
+      )}
     </Box>
   );
 };

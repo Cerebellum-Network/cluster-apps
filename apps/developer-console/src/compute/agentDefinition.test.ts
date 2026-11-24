@@ -10,7 +10,11 @@ const GOOD = {
   name: 'research',
   harness: 'claude-code',
   image: 'cerebellumnetwork/ddc-agent-runner:0.1.0',
-  model: { base_url: 'https://inference-gateway.compute.test.ddcdragon.com/anthropic', model: 'm', credential: 'ddc-inference' },
+  model: {
+    base_url: 'https://inference-gateway.compute.test.ddcdragon.com/anthropic',
+    model: 'm',
+    credential: 'ddc-inference',
+  },
   tools: ['Read', 'WebFetch'],
   egress: { allow: [{ host: 'gvisor.dev', methods: ['GET'] }] },
   timeout_s: 900,
@@ -21,7 +25,14 @@ describe('validateAgentDefinition', () => {
     expect(validateAgentDefinition(GOOD)).toEqual([]);
   });
   it('names each problem', () => {
-    const errs = validateAgentDefinition({ ...GOOD, schema: 'x', name: 'Bad Name', harness: 'container', model: { base_url: 'nope' }, egress: { allow: [{ host: 'a', methods: ['get'] }] } });
+    const errs = validateAgentDefinition({
+      ...GOOD,
+      schema: 'x',
+      name: 'Bad Name',
+      harness: 'container',
+      model: { base_url: 'nope' },
+      egress: { allow: [{ host: 'a', methods: ['get'] }] },
+    });
     expect(errs.join('\n')).toMatch(/schema/);
     expect(errs.join('\n')).toMatch(/"name"/);
     expect(errs.join('\n')).toMatch(/"command" is required/);

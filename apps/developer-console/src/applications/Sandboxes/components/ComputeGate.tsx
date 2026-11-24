@@ -1,7 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { Alert, Box, Button, CircularProgress, LoadingButton, Stack, Typography } from '@cluster-apps/ui';
 
-import { Section } from '~/components';
+import { PageHeader, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { text } from '~/theme/tokens';
@@ -18,7 +18,7 @@ const Waiting = ({ children }: { children: ReactNode }) => (
  * bill and a COMPUTE token for it. Until then, says what it is waiting for and
  * offers the one action that unblocks it.
  */
-const ComputeGate = ({ children }: { children: ReactNode }) => {
+const ComputeGate = ({ children, title }: { children: ReactNode; title?: string }) => {
   const c = useCompute();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -39,15 +39,22 @@ const ComputeGate = ({ children }: { children: ReactNode }) => {
 
   return (
     <Box maxWidth={720}>
+      {title && (
+        <Box marginBottom="20px">
+          <PageHeader title={title} />
+        </Box>
+      )}
       <Section title={c.status === 'no-bucket' ? 'Set up billing' : 'Connecting to the compute gateway'}>
         {c.status === 'buckets-loading' && <Waiting>Reading your buckets…</Waiting>}
         {c.status === 'minting' && (
-          <Waiting>Approve access in your SSCP wallet. It signs a 24-hour access token for bucket {c.bucketId}.</Waiting>
+          <Waiting>
+            Approve access in your SSCP wallet. It signs a 24-hour access token for bucket {c.bucketId}.
+          </Waiting>
         )}
         {c.status === 'no-bucket' && (
           <Stack spacing="12px" alignItems="flex-start">
             <Typography sx={text.body}>
-              Sandboxes bill to a bucket you own, and you have none yet. The console makes one for you.
+              Sandboxes and agent runs bill to a bucket you own, and you have none yet. The console makes one for you.
             </Typography>
             <LoadingButton variant="contained" loading={busy} onClick={setUp}>
               Set up billing

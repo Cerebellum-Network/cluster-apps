@@ -51,5 +51,11 @@ export function useAgentDefinitions(buckets: string[] | undefined): AgentDefinit
 
   const reload = useCallback(() => setTick((n) => n + 1), []);
   if (!buckets) return { agents: [], failed: [], loading: true, error: null, reload };
-  return { agents: state.agents, failed: state.failed, loading: state.loading || state.key !== key, error: state.error, reload };
+  return {
+    agents: state.agents,
+    failed: state.failed,
+    loading: state.loading || state.key !== key,
+    error: state.error,
+    reload,
+  };
 }

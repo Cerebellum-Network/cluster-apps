@@ -136,10 +136,17 @@ const AgentBanner = ({ sb }: { sb: Sandbox }) => {
       justifyContent="space-between"
       gap="12px"
       flexWrap="wrap"
-      sx={{ marginBottom: '16px', padding: '12px 18px', borderRadius: '12px', border: `1px solid ${color.primary}`, backgroundColor: color.primaryTint }}
+      sx={{
+        marginBottom: '16px',
+        padding: '12px 18px',
+        borderRadius: '12px',
+        border: `1px solid ${color.primary}`,
+        backgroundColor: color.primaryTint,
+      }}
     >
       <Typography sx={{ fontSize: 14 }}>
-        An agent run: <strong>{sb.labels[LABEL.agent] ?? 'unnamed'}</strong> ({sb.labels[LABEL.harness] ?? 'unknown harness'})
+        An agent run: <strong>{sb.labels[LABEL.agent] ?? 'unnamed'}</strong> (
+        {sb.labels[LABEL.harness] ?? 'unknown harness'})
         {run && (
           <>
             , run <Mono>{run}</Mono>
@@ -194,19 +201,40 @@ const SandboxDetail = () => {
   return (
     <Box>
       <Box sx={{ marginBottom: '6px' }}>
-        <Box component={NavLink} to="/sandboxes/list" sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}>
+        <Box
+          component={NavLink}
+          to="/sandboxes/list"
+          sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
+        >
           Sandboxes
         </Box>
       </Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} marginBottom="16px" flexWrap="wrap">
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        gap={2}
+        marginBottom="16px"
+        flexWrap="wrap"
+      >
         <Stack direction="row" alignItems="center" gap="14px" minWidth={0} flexWrap="wrap">
-          <Typography component="h1" sx={{ ...text.pageTitle, fontFamily: mono, fontSize: 20, letterSpacing: '-0.02em' }}>
+          <Typography
+            component="h1"
+            sx={{ ...text.pageTitle, fontFamily: mono, fontSize: 20, letterSpacing: '-0.02em' }}
+          >
             {sb.id}
           </Typography>
-          <SandboxStatusLabel status={sb.status} reason={sb.status === 'failed' || sb.status === 'terminated' ? sb.exit_reason : undefined} />
+          <SandboxStatusLabel
+            status={sb.status}
+            reason={sb.status === 'failed' || sb.status === 'terminated' ? sb.exit_reason : undefined}
+          />
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          {error && <Typography sx={{ ...text.caption, color: color.danger }} title={error}>Refresh failed</Typography>}
+          {error && (
+            <Typography sx={{ ...text.caption, color: color.danger }} title={error}>
+              Refresh failed
+            </Typography>
+          )}
           {live && (
             <Button variant="outlined" color="error" onClick={() => setTerminateOpen(true)}>
               Terminate
@@ -221,7 +249,14 @@ const SandboxDetail = () => {
         <UsageMeter sandbox={sb} cpuHistory={cpuHistory} />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 360px' }, gap: '16px', alignItems: 'start' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) 360px' },
+          gap: '16px',
+          alignItems: 'start',
+        }}
+      >
         <Section>
           <Box marginTop="-8px" marginBottom="16px">
             <Tabs<Tab>
@@ -252,7 +287,15 @@ const SandboxDetail = () => {
             />
           </Box>
           {tab === 'logs' && <LogsPanel id={sb.id} status={sb.status} />}
-          {tab === 'exec' && <ExecPanel id={sb.id} status={sb.status} workdir={sb.workdir || '/workspace'} egress={sb.egress} onRan={() => setFilesKey((k) => k + 1)} />}
+          {tab === 'exec' && (
+            <ExecPanel
+              id={sb.id}
+              status={sb.status}
+              workdir={sb.workdir || '/workspace'}
+              egress={sb.egress}
+              onRan={() => setFilesKey((k) => k + 1)}
+            />
+          )}
           {tab === 'files' && <FilesPanel sb={sb} refreshKey={filesKey} />}
           {tab === 'egress' && (
             <Box>
@@ -271,9 +314,14 @@ const SandboxDetail = () => {
             <Box>
               <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
                 {recs.length} records: {fmtQty(totals.cpu_s)} CPU-seconds and {fmtQty(totals.ram_gib_s)} GiB-seconds so
-                far. The node signs one per minute and a final one when the sandbox ends, and pushes each to its DAC agent.
+                far. The node signs one per minute and a final one when the sandbox ends, and pushes each to its DAC
+                agent.
               </Typography>
-              {records.error && !records.data ? <ReadError what="usage records" error={records.error} /> : <RecordsTable records={recs} />}
+              {records.error && !records.data ? (
+                <ReadError what="usage records" error={records.error} />
+              ) : (
+                <RecordsTable records={recs} />
+              )}
             </Box>
           )}
         </Section>

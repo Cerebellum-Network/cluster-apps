@@ -18,7 +18,8 @@ const application: Application = {
   rootPath: 'sandboxes',
   title: 'Sandboxes',
   navLabel: 'Sandboxes',
-  description: 'Isolated gVisor containers on DDC nodes: any image, any command, a default-deny network, billed by measured use',
+  description:
+    'Isolated gVisor containers on DDC nodes: any image, any command, a default-deny network, billed by measured use',
   icon: <SandboxesAppIcon />,
   group: 'services',
   subNav: [

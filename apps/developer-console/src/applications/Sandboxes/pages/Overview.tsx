@@ -8,11 +8,17 @@ import { useNow, useSandboxes } from '~/compute/hooks';
 import { fmtAgo, fmtCpu, fmtMib, shortImage } from '~/compute/format';
 import { isLive } from '~/compute/types';
 import { color, text } from '~/theme/tokens';
-import { CodeBlock, StepTitle } from '../components/bits';
+import { CodeBlock } from '../components/bits';
 import ComputeGate from '../components/ComputeGate';
 import { FirstRunDialog } from '../components/FirstRunDialog';
 import { QUICKSTART_PYTHON, QUICKSTART_SHELL } from '../components/quickstart';
 import { BucketChip, Mono, ReadError, StatusDot } from '../components/ui';
+
+const Subhead = ({ children }: { children: string }) => (
+  <Typography component="h3" sx={{ fontSize: 15, fontWeight: 700, marginBottom: '10px' }}>
+    {children}
+  </Typography>
+);
 
 /** The parts a sandbox passes through, as the cluster names them. */
 const PARTS: { name: string; body: string }[] = [
@@ -82,7 +88,16 @@ const RightNow = () => {
           >
             <StatusDot status={s.status} />
             <Box minWidth={0} flex={1}>
-              <Typography className="sb-id" sx={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Typography
+                className="sb-id"
+                sx={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
                 <Mono>{s.id}</Mono>
               </Typography>
               <Typography sx={{ ...text.caption, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -142,15 +157,15 @@ const Overview = () => {
         <Section title="Quickstart">
           <Stack spacing="20px">
             <Box>
-              <StepTitle no={1} title="From a terminal" />
+              <Subhead>From a terminal</Subhead>
               <CodeBlock code={QUICKSTART_SHELL} />
             </Box>
             <Box>
-              <StepTitle no={2} title="From Python" />
+              <Subhead>From Python</Subhead>
               <CodeBlock code={QUICKSTART_PYTHON} />
             </Box>
             <Box>
-              <StepTitle no={3} title="Try it here" />
+              <Subhead>Try it here</Subhead>
               <Stack direction="row" alignItems="center" gap="16px" flexWrap="wrap">
                 <Button variant="contained" onClick={openFirstRun} disabled={compute.status !== 'ready'}>
                   Run the example

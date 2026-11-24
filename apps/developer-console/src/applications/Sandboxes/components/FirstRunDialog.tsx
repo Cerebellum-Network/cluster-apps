@@ -19,7 +19,15 @@ const after = (p: Phase, q: Phase) => ORDER.indexOf(p) > ORDER.indexOf(q) || p =
 
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
-function Step({ title, state, children }: { title: string; state: 'wait' | 'busy' | 'done' | 'yours'; children?: ReactNode }) {
+function Step({
+  title,
+  state,
+  children,
+}: {
+  title: string;
+  state: 'wait' | 'busy' | 'done' | 'yours';
+  children?: ReactNode;
+}) {
   return (
     <Stack direction="row" gap="14px" sx={{ paddingBottom: '18px', '&:last-of-type': { paddingBottom: 0 } }}>
       <Box sx={{ width: 22, flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -34,10 +42,19 @@ function Step({ title, state, children }: { title: string; state: 'wait' | 'busy
             fontSize: 12,
             fontWeight: 700,
             color: state === 'done' ? color.success : state === 'wait' ? color.textTertiary : color.primaryDark,
-            backgroundColor: state === 'done' ? color.successTint : state === 'wait' ? color.neutralFill : color.primaryTint,
+            backgroundColor:
+              state === 'done' ? color.successTint : state === 'wait' ? color.neutralFill : color.primaryTint,
           }}
         >
-          {state === 'done' ? '✓' : state === 'busy' ? <CircularProgress size={12} thickness={6} /> : state === 'yours' ? '?' : '·'}
+          {state === 'done' ? (
+            '✓'
+          ) : state === 'busy' ? (
+            <CircularProgress size={12} thickness={6} />
+          ) : state === 'yours' ? (
+            '?'
+          ) : (
+            '·'
+          )}
         </Box>
         <Box sx={{ flex: 1, width: '2px', backgroundColor: color.grid, marginTop: '4px' }} />
       </Box>
@@ -88,7 +105,9 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
           setSandbox(sb);
         }
         if (sb.status !== 'running') {
-          throw new Error(`The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before it ran: ${sb.exit_reason ?? sb.status}.`);
+          throw new Error(
+            `The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before it ran: ${sb.exit_reason ?? sb.status}.`,
+          );
         }
         setPhase('exec');
         const x = await client.execStream(sb.id, { command: [...FIRST_RUN.command], timeout_s: 60 }, (e) => {

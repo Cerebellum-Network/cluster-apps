@@ -105,7 +105,11 @@ const SandboxList = () => {
           </Chip>
         ))}
         <Box flex={1} />
-        {error && data && <Typography sx={{ ...text.caption, color: color.danger }} title={error}>Refresh failed; showing the last list.</Typography>}
+        {error && data && (
+          <Typography sx={{ ...text.caption, color: color.danger }} title={error}>
+            Refresh failed; showing the last list.
+          </Typography>
+        )}
         {data?.truncated && <Typography sx={text.caption}>Newest {all.length} shown.</Typography>}
       </Stack>
 
@@ -134,10 +138,16 @@ const SandboxList = () => {
               <TableBody>
                 {rows.map((s) => {
                   const live = isLive(s.status);
-                  const util = s.usage.wall_s > 0 && s.resources.cpu > 0 ? s.usage.cpu_s / (s.usage.wall_s * s.resources.cpu) : 0;
+                  const util =
+                    s.usage.wall_s > 0 && s.resources.cpu > 0 ? s.usage.cpu_s / (s.usage.wall_s * s.resources.cpu) : 0;
                   const agent = s.labels['cere.agent'];
                   return (
-                    <TableRow key={s.id} hover onClick={() => navigate(`/sandboxes/list/${s.id}`)} sx={{ cursor: 'pointer' }}>
+                    <TableRow
+                      key={s.id}
+                      hover
+                      onClick={() => navigate(`/sandboxes/list/${s.id}`)}
+                      sx={{ cursor: 'pointer' }}
+                    >
                       <TableCell>
                         <SandboxStatusLabel status={s.status} />
                       </TableCell>
@@ -186,7 +196,12 @@ const SandboxList = () => {
                             peak of {fmtMib(s.resources.memory_mib)}
                           </Box>
                         </Typography>
-                        <Meter value={s.usage.memory_peak_mib} max={s.resources.memory_mib} tone={live ? sbColor.running : color.border} height={4} />
+                        <Meter
+                          value={s.usage.memory_peak_mib}
+                          max={s.resources.memory_mib}
+                          tone={live ? sbColor.running : color.border}
+                          height={4}
+                        />
                       </TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                         <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{fmtQty(s.usage.cpu_s)} CPU-s</Typography>
@@ -198,7 +213,9 @@ const SandboxList = () => {
                 {rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={8} sx={{ textAlign: 'center', padding: '36px' }}>
-                      <Typography sx={text.secondary}>No sandboxes here. Create one, or run the quickstart from the overview.</Typography>
+                      <Typography sx={text.secondary}>
+                        No sandboxes here. Create one, or run the quickstart from the overview.
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 )}

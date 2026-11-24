@@ -16,7 +16,7 @@ import Runs from './pages/Runs';
  */
 const Agents = () => (
   <ComputeProvider>
-    <ComputeGate>
+    <ComputeGate title="Agents">
       <Routes>
         <Route index element={<Overview />} />
         <Route path="a/:bucket/:name" element={<AgentDetail />} />

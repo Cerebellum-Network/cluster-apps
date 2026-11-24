@@ -14,7 +14,13 @@ import { mono, text } from '~/theme/tokens';
  * Put a `cere.agent/v1` definition in one of the wallet's buckets, at
  * `cere/agents/<name>.json`, the same place `cere agent push` writes it.
  */
-const AddDefinitionDialog = ({ existing, onClose }: { existing: StoredAgent[]; onClose: (saved?: { bucket: string; name: string }) => void }) => {
+const AddDefinitionDialog = ({
+  existing,
+  onClose,
+}: {
+  existing: StoredAgent[];
+  onClose: (saved?: { bucket: string; name: string }) => void;
+}) => {
   const account = useAccount();
   const buckets = account.buckets?.map((b) => b.name) ?? [];
   const [bucket, setBucket] = useState(buckets[0] ?? '');
@@ -70,11 +76,25 @@ const AddDefinitionDialog = ({ existing, onClose }: { existing: StoredAgent[]; o
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography sx={text.secondary}>
-            A definition is a <Box component="span" sx={{ fontFamily: mono }}>cere.agent/v1</Box> JSON document. The examples ship with the CLI in{' '}
-            <Box component="span" sx={{ fontFamily: mono }}>client/examples/agents/</Box>.
+            A definition is a{' '}
+            <Box component="span" sx={{ fontFamily: mono }}>
+              cere.agent/v1
+            </Box>{' '}
+            JSON document. The examples ship with the CLI in{' '}
+            <Box component="span" sx={{ fontFamily: mono }}>
+              client/examples/agents/
+            </Box>
+            .
           </Typography>
           {buckets.length ? (
-            <TextField select label="Bucket" value={bucket} onChange={(e) => setBucket(e.target.value)} size="small" helperText="Saved at cere/agents/<name>.json in this bucket.">
+            <TextField
+              select
+              label="Bucket"
+              value={bucket}
+              onChange={(e) => setBucket(e.target.value)}
+              size="small"
+              helperText="Saved at cere/agents/<name>.json in this bucket."
+            >
               {buckets.map((b) => (
                 <MenuItem key={b} value={b}>
                   <Box component="span" sx={{ fontFamily: mono, fontSize: 13 }}>
@@ -118,7 +138,11 @@ const AddDefinitionDialog = ({ existing, onClose }: { existing: StoredAgent[]; o
               ))}
             </Alert>
           )}
-          {replaces && <Alert severity="info">This replaces the {parsed!.def!.name} definition already in {bucket}.</Alert>}
+          {replaces && (
+            <Alert severity="info">
+              This replaces the {parsed!.def!.name} definition already in {bucket}.
+            </Alert>
+          )}
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </DialogContent>

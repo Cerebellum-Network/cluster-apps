@@ -33,9 +33,18 @@ describe('transcriptItems', () => {
       {
         ts: 3,
         kind: 'AssistantMessage',
-        data: { content: [{ text: 'Checking.', _type: 'TextBlock' }, { id: 'tu1', name: 'WebFetch', input: { url: 'https://gvisor.dev/docs/' }, _type: 'ToolUseBlock' }] },
+        data: {
+          content: [
+            { text: 'Checking.', _type: 'TextBlock' },
+            { id: 'tu1', name: 'WebFetch', input: { url: 'https://gvisor.dev/docs/' }, _type: 'ToolUseBlock' },
+          ],
+        },
       },
-      { ts: 4, kind: 'UserMessage', data: { content: [{ tool_use_id: 'tu1', content: [{ type: 'text', text: 'gVisor is…' }], is_error: false }] } },
+      {
+        ts: 4,
+        kind: 'UserMessage',
+        data: { content: [{ tool_use_id: 'tu1', content: [{ type: 'text', text: 'gVisor is…' }], is_error: false }] },
+      },
       { ts: 5, kind: 'ResultMessage', data: { subtype: 'success', num_turns: 2, result: 'done' } },
     ]
       .map((l) => JSON.stringify(l))
@@ -45,7 +54,14 @@ describe('transcriptItems', () => {
     expect(t.result).toMatchObject({ num_turns: 2 });
     expect(t.items).toEqual([
       { kind: 'text', text: 'Checking.' },
-      { kind: 'tool', id: 'tu1', tool: 'WebFetch', input: 'https://gvisor.dev/docs/', status: 'ok', output: 'gVisor is…' },
+      {
+        kind: 'tool',
+        id: 'tu1',
+        tool: 'WebFetch',
+        input: 'https://gvisor.dev/docs/',
+        status: 'ok',
+        output: 'gVisor is…',
+      },
       { kind: 'log', text: 'not json' },
     ]);
   });

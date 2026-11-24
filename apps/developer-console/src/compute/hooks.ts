@@ -6,7 +6,15 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { collect, errorMessage, isTokenRejected, type ComputeClient, type EgressLogQuery, type ListSandboxesQuery, type UsageRecordsQuery } from './client';
+import {
+  collect,
+  errorMessage,
+  isTokenRejected,
+  type ComputeClient,
+  type EgressLogQuery,
+  type ListSandboxesQuery,
+  type UsageRecordsQuery,
+} from './client';
 import { useCompute } from './ComputeProvider';
 import type { EgressEntry, Sandbox, SecretSummary, UsageRecord } from './types';
 
@@ -31,7 +39,13 @@ export function usePolled<T>(
   intervalMs: number | null,
 ): Polled<T> {
   const { client, onAuthError } = useCompute();
-  const [state, setState] = useState<{ key: string; data?: T; error: string | null; loading: boolean; at: number | null }>({
+  const [state, setState] = useState<{
+    key: string;
+    data?: T;
+    error: string | null;
+    loading: boolean;
+    at: number | null;
+  }>({
     key,
     error: null,
     loading: true,
@@ -83,7 +97,9 @@ export const POLL = { list: 5000, detail: 3000, egress: 5000, records: 15000 } a
 /** Up to this many sandboxes are listed (newest first). */
 export const LIST_MAX = 500;
 
-export function useSandboxes(q: Omit<ListSandboxesQuery, 'cursor' | 'limit'> = {}): Polled<{ items: Sandbox[]; truncated: boolean }> {
+export function useSandboxes(
+  q: Omit<ListSandboxesQuery, 'cursor' | 'limit'> = {},
+): Polled<{ items: Sandbox[]; truncated: boolean }> {
   const key = `sandboxes:${q.status ?? ''}:${(q.label ?? []).join(',')}`;
   return usePolled(
     (c, signal) => collect((cursor) => c.listSandboxes({ ...q, limit: 100, cursor }, signal), LIST_MAX),
@@ -119,15 +135,24 @@ export function useEgressLog(
   const key = `egress:${enabled}:${q.sandbox_id ?? ''}:${q.decision ?? ''}:${q.since ?? ''}`;
   return usePolled(
     (c, signal) =>
-      enabled ? collect((cursor) => c.egressLog({ ...q, limit: 200, cursor }, signal), max) : Promise.resolve({ items: [], truncated: false }),
+      enabled
+        ? collect((cursor) => c.egressLog({ ...q, limit: 200, cursor }, signal), max)
+        : Promise.resolve({ items: [], truncated: false }),
     key,
     enabled ? POLL.egress : null,
   );
 }
 
-export function useUsageRecords(q: Omit<UsageRecordsQuery, 'cursor' | 'limit'> = {}, max = 2000): Polled<{ items: UsageRecord[]; truncated: boolean }> {
+export function useUsageRecords(
+  q: Omit<UsageRecordsQuery, 'cursor' | 'limit'> = {},
+  max = 2000,
+): Polled<{ items: UsageRecord[]; truncated: boolean }> {
   const key = `records:${q.sandbox_id ?? ''}:${q.since ?? ''}`;
-  return usePolled((c, signal) => collect((cursor) => c.usageRecords({ ...q, limit: 500, cursor }, signal), max), key, POLL.records);
+  return usePolled(
+    (c, signal) => collect((cursor) => c.usageRecords({ ...q, limit: 500, cursor }, signal), max),
+    key,
+    POLL.records,
+  );
 }
 
 /** Re-render every `ms` so ages and timers move between polls. */

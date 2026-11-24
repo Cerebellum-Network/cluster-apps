@@ -55,7 +55,11 @@ const Egress = () => {
           </Chip>
         ))}
         <Box flex={1} />
-        {error && data && <Typography sx={{ ...text.caption, color: color.danger }} title={error}>Refresh failed; showing the last read.</Typography>}
+        {error && data && (
+          <Typography sx={{ ...text.caption, color: color.danger }} title={error}>
+            Refresh failed; showing the last read.
+          </Typography>
+        )}
         {data && (
           <Typography sx={text.caption}>
             {entries.length}
