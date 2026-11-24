@@ -95,7 +95,7 @@ const NavigationItem = ({ rootPath, title, navLabel, icon, subNav }: NavigationI
       {active && hasSub && (
         <Stack spacing={0.25} marginTop={0.25} paddingLeft={4.5}>
           {subNav!.map((s) => (
-            <SubLink key={s.path || 'index'} to={s.path ? `${rootPath}/${s.path}` : rootPath} end>
+            <SubLink key={s.path || 'index'} to={s.path ? `${rootPath}/${s.path}` : rootPath} end={!s.prefix}>
               {s.label}
             </SubLink>
           ))}

@@ -21,6 +21,8 @@ interface ImportMetaEnv {
   // Inference slice (src/inference/inferenceConfig.ts)
   readonly VITE_INFERENCE_GATEWAY_URL?: string;
   readonly VITE_MODELS_CDN_URL?: string;
+  // Compute slice: sandboxes and agents (src/compute/computeConfig.ts)
+  readonly VITE_COMPUTE_GATEWAY_URL?: string;
 }
 
 interface ImportMeta {
@@ -49,6 +51,10 @@ interface RuntimeConfig {
   inference?: {
     gatewayUrl?: string;
     modelsCdnUrl?: string;
+  };
+  /** Compute slice: sandboxes and agents (src/compute/computeConfig.ts). */
+  compute?: {
+    gatewayUrl?: string;
   };
 }
 

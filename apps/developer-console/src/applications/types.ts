@@ -8,6 +8,8 @@ export type SubNavItem = {
   /** Path relative to the app's `rootPath` (''=the index sub-route). */
   path: string;
   label: string;
+  /** Stay highlighted on the item's child pages too (e.g. a list and its detail pages). */
+  prefix?: boolean;
 };
 
 export type Application = {
