@@ -39,6 +39,8 @@ const BUSINESS: NavItem[] = [
   { to: '/missing/revenue', label: 'Revenue', missing: true },
 ];
 
+const PROVIDERS: NavItem[] = [{ to: '/missing/provider-join', label: 'Provider join', missing: true }];
+
 function Item({ to, label, missing }: NavItem) {
   return (
     <Box
@@ -222,6 +224,7 @@ export function Shell() {
           <Group items={MAIN} />
           <Group label="Services" items={SERVICES} />
           <Group label="Business" items={BUSINESS} />
+          <Group label="Providers" items={PROVIDERS} />
           <Box sx={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
             <Group items={[{ to: '/sources', label: 'What backs each number' }]} />
             <Typography

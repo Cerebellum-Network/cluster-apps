@@ -75,6 +75,11 @@ const SCREENS: Record<string, { title: string; screen: string; canvas: string }>
   revenue: { title: 'Revenue', screen: 'Revenue', canvas: 'collected per day in USD and CERE (board f1)' },
   plans: { title: 'Plans', screen: 'Plans', canvas: 'Free and Pro: fee, included use and limits (board e0)' },
   requests: { title: 'Requests', screen: 'Requests', canvas: 'nodes waiting to join, invites (boards d1, d2)' },
+  'provider-join': {
+    title: 'Provider join',
+    screen: 'Provider join',
+    canvas: 'invite link, add a machine, checks and join, join status (boards pj1, h2, pj3, p2)',
+  },
 };
 
 /** A canvas screen with no source today: says so, and why, instead of numbers. */
