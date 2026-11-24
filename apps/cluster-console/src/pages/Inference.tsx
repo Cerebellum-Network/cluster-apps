@@ -75,9 +75,9 @@ export function Inference() {
                 <Stack spacing={0.5}>
                   {m.nodes.map((n) => (
                     <Typography key={n.node} sx={{ fontSize: 12.5 }}>
-                      <Mono title={n.node}>{shortKey(n.node, 10, 4)}</Mono> · {n.host} · {n.status} ·{' '}
-                      {n.healthy ? 'healthy' : 'not healthy'} · limit {num(n.ceiling, 0)} · in flight{' '}
-                      {num(n.in_flight, 0)} · queue {num(n.queue, 0)}
+                      {n.node === n.host ? n.host : <Mono title={n.node}>{shortKey(n.node, 10, 4)}</Mono>}
+                      {n.node === n.host ? '' : ` · ${n.host}`} · {n.status} · {n.healthy ? 'healthy' : 'not healthy'} ·
+                      limit {num(n.ceiling, 0)} · in flight {num(n.in_flight, 0)} · queue {num(n.queue, 0)}
                     </Typography>
                   ))}
                 </Stack>

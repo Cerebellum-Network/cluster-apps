@@ -23,12 +23,12 @@ const healthPill = (n: NodeView) =>
   n.healthy ? <Pill tone="success">Healthy</Pill> : <Pill tone="danger">Not healthy</Pill>;
 
 function NodeCell({ n }: { n: NodeView }) {
+  const name = n.chain?.host || n.host || shortKey(n.id);
   return (
     <Stack>
-      <Typography sx={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>
-        {n.chain?.host || n.host || shortKey(n.id)}
-      </Typography>
-      <Mono title={n.id}>{shortKey(n.id, 8, 6)}</Mono>
+      <Typography sx={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>{name}</Typography>
+      {/* The node ID, when it is a key rather than the name already shown. */}
+      {n.id !== name && n.id !== n.host && <Mono title={n.id}>{shortKey(n.id, 8, 6)}</Mono>}
     </Stack>
   );
 }
