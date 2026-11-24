@@ -114,6 +114,9 @@ const Definition = ({ def }: { def: AgentDefinition }) => {
       <Box>
         <Label>Network access on every run’s sandbox</Label>
         <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '12px', padding: '6px 14px' }}>
+          {(def.egress?.allow ?? []).map((r, i) => (
+            <Rule key={i} host={r.host} methods={r.methods} path={r.path_prefix} credential={r.credential} />
+          ))}
           <Rule
             host={m.host}
             methods={m.methods}
@@ -121,9 +124,6 @@ const Definition = ({ def }: { def: AgentDefinition }) => {
             credential={m.credential}
             note="The model, added by the run"
           />
-          {(def.egress?.allow ?? []).map((r, i) => (
-            <Rule key={i} host={r.host} methods={r.methods} path={r.path_prefix} credential={r.credential} />
-          ))}
         </Box>
         <Typography sx={{ ...text.caption, marginTop: '6px' }}>
           Everything else is refused by the egress proxy and shows in the run’s egress log.
