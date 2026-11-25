@@ -157,12 +157,13 @@ const readExample = (file: string) => readFileSync(new URL(`../examples/${file}`
 
 describe('formFromDefinition', () => {
   it.each(AGENT_EXAMPLES.map((e) => [e.file, e] as const))(
-    'gives back %s byte for byte, as the import dialog would save it',
+    'gives back %s field for field, in its order, as the import dialog would save it',
     (file, e) => {
       const { def, errors } = definitionFromForm(formFromDefinition(e.def));
       expect(errors).toEqual({});
-      // saveAgent writes JSON.stringify(def, null, 2) + "\n"; the release asset is the same text.
-      expect(`${JSON.stringify(def, null, 2)}\n`).toBe(readExample(file));
+      // saveAgent writes JSON.stringify(def, null, 2) + "\n": the release asset's document, keys in the same order
+      // (the asset keeps short objects such as resources on one line, which is only whitespace).
+      expect(`${JSON.stringify(def, null, 2)}\n`).toBe(`${JSON.stringify(JSON.parse(readExample(file)), null, 2)}\n`);
     },
   );
 

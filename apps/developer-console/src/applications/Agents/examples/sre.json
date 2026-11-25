@@ -20,10 +20,7 @@
   "policy": "read-only",
   "deny": [],
   "max_turns": 30,
-  "resources": {
-    "cpu": 1,
-    "memory_mib": 2048
-  },
+  "resources": {"cpu": 0.5, "memory": 512, "cpu_limit": 2, "memory_limit": 2048},
   "timeout_s": 900,
   "egress": {
     "allow": [

@@ -1,6 +1,6 @@
 /**
  * The example agents, byte for byte the `*.json` assets of the CLI's release
- * (ddc-node `cli/v0.1.11`, from `examples/agents/` at the tagged commit),
+ * (ddc-node `cli/v0.1.12`, from `examples/agents/` at the tagged commit),
  * so "Run an example" runs exactly what `gh release download … '*.json'` gives
  * a terminal. Update them with the release: download the assets over these
  * files. Each input is a question the example's tools and allowed hosts can answer.
@@ -11,7 +11,7 @@ import research from './research.json';
 import sre from './sre.json';
 
 /** The release the examples come from. */
-export const EXAMPLES_RELEASE = 'cli/v0.1.11';
+export const EXAMPLES_RELEASE = 'cli/v0.1.12';
 
 export interface AgentExample {
   def: AgentDefinition;
