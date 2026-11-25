@@ -205,7 +205,11 @@ const RunDetail = () => {
           ? { state: 'failed', detail: error }
           : { state: 'succeeded' };
   }
-  const failure = outcome && outcome.state !== 'running' && outcome.state !== 'succeeded' ? outcome.detail : null;
+  // The recorded reason is cut to 120 bytes; the kept output.json has the whole error.
+  const failure =
+    outcome && outcome.state !== 'running' && outcome.state !== 'succeeded'
+      ? (outcome.state === 'failed' && output?.error) || outcome.detail
+      : null;
 
   return (
     <Box>
