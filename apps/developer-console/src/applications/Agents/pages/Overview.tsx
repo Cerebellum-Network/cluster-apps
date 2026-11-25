@@ -10,7 +10,7 @@ import { bucketList, bucketNames } from '~/compute/agentStore';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
-import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
+import { useCanSign } from '~/compute/walletSigning';
 import { shortImage } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock } from '../../Sandboxes/components/bits';
@@ -41,7 +41,7 @@ const Overview = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Agents"
-          subtitle="An agent is a definition in your bucket: an image, a model, tools and network rules. Each run is a sandbox the console creates, runs the agent in, and terminates, keeping its output."
+          subtitle="An agent is a definition in one of your storage buckets: an image, a model, tools and network rules. Each run is a sandbox the console creates, runs the agent in, and terminates, keeping its output."
           actions={
             <>
               <BucketChip bucketId={bucketId} />
@@ -85,7 +85,8 @@ const Overview = () => {
             <Box component="span" sx={{ fontFamily: mono }}>
               cere/agents/&lt;name&gt;.json
             </Box>
-            ), which only your wallet can read. {NO_WALLET_HERE} The runs below are read with the access token.
+            ), which only your wallet can read, and this development view has no wallet: sign in with your SSCP wallet
+            to see them. The runs below are read with the access token.
           </Typography>
         </Section>
       ) : list.state === 'unreadable' ? (

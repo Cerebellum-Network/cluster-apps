@@ -86,20 +86,35 @@ function useRunFile(sb: Sandbox | null, name: string, pollMs: number | null, ver
 
 const NO_FILE: FileState = { text: null, from: null, error: null, loading: false };
 
-const Output = ({ output, from, empty }: { output: RunOutput | null; from?: string | null; empty: string }) => {
+const Output = ({
+  output,
+  from,
+  empty,
+  errorShown,
+}: {
+  output: RunOutput | null;
+  from?: string | null;
+  empty: string;
+  /** The page already shows the run's error above. */
+  errorShown: boolean;
+}) => {
   if (!output) return <Typography sx={text.secondary}>{empty}</Typography>;
   const usage = output.model_usage ?? {};
+  // Runner images before 0.1.1 also wrote a failed model call's message as the answer.
+  const answer = output.error && output.output && output.error.includes(output.output.trim()) ? '' : output.output;
   return (
     <Box>
-      {output.error && (
+      {output.error && !errorShown && (
         <Alert severity="error" sx={{ marginBottom: '12px' }}>
           {output.error}
         </Alert>
       )}
-      {output.output ? (
-        <Markdown source={output.output} />
+      {answer ? (
+        <Markdown source={answer} />
       ) : (
-        <Typography sx={text.secondary}>The agent returned no text.</Typography>
+        <Typography sx={text.secondary}>
+          {output.error ? 'The agent returned no answer.' : 'The agent returned no text.'}
+        </Typography>
       )}
       <Stack
         direction="row"
@@ -332,6 +347,7 @@ const RunDetail = () => {
               <Output
                 output={output}
                 from={live?.result?.output ? null : outputFile.from}
+                errorShown={!!failure}
                 empty={
                   !ended
                     ? 'No output yet.'

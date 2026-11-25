@@ -213,7 +213,7 @@ export const BucketChip = ({ bucketId }: { bucketId: string | null }) =>
   bucketId ? (
     <Box
       component="span"
-      title="Sandboxes, secrets and usage on these pages belong to this bucket; usage bills to it."
+      title="The bucket your access token is for: sandboxes, secrets and usage on these pages belong to it, and usage is metered to it. Agent definitions are kept in your storage buckets on the DDC S3 gateway instead."
       sx={{
         display: 'inline-flex',
         alignItems: 'center',
@@ -228,7 +228,7 @@ export const BucketChip = ({ bucketId }: { bucketId: string | null }) =>
         whiteSpace: 'nowrap',
       }}
     >
-      Bucket {bucketId}
+      Compute bucket {bucketId}
     </Box>
   ) : null;
 
