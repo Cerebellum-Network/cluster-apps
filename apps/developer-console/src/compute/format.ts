@@ -1,6 +1,6 @@
 /** Formatters for the Sandboxes and Agents pages. Units are the API's own; no prices. */
 
-import { recordBilling, type RecordBillingFields } from './billing';
+import { addParts, NO_PARTS, recordParts, type BilledParts, type RecordBillingFields } from './billing';
 import type { UsageRecord } from './types';
 
 /** "1 file", "2 files". */
@@ -113,38 +113,45 @@ export function shortImage(image: string): string {
 /**
  * Sum usage records: billed CPU-seconds and GiB-seconds (a record from a gateway
  * that predates the billing fields bills its DAC units / 1e11, as `cere usage`
- * does), the reserved amounts, and what was measured.
+ * does), in parts (the guaranteed floor, the burst above it, what was billed as
+ * measured), the reserved amounts, and what was measured.
  */
 export function sumRecords(
-  rs: (Pick<UsageRecord, 'cpu_s' | 'ram_gib_s' | 'net_egress_bytes' | 'net_ingress_bytes'> &
-    RecordBillingFields &
-    Pick<UsageRecord, 'reserved_cpu_s' | 'reserved_ram_gib_s'>)[],
+  rs: (Pick<UsageRecord, 'cpu_s' | 'ram_gib_s' | 'net_egress_bytes' | 'net_ingress_bytes'> & RecordBillingFields)[],
 ) {
-  return rs.reduce(
-    (a, r) => {
-      const billed = recordBilling(r);
-      return {
-        cpu_s: a.cpu_s + r.cpu_s,
-        ram_gib_s: a.ram_gib_s + r.ram_gib_s,
-        billed_cpu_s: a.billed_cpu_s + billed.cpu,
-        billed_ram_gib_s: a.billed_ram_gib_s + billed.ram,
-        reserved_cpu_s: a.reserved_cpu_s + (r.reserved_cpu_s ?? 0),
-        reserved_ram_gib_s: a.reserved_ram_gib_s + (r.reserved_ram_gib_s ?? 0),
-        net_egress_bytes: a.net_egress_bytes + r.net_egress_bytes,
-        net_ingress_bytes: a.net_ingress_bytes + r.net_ingress_bytes,
-      };
-    },
-    {
-      cpu_s: 0,
-      ram_gib_s: 0,
-      billed_cpu_s: 0,
-      billed_ram_gib_s: 0,
-      reserved_cpu_s: 0,
-      reserved_ram_gib_s: 0,
-      net_egress_bytes: 0,
-      net_ingress_bytes: 0,
-    },
-  );
+  const zero = {
+    cpu_s: 0,
+    ram_gib_s: 0,
+    billed_cpu_s: 0,
+    billed_ram_gib_s: 0,
+    burst_cpu_s: 0,
+    burst_ram_gib_s: 0,
+    reserved_cpu_s: 0,
+    reserved_ram_gib_s: 0,
+    net_egress_bytes: 0,
+    net_ingress_bytes: 0,
+    cpu: NO_PARTS as BilledParts,
+    ram: NO_PARTS as BilledParts,
+  };
+  return rs.reduce((a, r) => {
+    const p = recordParts(r);
+    const cpu = addParts(a.cpu, p.cpu);
+    const ram = addParts(a.ram, p.ram);
+    return {
+      cpu_s: a.cpu_s + r.cpu_s,
+      ram_gib_s: a.ram_gib_s + r.ram_gib_s,
+      billed_cpu_s: cpu.billed,
+      billed_ram_gib_s: ram.billed,
+      burst_cpu_s: cpu.burst,
+      burst_ram_gib_s: ram.burst,
+      reserved_cpu_s: a.reserved_cpu_s + (r.reserved_cpu_s ?? 0),
+      reserved_ram_gib_s: a.reserved_ram_gib_s + (r.reserved_ram_gib_s ?? 0),
+      net_egress_bytes: a.net_egress_bytes + r.net_egress_bytes,
+      net_ingress_bytes: a.net_ingress_bytes + r.net_ingress_bytes,
+      cpu,
+      ram,
+    };
+  }, zero);
 }
 
 /** Add decimal-string integers exactly (DAC cpu_units / ram_units). */

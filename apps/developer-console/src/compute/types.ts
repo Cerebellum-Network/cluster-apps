@@ -16,9 +16,17 @@ export const isLive = (s: SandboxStatus): boolean => LIVE_STATUSES.includes(s);
 
 export type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
 
+/**
+ * A sandbox's CPU and memory. `cpu` and `memory_mib` are the request: guaranteed to it under contention, kept from
+ * reclaim, and the least it is billed. `cpu_limit` and `memory_limit_mib` are the most it can use (above the memory
+ * limit it is stopped, `oom_killed`). A create may leave the limits out (the cluster's defaults apply); the sandbox
+ * reports the limits it got. Gateways before limits send none: then the request is also the limit.
+ */
 export interface Resources {
   cpu: number;
   memory_mib: number;
+  cpu_limit?: number;
+  memory_limit_mib?: number;
   pids?: number;
   /** Accepted, not enforced. */
   disk_mib?: number;
@@ -47,7 +55,8 @@ export interface CreateSandboxRequest {
   command?: string[];
   runtime?: 'gvisor';
   workdir?: string;
-  resources: Resources;
+  /** Any field left out gets the cluster's default (request 0.25 vCPU, 256 MiB; limits as `Resources` says). */
+  resources?: Partial<Resources>;
   /** Default 600. */
   timeout_s?: number;
   /** 0 = off. Idle = no exec and no file call in flight. */
@@ -71,22 +80,31 @@ export interface Usage {
   net_ingress_bytes: number;
   disk_peak_mib: number;
   /**
-   * What the sandbox is billed on: `reserved` (its `resources` × `wall_s`, or the measured amount where that is
-   * more), `measured`, or `''` until the node has reported usage. The billing fields are absent from gateways that
-   * predate them.
+   * What the sandbox is billed on: `request_or_usage` (each second, the larger of its request and what it used),
+   * `reserved` (older: its `resources` × `wall_s`, or the measured amount where that is more, per minute),
+   * `measured`, or `''` until the node has reported usage. The billing fields are absent from gateways that predate
+   * them.
    */
   billing_basis?: BillingBasis | '';
-  /** `resources.cpu` × `wall_s`. */
+  /** `resources.cpu` × `wall_s`: the guaranteed floor. */
   reserved_cpu_s?: number;
-  /** `resources.memory_mib` / 1024 × `wall_s`. */
+  /** `resources.memory_mib` / 1024 × `wall_s`: the guaranteed floor. */
   reserved_ram_gib_s?: number;
   /** What is billed; includes the open period while the sandbox runs. */
   billed_cpu_s?: number;
   billed_ram_gib_s?: number;
+  /** Billed above the request (`billed − reserved`, 0 under `measured`). Absent before limits. */
+  burst_cpu_s?: number;
+  burst_ram_gib_s?: number;
+  /** The highest per-second CPU use, in cores. Absent before limits. */
+  cpu_peak?: number;
 }
 
-/** The node's `SANDBOX_RUNTIME_BILLING_BASIS`, as each usage and record says it. */
-export type BillingBasis = 'reserved' | 'measured';
+/**
+ * The node's billing basis, as each usage and record says it: `request_or_usage` (now), `reserved` (records and
+ * runtimes before limits), `measured`.
+ */
+export type BillingBasis = 'request_or_usage' | 'reserved' | 'measured';
 
 export interface Sandbox {
   id: string;
@@ -110,7 +128,8 @@ export interface Sandbox {
   startup_ms: number | null;
   /**
    * `terminated by API[: reason]`, `timeout (Ns)`, `idle_timeout (Ns)`,
-   * `oom_killed`, `exited with code N`, `failed: <stage> <detail>`,
+   * `oom_killed` (reached its memory limit), `memory_reclaimed` (used more
+   * than its memory request while the node was short), `exited with code N`, `failed: <stage> <detail>`,
    * `lost: runtime restarted`, `lost: host restarted`, `token_expiry`
    * (60 s before the token it was created with expired).
    */
@@ -254,19 +273,31 @@ export interface UsageRecord {
   billing_basis?: BillingBasis;
   /** Seconds the sandbox ran in this period. */
   wall_s?: number;
-  /** The sandbox's reservation: vCPU and MiB. */
+  /** The sandbox's request ("reserved"): vCPU and MiB. */
   reserved_cpu?: number;
   reserved_memory_mib?: number;
-  /** The reservation × `wall_s`. */
+  /** The request × `wall_s`: the guaranteed floor. */
   reserved_cpu_s?: number;
   reserved_ram_gib_s?: number;
   /** What the record bills: `cpu_units`/`ram_units` / 1e11. */
   billed_cpu_s?: number;
   billed_ram_gib_s?: number;
+  /** The sandbox's limits: vCPU and MiB. Absent before limits (then the request was the limit). */
+  cpu_limit?: number;
+  memory_limit_mib?: number;
+  /** Billed above the request. Absent before limits: then `max(0, billed − reserved)`. */
+  burst_cpu_s?: number;
+  burst_ram_gib_s?: number;
+  /** The highest per-second CPU use in the period, in cores. */
+  cpu_peak?: number;
 }
 
 /** The exit reason of a sandbox the node ended 60 s before the token it was created with expired. */
 export const EXIT_TOKEN_EXPIRY = 'token_expiry';
+/** The sandbox reached its own memory limit (`memory_limit_mib`). */
+export const EXIT_OOM_KILLED = 'oom_killed';
+/** The sandbox used more than its memory request while its node was short of memory, and was stopped to free it. */
+export const EXIT_MEMORY_RECLAIMED = 'memory_reclaimed';
 
 export const EMPTY_USAGE: Usage = {
   wall_s: 0,
@@ -281,8 +312,8 @@ export const EMPTY_USAGE: Usage = {
 };
 
 /**
- * An ending that is a failure: it never started (`failed`), the node killed it
- * for memory (`oom_killed`), it was lost with its node or runtime (`lost: …`),
+ * An ending that is a failure: it never started (`failed`), the node stopped it
+ * for memory (`oom_killed`, `memory_reclaimed`), it was lost with its node or runtime (`lost: …`),
  * or its main process exited with a non-zero code. A timeout or idle timeout is
  * the limit you set, and a terminate is yours: those are Finished.
  */
@@ -290,7 +321,8 @@ export function endedBadly(s: Pick<Sandbox, 'status' | 'exit_reason'>): boolean 
   if (s.status === 'failed') return true;
   if (s.status !== 'terminated' || !s.exit_reason) return false;
   const r = s.exit_reason;
-  if (r.startsWith('oom_killed') || r.startsWith('lost') || r.startsWith('failed')) return true;
+  if (r.startsWith(EXIT_OOM_KILLED) || r.startsWith(EXIT_MEMORY_RECLAIMED)) return true;
+  if (r.startsWith('lost') || r.startsWith('failed')) return true;
   const code = /^exited with code (-?\d+)/.exec(r);
   return !!code && code[1] !== '0';
 }

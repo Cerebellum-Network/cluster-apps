@@ -10,11 +10,11 @@ import { useAgentDefinitions } from '~/compute/agentHooks';
 import { AGENT_RUN_KIND, agentTimeout, LABEL, modelRule } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { deleteAgent, saveRunFiles } from '~/compute/agentStore';
-import type { AgentDefinition } from '~/compute/agentDefinition';
+import { AGENT_DEFAULT_RESOURCES, type AgentDefinition } from '~/compute/agentDefinition';
+import { effectiveOf, plannedCpu, plannedMemory } from '~/compute/resources';
 import { errorMessage } from '~/compute/client';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
-import { fmtMib } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, Count, Tabs } from '../../Sandboxes/components/bits';
 import { CredentialChip, Field, Mono, ReadError } from '../../Sandboxes/components/ui';
@@ -90,9 +90,8 @@ const Definition = ({ def, onEgress }: { def: AgentDefinition; onEgress?: () => 
           <Field label="Model">
             <Mono>{def.model.model}</Mono>
           </Field>
-          <Field label="Resources">
-            {def.resources?.cpu ?? 1} vCPU, {fmtMib(def.resources?.memory_mib ?? 2048)}
-          </Field>
+          <Field label="CPU">{plannedCpu(effectiveOf(def.resources, AGENT_DEFAULT_RESOURCES))}</Field>
+          <Field label="Memory">{plannedMemory(effectiveOf(def.resources, AGENT_DEFAULT_RESOURCES))}</Field>
           <Field label="Time limit">{Math.round(agentTimeout(def) / 60)} min</Field>
           {def.policy && <Field label="Policy">{def.policy}</Field>}
           {def.max_turns != null && <Field label="Max turns">{def.max_turns}</Field>}

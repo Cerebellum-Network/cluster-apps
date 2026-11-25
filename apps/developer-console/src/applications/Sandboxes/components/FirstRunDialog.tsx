@@ -8,7 +8,8 @@ import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import type { ExecExit, Sandbox } from '~/compute/types';
 import { billingLine } from '~/compute/billing';
-import { fmtCpu, fmtMib, fmtQty, shortNode } from '~/compute/format';
+import { fmtQty, shortNode } from '~/compute/format';
+import { cpuLine, memoryLine } from '~/compute/resources';
 import { color, text } from '~/theme/tokens';
 import { FIRST_RUN } from './quickstart';
 import { Mono, Terminal, sbColor } from './ui';
@@ -176,7 +177,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
         <Step title="Create the sandbox" state={stepState('create')}>
           {sandbox ? (
             <Typography sx={text.secondary}>
-              <Mono>{sandbox.id}</Mono> · {fmtCpu(sandbox.resources.cpu)}, {fmtMib(sandbox.resources.memory_mib)}
+              <Mono>{sandbox.id}</Mono> · {cpuLine(sandbox.resources)}; {memoryLine(sandbox.resources)}
               {sandbox.node ? (
                 <>
                   , placed on node <Mono title={sandbox.node}>{shortNode(sandbox.node)}</Mono>

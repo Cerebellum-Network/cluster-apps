@@ -7,12 +7,15 @@ import { useNavigate } from 'react-router-dom';
 
 import { Pill } from '~/components';
 import { useAccount } from '~/hooks';
+import { AGENT_DEFAULT_RESOURCES } from '~/compute/agentDefinition';
 import { modelRule } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { saveRunFiles } from '~/compute/agentStore';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { fmtCpu, fmtMib } from '~/compute/format';
 import { useSecrets } from '~/compute/hooks';
+import { effectiveOf } from '~/compute/resources';
 import { useCanSign } from '~/compute/walletSigning';
 import { mono, text } from '~/theme/tokens';
 import { CredentialChip, Mono } from '../../Sandboxes/components/ui';
@@ -43,6 +46,7 @@ const ExampleRunDialog = ({ onClose }: { onClose: () => void }) => {
   const [inputs, setInputs] = useState<string[]>(() => AGENT_EXAMPLES.map((e) => e.input));
   const input = inputs[pick];
   const def = ex.def;
+  const res = effectiveOf(def.resources, AGENT_DEFAULT_RESOURCES);
   const m = modelRule(def);
   const rules = [...(def.egress?.allow ?? []), m];
   const missing = missingSecrets(def, secrets.data);
@@ -107,8 +111,8 @@ const ExampleRunDialog = ({ onClose }: { onClose: () => void }) => {
               Model <Mono>{def.model.model}</Mono> at <Mono>{m.host}</Mono>
             </span>
             <span>
-              {def.resources?.cpu ?? 1} vCPU, {def.resources?.memory_mib ?? 2048} MiB, up to{' '}
-              {Math.round((def.timeout_s ?? 900) / 60)} min
+              {fmtCpu(res.cpu)} and {fmtMib(res.memoryMib)} guaranteed, up to {Math.round((def.timeout_s ?? 900) / 60)}{' '}
+              min
             </span>
             <span>Tools: {(def.tools ?? []).join(', ') || 'none'}</span>
           </Box>

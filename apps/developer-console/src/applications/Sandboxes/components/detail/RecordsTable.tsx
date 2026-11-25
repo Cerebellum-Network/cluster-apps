@@ -1,9 +1,10 @@
 import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@cluster-apps/ui';
 
-import { recordBilling } from '~/compute/billing';
+import { recordBilling, recordParts, type BilledParts } from '~/compute/billing';
 import type { DacStatus, UsageRecord } from '~/compute/types';
-import { fmtClock, fmtQty, fmtUtc, localZone } from '~/compute/format';
+import { fmtClock, fmtCpu, fmtMib, fmtQty, fmtUtc, localZone } from '~/compute/format';
 import { color, text } from '~/theme/tokens';
+import { ExitReason } from '../ui';
 
 /**
  * Whether a minute of usage has been counted for billing, in words: the node
@@ -29,11 +30,29 @@ export const CountedLabel = ({ status, error }: { status: DacStatus; error?: str
   );
 };
 
+/** A billed amount, with the part above the request under it ("3.20 burst"), or "as measured". */
+export const BilledCell = ({ p }: { p: BilledParts }) => (
+  <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+    <Box sx={{ fontWeight: 600 }}>{fmtQty(p.billed)}</Box>
+    {p.burst > 0 && <Typography sx={{ ...text.caption, color: color.text }}>{fmtQty(p.burst)} burst</Typography>}
+    {p.asMeasured > 0 && p.floor === 0 && <Typography sx={text.caption}>as measured</Typography>}
+  </TableCell>
+);
+
+/** A record's request and limits for its tooltip: "request 0.25 vCPU, 256 MiB; limits 4 vCPU, 1 GiB". */
+function requestText(r: UsageRecord): string {
+  if (r.reserved_cpu === undefined || r.reserved_memory_mib === undefined) return '';
+  const request = `request ${fmtCpu(r.reserved_cpu)}, ${fmtMib(r.reserved_memory_mib)}`;
+  if (!r.cpu_limit && !r.memory_limit_mib) return request;
+  return `${request}; limits ${fmtCpu(r.cpu_limit ?? r.reserved_cpu)}, ${fmtMib(r.memory_limit_mib ?? r.reserved_memory_mib)}`;
+}
+
 /**
  * A sandbox's usage minute by minute (one record per wall-clock minute plus
- * the last one when it ended): what was billed, what was measured, and whether
- * it has been counted. The record's own fields (id, node, units) are in the
- * row's tooltip, not on the page.
+ * the last one when it ended): what was billed, with the burst above the
+ * request under it, what was measured, and whether it has been counted. The
+ * record's own fields (id, basis, request and limits) are in the row's
+ * tooltip, not on the page.
  */
 const RecordsTable = ({ records, empty }: { records: UsageRecord[]; empty?: string }) => {
   const head = { backgroundColor: color.inset };
@@ -61,28 +80,31 @@ const RecordsTable = ({ records, empty }: { records: UsageRecord[]; empty?: stri
         <TableBody>
           {records.map((r) => {
             const billed = recordBilling(r);
+            const parts = recordParts(r);
+            const req = requestText(r);
             return (
               <TableRow
                 key={r.record_id}
-                title={`Record ${r.record_id}, ${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} UTC, ${billed.basis} basis, reserved ${billed.reserved}`}
+                title={`Record ${r.record_id}, ${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} UTC, ${billed.basis} basis${req ? `, ${req}` : ''}`}
               >
                 <TableCell sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
                   {fmtClock(r.period_start)}–{fmtClock(r.period_end)}
                   {r.final && (
                     <Typography sx={{ ...text.caption, color: color.text }}>
-                      ended{r.exit_reason ? `: ${r.exit_reason}` : ''}
+                      ended
+                      {r.exit_reason ? (
+                        <>
+                          : <ExitReason reason={r.exit_reason} />
+                        </>
+                      ) : null}
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                  {fmtQty(billed.cpu)}
-                </TableCell>
+                <BilledCell p={parts.cpu} />
                 <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
                   {fmtQty(r.cpu_s)}
                 </TableCell>
-                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                  {fmtQty(billed.ram)}
-                </TableCell>
+                <BilledCell p={parts.ram} />
                 <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
                   {fmtQty(r.ram_gib_s)}
                 </TableCell>

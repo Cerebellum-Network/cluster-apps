@@ -7,6 +7,7 @@
  * (`files`, and any it doesn't know) are kept as they were.
  */
 import {
+  AGENT_DEFAULT_RESOURCES,
   AGENT_MAX_TIMEOUT_S,
   AGENT_NAME_RE,
   AGENT_SCHEMA,
@@ -16,6 +17,7 @@ import {
 } from '~/compute/agentDefinition';
 import { DEFAULT_AGENT_TIMEOUT_S } from '~/compute/agentRun';
 import { credentialCoverage, type Coverage } from '~/compute/egressCoverage';
+import { parseResources } from '~/compute/resources';
 import { RULE_METHODS, type RuleForm } from '~/compute/egressRules';
 import type { EgressRule, SecretSummary } from '~/compute/types';
 import { quoteArg, splitCommand } from '../../Sandboxes/components/commandLine';
@@ -25,7 +27,12 @@ export const RUNNER_IMAGE = 'cerebellumnetwork/ddc-agent-runner:0.1.1';
 /** Claude Code's tools, as the runner names them (ddc-node packages/agent-runner, `TOOL_NAMES`). */
 export const CLAUDE_CODE_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Bash', 'Write', 'Edit'];
 /** The runner's defaults when a definition leaves them out. */
-export const DEFAULTS = { maxTurns: 30, cpu: 1, memoryMib: 2048, timeoutS: DEFAULT_AGENT_TIMEOUT_S } as const;
+export const DEFAULTS = {
+  maxTurns: 30,
+  cpu: AGENT_DEFAULT_RESOURCES.cpu,
+  memoryMib: AGENT_DEFAULT_RESOURCES.memoryMib,
+  timeoutS: DEFAULT_AGENT_TIMEOUT_S,
+} as const;
 export { RULE_METHODS, emptyRule, type RuleForm } from '~/compute/egressRules';
 
 export interface AgentForm {
@@ -45,8 +52,12 @@ export interface AgentForm {
   /** One regular expression per line, matched against the agent's shell commands. */
   deny: string;
   maxTurns: string;
+  /** The request: guaranteed, and the least a run is billed. */
   cpu: string;
   memoryMib: string;
+  /** The limits: '' = the cluster's defaults (the node's quota; the larger of the memory request and 1 GiB). */
+  cpuLimit: string;
+  memoryLimitMib: string;
   timeoutS: string;
   rules: RuleForm[];
   /** Not edited by the form; kept as they were. */
@@ -57,7 +68,18 @@ export interface AgentForm {
 
 export type FormErrors = Partial<
   Record<
-    'name' | 'image' | 'command' | 'baseUrl' | 'model' | 'maxTurns' | 'cpu' | 'memoryMib' | 'timeoutS' | 'deny',
+    | 'name'
+    | 'image'
+    | 'command'
+    | 'baseUrl'
+    | 'model'
+    | 'maxTurns'
+    | 'cpu'
+    | 'memoryMib'
+    | 'cpuLimit'
+    | 'memoryLimitMib'
+    | 'timeoutS'
+    | 'deny',
     string
   >
 > & {
@@ -85,6 +107,8 @@ export function emptyForm(model: { baseUrl: string; model: string; credential: s
     maxTurns: String(DEFAULTS.maxTurns),
     cpu: String(DEFAULTS.cpu),
     memoryMib: String(DEFAULTS.memoryMib),
+    cpuLimit: '',
+    memoryLimitMib: '',
     timeoutS: String(DEFAULTS.timeoutS),
     rules: [],
     files: {},
@@ -131,6 +155,8 @@ export function formFromDefinition(def: AgentDefinition): AgentForm {
     maxTurns: String(def.max_turns ?? DEFAULTS.maxTurns),
     cpu: String(def.resources?.cpu ?? DEFAULTS.cpu),
     memoryMib: String(def.resources?.memory_mib ?? DEFAULTS.memoryMib),
+    cpuLimit: def.resources?.cpu_limit ? String(def.resources.cpu_limit) : '',
+    memoryLimitMib: def.resources?.memory_limit_mib ? String(def.resources.memory_limit_mib) : '',
     timeoutS: String(def.timeout_s ?? DEFAULTS.timeoutS),
     rules: (def.egress?.allow ?? []).map((r) => ({
       host: r.host,
@@ -204,6 +230,13 @@ export function definitionFromForm(form: AgentForm): {
   if (cpu === null || !(cpu > 0)) errors.cpu = 'More than 0 vCPU.';
   const memory = num(form.memoryMib);
   if (memory === null || !Number.isInteger(memory) || memory < 128) errors.memoryMib = 'At least 128 MiB.';
+  // The limits, checked against the request as typed (or the runner's default where that is not usable).
+  const limits = parseResources(
+    { cpu: '', memoryMib: '', cpuLimit: form.cpuLimit, memoryLimitMib: form.memoryLimitMib },
+    { cpu: cpu && cpu > 0 ? cpu : DEFAULTS.cpu, memoryMib: memory && memory >= 128 ? memory : DEFAULTS.memoryMib },
+  );
+  if (limits.errors.cpuLimit) errors.cpuLimit = limits.errors.cpuLimit;
+  if (limits.errors.memoryLimitMib) errors.memoryLimitMib = limits.errors.memoryLimitMib;
   const timeout = num(form.timeoutS);
   if (timeout === null || !Number.isInteger(timeout) || timeout < 1 || timeout > AGENT_MAX_TIMEOUT_S)
     errors.timeoutS = `1 to ${AGENT_MAX_TIMEOUT_S} seconds.`;
@@ -256,7 +289,12 @@ export function definitionFromForm(form: AgentForm): {
     policy: form.policy,
     deny,
     max_turns: maxTurns ?? DEFAULTS.maxTurns,
-    resources: { cpu: cpu ?? DEFAULTS.cpu, memory_mib: memory ?? DEFAULTS.memoryMib },
+    resources: {
+      cpu: cpu ?? DEFAULTS.cpu,
+      memory_mib: memory ?? DEFAULTS.memoryMib,
+      ...(limits.resources.cpu_limit ? { cpu_limit: limits.resources.cpu_limit } : {}),
+      ...(limits.resources.memory_limit_mib ? { memory_limit_mib: limits.resources.memory_limit_mib } : {}),
+    },
     timeout_s: timeout ?? DEFAULTS.timeoutS,
     egress: { allow },
     files: { ...form.files },

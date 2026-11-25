@@ -17,10 +17,10 @@ import { PageHeader, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useUsageRecords } from '~/compute/hooks';
 import { fmtBytes, fmtClock, fmtQty, localZone, shortId, sumRecords } from '~/compute/format';
-import { countingState, recordBilling } from '~/compute/billing';
+import { countingState, recordParts, type BilledParts } from '~/compute/billing';
 import { isLive, type UsageRecord } from '~/compute/types';
 import { chartPalette, color, mono, text } from '~/theme/tokens';
-import { CountedLabel } from '../components/detail/RecordsTable';
+import { BilledCell, CountedLabel } from '../components/detail/RecordsTable';
 import { BucketChip, ReadError } from '../components/ui';
 import { Chip } from './SandboxList';
 
@@ -31,11 +31,43 @@ const WINDOWS = [
 ] as const;
 
 const TICK = { fontSize: 12, fill: color.textTertiary };
-/** Fixed series order: billed is the first hue, measured the second (validated for colour-blind separation). */
-const BILLED_COLOR = chartPalette[0];
-const MEASURED_COLOR = chartPalette[1];
 
-const Tile = ({ label, value, sub, note }: { label: string; value: string; sub: string; note?: string }) => (
+/**
+ * The parts of a bill, in a fixed order with fixed colours (validated for
+ * colour-blind separation): the guaranteed floor first, the burst above it,
+ * then what was billed as measured (older records), which shows only when
+ * there is some. What was used is a line in ink, not a part of the bill.
+ */
+const PARTS = [
+  { key: 'floor', name: 'Guaranteed', color: chartPalette[0] },
+  { key: 'burst', name: 'Burst', color: chartPalette[1] },
+  { key: 'asMeasured', name: 'Billed as measured', color: chartPalette[2] },
+] as const;
+const USED_COLOR = color.text;
+
+const Swatch = ({ tone }: { tone: string }) => (
+  <Box
+    component="span"
+    aria-hidden
+    sx={{ display: 'inline-block', width: 9, height: 9, borderRadius: '2px', backgroundColor: tone, flexShrink: 0 }}
+  />
+);
+
+/** A bill's parts with their colours, as the chart below draws them: "■ 15.0 guaranteed ■ 3.20 burst". */
+const PartsKey = ({ p }: { p: BilledParts }) => (
+  <Stack direction="row" gap="4px 14px" flexWrap="wrap" sx={{ marginTop: '6px' }}>
+    {PARTS.filter((x) => x.key !== 'asMeasured' || p.asMeasured > 0).map((x) => (
+      <Stack key={x.key} direction="row" alignItems="center" gap="6px" component="span">
+        <Swatch tone={x.color} />
+        <Typography component="span" sx={{ ...text.caption, color: color.text, fontVariantNumeric: 'tabular-nums' }}>
+          {fmtQty(p[x.key])} {x.name.toLowerCase()}
+        </Typography>
+      </Stack>
+    ))}
+  </Stack>
+);
+
+const Tile = ({ label, value, parts, sub }: { label: string; value: string; parts?: BilledParts; sub: string }) => (
   <Box
     sx={{
       border: `1px solid ${color.border}`,
@@ -47,58 +79,128 @@ const Tile = ({ label, value, sub, note }: { label: string; value: string; sub: 
   >
     <Typography sx={text.secondary}>{label}</Typography>
     <Typography sx={{ ...text.title, fontVariantNumeric: 'tabular-nums', marginTop: '6px' }}>{value}</Typography>
-    <Typography sx={{ ...text.caption, marginTop: '2px' }}>{sub}</Typography>
-    {note && <Typography sx={{ ...text.caption, marginTop: '1px' }}>{note}</Typography>}
+    {parts && <PartsKey p={parts} />}
+    <Typography sx={{ ...text.caption, marginTop: '4px' }}>{sub}</Typography>
   </Box>
 );
 
-/** Records summed into bars by the end of their period: billed and measured, CPU and memory. */
-function bars(records: UsageRecord[], fromMs: number, toMs: number, barMs: number) {
+type Row = {
+  t: number;
+  cpu: { floor: number; burst: number; asMeasured: number; used: number };
+  ram: { floor: number; burst: number; asMeasured: number; used: number };
+};
+
+/** Records summed into bars by the end of their period: the billed parts and what was used, CPU and memory. */
+function bars(records: UsageRecord[], fromMs: number, toMs: number, barMs: number): Row[] {
   const start = Math.floor(fromMs / barMs) * barMs;
   const n = Math.max(1, Math.ceil((toMs - start) / barMs));
-  const rows = Array.from({ length: n }, (_, i) => ({
+  const rows: Row[] = Array.from({ length: n }, (_, i) => ({
     t: start + i * barMs,
-    cpu: 0,
-    ram: 0,
-    billedCpu: 0,
-    billedRam: 0,
+    cpu: { floor: 0, burst: 0, asMeasured: 0, used: 0 },
+    ram: { floor: 0, burst: 0, asMeasured: 0, used: 0 },
   }));
   for (const r of records) {
     const i = Math.floor((Date.parse(r.period_end) - start) / barMs);
     if (i < 0 || i >= n) continue;
-    const b = recordBilling(r);
-    rows[i].cpu += r.cpu_s;
-    rows[i].ram += r.ram_gib_s;
-    rows[i].billedCpu += b.cpu;
-    rows[i].billedRam += b.ram;
+    const p = recordParts(r);
+    for (const [q, parts, used] of [
+      ['cpu', p.cpu, r.cpu_s],
+      ['ram', p.ram, r.ram_gib_s],
+    ] as const) {
+      rows[i][q].floor += parts.floor;
+      rows[i][q].burst += parts.burst;
+      rows[i][q].asMeasured += parts.asMeasured;
+      rows[i][q].used += used;
+    }
   }
   return rows;
 }
 
-/** One quantity over time, billed (bars) against measured (line), on one axis in one unit. */
+const dayHour = (t: number) =>
+  new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+/** The hover card: the bar's time, what it billed in parts, and what was used. */
+const ChartTip = ({
+  active,
+  payload,
+  quantity,
+  unit,
+  barMs,
+}: {
+  active?: boolean;
+  payload?: { payload: Row }[];
+  quantity: 'cpu' | 'ram';
+  unit: string;
+  barMs: number;
+}) => {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const q = row[quantity];
+  const billed = q.floor + q.burst + q.asMeasured;
+  const line = (tone: string | null, name: string, v: number, strong = false) => (
+    <Stack direction="row" alignItems="center" gap="8px" justifyContent="space-between" key={name}>
+      <Stack direction="row" alignItems="center" gap="6px">
+        {tone ? <Swatch tone={tone} /> : <Box component="span" sx={{ width: 9 }} />}
+        <span>{name}</span>
+      </Stack>
+      <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: strong ? 700 : 500 }}>
+        {fmtQty(v)} {unit}
+      </Box>
+    </Stack>
+  );
+  return (
+    <Box
+      sx={{
+        backgroundColor: color.surface,
+        border: `1px solid ${color.border}`,
+        borderRadius: '8px',
+        padding: '8px 10px',
+        fontSize: 12,
+        lineHeight: '18px',
+        color: color.text,
+        minWidth: 190,
+        boxShadow: '0 2px 8px rgba(29, 27, 32, 0.08)',
+      }}
+    >
+      <Box sx={{ color: color.textSecondary, marginBottom: '4px' }}>
+        {dayHour(row.t)}–{fmtClock(row.t + barMs).slice(0, 5)} {localZone(row.t)}
+      </Box>
+      {line(null, 'Billed', billed, true)}
+      {PARTS.filter((x) => x.key !== 'asMeasured' || q.asMeasured > 0).map((x) => line(x.color, x.name, q[x.key]))}
+      <Box sx={{ borderTop: `1px solid ${color.grid}`, marginTop: '4px', paddingTop: '4px' }}>
+        {line(USED_COLOR, 'Used', q.used)}
+      </Box>
+    </Box>
+  );
+};
+
+/**
+ * One quantity over time: what was billed as stacked bars (the guaranteed
+ * floor, the burst above it, and what older records billed as measured) with
+ * what was used as a line, on one axis in one unit.
+ */
 const BilledChart = ({
   title,
   rows,
-  billedKey,
-  measuredKey,
+  quantity,
   unit,
   barMs,
 }: {
   title: string;
-  rows: ReturnType<typeof bars>;
-  billedKey: 'billedCpu' | 'billedRam';
-  measuredKey: 'cpu' | 'ram';
+  rows: Row[];
+  quantity: 'cpu' | 'ram';
   unit: string;
   barMs: number;
 }) => {
-  const dayHour = (t: number) =>
-    new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   const tick = (t: number) => (barMs >= 3600_000 ? dayHour(t) : fmtClock(t).slice(0, 5));
+  const anyMeasured = rows.some((r) => r[quantity].asMeasured > 0);
+  const shown = PARTS.filter((x) => x.key !== 'asMeasured' || anyMeasured);
+  const top = shown[shown.length - 1].key;
   return (
     <Section title={`${title} (${localZone()})`}>
       <Box
         role="img"
-        aria-label={`${title} billed and measured, one bar per ${barMs / 60_000} minutes`}
+        aria-label={`${title}: billed as guaranteed and burst, against what was used, one bar per ${barMs / 60_000} minutes`}
         sx={{ width: '100%', height: 220 }}
       >
         <ResponsiveContainer width="100%" height="100%">
@@ -115,29 +217,35 @@ const BilledChart = ({
             <YAxis width={52} tickFormatter={(v: number) => fmtQty(v)} tick={TICK} tickLine={false} axisLine={false} />
             <Tooltip
               cursor={{ fill: color.grid }}
-              labelFormatter={(t: number) => `${dayHour(t)}–${fmtClock(t + barMs).slice(0, 5)} ${localZone(t)}`}
-              formatter={(v, name) => [`${fmtQty(Number(v))} ${unit}`, name]}
-              contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: color.border }}
+              content={<ChartTip quantity={quantity} unit={unit} barMs={barMs} />}
             />
             <Legend
               verticalAlign="top"
               align="right"
               height={24}
               iconSize={10}
-              wrapperStyle={{ fontSize: 12, color: color.textSecondary }}
+              wrapperStyle={{ fontSize: 12 }}
+              // The swatch carries the series; its name stays in text ink.
+              formatter={(name: string) => <span style={{ color: color.textSecondary }}>{name}</span>}
             />
-            <Bar
-              dataKey={billedKey}
-              name="Billed"
-              fill={BILLED_COLOR}
-              radius={[4, 4, 0, 0]}
-              isAnimationActive={false}
-            />
+            {shown.map((x) => (
+              <Bar
+                key={x.key}
+                dataKey={(r: Row) => r[quantity][x.key]}
+                name={x.name}
+                stackId="billed"
+                fill={x.color}
+                stroke={color.surface}
+                strokeWidth={1}
+                radius={x.key === top ? [4, 4, 0, 0] : 0}
+                isAnimationActive={false}
+              />
+            ))}
             <Line
-              dataKey={measuredKey}
-              name="Measured"
+              dataKey={(r: Row) => r[quantity].used}
+              name="Used"
               type="monotone"
-              stroke={MEASURED_COLOR}
+              stroke={USED_COLOR}
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 4 }}
@@ -192,7 +300,7 @@ const Usage = () => {
       <Box marginBottom="16px">
         <PageHeader
           title="Usage"
-          subtitle="What your sandboxes are billed: the CPU and memory each one reserves, for as long as it runs, or what it used where that is more. Billed to your compute bucket; there is no price list yet."
+          subtitle="What your sandboxes are billed: the CPU and memory each one is guaranteed (its request) for as long as it runs, plus any use above that, the burst. Billed to your compute bucket; there is no price list yet."
           actions={<BucketChip bucketId={bucketId} />}
         />
       </Box>
@@ -232,10 +340,16 @@ const Usage = () => {
               marginBottom: '16px',
             }}
           >
-            <Tile label="Billed CPU-seconds" value={fmtQty(total.billed_cpu_s)} sub={`used ${fmtQty(total.cpu_s)}`} />
+            <Tile
+              label="Billed CPU-seconds"
+              value={fmtQty(total.billed_cpu_s)}
+              parts={total.cpu}
+              sub={`used ${fmtQty(total.cpu_s)}`}
+            />
             <Tile
               label="Billed GiB-seconds of memory"
               value={fmtQty(total.billed_ram_gib_s)}
+              parts={total.ram}
               sub={`used ${fmtQty(total.ram_gib_s)}`}
             />
             <Tile
@@ -253,22 +367,8 @@ const Usage = () => {
               marginBottom: '16px',
             }}
           >
-            <BilledChart
-              title="CPU-seconds"
-              rows={rows}
-              billedKey="billedCpu"
-              measuredKey="cpu"
-              unit="CPU-s"
-              barMs={w.barMs}
-            />
-            <BilledChart
-              title="GiB-seconds"
-              rows={rows}
-              billedKey="billedRam"
-              measuredKey="ram"
-              unit="GiB-s"
-              barMs={w.barMs}
-            />
+            <BilledChart title="CPU-seconds" rows={rows} quantity="cpu" unit="CPU-s" barMs={w.barMs} />
+            <BilledChart title="GiB-seconds" rows={rows} quantity="ram" unit="GiB-s" barMs={w.barMs} />
           </Box>
 
           <Section title="By sandbox" flush>
@@ -311,15 +411,11 @@ const Usage = () => {
                         )}
                       </TableCell>
                       <TableCell sx={{ fontSize: 13 }}>{r.live ? 'Running' : 'Ended'}</TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                        {fmtQty(r.billed_cpu_s)}
-                      </TableCell>
+                      <BilledCell p={r.cpu} />
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
                         {fmtQty(r.cpu_s)}
                       </TableCell>
-                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                        {fmtQty(r.billed_ram_gib_s)}
-                      </TableCell>
+                      <BilledCell p={r.ram} />
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
                         {fmtQty(r.ram_gib_s)}
                       </TableCell>

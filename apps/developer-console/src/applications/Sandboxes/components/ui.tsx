@@ -3,8 +3,8 @@ import { Alert, Box, Button, Stack, Typography, styled } from '@cluster-apps/ui'
 import { keyframes } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 
+import { exitReasonInfo } from '~/compute/exitReasons';
 import type { EgressDecision, SandboxStatus } from '~/compute/types';
-import { EXIT_TOKEN_EXPIRY } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 
 /** Sandbox-specific colours, on top of the console tokens. */
@@ -55,19 +55,23 @@ export const StatusDot = styled('span', { shouldForwardProp: (p) => p !== 'statu
   }),
 );
 
-/** Why a sandbox ended with `token_expiry`, and what to do about it. */
-const TOKEN_EXPIRY_TITLE =
-  'Ended 60 s before the access token it was created with expired. For longer runs, create a new token (Access tokens), or sign in again with cere login.';
-
-/** An exit reason as the node wrote it; `token_expiry` reads "Token expired", with why in its tooltip. */
-export const ExitReason = ({ reason }: { reason: string }) =>
-  reason === EXIT_TOKEN_EXPIRY ? (
-    <Box component="span" title={TOKEN_EXPIRY_TITLE}>
-      Token expired
+/**
+ * An exit reason in plain words ("Out of memory", "Memory reclaimed", "Token
+ * expired"), with what happened and what to do in its tooltip; any other
+ * reason as the node wrote it. `sb` adds the numbers (its limit, request,
+ * peak) when the sandbox is at hand.
+ */
+export const ExitReason = ({ reason, sb }: { reason: string; sb?: Parameters<typeof exitReasonInfo>[1] }) => {
+  const info = exitReasonInfo(reason, sb);
+  const title = [info.detail, info.action].filter(Boolean).join(' ');
+  return title ? (
+    <Box component="span" title={title}>
+      {info.label}
     </Box>
   ) : (
-    <>{reason}</>
+    <>{info.label}</>
   );
+};
 
 /** Dot + word, for tables and headers. */
 export const SandboxStatusLabel = ({ status, reason }: { status: SandboxStatus; reason?: string | null }) => (
@@ -224,6 +228,81 @@ export const Meter = ({
     />
   </Box>
 );
+
+/**
+ * Use against a request and a limit: the track runs to the limit, the part up
+ * to the request is shaded (guaranteed), a tick marks the request, and the
+ * fill is the use. With no limit above the request (a gateway before limits)
+ * it is a plain meter of the request.
+ */
+export const RangeMeter = ({
+  value,
+  request,
+  limit,
+  tone = color.primary,
+  height = 6,
+  label,
+}: {
+  value: number;
+  request: number;
+  limit: number;
+  tone?: string;
+  height?: number;
+  /** Read by screen readers: what is measured, e.g. "Memory peak". */
+  label?: string;
+}) => {
+  const max = Math.max(limit, request, 0);
+  const pct = (v: number) => `${Math.min(100, max > 0 ? (v / max) * 100 : 0)}%`;
+  const ranged = limit > request;
+  return (
+    <Box
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={max}
+      aria-valuenow={Math.min(value, max)}
+      sx={{ position: 'relative', height, borderRadius: height, backgroundColor: color.grid }}
+    >
+      {ranged && (
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            width: pct(request),
+            borderRadius: `${height}px 0 0 ${height}px`,
+            backgroundColor: `${tone}2E`,
+          }}
+        />
+      )}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          width: pct(value),
+          backgroundColor: tone,
+          borderRadius: height,
+          transition: 'width 600ms ease',
+          '@media (prefers-reduced-motion: reduce)': { transition: 'none' },
+        }}
+      />
+      {ranged && (
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            left: pct(request),
+            top: -3,
+            bottom: -3,
+            width: 2,
+            marginLeft: '-1px',
+            borderRadius: 1,
+            backgroundColor: color.text,
+          }}
+        />
+      )}
+    </Box>
+  );
+};
 
 /** A page's "Bucket N" chip: every sandbox, secret and record on the page belongs to it. */
 export const BucketChip = ({ bucketId }: { bucketId: string | null }) =>

@@ -51,7 +51,22 @@ describe('outcomeOf', () => {
       { state: 'failed', detail: 'the agent did not finish within 300 s' },
     ],
     [sb('terminated', 'terminated by API: agent run stopped'), { state: 'stopped', detail: 'Stopped by its client.' }],
-    [sb('terminated', 'oom_killed'), { state: 'failed', detail: 'The sandbox ended: oom_killed' }],
+    [
+      sb('terminated', 'oom_killed'),
+      {
+        state: 'failed',
+        detail:
+          'The sandbox ended: out of memory. It reached its memory limit and was stopped. Raise the memory limit.',
+      },
+    ],
+    [
+      sb('terminated', 'memory_reclaimed'),
+      {
+        state: 'failed',
+        detail:
+          'The sandbox ended: memory reclaimed. It used more memory than its request while its node was short of memory, so the node stopped it to free memory. Raise the memory request to what it uses: memory within the request is never reclaimed.',
+      },
+    ],
     [sb('terminated', 'lost: host restarted'), { state: 'failed', detail: 'The sandbox ended: lost: host restarted' }],
     [sb('terminated', 'timeout (1020s)'), { state: 'ended', detail: 'timeout (1020s)' }],
     [sb('terminated', 'token_expiry'), { state: 'ended', detail: 'token_expiry' }],

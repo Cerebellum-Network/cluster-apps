@@ -17,7 +17,7 @@
  * Everything goes through the public compute API with the caller's token;
  * nothing here is simulated.
  */
-import type { AgentDefinition } from './agentDefinition';
+import { AGENT_DEFAULT_RESOURCES, type AgentDefinition } from './agentDefinition';
 import { terminateReason, withoutFiles } from './agentOutcome';
 import { ComputeError, errorMessage, type ComputeClient } from './client';
 import type { CreateSandboxRequest, EgressRule, ExecExit, Sandbox } from './types';
@@ -138,7 +138,13 @@ export function buildCreateRequest(def: AgentDefinition, runId: string): CreateS
     command: ['sleep', 'infinity'],
     runtime: 'gvisor',
     workdir: '/workspace',
-    resources: { cpu: def.resources?.cpu ?? 1, memory_mib: def.resources?.memory_mib ?? 2048 },
+    resources: {
+      cpu: def.resources?.cpu ?? AGENT_DEFAULT_RESOURCES.cpu,
+      memory_mib: def.resources?.memory_mib ?? AGENT_DEFAULT_RESOURCES.memoryMib,
+      // The limits only when the definition sets them: else the cluster's defaults.
+      ...(def.resources?.cpu_limit ? { cpu_limit: def.resources.cpu_limit } : {}),
+      ...(def.resources?.memory_limit_mib ? { memory_limit_mib: def.resources.memory_limit_mib } : {}),
+    },
     timeout_s: agentTimeout(def) + SANDBOX_HEADROOM_S,
     idle_timeout_s: 0,
     env: {

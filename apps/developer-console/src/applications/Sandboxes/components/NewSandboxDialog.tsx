@@ -20,14 +20,14 @@ import { useSecrets } from '~/compute/hooks';
 import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
 import { fmtDateTime } from '~/compute/format';
 import { rulesFromForms, type RuleForm } from '~/compute/egressRules';
+import { EMPTY_RESOURCE_FIELDS, parseResources, SANDBOX_DEFAULTS, type ResourceFields } from '~/compute/resources';
 import type { CreateSandboxRequest } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { parseKeyValues, splitCommand } from './commandLine';
 import RulesEditor from './egress/RulesEditor';
+import ResourceInputs from './ResourceInputs';
 
 const IMAGES = ['python:3.12-slim', 'node:22-slim', 'debian:bookworm-slim', 'alpine:3.20'];
-const CPUS = [0.25, 0.5, 1, 2, 4];
-const MEMORY = [256, 512, 1024, 2048, 4096, 8192];
 const TIMEOUTS = [
   { s: 600, label: '10 minutes' },
   { s: 1800, label: '30 minutes' },
@@ -40,7 +40,9 @@ const IDLE = [
   { s: 1800, label: 'After 30 idle minutes' },
 ];
 /**
- * New sandbox: the create request as a form: image, command, resources,
+ * New sandbox: the create request as a form: image, command, CPU and memory
+ * (the request, and the limits behind "Limits"; empty fields get the
+ * cluster's defaults and are left out of the request, as the CLI does),
  * timeouts, environment, labels and the egress allow list, each rule with a
  * credential picked from the bucket or stored here, bound to the rule's host.
  */
@@ -51,8 +53,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const navigate = useNavigate();
   const [image, setImage] = useState(IMAGES[0]);
   const [command, setCommand] = useState('sleep infinity');
-  const [cpu, setCpu] = useState(1);
-  const [memory, setMemory] = useState(1024);
+  const [resourceFields, setResourceFields] = useState<ResourceFields>(EMPTY_RESOURCE_FIELDS);
   const [timeout, setTimeoutS] = useState(600);
   const [idle, setIdle] = useState(0);
   const [env, setEnv] = useState('');
@@ -62,6 +63,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const resources = parseResources(resourceFields);
   const cmd = splitCommand(command);
   const envKv = parseKeyValues(env);
   const labelKv = parseKeyValues(labels);
@@ -74,6 +76,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     envKv.error ??
     labelKv.error ??
     (image.trim() ? null : 'An image is required.') ??
+    (Object.keys(resources.errors).length ? 'Fix CPU and memory first.' : null) ??
     (egress.ok ? null : 'Fix the network rules first.') ??
     (credentialProblem ? 'A rule’s credential can’t be sent to its host: store it again with that host.' : null);
 
@@ -81,7 +84,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     image: image.trim(),
     ...(cmd.args.length ? { command: cmd.args } : {}),
     runtime: 'gvisor',
-    resources: { cpu, memory_mib: memory },
+    ...(Object.keys(resources.resources).length ? { resources: resources.resources } : {}),
     timeout_s: timeout,
     idle_timeout_s: idle,
     ...(Object.keys(envKv.values).length ? { env: envKv.values } : {}),
@@ -134,36 +137,13 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             helperText={cmd.error ?? 'The main process. Quote arguments that contain spaces.'}
             InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
           />
-          <Stack direction="row" spacing={2}>
-            <TextField
-              select
-              label="CPU"
-              value={String(cpu)}
-              onChange={(e) => setCpu(Number(e.target.value))}
-              size="small"
-              fullWidth
-            >
-              {CPUS.map((c) => (
-                <MenuItem key={c} value={String(c)}>
-                  {c} vCPU
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Memory"
-              value={String(memory)}
-              onChange={(e) => setMemory(Number(e.target.value))}
-              size="small"
-              fullWidth
-            >
-              {MEMORY.map((m) => (
-                <MenuItem key={m} value={String(m)}>
-                  {m >= 1024 ? `${m / 1024} GiB` : `${m} MiB`}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+          <ResourceInputs
+            value={resourceFields}
+            onChange={(patch) => setResourceFields((f) => ({ ...f, ...patch }))}
+            defaults={SANDBOX_DEFAULTS}
+            // Only a typed field can be wrong, so its problem shows as it is typed (a limit below its request too).
+            errors={resources.errors}
+          />
           <Stack direction="row" spacing={2}>
             <TextField
               select

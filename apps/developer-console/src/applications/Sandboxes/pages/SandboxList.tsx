@@ -18,11 +18,13 @@ import { PageHeader, Pill, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useNow, useSandboxes } from '~/compute/hooks';
 import { fmtCpu, fmtDuration, fmtMib, shortImage, shortNode } from '~/compute/format';
+import { cpuCeiling, memoryCeiling } from '~/compute/resources';
 import { endedBadly, isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import BilledUsage, { billedHeader } from '../components/BilledUsage';
 import { NewSandboxDialog } from '../components/NewSandboxDialog';
-import { BucketChip, Meter, Mono, ReadError, SandboxStatusLabel, sbColor } from '../components/ui';
+import { fmtCores } from '../components/detail/UsageMeter';
+import { BucketChip, Mono, RangeMeter, ReadError, SandboxStatusLabel, sbColor } from '../components/ui';
 
 type Filter = 'all' | 'live' | 'finished' | 'failed';
 
@@ -160,8 +162,10 @@ const SandboxList = () => {
               <TableBody>
                 {rows.map((s) => {
                   const live = isLive(s.status);
-                  const util =
-                    s.usage.wall_s > 0 && s.resources.cpu > 0 ? s.usage.cpu_s / (s.usage.wall_s * s.resources.cpu) : 0;
+                  // Cores used on average: above the request when it burst.
+                  const avg = s.usage.wall_s > 0 ? s.usage.cpu_s / s.usage.wall_s : 0;
+                  const cpuMax = cpuCeiling(s.resources);
+                  const memMax = memoryCeiling(s.resources);
                   const agent = s.labels['cere.agent'];
                   return (
                     <TableRow
@@ -199,30 +203,44 @@ const SandboxList = () => {
                         {s.status === 'starting' ? 'starting…' : s.started_at ? fmtDuration(runSeconds(s, now)) : '—'}
                       </TableCell>
                       <TableCell>
-                        <Typography sx={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', marginBottom: '4px' }}>
+                        <Typography
+                          sx={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', marginBottom: '4px' }}
+                          title="Guaranteed, up to its limit; then the cores it used on average"
+                        >
                           {fmtCpu(s.resources.cpu)}
-                          {s.usage.wall_s > 0 && (
-                            <Box component="span" sx={{ color: color.textTertiary }}>
-                              {' '}
-                              · {Math.round(util * 100)}% avg
-                            </Box>
-                          )}
+                          <Box component="span" sx={{ color: color.textTertiary }}>
+                            {cpuMax > s.resources.cpu ? ` up to ${+cpuMax.toFixed(2)}` : ''}
+                            {s.usage.wall_s > 0 ? ` · ${fmtCores(avg)} avg` : ''}
+                          </Box>
                         </Typography>
-                        <Meter value={util} max={1} tone={live ? color.primary : color.border} height={4} />
+                        <RangeMeter
+                          value={avg}
+                          request={s.resources.cpu}
+                          limit={cpuMax}
+                          tone={live ? color.primary : color.border}
+                          height={4}
+                          label="CPU used on average"
+                        />
                       </TableCell>
                       <TableCell>
-                        <Typography sx={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', marginBottom: '4px' }}>
+                        <Typography
+                          sx={{ fontSize: 13, fontVariantNumeric: 'tabular-nums', marginBottom: '4px' }}
+                          title="Its peak, of what is guaranteed, up to its limit"
+                        >
                           {fmtMib(s.usage.memory_peak_mib)}
                           <Box component="span" sx={{ color: color.textTertiary }}>
                             {' '}
                             peak of {fmtMib(s.resources.memory_mib)}
+                            {memMax > s.resources.memory_mib ? `, up to ${fmtMib(memMax)}` : ''}
                           </Box>
                         </Typography>
-                        <Meter
+                        <RangeMeter
                           value={s.usage.memory_peak_mib}
-                          max={s.resources.memory_mib}
+                          request={s.resources.memory_mib}
+                          limit={memMax}
                           tone={live ? sbColor.running : color.border}
                           height={4}
+                          label="Memory peak"
                         />
                       </TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>

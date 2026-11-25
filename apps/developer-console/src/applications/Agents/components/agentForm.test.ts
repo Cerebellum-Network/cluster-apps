@@ -220,3 +220,44 @@ describe('formCoverage', () => {
     expect(cov.model.state).toBe('not-covered');
   });
 });
+
+describe('requests and limits in the agent form', () => {
+  it('starts at the runner’s request with no limits, and writes none', () => {
+    const f = base();
+    expect([f.cpu, f.memoryMib, f.cpuLimit, f.memoryLimitMib]).toEqual(['1', '2048', '', '']);
+    expect(definitionFromForm(f).def?.resources).toEqual({ cpu: 1, memory_mib: 2048 });
+  });
+
+  it('writes the limits when set, and reads them back', () => {
+    const { def, errors } = definitionFromForm({
+      ...base(),
+      cpu: '0.5',
+      memoryMib: '512',
+      cpuLimit: '4',
+      memoryLimitMib: '1024',
+    });
+    expect(errors).toEqual({});
+    expect(def?.resources).toEqual({ cpu: 0.5, memory_mib: 512, cpu_limit: 4, memory_limit_mib: 1024 });
+    const back = formFromDefinition(def!);
+    expect([back.cpu, back.memoryMib, back.cpuLimit, back.memoryLimitMib]).toEqual(['0.5', '512', '4', '1024']);
+    expect(parseAgentDefinition(JSON.stringify(def)).errors).toEqual([]);
+  });
+
+  it('refuses a limit below the request', () => {
+    const { def, errors } = definitionFromForm({ ...base(), cpu: '2', cpuLimit: '1', memoryLimitMib: '1024' });
+    expect(def).toBeNull();
+    expect(errors.cpuLimit).toBe('At least the request, 2 vCPU.');
+    expect(errors.memoryLimitMib).toBe('At least the request, 2 GiB.');
+  });
+
+  it('refuses a stored definition whose limit is below its request', () => {
+    const doc = {
+      ...definitionFromForm(base()).draft,
+      resources: { cpu: 2, memory_mib: 512, cpu_limit: 1, memory_limit_mib: 256 },
+    };
+    expect(parseAgentDefinition(JSON.stringify(doc)).errors).toEqual([
+      '"resources.cpu_limit" must be at least the CPU request.',
+      '"resources.memory_limit_mib" must be at least the memory request.',
+    ]);
+  });
+});

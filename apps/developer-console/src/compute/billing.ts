@@ -1,15 +1,18 @@
 /**
  * What a sandbox is billed, next to what its node measured, worded as the cere
  * CLI prints it (ddc-node `packages/cli/output.go` `billingLine`, and
- * `packages/cli/records.go` for `cere usage`, as of b2b367cc1), so a sandbox reads
- * the same here and in a terminal.
+ * `packages/cli/records.go` for `cere usage`), so a sandbox reads the same here
+ * and in a terminal.
  *
- * On the `reserved` basis a sandbox is billed for what it reserves for as long
- * as it runs: vCPU × wall seconds and GiB × wall seconds, or the measured
- * CPU-seconds and GiB-seconds where those are more. On the `measured` basis it
- * is billed what was measured. Every number here is one the gateway sent; a
- * gateway that predates the billing fields sends none, and then there is
- * nothing extra to say (records then bill their DAC units).
+ * A sandbox is billed its request (the CPU and memory guaranteed to it) for as
+ * long as it runs, the floor, plus what it used above the request, the burst:
+ * each second the larger of the request and the use (`request_or_usage`).
+ * Records from before limits say `reserved` (the same, per minute) and carry
+ * no burst field: their burst is what was billed above the floor. On the
+ * `measured` basis a sandbox is billed what was measured. Every number here is
+ * one the gateway sent; a gateway that predates the billing fields sends none,
+ * and then there is nothing extra to say (records then bill their units, as
+ * measured).
  */
 import type { DacStatus, Usage, UsageRecord } from './types';
 
@@ -41,9 +44,63 @@ export function cores(v: number): string {
 }
 
 /**
- * One billed amount: the reservation over the wall time with what was
- * measured, the measured amount where it is more than the reservation, or,
- * under the measured basis, what was measured.
+ * A billed amount in parts: the guaranteed floor (the request × the time it
+ * ran), the burst (billed above the request), and what was billed as measured
+ * (the `measured` basis, or a record from before the billing fields). The
+ * parts add up to `billed`.
+ */
+export interface BilledParts {
+  floor: number;
+  burst: number;
+  asMeasured: number;
+  billed: number;
+}
+
+export const NO_PARTS: BilledParts = { floor: 0, burst: 0, asMeasured: 0, billed: 0 };
+
+/**
+ * Split one billed amount. `reserved` is the floor (`reserved_cpu_s`), `burst`
+ * the record's burst field; without it (records from before limits) the
+ * burst is what was billed above the floor, `max(0, billed − reserved)`. The
+ * floor is what is left of the bill, so a run billed less than its floor (its
+ * node changed basis while it ran) shows what it was billed.
+ */
+export function billedParts(
+  basis: string | undefined,
+  reserved: number | undefined,
+  billed: number,
+  burst?: number,
+): BilledParts {
+  if (!basis || basis === 'measured') return { floor: 0, burst: 0, asMeasured: billed, billed };
+  const b = Math.min(billed, Math.max(0, burst ?? billed - (reserved ?? 0)));
+  return { floor: billed - b, burst: b, asMeasured: 0, billed };
+}
+
+export const addParts = (a: BilledParts, b: BilledParts): BilledParts => ({
+  floor: a.floor + b.floor,
+  burst: a.burst + b.burst,
+  asMeasured: a.asMeasured + b.asMeasured,
+  billed: a.billed + b.billed,
+});
+
+/**
+ * The parts in words, for a caption under a total: "15.0 guaranteed + 3.2
+ * burst", "15.0 guaranteed, no burst", "9.40 as measured".
+ */
+export function partsLine(p: BilledParts, fmt: (v: number) => string = f1): string {
+  const parts: string[] = [];
+  if (p.floor > 0 || p.burst > 0) parts.push(`${fmt(p.floor)} guaranteed`);
+  if (p.burst > 0) parts.push(`${fmt(p.burst)} burst`);
+  if (p.asMeasured > 0) parts.push(`${fmt(p.asMeasured)} as measured`);
+  if (!parts.length) return '';
+  if (p.burst === 0 && p.asMeasured === 0) return `${parts[0]}, no burst`;
+  return parts.join(' + ');
+}
+
+/**
+ * One billed amount: the request over the wall time with what was measured,
+ * plus the burst above it, or, under the measured basis, what was measured.
+ * `burst` is the usage's burst field (absent before limits).
  */
 export function billedPart(
   basis: string,
@@ -53,9 +110,15 @@ export function billedPart(
   reserved: number,
   billed: number,
   measured: number,
+  burst?: number,
 ): string {
   const over = `${reservation} × ${f1(wall)} s = ${f1(reserved)}`;
   if (basis === 'measured') return `${f1(billed)} ${unit} as measured (reserved ${over})`;
+  if (basis === 'request_or_usage') {
+    const p = billedParts(basis, reserved, billed, burst);
+    if (p.burst < 0.05) return `${over} ${unit} guaranteed, no burst (measured ${f1(measured)})`;
+    return `${over} ${unit} guaranteed + ${f1(p.burst)} burst = ${f1(billed)} ${unit} (measured ${f1(measured)})`;
+  }
   // A run billed less than its reservation had part of it billed as measured (its node changed basis while it ran).
   if (billed < reserved - 0.05)
     return `${f1(billed)} ${unit}, part of the run as measured (measured ${f1(measured)}; reserved ${over})`;
@@ -69,8 +132,20 @@ export function billedPart(
  * text goes in its tooltip): "54.0 CPU-s (measured 9.4)",
  * "60.2 CPU-s (measured 60.2)", "9.4 CPU-s as measured".
  */
-export function billedPartShort(basis: string, unit: string, reserved: number, billed: number, measured: number) {
+export function billedPartShort(
+  basis: string,
+  unit: string,
+  reserved: number,
+  billed: number,
+  measured: number,
+  burst?: number,
+) {
   if (basis === 'measured') return `${f1(billed)} ${unit} as measured`;
+  if (basis === 'request_or_usage') {
+    const p = billedParts(basis, reserved, billed, burst);
+    if (p.burst < 0.05) return `${f1(billed)} ${unit} (measured ${f1(measured)})`;
+    return `${f1(billed)} ${unit}, ${f1(p.burst)} burst (measured ${f1(measured)})`;
+  }
   if (billed < reserved - 0.05) return `${f1(billed)} ${unit}, part as measured`;
   if (billed > reserved + 0.05) return `${f1(billed)} ${unit} (measured ${f1(measured)})`;
   return `${f1(reserved)} ${unit} (measured ${f1(measured)})`;
@@ -83,8 +158,29 @@ export const basisOf = (u: Pick<Usage, 'billing_basis'>): string => u.billing_ba
 function amounts(u: Usage) {
   return {
     wall: u.wall_s ?? 0,
-    cpu: { reserved: u.reserved_cpu_s ?? 0, billed: u.billed_cpu_s ?? 0, measured: u.cpu_s ?? 0 },
-    ram: { reserved: u.reserved_ram_gib_s ?? 0, billed: u.billed_ram_gib_s ?? 0, measured: u.ram_gib_s ?? 0 },
+    cpu: {
+      reserved: u.reserved_cpu_s ?? 0,
+      billed: u.billed_cpu_s ?? 0,
+      measured: u.cpu_s ?? 0,
+      burst: u.burst_cpu_s,
+    },
+    ram: {
+      reserved: u.reserved_ram_gib_s ?? 0,
+      billed: u.billed_ram_gib_s ?? 0,
+      measured: u.ram_gib_s ?? 0,
+      burst: u.burst_ram_gib_s,
+    },
+  };
+}
+
+/** A sandbox's usage in parts (floor, burst, as measured), CPU-s and GiB-s; null before the node reports billing. */
+export function usageParts(u: Usage): { cpu: BilledParts; ram: BilledParts } | null {
+  const basis = basisOf(u);
+  if (basis === '') return null;
+  const { cpu, ram } = amounts(u);
+  return {
+    cpu: billedParts(basis, cpu.reserved, cpu.billed, cpu.burst),
+    ram: billedParts(basis, ram.reserved, ram.billed, ram.burst),
   };
 }
 
@@ -97,7 +193,7 @@ export function billedCPU(u: Usage, cpu: number): string {
   if (basis === '') return '';
   const { wall, cpu: a } = amounts(u);
   if (!(cpu > 0) && wall > 0) cpu = a.reserved / wall;
-  return billedPart(basis, `${cores(cpu || 0)} vCPU`, 'CPU-s', wall, a.reserved, a.billed, a.measured);
+  return billedPart(basis, `${cores(cpu || 0)} vCPU`, 'CPU-s', wall, a.reserved, a.billed, a.measured, a.burst);
 }
 
 /** The memory half of `billingLine`. `memoryMiB` is the reservation (0 when not known: then taken from the usage). */
@@ -107,7 +203,7 @@ export function billedMemory(u: Usage, memoryMiB: number): string {
   const { wall, ram: a } = amounts(u);
   let gib = (memoryMiB || 0) / 1024;
   if (!(gib > 0) && wall > 0) gib = a.reserved / wall;
-  return billedPart(basis, `${cores(gib)} GiB`, 'GiB-s', wall, a.reserved, a.billed, a.measured);
+  return billedPart(basis, `${cores(gib)} GiB`, 'GiB-s', wall, a.reserved, a.billed, a.measured, a.burst);
 }
 
 /**
@@ -120,8 +216,8 @@ export function billedShort(u: Usage): { cpu: string; memory: string } | null {
   if (basis === '') return null;
   const { cpu, ram } = amounts(u);
   return {
-    cpu: billedPartShort(basis, 'CPU-s', cpu.reserved, cpu.billed, cpu.measured),
-    memory: billedPartShort(basis, 'GiB-s', ram.reserved, ram.billed, ram.measured),
+    cpu: billedPartShort(basis, 'CPU-s', cpu.reserved, cpu.billed, cpu.measured, cpu.burst),
+    memory: billedPartShort(basis, 'GiB-s', ram.reserved, ram.billed, ram.measured, ram.burst),
   };
 }
 
@@ -153,7 +249,19 @@ export type RecordBillingFields = Pick<
   | 'reserved_memory_mib'
   | 'billed_cpu_s'
   | 'billed_ram_gib_s'
->;
+> &
+  Partial<
+    Pick<
+      UsageRecord,
+      | 'reserved_cpu_s'
+      | 'reserved_ram_gib_s'
+      | 'burst_cpu_s'
+      | 'burst_ram_gib_s'
+      | 'cpu_limit'
+      | 'memory_limit_mib'
+      | 'cpu_peak'
+    >
+  >;
 
 /**
  * A record's basis, reservation ("1.0 vCPU, 1.0 GiB") and billed amounts. A
@@ -172,15 +280,35 @@ export function recordBilling(r: RecordBillingFields): { basis: string; reserved
   };
 }
 
-/** `cere usage`'s sums: "billed 54.000 CPU-s, 54.000 GiB-s (measured 9.400 CPU-s, 15.000 GiB-s)". */
+/** A record's billed CPU-s and GiB-s in parts (floor, burst, as measured). */
+export function recordParts(r: RecordBillingFields): { cpu: BilledParts; ram: BilledParts } {
+  const b = recordBilling(r);
+  const basis = r.billing_basis || undefined;
+  return {
+    cpu: billedParts(basis, r.reserved_cpu_s, b.cpu, r.burst_cpu_s),
+    ram: billedParts(basis, r.reserved_ram_gib_s, b.ram, r.burst_ram_gib_s),
+  };
+}
+
+/**
+ * `cere usage`'s sums: "billed 54.000 CPU-s, 54.000 GiB-s (measured 9.400
+ * CPU-s, 15.000 GiB-s)", with the burst in it when there was any: "billed
+ * 18.200 CPU-s, 13.400 GiB-s, of which burst 3.200 CPU-s, 0.000 GiB-s (…)".
+ */
 export function recordSumsLine(t: {
   billed_cpu_s: number;
   billed_ram_gib_s: number;
   cpu_s: number;
   ram_gib_s: number;
+  burst_cpu_s?: number;
+  burst_ram_gib_s?: number;
 }) {
   const f3 = (v: number) => fmtFixed(v, 3);
-  return `billed ${f3(t.billed_cpu_s)} CPU-s, ${f3(t.billed_ram_gib_s)} GiB-s (measured ${f3(t.cpu_s)} CPU-s, ${f3(t.ram_gib_s)} GiB-s)`;
+  const burst =
+    (t.burst_cpu_s ?? 0) > 0 || (t.burst_ram_gib_s ?? 0) > 0
+      ? `, of which burst ${f3(t.burst_cpu_s ?? 0)} CPU-s, ${f3(t.burst_ram_gib_s ?? 0)} GiB-s`
+      : '';
+  return `billed ${f3(t.billed_cpu_s)} CPU-s, ${f3(t.billed_ram_gib_s)} GiB-s${burst} (measured ${f3(t.cpu_s)} CPU-s, ${f3(t.ram_gib_s)} GiB-s)`;
 }
 
 /**

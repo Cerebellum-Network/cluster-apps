@@ -143,6 +143,19 @@ describe('buildCreateRequest', () => {
     });
   });
 
+  it('asks for the definition’s request, and its limits only when it sets them', () => {
+    expect(buildCreateRequest(SRE, 'r').resources).toEqual({ cpu: 1, memory_mib: 2048 });
+    const limited = { ...SRE, resources: { cpu: 0.5, memory_mib: 512, cpu_limit: 2, memory_limit_mib: 1024 } };
+    expect(buildCreateRequest(limited, 'r').resources).toEqual({
+      cpu: 0.5,
+      memory_mib: 512,
+      cpu_limit: 2,
+      memory_limit_mib: 1024,
+    });
+    // The runner's request when the definition names none.
+    expect(buildCreateRequest({ ...SRE, resources: undefined }, 'r').resources).toEqual({ cpu: 1, memory_mib: 2048 });
+  });
+
   it('leaves path_prefix out for a base URL at the host root', () => {
     expect(modelRule({ ...SRE, model: { ...SRE.model, base_url: 'https://m.example/' } })).toEqual({
       host: 'm.example',

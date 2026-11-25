@@ -31,11 +31,13 @@ import { chatModelChoices } from '~/inference/model';
 import { useModels } from '~/inference/useInference';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock } from '../../Sandboxes/components/bits';
+import ResourceInputs from '../../Sandboxes/components/ResourceInputs';
 import TokenSecretButton, { MODEL_KEY_SECRET } from '../../Sandboxes/components/TokenSecretButton';
 import { CredentialChip, Mono, ReadError } from '../../Sandboxes/components/ui';
 import { Chip } from '../../Sandboxes/pages/SandboxList';
 import {
   CLAUDE_CODE_TOOLS,
+  DEFAULTS,
   definitionFromForm,
   emptyForm,
   emptyRule,
@@ -549,35 +551,30 @@ const AgentEditor = () => {
                 }
                 InputProps={MONO_INPUT}
               />
-              <Stack direction={{ xs: 'column', md: 'row' }} gap="16px">
-                <TextField
-                  label="CPU"
-                  value={form.cpu}
-                  onChange={(e) => set({ cpu: e.target.value })}
-                  size="small"
-                  error={!!show('cpu')}
-                  helperText={show('cpu') ?? 'vCPU for the sandbox.'}
-                  inputProps={{ inputMode: 'decimal' }}
-                />
-                <TextField
-                  label="Memory, MiB"
-                  value={form.memoryMib}
-                  onChange={(e) => set({ memoryMib: e.target.value })}
-                  size="small"
-                  error={!!show('memoryMib')}
-                  helperText={show('memoryMib') ?? 'At least 128.'}
-                  inputProps={{ inputMode: 'numeric' }}
-                />
-                <TextField
-                  label="Time limit, seconds"
-                  value={form.timeoutS}
-                  onChange={(e) => set({ timeoutS: e.target.value })}
-                  size="small"
-                  error={!!show('timeoutS')}
-                  helperText={show('timeoutS') ?? 'The run stops after this; the sandbox lives 2 minutes more.'}
-                  inputProps={{ inputMode: 'numeric' }}
-                />
-              </Stack>
+              <ResourceInputs
+                value={form}
+                onChange={set}
+                defaults={{ cpu: DEFAULTS.cpu, memoryMib: DEFAULTS.memoryMib }}
+                errors={{
+                  cpu: show('cpu'),
+                  memoryMib: show('memoryMib'),
+                  cpuLimit: show('cpuLimit'),
+                  memoryLimitMib: show('memoryLimitMib'),
+                }}
+                extra={
+                  <TextField
+                    label="Time limit, seconds"
+                    value={form.timeoutS}
+                    onChange={(e) => set({ timeoutS: e.target.value })}
+                    size="small"
+                    fullWidth
+                    error={!!show('timeoutS')}
+                    helperText={show('timeoutS') ?? 'The run stops after this; the sandbox lives 2 minutes more.'}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ inputMode: 'numeric' }}
+                  />
+                }
+              />
             </Stack>
           </Section>
 

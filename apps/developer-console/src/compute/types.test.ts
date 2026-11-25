@@ -6,6 +6,7 @@ describe('endedBadly', () => {
   it('counts a failed start, an OOM kill, a lost sandbox and a non-zero exit as failures', () => {
     expect(endedBadly({ status: 'failed', exit_reason: 'failed: image pull not found' })).toBe(true);
     expect(endedBadly({ status: 'terminated', exit_reason: 'oom_killed' })).toBe(true);
+    expect(endedBadly({ status: 'terminated', exit_reason: 'memory_reclaimed' })).toBe(true);
     expect(endedBadly({ status: 'terminated', exit_reason: 'lost: runtime restarted' })).toBe(true);
     expect(endedBadly({ status: 'terminated', exit_reason: 'exited with code 2' })).toBe(true);
   });

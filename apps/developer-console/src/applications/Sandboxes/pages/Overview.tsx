@@ -26,7 +26,7 @@ const Subhead = ({ children }: { children: string }) => (
 const FACTS: { name: string; body: ReactNode }[] = [
   {
     name: 'Isolated',
-    body: 'Any public image runs in gVisor on a DDC node, with the CPU and memory you reserve and a time limit. Exec commands, read and write files, and stream its logs while it runs.',
+    body: 'Any public image runs in gVisor on a DDC node, with the CPU and memory you request (guaranteed), room to burst up to its limits, and a time limit. Exec commands, read and write files, and stream its logs while it runs.',
   },
   {
     name: 'Closed network',
@@ -34,7 +34,7 @@ const FACTS: { name: string; body: ReactNode }[] = [
   },
   {
     name: 'Billed while it runs',
-    body: 'Your compute bucket pays for the CPU and memory the sandbox reserves, from start to stop, or for what it used where that is more. There is no price list yet.',
+    body: 'Your compute bucket pays for the CPU and memory the sandbox is guaranteed, from start to stop, and for any use above that as it happens. There is no price list yet.',
   },
 ];
 
@@ -64,7 +64,7 @@ const RightNow = () => {
         </Box>
         <Box>
           <Typography sx={{ ...text.value, lineHeight: '34px' }}>{fmtCpu(cpu)}</Typography>
-          <Typography sx={text.secondary}>{fmtMib(mem)} memory reserved</Typography>
+          <Typography sx={text.secondary}>and {fmtMib(mem)} memory guaranteed</Typography>
         </Box>
       </Stack>
       <Typography sx={{ ...text.label, marginBottom: '6px' }}>Newest sandboxes, running or ended</Typography>

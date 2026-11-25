@@ -32,12 +32,19 @@ export interface AgentDefinition {
   policy?: string;
   deny?: string[];
   max_turns?: number;
-  resources?: { cpu?: number; memory_mib?: number };
+  /** The sandbox's request (`cpu`, `memory_mib`) and, optionally, its limits. */
+  resources?: { cpu?: number; memory_mib?: number; cpu_limit?: number; memory_limit_mib?: number };
   timeout_s?: number;
   egress?: { allow: EgressRule[] };
   /** Extra files put into the sandbox before the run: path (relative = under /workspace) → content. */
   files?: Record<string, string>;
 }
+
+/**
+ * The request a run's sandbox gets when its definition names none: the agent runner's (the CLI's
+ * `agent.DefaultCPU`, `agent.DefaultMemoryMiB`), not the platform's smaller sandbox default.
+ */
+export const AGENT_DEFAULT_RESOURCES = { cpu: 1, memoryMib: 2048 } as const;
 
 /** Usable as a file name in the bucket and as a label value; the same rule as the CLI. */
 export const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -90,10 +97,16 @@ export function validateAgentDefinition(doc: unknown): string[] {
   if (doc.resources !== undefined) {
     if (!isObj(doc.resources)) errs.push('"resources" must be an object.');
     else {
-      const { cpu, memory_mib } = doc.resources;
+      const { cpu, memory_mib, cpu_limit, memory_limit_mib } = doc.resources;
       if (cpu !== undefined && !(typeof cpu === 'number' && cpu > 0)) errs.push('"resources.cpu" must be positive.');
       if (memory_mib !== undefined && !(typeof memory_mib === 'number' && memory_mib >= 128))
         errs.push('"resources.memory_mib" must be at least 128.');
+      const reqCpu = typeof cpu === 'number' ? cpu : AGENT_DEFAULT_RESOURCES.cpu;
+      const reqMemory = typeof memory_mib === 'number' ? memory_mib : AGENT_DEFAULT_RESOURCES.memoryMib;
+      if (cpu_limit !== undefined && !(typeof cpu_limit === 'number' && cpu_limit >= reqCpu))
+        errs.push('"resources.cpu_limit" must be at least the CPU request.');
+      if (memory_limit_mib !== undefined && !(typeof memory_limit_mib === 'number' && memory_limit_mib >= reqMemory))
+        errs.push('"resources.memory_limit_mib" must be at least the memory request.');
     }
   }
   if (doc.egress !== undefined) {

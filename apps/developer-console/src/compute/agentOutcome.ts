@@ -6,6 +6,7 @@
  * console write and read the same reasons, so a run shows the same result
  * whichever client started it and whichever one looks at it.
  */
+import { exitReasonInfo, memoryEnding } from './exitReasons';
 import type { Sandbox } from './types';
 
 export const REASON_SUCCEEDED = 'agent run succeeded';
@@ -69,8 +70,12 @@ export function outcomeOf(sb: Pick<Sandbox, 'status' | 'exit_reason'>): RunOutco
   }
   if (!reason.startsWith(BY_API)) {
     // The sandbox ended by itself under the run, or a kept sandbox ended later.
-    if (reason === 'oom_killed' || reason.startsWith('lost:'))
-      return { state: 'failed', detail: `The sandbox ended: ${reason}` };
+    if (memoryEnding(reason)) {
+      // Out of memory (its limit) or memory reclaimed (above its request on a short node): what to raise differs.
+      const i = exitReasonInfo(reason);
+      return { state: 'failed', detail: `The sandbox ended: ${i.label.toLowerCase()}. ${i.detail} ${i.action}` };
+    }
+    if (reason.startsWith('lost:')) return { state: 'failed', detail: `The sandbox ended: ${reason}` };
     return { state: 'ended', detail: reason || 'no exit reason' };
   }
   let recorded = reason.slice(BY_API.length);

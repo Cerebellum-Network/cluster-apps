@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Button, CircularProgress, Stack, Typography } from '@cluster-apps/ui';
+import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@cluster-apps/ui';
 import { NavLink, useParams, useSearchParams } from 'react-router-dom';
 
 import { Pill, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
 import { recordSumsLine } from '~/compute/billing';
-import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, sumRecords } from '~/compute/format';
+import { exitReasonInfo, memoryEnding } from '~/compute/exitReasons';
+import { fmtAgo, fmtDateTime, sumRecords } from '~/compute/format';
+import { cpuLine, memoryLine } from '~/compute/resources';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
@@ -23,7 +25,7 @@ import { CredentialChip, ExitReason, Field, Mono, ReadError, SandboxStatusLabel 
 type Tab = 'logs' | 'exec' | 'files' | 'egress' | 'usage';
 const TABS: Tab[] = ['logs', 'exec', 'files', 'egress', 'usage'];
 
-/** CPU utilisation between two readings of the live usage, 0..1. */
+/** CPU use in cores between two readings of the live usage (above the request while it bursts). */
 function useCpuHistory(sb: Sandbox | undefined): number[] {
   const prev = useRef<{ id: string; wall: number; cpu: number } | null>(null);
   const [hist, setHist] = useState<number[]>([]);
@@ -31,9 +33,9 @@ function useCpuHistory(sb: Sandbox | undefined): number[] {
     if (!sb) return;
     const p = prev.current;
     const cur = { id: sb.id, wall: sb.usage.wall_s, cpu: sb.usage.cpu_s };
-    if (p && p.id === cur.id && cur.wall > p.wall && sb.resources.cpu > 0) {
-      const u = (cur.cpu - p.cpu) / ((cur.wall - p.wall) * sb.resources.cpu);
-      setHist((h) => [...h.slice(-59), Math.max(0, Math.min(1, u))]);
+    if (p && p.id === cur.id && cur.wall > p.wall) {
+      const cores = (cur.cpu - p.cpu) / (cur.wall - p.wall);
+      setHist((h) => [...h.slice(-59), Math.max(0, cores)]);
     }
     prev.current = cur;
   }, [sb]);
@@ -59,10 +61,9 @@ const Details = ({ sb }: { sb: Sandbox }) => {
       <Field label="Workdir">
         <Mono>{sb.workdir}</Mono>
       </Field>
-      <Field label="Resources">
-        {fmtCpu(sb.resources.cpu)}, {fmtMib(sb.resources.memory_mib)}
-        {sb.resources.pids ? `, ${sb.resources.pids} pids` : ''}
-      </Field>
+      <Field label="CPU">{cpuLine(sb.resources)}</Field>
+      <Field label="Memory">{memoryLine(sb.resources)}</Field>
+      {sb.resources.pids ? <Field label="Processes">up to {sb.resources.pids}</Field> : null}
       <Field label="Stops after">
         {sb.timeout_s >= 3600 ? `${+(sb.timeout_s / 3600).toFixed(1)} h` : `${Math.round(sb.timeout_s / 60)} min`}
         {sb.idle_timeout_s ? `, or ${Math.round(sb.idle_timeout_s / 60)} min idle` : ''}
@@ -78,7 +79,7 @@ const Details = ({ sb }: { sb: Sandbox }) => {
       )}
       {sb.exit_reason && (
         <Field label="Exit reason">
-          <ExitReason reason={sb.exit_reason} />
+          <ExitReason reason={sb.exit_reason} sb={sb} />
         </Field>
       )}
       {sb.exit_code != null && <Field label="Exit code">{sb.exit_code}</Field>}
@@ -137,6 +138,17 @@ const EgressRules = ({ sb, onOpen }: { sb: Sandbox; onOpen: () => void }) => (
     )}
   </Section>
 );
+
+/** Shown on a sandbox the node stopped for memory: which kind, and what to raise. */
+const MemoryEnding = ({ sb }: { sb: Sandbox }) => {
+  if (!sb.exit_reason || !memoryEnding(sb.exit_reason)) return null;
+  const info = exitReasonInfo(sb.exit_reason, sb);
+  return (
+    <Alert severity="error" sx={{ marginBottom: '16px' }}>
+      <strong>{info.label}.</strong> {info.detail} {info.action}
+    </Alert>
+  );
+};
 
 /** Shown on a sandbox an agent run used: which agent, which run. */
 const AgentBanner = ({ sb }: { sb: Sandbox }) => {
@@ -270,6 +282,7 @@ const SandboxDetail = () => {
       </Stack>
 
       <AgentBanner sb={sb} />
+      <MemoryEnding sb={sb} />
 
       <Box marginBottom="16px">
         <UsageMeter sandbox={sb} cpuHistory={cpuHistory} />
