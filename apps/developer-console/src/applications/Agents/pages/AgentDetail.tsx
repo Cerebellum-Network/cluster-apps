@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Alert, Box, Button, CircularProgress, LoadingButton, Stack, TextField, Typography } from '@cluster-apps/ui';
 import { Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
-import { NavLink, useNavigate, useParams } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
@@ -18,7 +18,8 @@ import { fmtMib } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, Tabs } from '../../Sandboxes/components/bits';
 import { CredentialChip, Field, Mono, ReadError } from '../../Sandboxes/components/ui';
-import { missingSecrets } from '../components/definition';
+import AddDefinitionDialog from '../components/AddDefinitionDialog';
+import { agentPath, DEFINITIONS_PATH, missingSecrets } from '../components/definition';
 import MissingSecrets from '../components/MissingSecrets';
 import { Label } from '../components/RunItems';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
@@ -147,6 +148,8 @@ const AgentDetail = () => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingJson, setEditingJson] = useState(false);
+  const [saved, setSaved] = useState(!!(useLocation().state as { saved?: boolean } | null)?.saved);
 
   const stored = defs.agents.find((a) => a.name === name);
   if (!stored) {
@@ -185,7 +188,7 @@ const AgentDetail = () => {
     setError(null);
     try {
       await deleteAgent(account.storage, bucket, name);
-      navigate('/agents');
+      navigate(DEFINITIONS_PATH);
     } catch (e) {
       setError(errorMessage(e));
       setDeleting(false);
@@ -198,10 +201,10 @@ const AgentDetail = () => {
       <Box sx={{ marginBottom: '6px' }}>
         <Box
           component={NavLink}
-          to="/agents"
+          to={DEFINITIONS_PATH}
           sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
         >
-          Agents
+          Definitions
         </Box>
       </Box>
       <Stack
@@ -221,10 +224,25 @@ const AgentDetail = () => {
           </Typography>
           {def && <Pill tone="primary">{def.harness}</Pill>}
         </Stack>
-        <Button variant="outlined" color="error" onClick={() => setConfirmDelete(true)}>
-          Delete definition
-        </Button>
+        <Stack direction="row" gap="10px" flexWrap="wrap">
+          {def && (
+            <Button variant="outlined" color="secondary" component={NavLink} to={`${agentPath(bucket, name)}/edit`}>
+              Edit
+            </Button>
+          )}
+          <Button variant="outlined" color="secondary" onClick={() => setEditingJson(true)}>
+            Edit JSON
+          </Button>
+          <Button variant="outlined" color="error" onClick={() => setConfirmDelete(true)}>
+            Delete definition
+          </Button>
+        </Stack>
       </Stack>
+      {saved && (
+        <Alert severity="success" onClose={() => setSaved(false)} sx={{ marginBottom: '16px' }}>
+          Saved {name} to {bucket}. Runs from now on use this definition.
+        </Alert>
+      )}
       {error && (
         <Alert severity="error" sx={{ marginBottom: '16px' }}>
           {error}
@@ -304,6 +322,24 @@ const AgentDetail = () => {
           <RunsTable rows={rows} showAgent={false} empty={runs.data ? 'Not run yet.' : 'Reading…'} />
         </Section>
       </Box>
+
+      {editingJson && (
+        <AddDefinitionDialog
+          existing={defs.agents}
+          initial={{
+            bucket,
+            name,
+            source: def ? `${JSON.stringify(def, null, 2)}\n` : '',
+          }}
+          onClose={(s) => {
+            setEditingJson(false);
+            if (s) {
+              setSaved(true);
+              defs.reload();
+            }
+          }}
+        />
+      )}
 
       <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Delete {name}?</DialogTitle>

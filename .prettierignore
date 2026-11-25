@@ -1,0 +1,2 @@
+# Byte-for-byte copies of the ddc-node CLI release assets (the console runs exactly what the release ships)
+apps/developer-console/src/applications/Agents/examples/*.json

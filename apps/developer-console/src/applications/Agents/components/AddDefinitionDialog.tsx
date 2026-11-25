@@ -1,46 +1,45 @@
 import { ChangeEvent, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Alert, Box, Button, LoadingButton, MenuItem, Stack, TextField, Typography } from '@cluster-apps/ui';
+import { Alert, Box, Button, LoadingButton, Stack, TextField, Typography } from '@cluster-apps/ui';
 import { Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
 import { useAccount } from '~/hooks';
 import { agentKey, parseAgentDefinition } from '~/compute/agentDefinition';
-import { bucketList, saveAgent, type StoredAgent } from '~/compute/agentStore';
+import { saveAgent, type StoredAgent } from '~/compute/agentStore';
 import { errorMessage } from '~/compute/client';
-import { useCompute } from '~/compute/ComputeProvider';
-import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
+import { useCanSign } from '~/compute/walletSigning';
 import { mono, text } from '~/theme/tokens';
+import { EXAMPLES_RELEASE } from '../examples';
+import StorageBucketField, { useStorageBucket } from './StorageBucketField';
 
 /**
- * Put a `cere.agent/v1` definition in one of the wallet's storage buckets (the
- * DDC S3 gateway's, named), at `cere/agents/<name>.json`, the same place
- * `cere agent push` writes it. Not the numbered compute bucket the sandboxes
- * are metered to. A bucket list that could not be read is not "no bucket":
- * the dialog then offers a retry, never a new bucket.
+ * Import a `cere.agent/v1` definition as JSON (a file or pasted text) into one
+ * of the wallet's storage buckets, at `cere/agents/<name>.json`. With
+ * `initial`, it edits a stored definition's JSON in place: same bucket, same
+ * name.
  */
 const AddDefinitionDialog = ({
   existing,
+  initial,
   onClose,
 }: {
   existing: StoredAgent[];
+  initial?: { bucket: string; name: string; source: string };
   onClose: (saved?: { bucket: string; name: string }) => void;
 }) => {
   const account = useAccount();
-  const { bucketId } = useCompute();
   const canSign = useCanSign();
-  const list = bucketList(account.buckets, account.bucketsError);
-  const buckets = list.state === 'ok' || list.state === 'stale' ? list.names : [];
-  const [chosen, setBucket] = useState('');
-  const bucket = chosen || buckets[0] || '';
-  const [retrying, setRetrying] = useState(false);
-  const [source, setSource] = useState('');
+  const choice = useStorageBucket();
+  const bucket = initial?.bucket ?? choice.bucket;
+  const [source, setSource] = useState(initial?.source ?? '');
   const [busy, setBusy] = useState(false);
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const parsed = source.trim() ? parseAgentDefinition(source) : null;
-  const replaces = parsed?.def && existing.some((a) => a.bucket === bucket && a.key === agentKey(parsed.def!.name));
+  const renamed = !!initial && !!parsed?.def && parsed.def.name !== initial.name;
+  const replaces =
+    !initial && parsed?.def && existing.some((a) => a.bucket === bucket && a.key === agentKey(parsed.def!.name));
 
   const load = async (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -48,30 +47,8 @@ const AddDefinitionDialog = ({
     if (f) setSource(await f.text());
   };
 
-  const retry = async () => {
-    setRetrying(true);
-    try {
-      await account.refreshBuckets();
-    } finally {
-      setRetrying(false);
-    }
-  };
-
-  const createBucket = async () => {
-    setCreating(true);
-    setError(null);
-    try {
-      const name = await account.createBucket();
-      setBucket(name);
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const save = async () => {
-    if (!parsed?.def || !bucket) return;
+    if (!parsed?.def || !bucket || renamed) return;
     setBusy(true);
     setError(null);
     try {
@@ -87,7 +64,7 @@ const AddDefinitionDialog = ({
   return (
     <Dialog open onClose={() => onClose()} maxWidth="md" fullWidth scroll="paper">
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        Add an agent definition
+        {initial ? `Edit ${initial.name} as JSON` : 'Import a definition as JSON'}
         <IconButton aria-label="Close" onClick={() => onClose()} size="small">
           <CloseIcon fontSize="small" />
         </IconButton>
@@ -101,70 +78,20 @@ const AddDefinitionDialog = ({
             </Box>{' '}
             JSON document. The examples are assets of the CLI’s release:{' '}
             <Box component="span" sx={{ fontFamily: mono }}>
-              gh release download cli/v0.1.4 -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
+              gh release download {EXAMPLES_RELEASE} -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
             </Box>
             .
           </Typography>
-          {!canSign ? (
-            <Alert severity="info">
-              Definitions are kept in your storage buckets on the DDC S3 gateway, which only your wallet can read and
-              write. {NO_WALLET_HERE}
-            </Alert>
-          ) : list.state === 'loading' ? (
-            <Typography sx={text.secondary}>Reading your storage buckets…</Typography>
-          ) : list.state === 'unreadable' ? (
-            <Alert
-              severity="error"
-              action={
-                <LoadingButton size="small" loading={retrying} onClick={retry}>
-                  Try again
-                </LoadingButton>
-              }
-            >
-              Couldn’t list your storage buckets ({list.error}), so the console can’t tell whether you have one. Nothing
-              is created until it can.
-            </Alert>
-          ) : buckets.length ? (
-            <TextField
-              select
-              label="Storage bucket"
-              value={bucket}
-              onChange={(e) => setBucket(e.target.value)}
-              size="small"
-              helperText={
-                list.state === 'stale'
-                  ? `Saved at cere/agents/<name>.json in this bucket. The list may be out of date: ${list.error}`
-                  : 'Saved at cere/agents/<name>.json in this bucket, on the DDC S3 gateway.'
-              }
-            >
-              {buckets.map((b) => (
-                <MenuItem key={b} value={b}>
-                  <Box component="span" sx={{ fontFamily: mono, fontSize: 13 }}>
-                    {b}
-                  </Box>
-                </MenuItem>
-              ))}
-            </TextField>
-          ) : (
-            <Alert
-              severity="info"
-              action={
-                <LoadingButton size="small" loading={creating} onClick={createBucket}>
-                  Create one
-                </LoadingButton>
-              }
-            >
-              You have no storage bucket on the DDC S3 gateway yet. Definitions are kept in one
-              {bucketId ? ` (not in compute bucket ${bucketId}, which your sandboxes are metered to)` : ''}.
-            </Alert>
+          <StorageBucketField choice={choice} fixed={initial?.bucket} />
+          {!initial && (
+            <Stack direction="row" gap="8px" alignItems="center">
+              <input ref={picker} type="file" accept="application/json,.json" hidden onChange={load} />
+              <Button variant="outlined" color="secondary" onClick={() => picker.current?.click()}>
+                Choose a file
+              </Button>
+              <Typography sx={text.secondary}>or paste it below.</Typography>
+            </Stack>
           )}
-          <Stack direction="row" gap="8px" alignItems="center">
-            <input ref={picker} type="file" accept="application/json,.json" hidden onChange={load} />
-            <Button variant="outlined" color="secondary" onClick={() => picker.current?.click()}>
-              Choose a file
-            </Button>
-            <Typography sx={text.secondary}>or paste it below.</Typography>
-          </Stack>
           <TextField
             value={source}
             onChange={(e) => setSource(e.target.value)}
@@ -173,12 +100,18 @@ const AddDefinitionDialog = ({
             maxRows={22}
             placeholder={'{\n  "schema": "cere.agent/v1",\n  "name": "research",\n  …\n}'}
             InputProps={{ sx: { fontFamily: mono, fontSize: 12.5 } }}
+            inputProps={{ 'aria-label': 'Definition JSON' }}
           />
           {parsed && parsed.errors.length > 0 && (
             <Alert severity="warning">
               {parsed.errors.map((e) => (
                 <div key={e}>{e}</div>
               ))}
+            </Alert>
+          )}
+          {renamed && (
+            <Alert severity="warning">
+              The name is the file name: keep it {initial!.name}, or import the JSON as a new definition instead.
             </Alert>
           )}
           {replaces && (
@@ -193,7 +126,12 @@ const AddDefinitionDialog = ({
         <Button variant="outlined" color="secondary" onClick={() => onClose()}>
           Cancel
         </Button>
-        <LoadingButton variant="contained" loading={busy} disabled={!canSign || !parsed?.def || !bucket} onClick={save}>
+        <LoadingButton
+          variant="contained"
+          loading={busy}
+          disabled={!canSign || !parsed?.def || !bucket || renamed}
+          onClick={save}
+        >
           Save to bucket
         </LoadingButton>
       </DialogActions>

@@ -1,291 +1,290 @@
-import { useState } from 'react';
+import { ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
-import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@cluster-apps/ui';
-import { NavLink } from 'react-router-dom';
+import { Box, Button, Stack, Typography } from '@cluster-apps/ui';
+import { NavLink, useSearchParams } from 'react-router-dom';
 
-import { PageHeader, Pill, Section } from '~/components';
+import { PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useAgentDefinitions } from '~/compute/agentHooks';
 import { bucketList, bucketNames } from '~/compute/agentStore';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
-import { useSandboxes, useSecrets } from '~/compute/hooks';
+import { useNow, useSandboxes, useSecrets } from '~/compute/hooks';
 import { useCanSign } from '~/compute/walletSigning';
-import { fmtAgo, shortImage } from '~/compute/format';
+import { fmtAgo } from '~/compute/format';
+import { isLive } from '~/compute/types';
 import { inferenceConfig } from '~/inference/inferenceConfig';
-import { color, mono, text } from '~/theme/tokens';
+import { color, text } from '~/theme/tokens';
 import { CodeBlock } from '../../Sandboxes/components/bits';
+import ComputeGate from '../../Sandboxes/components/ComputeGate';
 import TokenSecretButton, { MODEL_KEY_SECRET } from '../../Sandboxes/components/TokenSecretButton';
-import { BucketChip, CredentialChip, Mono, ReadError } from '../../Sandboxes/components/ui';
-import AddDefinitionDialog from '../components/AddDefinitionDialog';
+import { BucketChip, Mono, ReadError } from '../../Sandboxes/components/ui';
+import { EXAMPLES_RELEASE } from '../examples';
+import ExampleRunDialog from '../components/ExampleRunDialog';
 import { addSecretPath } from '../components/MissingSecrets';
-import { agentPath, EXAMPLE_MODEL_URL, missingSecrets, onConsoleGateway } from '../components/definition';
+import { AGENTS_QUICKSTART_PYTHON, AGENTS_QUICKSTART_SHELL } from '../components/quickstart';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
+import { DEFINITIONS_PATH, EXAMPLE_MODEL_URL, NEW_AGENT_PATH, onConsoleGateway } from '../components/definition';
 
-const FROM_A_TERMINAL = `gh release download cli/v0.1.4 -R Cerebellum-Network/ddc-node -p '*.json'
-cere agent run -f research.json "Write a short brief on how gVisor isolates containers, citing https://gvisor.dev/docs/"
-cere agent runs`;
+const Subhead = ({ children }: { children: string }) => (
+  <Typography component="h3" sx={{ fontSize: 15, fontWeight: 700, marginBottom: '10px' }}>
+    {children}
+  </Typography>
+);
 
-const Overview = () => {
+const DAY_MS = 86_400_000;
+
+const Count = ({ value, label, to }: { value: ReactNode; label: ReactNode; to?: string }) => {
+  const body = (
+    <>
+      <Typography className="n" sx={text.amount}>
+        {value}
+      </Typography>
+      <Typography sx={text.secondary}>{label}</Typography>
+    </>
+  );
+  return to ? (
+    <Box
+      component={NavLink}
+      to={to}
+      sx={{ textDecoration: 'none', color: 'inherit', minWidth: 0, '&:hover .n': { color: color.primary } }}
+    >
+      {body}
+    </Box>
+  ) : (
+    <Box minWidth={0}>{body}</Box>
+  );
+};
+
+/** Live numbers, each read from its source: the bucket listing for definitions, the gateway for runs and secrets. */
+const RightNow = observer(() => {
   const account = useAccount();
-  const { bucketId } = useCompute();
   const canSign = useCanSign();
   const list = bucketList(account.buckets, account.bucketsError);
-  const defs = useAgentDefinitions(bucketNames(list));
-  const secrets = useSecrets();
+  const defs = useAgentDefinitions(canSign ? bucketNames(list) : []);
   const runs = useSandboxes({ label: [`${LABEL.kind}:${AGENT_RUN_KIND}`] });
-  const [adding, setAdding] = useState(false);
-  const [saved, setSaved] = useState<string | null>(null);
+  const secrets = useSecrets();
+  const now = useNow(10_000);
   const rows = runRows(runs.data?.items ?? [], liveRuns());
-  const modelKey = secrets.data?.find((x) => x.name === MODEL_KEY_SECRET);
+  const running = rows.filter((r) => (r.live && !r.live.endedAt) || (r.sandbox && isLive(r.sandbox.status))).length;
+  const today = rows.filter((r) => now - r.startedAt < DAY_MS).length;
+  /** No number at all when the read failed: "…" would say it is still coming. */
+  const runsValue = (n: number | string) => (runs.data ? n : runs.error ? '—' : '…');
+  const modelKey = secrets.data?.find((s) => s.name === MODEL_KEY_SECRET);
   const examplesOnConsoleGateway = onConsoleGateway(EXAMPLE_MODEL_URL, inferenceConfig.gatewayUrl);
+  const buckets = list.state === 'ok' || list.state === 'stale' ? list.names.length : 0;
+
+  const definitions = !canSign ? (
+    <Count value="—" label="definitions: your wallet reads them" />
+  ) : list.state === 'unreadable' ? (
+    <Count value="—" label="definitions: buckets unreadable" />
+  ) : defs.loading ? (
+    <Count value="…" label="definitions" />
+  ) : (
+    <Count
+      value={defs.agents.length}
+      label={`definition${defs.agents.length === 1 ? '' : 's'} in ${buckets} storage bucket${buckets === 1 ? '' : 's'}`}
+      to={DEFINITIONS_PATH}
+    />
+  );
+
+  return (
+    <Section
+      title="Right now"
+      fill
+      actions={
+        <Button component={NavLink} to="/agents/runs" variant="text" color="secondary" size="small">
+          All runs
+        </Button>
+      }
+    >
+      <Stack direction="row" gap="28px" marginBottom="16px" flexWrap="wrap">
+        {definitions}
+        <Count value={runsValue(running)} label="running now" to="/agents/runs" />
+        <Count
+          value={runsValue(`${today}${runs.data?.truncated ? '+' : ''}`)}
+          label="runs in the last 24 h"
+          to="/agents/runs"
+        />
+      </Stack>
+      {list.state === 'unreadable' && canSign && (
+        <Box marginBottom="10px">
+          <ReadError what="your storage buckets" error={list.error} />
+        </Box>
+      )}
+      {defs.error && (
+        <Box marginBottom="10px">
+          <ReadError what="agent definitions" error={defs.error} />
+        </Box>
+      )}
+      {canSign && defs.failed.length > 0 && (
+        <Typography sx={{ ...text.caption, color: color.warning, marginBottom: '10px' }} title={defs.failed[0].error}>
+          Couldn’t list definitions in {defs.failed.length} of {buckets} storage bucket{buckets === 1 ? '' : 's'}:{' '}
+          {defs.failed[0].error}
+        </Typography>
+      )}
+      {runs.error && !runs.data ? (
+        <ReadError what="runs" error={runs.error} />
+      ) : (
+        <Box sx={{ margin: '0 -22px', borderTop: `1px solid ${color.grid}` }}>
+          <RunsTable rows={rows.slice(0, 5)} empty={runs.data ? 'No runs yet. Run an example.' : 'Reading…'} />
+        </Box>
+      )}
+      <Stack gap="8px" marginTop="16px">
+        {secrets.error && !secrets.data ? (
+          <ReadError what="your secrets" error={secrets.error} />
+        ) : (
+          <Typography sx={text.secondary}>
+            {!secrets.data ? (
+              'Reading your secrets…'
+            ) : modelKey ? (
+              <>
+                The examples’ model key <Mono>{MODEL_KEY_SECRET}</Mono> is in this bucket, sent only to{' '}
+                <Mono>{(modelKey.hosts ?? []).join(', ') || 'no host'}</Mono>, updated{' '}
+                <span title={modelKey.updated_at}>{fmtAgo(modelKey.updated_at, now)}</span>.
+              </>
+            ) : (
+              <>
+                This bucket has no <Mono>{MODEL_KEY_SECRET}</Mono> yet, the examples’ model key.
+              </>
+            )}
+          </Typography>
+        )}
+        {secrets.error && !secrets.data ? null : examplesOnConsoleGateway ? (
+          <TokenSecretButton held={modelKey} onStored={secrets.reload} />
+        ) : (
+          <Typography sx={text.caption}>
+            This console’s inference gateway (<Mono>{inferenceConfig.gatewayUrl}</Mono>) is not the examples’ one, so
+            its token is not their key: add a key of their gateway under{' '}
+            <NavLink to={addSecretPath(MODEL_KEY_SECRET)}>Secrets</NavLink>.
+          </Typography>
+        )}
+      </Stack>
+    </Section>
+  );
+});
+
+/** What a run is made of, in the order a run passes through it. */
+const PARTS: { name: string; body: ReactNode }[] = [
+  {
+    name: 'Definition',
+    body: (
+      <>
+        A <Mono>cere.agent/v1</Mono> document in one of your storage buckets, at{' '}
+        <Mono>cere/agents/&lt;name&gt;.json</Mono>: harness and image, system prompt, model, tools, limits and the hosts
+        it may reach. The CLI, the SDK and this console read the same file.
+      </>
+    ),
+  },
+  {
+    name: 'Sandbox',
+    body: 'Each run is a new gVisor sandbox from the definition, labelled with the agent and the run. The agent runs in it with your input, then it is terminated, keeping its output and transcript.',
+  },
+  {
+    name: 'Egress proxy',
+    body: (
+      <>
+        The run can reach only the definition’s hosts and the model’s. The proxy adds the model key and the tools’
+        credentials from <NavLink to="/sandboxes/secrets">Secrets</NavLink> to those requests and logs each one in{' '}
+        <NavLink to="/sandboxes/egress">Egress</NavLink>; the agent never holds them.
+      </>
+    ),
+  },
+  {
+    name: 'Usage',
+    body: 'CPU and memory are measured on the node and metered to your compute bucket, like any sandbox. Model calls on this network’s inference gateway bill to the same bucket.',
+  },
+];
+
+const Overview = () => {
+  const compute = useCompute();
+  const [params, setParams] = useSearchParams();
+  const exampleOpen = params.get('example') === '1' && compute.status === 'ready';
+  const setExample = (open: boolean) => {
+    if (open) params.set('example', '1');
+    else params.delete('example');
+    setParams(params, { replace: !open });
+  };
 
   return (
     <Box>
       <Box marginBottom="20px">
         <PageHeader
           title="Agents"
-          subtitle="An agent is a definition in one of your storage buckets: an image, a model, tools and network rules. Each run is a sandbox the console creates, runs the agent in, and terminates, keeping its output."
+          subtitle="An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay in Secrets: the egress proxy adds them to the run’s requests, so the agent never holds them."
           actions={
             <>
-              <BucketChip bucketId={bucketId} />
-              <Button variant="contained" onClick={() => setAdding(true)}>
-                Add a definition
+              <BucketChip bucketId={compute.bucketId} />
+              <Button component={NavLink} to={NEW_AGENT_PATH} variant="outlined" color="secondary">
+                Create agent
               </Button>
             </>
           }
         />
       </Box>
 
-      {saved && (
-        <Alert severity="success" onClose={() => setSaved(null)} sx={{ marginBottom: '16px' }}>
-          {saved}
-        </Alert>
-      )}
-
-      {list.state === 'stale' && (
-        <Alert severity="warning" sx={{ marginBottom: '12px' }}>
-          Couldn’t refresh your bucket list, so definitions in a bucket created since may be missing: {list.error}
-        </Alert>
-      )}
-
-      {defs.failed.map((f) => (
-        <Alert key={f.bucket} severity="warning" sx={{ marginBottom: '12px' }}>
-          Couldn’t list definitions in bucket {f.bucket}: {f.error}
-        </Alert>
-      ))}
-
-      {defs.loading && defs.agents.length === 0 ? (
-        <Stack direction="row" alignItems="center" gap="12px" padding="24px 0">
-          <CircularProgress size={18} />
-          <Typography sx={text.secondary}>Reading definitions from your buckets…</Typography>
-        </Stack>
-      ) : defs.error ? (
-        <ReadError what="agent definitions" error={defs.error} />
-      ) : !canSign ? (
-        <Section>
-          <Typography sx={text.body}>
-            Agent definitions live in your storage buckets on the DDC S3 gateway (
-            <Box component="span" sx={{ fontFamily: mono }}>
-              cere/agents/&lt;name&gt;.json
-            </Box>
-            ), which only your wallet can read, and this development view has no wallet: sign in with your SSCP wallet
-            to see them. The runs below are read with the access token.
-          </Typography>
-        </Section>
-      ) : list.state === 'unreadable' ? (
-        <ReadError what="your storage buckets, where agent definitions live" error={list.error} />
-      ) : defs.agents.length === 0 ? (
-        <Section>
-          <Typography sx={text.body}>
-            No agent definitions in your buckets yet. Add one here, or push one from a terminal (below). They live at{' '}
-            <Box component="span" sx={{ fontFamily: mono }}>
-              cere/agents/&lt;name&gt;.json
-            </Box>
-            .
-          </Typography>
-        </Section>
-      ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' },
-            gap: '16px',
-            marginBottom: '16px',
-          }}
-        >
-          {defs.agents.map((a) => {
-            const missing = a.def ? missingSecrets(a.def, secrets.data) : [];
-            return (
-              <Box
-                key={`${a.bucket}/${a.key}`}
-                sx={{
-                  backgroundColor: color.surface,
-                  border: `1px solid ${color.border}`,
-                  borderRadius: '16px',
-                  padding: '18px 20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                }}
-              >
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" gap="10px">
-                  <Box minWidth={0}>
-                    <Box
-                      component={NavLink}
-                      to={agentPath(a.bucket, a.name)}
-                      sx={{
-                        fontSize: 17,
-                        fontWeight: 700,
-                        color: color.text,
-                        textDecoration: 'none',
-                        '&:hover': { color: color.primary },
-                      }}
-                    >
-                      {a.name}
-                    </Box>
-                    <Typography
-                      sx={{ fontFamily: mono, fontSize: 12, color: color.textTertiary }}
-                      title={`${a.bucket}/${a.key}`}
-                    >
-                      {a.bucket}
-                    </Typography>
-                  </Box>
-                  {a.def && <Pill tone="primary">{a.def.harness}</Pill>}
-                </Stack>
-                {a.def ? (
-                  <>
-                    {a.def.description && <Typography sx={text.secondary}>{a.def.description}</Typography>}
-                    <Typography sx={{ ...text.caption, fontFamily: mono }}>
-                      {shortImage(a.def.image)} · {a.def.model.model}
-                    </Typography>
-                    <Stack direction="row" gap="6px" flexWrap="wrap">
-                      {(a.def.egress?.allow ?? []).map((r, i) => (
-                        <Stack key={i} direction="row" alignItems="center" gap="4px">
-                          <Box component="span" sx={{ ...text.caption, fontFamily: mono }}>
-                            {r.host}
-                          </Box>
-                          {r.credential && <CredentialChip name={r.credential} />}
-                        </Stack>
-                      ))}
-                    </Stack>
-                    {missing.length > 0 && (
-                      <Typography sx={{ ...text.caption, color: color.warning }}>
-                        Needs the secret{missing.length > 1 ? 's' : ''}{' '}
-                        {missing.map((n, i) => (
-                          <span key={n}>
-                            {i > 0 && ', '}
-                            <NavLink to={addSecretPath(n)}>{n}</NavLink>
-                            {n === a.def!.model.credential && ' (the model’s key)'}
-                          </span>
-                        ))}
-                        . Open the agent for what {missing.length > 1 ? 'each is' : 'it is'} and where to get it.
-                      </Typography>
-                    )}
-                  </>
-                ) : (
-                  <Typography sx={{ ...text.caption, color: color.warning }}>{a.errors.join(' ')}</Typography>
-                )}
-                <Stack direction="row" justifyContent="flex-end" gap="8px" marginTop="auto" paddingTop="6px">
-                  <Button
-                    size="small"
-                    variant={a.def ? 'contained' : 'outlined'}
-                    color={a.def ? 'primary' : 'secondary'}
-                    component={NavLink}
-                    to={agentPath(a.bucket, a.name)}
-                  >
-                    {a.def ? 'Open and run' : 'Open'}
-                  </Button>
-                </Stack>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-
       <Box
-        sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.6fr) minmax(0, 1fr)' }, gap: '16px' }}
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.5fr) minmax(360px, 1fr)' },
+          gap: '16px',
+          marginBottom: '16px',
+        }}
       >
-        <Section
-          title="Recent runs"
-          flush
-          actions={
-            <Button component={NavLink} to="/agents/runs" variant="text" color="secondary" size="small">
-              All runs
-            </Button>
-          }
-        >
-          {runs.error && !runs.data ? (
-            <Box padding="0 22px 18px">
-              <ReadError what="runs" error={runs.error} />
-            </Box>
-          ) : (
-            <RunsTable rows={rows.slice(0, 8)} empty={runs.data ? 'No runs yet.' : 'Reading…'} />
-          )}
-        </Section>
-        <Section title="From a terminal">
-          <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
-            The CLI runs the same definitions the same way: a sandbox per run, with the same labels, so its runs show
-            here too. The examples (<Mono>research.json</Mono>, <Mono>sre.json</Mono>, <Mono>langgraph.json</Mono>) are
-            assets of the CLI’s release, and a local file needs no bucket.
-          </Typography>
-          <CodeBlock code={FROM_A_TERMINAL} />
-          <Typography sx={{ ...text.caption, marginTop: '10px' }}>
-            Their model is <Mono>glm-5.3</Mono> on devnet’s inference gateway, the cluster your sandboxes run on, with
-            the secret <NavLink to={addSecretPath(MODEL_KEY_SECRET)}>{MODEL_KEY_SECRET}</NavLink>: your own bucket’s
-            COMPUTE token, which that gateway takes as the model key and bills to the same bucket. From a terminal,{' '}
-            <Mono>cere secret set {MODEL_KEY_SECRET} --from-login</Mono> stores the token the CLI logged in with; the
-            button below stores this console’s. Either stops working when its token expires. <Mono>sre.json</Mono> also
-            needs <NavLink to={addSecretPath('github-readonly')}>github-readonly</NavLink>: a GitHub fine-grained
-            personal access token with read-only access (
-            <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
-              github.com/settings/personal-access-tokens/new
-            </a>
-            ). <Mono>cere agent push -f research.json</Mono> keeps a definition in a storage bucket (with the S3
-            credential from CLI access), and then <Mono>cere agent run research</Mono> finds it by name.
-          </Typography>
-          <Stack gap="8px" marginTop="14px">
-            <Typography sx={text.secondary}>
-              {secrets.error && !secrets.data ? (
-                <>Couldn’t read your secrets: {secrets.error}</>
-              ) : !secrets.data ? (
-                'Reading your secrets…'
-              ) : modelKey ? (
-                <>
-                  This bucket holds <Mono>{MODEL_KEY_SECRET}</Mono>, updated{' '}
-                  <span title={modelKey.updated_at}>{fmtAgo(modelKey.updated_at)}</span>.
-                </>
-              ) : (
-                <>
-                  This bucket has no <Mono>{MODEL_KEY_SECRET}</Mono> yet.
-                </>
-              )}
-            </Typography>
-            {examplesOnConsoleGateway ? (
-              <TokenSecretButton held={modelKey} onStored={secrets.reload} />
-            ) : (
-              <Typography sx={text.caption}>
-                This console’s inference gateway (<Mono>{inferenceConfig.gatewayUrl}</Mono>) is not the examples’ one,
-                so its token is not their key: add a key of their gateway under{' '}
-                <NavLink to={addSecretPath(MODEL_KEY_SECRET)}>Secrets</NavLink>.
+        <Section title="Quickstart">
+          <Stack spacing="20px">
+            <Box>
+              <Subhead>From a terminal</Subhead>
+              <CodeBlock code={AGENTS_QUICKSTART_SHELL} />
+              <Typography sx={{ ...text.caption, marginTop: '8px' }}>
+                Install the <Mono>cere</Mono> CLI and the Python SDK and sign in first:{' '}
+                <NavLink to="/sandboxes">Sandboxes › Overview</NavLink>, steps 1 and 2 ({EXAMPLES_RELEASE}). The model
+                key is the token you signed in with; it stops working when that token expires, so run the{' '}
+                <Mono>secret set</Mono> again after the next <Mono>cere login</Mono>. <Mono>sre.json</Mono> also needs{' '}
+                <NavLink to={addSecretPath('github-readonly', ['api.github.com'])}>github-readonly</NavLink>, a
+                read-only GitHub token bound to <Mono>api.github.com</Mono>.
               </Typography>
-            )}
+            </Box>
+            <Box>
+              <Subhead>From Python</Subhead>
+              <CodeBlock code={AGENTS_QUICKSTART_PYTHON} />
+            </Box>
+            <Box>
+              <Subhead>Try it here</Subhead>
+              <Stack direction="row" alignItems="center" gap="16px" flexWrap="wrap">
+                <Button variant="contained" onClick={() => setExample(true)} disabled={compute.status !== 'ready'}>
+                  Run an example
+                </Button>
+                <Typography sx={{ ...text.secondary, flex: 1, minWidth: 240 }}>
+                  Runs research, langgraph or sre from the release in a sandbox on the cluster and streams what the
+                  agent does. Or <NavLink to={NEW_AGENT_PATH}>create your own</NavLink>.
+                </Typography>
+              </Stack>
+            </Box>
           </Stack>
         </Section>
+        {compute.status === 'ready' ? <RightNow /> : <ComputeGate>{null}</ComputeGate>}
       </Box>
 
-      {adding && (
-        <AddDefinitionDialog
-          existing={defs.agents}
-          onClose={(s) => {
-            setAdding(false);
-            if (s) {
-              setSaved(`Saved ${s.name} to ${s.bucket}.`);
-              defs.reload();
-            }
-          }}
-        />
-      )}
+      <Section title="How an agent runs">
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' } }}>
+          {PARTS.map((p, i) => (
+            <Box
+              key={p.name}
+              sx={{
+                padding: { xs: '12px 0', md: '4px 22px 4px 0' },
+                marginRight: { md: i < PARTS.length - 1 ? '22px' : 0 },
+                borderRight: { md: i < PARTS.length - 1 ? `1px solid ${color.grid}` : 'none' },
+              }}
+            >
+              <Typography sx={{ fontSize: 15, fontWeight: 700, marginBottom: '4px' }}>{p.name}</Typography>
+              <Typography sx={text.secondary}>{p.body}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Section>
+
+      {exampleOpen && <ExampleRunDialog onClose={() => setExample(false)} />}
     </Box>
   );
 };

@@ -13,8 +13,11 @@ export function missingSecrets(def: AgentDefinition, have: SecretSummary[] | und
   return neededSecrets(def).filter((n) => !have.some((s) => s.name === n));
 }
 
+export const DEFINITIONS_PATH = '/agents/definitions';
+export const NEW_AGENT_PATH = `${DEFINITIONS_PATH}/new`;
+/** A definition's page; `/edit` after it is its form. */
 export const agentPath = (bucket: string, name: string) =>
-  `/agents/a/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;
+  `${DEFINITIONS_PATH}/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;
 
 /**
  * The Developer Console of the network a DDC inference gateway serves, or null

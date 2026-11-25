@@ -18,11 +18,13 @@ const application: Application = {
   rootPath: 'agents',
   title: 'Agents',
   navLabel: 'Agents',
-  description: 'AI agents that run in sandboxes: definitions in your bucket, each run a sandbox you can open',
+  description:
+    'AI agents that run in sandboxes: a definition in your bucket, each run a sandbox, keys added by the egress proxy',
   icon: <AgentsAppIcon />,
   group: 'services',
   subNav: [
-    { path: '', label: 'Definitions' },
+    { path: '', label: 'Overview' },
+    { path: 'definitions', label: 'Definitions', prefix: true },
     { path: 'runs', label: 'Runs', prefix: true },
   ],
 };
