@@ -183,6 +183,13 @@ export function SandboxDetail({ s, name }: { s: Sandbox; name: (id: string | nul
               GiB-s (peak {mib(s.usage.memory_peak_mib)}) · network out {bytes(s.usage.net_egress_bytes)}, in{' '}
               {bytes(s.usage.net_ingress_bytes)} · disk peak {mib(s.usage.disk_peak_mib)}
             </Typography>
+            {s.usage.billing_basis !== undefined && (
+              <Typography sx={{ fontSize: 12.5 }}>
+                billed {num(s.usage.billed_cpu_s, 2)} CPU-s · {num(s.usage.billed_ram_gib_s, 2)} GiB-s (basis:{' '}
+                {s.usage.billing_basis}; reserved {num(s.usage.reserved_cpu_s, 2)} CPU-s ·{' '}
+                {num(s.usage.reserved_ram_gib_s, 2)} GiB-s)
+              </Typography>
+            )}
           </Box>
         )}
       </Stack>

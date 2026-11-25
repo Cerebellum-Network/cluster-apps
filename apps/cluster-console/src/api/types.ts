@@ -189,7 +189,10 @@ export interface Usage {
   net_egress_bytes: number;
   net_ingress_bytes: number;
   disk_peak_mib: number;
-  /** Additive, present only from runtimes that bill on the reservation. */
+  /** Additive, present only from runtimes that record a billing basis. */
+  billing_basis?: string;
+  reserved_cpu_s?: number;
+  reserved_ram_gib_s?: number;
   billed_cpu_s?: number;
   billed_ram_gib_s?: number;
 }
@@ -293,8 +296,11 @@ export interface UsageRecord {
   wall_s?: number;
   reserved_cpu?: number;
   reserved_memory_mib?: number;
+  reserved_cpu_s?: number;
+  reserved_ram_gib_s?: number;
   billed_cpu_s?: number;
   billed_ram_gib_s?: number;
+  /** `measured` or `reserved`: which of the two the units were taken from. */
   billing_basis?: string;
 }
 

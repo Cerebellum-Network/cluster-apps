@@ -147,12 +147,12 @@ export function Usage() {
                   ...(r.billing_basis !== undefined || r.billed_cpu_s !== undefined
                     ? ([
                         [
-                          'Billed (basis)',
-                          `${num(r.billed_cpu_s, 3)} CPU-s · ${num(r.billed_ram_gib_s, 3)} GiB-s (${r.billing_basis ?? 'basis not given'})`,
+                          'Billed',
+                          `${num(r.billed_cpu_s, 3)} CPU-s · ${num(r.billed_ram_gib_s, 3)} GiB-s (basis: ${r.billing_basis ?? 'not given'})`,
                         ],
                         [
                           'Reserved',
-                          `${num(r.reserved_cpu, 2)} CPU · ${mib(r.reserved_memory_mib)} over ${num(r.wall_s, 1)} s wall`,
+                          `${num(r.reserved_cpu, 2)} CPU · ${mib(r.reserved_memory_mib)} over ${num(r.wall_s, 1)} s wall = ${num(r.reserved_cpu_s, 3)} CPU-s · ${num(r.reserved_ram_gib_s, 3)} GiB-s`,
                         ],
                       ] as [string, string][])
                     : []),
