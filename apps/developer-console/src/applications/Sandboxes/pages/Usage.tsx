@@ -33,7 +33,7 @@ const TICK = { fontSize: 12, fill: color.textTertiary };
 const CPU_COLOR = chartPalette[0];
 const RAM_COLOR = chartPalette[2];
 
-const Tile = ({ label, value, sub }: { label: string; value: string; sub: string }) => (
+const Tile = ({ label, value, sub, note }: { label: string; value: string; sub: string; note?: string }) => (
   <Box
     sx={{
       border: `1px solid ${color.border}`,
@@ -46,6 +46,7 @@ const Tile = ({ label, value, sub }: { label: string; value: string; sub: string
     <Typography sx={text.secondary}>{label}</Typography>
     <Typography sx={{ ...text.title, fontVariantNumeric: 'tabular-nums', marginTop: '6px' }}>{value}</Typography>
     <Typography sx={{ ...text.caption, marginTop: '2px' }}>{sub}</Typography>
+    {note && <Typography sx={{ ...text.caption, marginTop: '1px' }}>{note}</Typography>}
   </Box>
 );
 
@@ -118,8 +119,10 @@ const SeriesChart = ({
 /**
  * Usage (`GET /v1/usage/records`, this bucket): the signed records nodes write
  * per sandbox, one per minute plus a final one, with the DAC agent's answer.
- * Quantities are as measured, CPU-seconds and GiB-seconds; there is no price
- * list for sandboxes yet, so nothing here is converted to money.
+ * Quantities are CPU-seconds and GiB-seconds, billed (on the reserved basis:
+ * the reservation × seconds running, or what was measured where that is more)
+ * and as measured; the charts show what was measured. There is no price list
+ * for sandboxes yet, so nothing here is converted to money.
  */
 const Usage = () => {
   const { bucketId } = useCompute();
@@ -155,7 +158,7 @@ const Usage = () => {
         cpuUnits: sumUnits(rs.map((r) => r.cpu_units)),
         ramUnits: sumUnits(rs.map((r) => r.ram_units)),
       }))
-      .sort((a, b) => b.cpu_s - a.cpu_s);
+      .sort((a, b) => b.billed_cpu_s - a.billed_cpu_s);
   }, [records, sandboxes.data]);
 
   return (
@@ -163,7 +166,7 @@ const Usage = () => {
       <Box marginBottom="16px">
         <PageHeader
           title="Usage"
-          subtitle="What the nodes measured for your sandboxes, from the signed usage records they send to DAC. Sandboxes bill measured CPU and memory."
+          subtitle="What your sandboxes are billed, from the signed usage records nodes send to DAC: a sandbox is billed to your compute bucket for the CPU and memory you reserve, while it runs (stops when it stops), or for what the node measured where that is more."
           actions={<BucketChip bucketId={bucketId} />}
         />
       </Box>
@@ -195,8 +198,18 @@ const Usage = () => {
               marginBottom: '16px',
             }}
           >
-            <Tile label="CPU-seconds" value={fmtQty(total.cpu_s)} sub="one vCPU busy for one second" />
-            <Tile label="GiB-seconds" value={fmtQty(total.ram_gib_s)} sub="one GiB of memory held for one second" />
+            <Tile
+              label="Billed CPU-seconds"
+              value={fmtQty(total.billed_cpu_s)}
+              sub="vCPU reserved × seconds running"
+              note={`measured ${fmtQty(total.cpu_s)} CPU-s`}
+            />
+            <Tile
+              label="Billed GiB-seconds"
+              value={fmtQty(total.billed_ram_gib_s)}
+              sub="GiB reserved × seconds running"
+              note={`measured ${fmtQty(total.ram_gib_s)} GiB-s`}
+            />
             <Tile
               label="Usage records"
               value={String(records.length)}
@@ -217,8 +230,22 @@ const Usage = () => {
               marginBottom: '16px',
             }}
           >
-            <SeriesChart title="CPU-seconds" rows={rows} dataKey="cpu" fill={CPU_COLOR} unit="CPU-s" barMs={w.barMs} />
-            <SeriesChart title="GiB-seconds" rows={rows} dataKey="ram" fill={RAM_COLOR} unit="GiB-s" barMs={w.barMs} />
+            <SeriesChart
+              title="Measured CPU-seconds"
+              rows={rows}
+              dataKey="cpu"
+              fill={CPU_COLOR}
+              unit="CPU-s"
+              barMs={w.barMs}
+            />
+            <SeriesChart
+              title="Measured GiB-seconds"
+              rows={rows}
+              dataKey="ram"
+              fill={RAM_COLOR}
+              unit="GiB-s"
+              barMs={w.barMs}
+            />
           </Box>
 
           <Box marginBottom="16px">
@@ -229,10 +256,16 @@ const Usage = () => {
                     <TableRow>
                       <TableCell>Sandbox</TableCell>
                       <TableCell align="right">Records</TableCell>
-                      <TableCell align="right">CPU-s</TableCell>
-                      <TableCell align="right">GiB-s</TableCell>
-                      <TableCell align="right">DAC cpuUnits</TableCell>
-                      <TableCell align="right">DAC ramUnits</TableCell>
+                      <TableCell align="right">Billed CPU-s</TableCell>
+                      <TableCell align="right">Measured CPU-s</TableCell>
+                      <TableCell align="right">Billed GiB-s</TableCell>
+                      <TableCell align="right">Measured GiB-s</TableCell>
+                      <TableCell align="right" title="billed × 1e11">
+                        DAC cpuUnits
+                      </TableCell>
+                      <TableCell align="right" title="billed × 1e11">
+                        DAC ramUnits
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -263,10 +296,22 @@ const Usage = () => {
                         <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
                           {r.n}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                          {fmtQty(r.billed_cpu_s)}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}
+                        >
                           {fmtQty(r.cpu_s)}
                         </TableCell>
-                        <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                          {fmtQty(r.billed_ram_gib_s)}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}
+                        >
                           {fmtQty(r.ram_gib_s)}
                         </TableCell>
                         <TableCell
@@ -285,7 +330,7 @@ const Usage = () => {
                     ))}
                     {bySandbox.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} sx={{ textAlign: 'center', padding: '28px' }}>
+                        <TableCell colSpan={8} sx={{ textAlign: 'center', padding: '28px' }}>
                           <Typography sx={text.secondary}>{data ? 'No usage in this window.' : 'Reading…'}</Typography>
                         </TableCell>
                       </TableRow>
@@ -299,7 +344,7 @@ const Usage = () => {
           <Section title="Usage records">
             <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
               Each record is signed with its node’s key and pushed to that node’s DAC agent, which files it under its
-              TCA (the minute it closed). CPU and RAM units are the record’s own fields: seconds × 10¹¹.
+              TCA (the minute it closed). CPU and RAM units are the record’s own fields: the billed seconds × 10¹¹.
             </Typography>
             <RecordsTable
               records={records.slice(0, 200)}

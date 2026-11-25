@@ -1,5 +1,8 @@
 /** Formatters for the Sandboxes and Agents pages. Units are the API's own; no prices. */
 
+import { recordBilling, type RecordBillingFields } from './billing';
+import type { UsageRecord } from './types';
+
 /** "1 file", "2 files". */
 export function plural(n: number, noun: string): string {
   return `${n} ${noun}${n === 1 ? '' : 's'}`;
@@ -107,18 +110,40 @@ export function shortImage(image: string): string {
   return image.split('/').pop() ?? image;
 }
 
-/** Sum CPU-seconds and GiB-seconds over usage records (the billed quantities). */
+/**
+ * Sum usage records: billed CPU-seconds and GiB-seconds (a record from a gateway
+ * that predates the billing fields bills its DAC units / 1e11, as `cere usage`
+ * does), the reserved amounts, and what was measured.
+ */
 export function sumRecords(
-  rs: { cpu_s: number; ram_gib_s: number; net_egress_bytes: number; net_ingress_bytes: number }[],
+  rs: (Pick<UsageRecord, 'cpu_s' | 'ram_gib_s' | 'net_egress_bytes' | 'net_ingress_bytes'> &
+    RecordBillingFields &
+    Pick<UsageRecord, 'reserved_cpu_s' | 'reserved_ram_gib_s'>)[],
 ) {
   return rs.reduce(
-    (a, r) => ({
-      cpu_s: a.cpu_s + r.cpu_s,
-      ram_gib_s: a.ram_gib_s + r.ram_gib_s,
-      net_egress_bytes: a.net_egress_bytes + r.net_egress_bytes,
-      net_ingress_bytes: a.net_ingress_bytes + r.net_ingress_bytes,
-    }),
-    { cpu_s: 0, ram_gib_s: 0, net_egress_bytes: 0, net_ingress_bytes: 0 },
+    (a, r) => {
+      const billed = recordBilling(r);
+      return {
+        cpu_s: a.cpu_s + r.cpu_s,
+        ram_gib_s: a.ram_gib_s + r.ram_gib_s,
+        billed_cpu_s: a.billed_cpu_s + billed.cpu,
+        billed_ram_gib_s: a.billed_ram_gib_s + billed.ram,
+        reserved_cpu_s: a.reserved_cpu_s + (r.reserved_cpu_s ?? 0),
+        reserved_ram_gib_s: a.reserved_ram_gib_s + (r.reserved_ram_gib_s ?? 0),
+        net_egress_bytes: a.net_egress_bytes + r.net_egress_bytes,
+        net_ingress_bytes: a.net_ingress_bytes + r.net_ingress_bytes,
+      };
+    },
+    {
+      cpu_s: 0,
+      ram_gib_s: 0,
+      billed_cpu_s: 0,
+      billed_ram_gib_s: 0,
+      reserved_cpu_s: 0,
+      reserved_ram_gib_s: 0,
+      net_egress_bytes: 0,
+      net_ingress_bytes: 0,
+    },
   );
 }
 

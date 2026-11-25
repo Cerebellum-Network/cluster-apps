@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import type { ExecExit, Sandbox } from '~/compute/types';
+import { billingLine } from '~/compute/billing';
 import { fmtCpu, fmtMib, fmtQty, shortNode } from '~/compute/format';
 import { color, text } from '~/theme/tokens';
 import { FIRST_RUN } from './quickstart';
@@ -167,6 +168,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
   };
 
   const stepState = (p: Phase): 'wait' | 'busy' | 'done' => (phase === p ? 'busy' : after(phase, p) ? 'done' : 'wait');
+  const billed = sandbox ? billingLine(sandbox.usage, sandbox.resources.cpu, sandbox.resources.memory_mib) : '';
 
   return (
     <>
@@ -216,7 +218,9 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
           title={phase === 'terminated' ? 'Terminated' : 'Keep it or stop it'}
           state={phase === 'terminated' ? 'done' : phase === 'ready' ? 'yours' : 'wait'}
         >
-          {phase === 'terminated' && sandbox ? (
+          {phase === 'terminated' && sandbox && billed ? (
+            <Typography sx={text.secondary}>Final usage: billed {billed}.</Typography>
+          ) : phase === 'terminated' && sandbox ? (
             <Typography sx={text.secondary}>
               Final usage, as the node measured it: {fmtQty(sandbox.usage.cpu_s)} CPU-seconds and{' '}
               {fmtQty(sandbox.usage.ram_gib_s)} GiB-seconds of memory over {fmtQty(sandbox.usage.wall_s)} s.

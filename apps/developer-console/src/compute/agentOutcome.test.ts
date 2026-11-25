@@ -54,6 +54,7 @@ describe('outcomeOf', () => {
     [sb('terminated', 'oom_killed'), { state: 'failed', detail: 'The sandbox ended: oom_killed' }],
     [sb('terminated', 'lost: host restarted'), { state: 'failed', detail: 'The sandbox ended: lost: host restarted' }],
     [sb('terminated', 'timeout (1020s)'), { state: 'ended', detail: 'timeout (1020s)' }],
+    [sb('terminated', 'token_expiry'), { state: 'ended', detail: 'token_expiry' }],
     [
       sb('terminated', 'terminated by API: console terminate'),
       { state: 'ended', detail: 'terminated by API: console terminate' },

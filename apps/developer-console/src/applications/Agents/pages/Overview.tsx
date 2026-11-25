@@ -207,7 +207,7 @@ const PARTS: { name: string; body: ReactNode }[] = [
   },
   {
     name: 'Usage',
-    body: 'CPU and memory are measured on the node and metered to your compute bucket, like any sandbox. Model calls on this network’s inference gateway bill to the same bucket.',
+    body: 'A run’s sandbox is billed to your compute bucket for the CPU and memory you reserve, while the sandbox runs (stops when it stops), like any sandbox. Model calls on this network’s inference gateway bill to the same bucket.',
   },
 ];
 

@@ -7,10 +7,11 @@ import type { RunOutcome } from '~/compute/agentOutcome';
 import { LABEL } from '~/compute/agentRun';
 import { agentRuns, type LiveRun } from '~/compute/agentRuns';
 import { useNow } from '~/compute/hooks';
-import { fmtAgo, fmtDuration, fmtQty, shortId } from '~/compute/format';
+import { fmtAgo, fmtDuration, shortId } from '~/compute/format';
 import { useRunOutcomes } from '~/compute/runOutcomes';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
+import BilledUsage, { billedHeader } from '../../Sandboxes/components/BilledUsage';
 import { RunOutcomeLabel } from './RunOutcome';
 
 export interface RunRow {
@@ -86,7 +87,7 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
             <TableCell>Started</TableCell>
             <TableCell>Took</TableCell>
             <TableCell>Sandbox</TableCell>
-            <TableCell align="right">Measured</TableCell>
+            <TableCell align="right">{billedHeader(rows.flatMap((r) => (r.sandbox ? [r.sandbox] : [])))}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -144,16 +145,7 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
                   )}
                 </TableCell>
                 <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {r.sandbox ? (
-                    <>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
-                        {fmtQty(r.sandbox.usage.cpu_s)} CPU-s
-                      </Typography>
-                      <Typography sx={text.caption}>{fmtQty(r.sandbox.usage.ram_gib_s)} GiB-s</Typography>
-                    </>
-                  ) : (
-                    '—'
-                  )}
+                  {r.sandbox ? <BilledUsage sandbox={r.sandbox} /> : '—'}
                 </TableCell>
               </TableRow>
             );

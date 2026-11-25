@@ -14,10 +14,11 @@ import { Autocomplete, Dialog, DialogActions, DialogContent, DialogTitle } from 
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 
-import { useComputeClient } from '~/compute/ComputeProvider';
+import { useCompute, useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { useSecrets } from '~/compute/hooks';
 import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { fmtDateTime } from '~/compute/format';
 import { rulesFromForms, type RuleForm } from '~/compute/egressRules';
 import type { CreateSandboxRequest } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
@@ -45,6 +46,7 @@ const IDLE = [
  */
 const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const client = useComputeClient();
+  const { tokenExpiresAt } = useCompute();
   const secrets = useSecrets();
   const navigate = useNavigate();
   const [image, setImage] = useState(IMAGES[0]);
@@ -168,6 +170,12 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
               label="Stops after"
               value={String(timeout)}
               onChange={(e) => setTimeoutS(Number(e.target.value))}
+              helperText={
+                // The node ends a sandbox 60 s before the token it was created with expires (token_expiry).
+                tokenExpiresAt !== null && Date.now() + timeout * 1000 > tokenExpiresAt - 60_000
+                  ? `Or at ${fmtDateTime(tokenExpiresAt - 60_000)}, 60 s before this page’s access token expires.`
+                  : undefined
+              }
               size="small"
               fullWidth
             >

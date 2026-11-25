@@ -30,7 +30,7 @@ export function useStorageBucket(): StorageBucketChoice {
  * Where a definition is saved: one of the wallet's storage buckets (the DDC S3
  * gateway's, named), at `cere/agents/<name>.json`, the same place
  * `cere agent push` writes it; not the numbered compute bucket the sandboxes
- * are metered to. A bucket list that could not be read is not "no bucket": it
+ * are billed to. A bucket list that could not be read is not "no bucket": it
  * offers a retry, never a new bucket. `fixed` shows the bucket a definition
  * being edited is in.
  */
@@ -131,7 +131,10 @@ const StorageBucketField = ({ choice, fixed }: { choice: StorageBucketChoice; fi
         }
       >
         You have no storage bucket on the DDC S3 gateway yet. Definitions are kept in one
-        {bucketId ? ` (not in compute bucket ${bucketId}, which your sandboxes are metered to)` : ''}.
+        {bucketId
+          ? ` (not in compute bucket ${bucketId}, which your sandboxes are billed to for the CPU and memory you reserve, while they run)`
+          : ''}
+        .
       </Alert>
       {error && <Alert severity="error">{error}</Alert>}
     </>

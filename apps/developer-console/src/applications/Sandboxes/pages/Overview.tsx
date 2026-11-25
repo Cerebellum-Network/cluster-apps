@@ -220,9 +220,10 @@ const Overview = () => {
           ))}
         </Box>
         <Typography sx={{ ...text.secondary, marginTop: '14px' }}>
-          Usage is measured, not estimated: CPU-seconds and GiB-seconds of memory, in signed records each node sends to
-          its DAC agent once a minute and when the sandbox ends. Sandboxes have no price list yet, so nothing here is
-          converted to money.
+          A sandbox is billed for the CPU and memory it reserves, for as long as it runs (from start to stop; the image
+          pull and anything after it stops are free), or for what it measured where that is more. Each node signs a
+          usage record once a minute and when the sandbox ends, with both amounts, and sends it to its DAC agent.
+          Sandboxes have no price list yet, so nothing here is converted to money.
         </Typography>
       </Section>
 

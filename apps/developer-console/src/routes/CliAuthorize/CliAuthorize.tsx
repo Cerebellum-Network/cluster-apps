@@ -215,7 +215,7 @@ const CliAuthorize = () => {
             <Typography sx={text.body}>
               <strong>Compute on that bucket</strong> (the COMPUTE operation): create and run sandboxes and agents,
               store credentials for their egress, read their logs, egress log and usage, and call this network’s
-              inference gateway. Their use is metered to the bucket. Nothing else: no storage reads or writes, no
+              inference gateway. Their use is billed to the bucket. Nothing else: no storage reads or writes, no
               payments.
             </Typography>
             <Stack direction="row" alignItems="center" gap="14px" flexWrap="wrap">

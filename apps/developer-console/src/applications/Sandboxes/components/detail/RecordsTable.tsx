@@ -1,6 +1,7 @@
 import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@cluster-apps/ui';
 import { NavLink } from 'react-router-dom';
 
+import { recordBilling } from '~/compute/billing';
 import type { DacStatus, UsageRecord } from '~/compute/types';
 import { fmtBytes, fmtClock, fmtQty, fmtUnits, fmtUtc, localZone, shortId, shortNode } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
@@ -47,7 +48,10 @@ export const DacPill = ({ status, error }: { status: DacStatus; error?: string |
 /**
  * Usage records as nodes wrote them: one per wall-clock minute of a sandbox's
  * life plus a final one at exit, each signed and pushed to the node's DAC
- * agent. CPU and RAM units are the DAC record's own fields (× 1e11).
+ * agent. The columns are `cere usage`'s: the basis, the reservation, and the
+ * billed CPU-seconds and GiB-seconds beside the measured ones (a record from a
+ * gateway without the billing fields bills its units). CPU and RAM units are
+ * the DAC record's own fields: the billed amounts × 1e11.
  */
 const RecordsTable = ({
   records,
@@ -66,11 +70,24 @@ const RecordsTable = ({
           <TableRow>
             <TableCell sx={head}>Period ({localZone()})</TableCell>
             {showSandbox && <TableCell sx={head}>Sandbox</TableCell>}
+            <TableCell
+              sx={head}
+              title="reserved: billed the reservation × seconds running, or what was measured where that is more. measured: billed what was measured."
+            >
+              Basis
+            </TableCell>
+            <TableCell sx={head}>Reserved</TableCell>
             <TableCell sx={head} align="right">
-              CPU-s
+              Billed CPU-s
             </TableCell>
             <TableCell sx={head} align="right">
-              GiB-s
+              Measured CPU-s
+            </TableCell>
+            <TableCell sx={head} align="right">
+              Billed GiB-s
+            </TableCell>
+            <TableCell sx={head} align="right">
+              Measured GiB-s
             </TableCell>
             <TableCell sx={head} align="right">
               Peak memory
@@ -82,62 +99,75 @@ const RecordsTable = ({
           </TableRow>
         </TableHead>
         <TableBody>
-          {records.map((r) => (
-            <TableRow key={r.record_id}>
-              <TableCell
-                sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}
-                title={`${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} (UTC, as the CLI prints it)`}
-              >
-                {fmtClock(r.period_start)}–{fmtClock(r.period_end)}
-                {r.final && (
-                  <Typography
-                    sx={{ ...text.caption, color: color.text }}
-                    title="The record written when the sandbox ended."
-                  >
-                    final{r.exit_reason ? ` · ${r.exit_reason}` : ''}
-                  </Typography>
-                )}
-              </TableCell>
-              {showSandbox && (
-                <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                  <Box
-                    component={NavLink}
-                    to={`/sandboxes/list/${r.sandbox_id}`}
-                    sx={{ fontFamily: mono, fontSize: 12.5, color: color.primary, textDecoration: 'none' }}
-                  >
-                    {shortId(r.sandbox_id)}
-                  </Box>
-                </TableCell>
-              )}
-              <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                {fmtQty(r.cpu_s)}
-              </TableCell>
-              <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                {fmtQty(r.ram_gib_s)}
-              </TableCell>
-              <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                {Math.round(r.memory_peak_mib)} MiB
-              </TableCell>
-              <TableCell
-                align="right"
-                sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: color.textSecondary }}
-              >
-                {fmtBytes(r.net_egress_bytes)} / {fmtBytes(r.net_ingress_bytes)}
-              </TableCell>
-              <TableCell sx={{ whiteSpace: 'nowrap' }}>
-                <DacPill status={r.dac_status} error={r.dac_error} />
-                <Typography
-                  sx={{ ...text.caption, fontFamily: mono, marginTop: '3px' }}
-                  title={`record ${r.record_id}\nnode ${r.node}\ncpuUnits ${fmtUnits(r.cpu_units)}\nramUnits ${fmtUnits(r.ram_units)}`}
+          {records.map((r) => {
+            const billed = recordBilling(r);
+            return (
+              <TableRow key={r.record_id}>
+                <TableCell
+                  sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}
+                  title={`${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} (UTC, as the CLI prints it)`}
                 >
-                  TCA {r.tca_id} · node {shortNode(r.node)}
-                </Typography>
-              </TableCell>
-            </TableRow>
-          ))}
+                  {fmtClock(r.period_start)}–{fmtClock(r.period_end)}
+                  {r.final && (
+                    <Typography
+                      sx={{ ...text.caption, color: color.text }}
+                      title="The record written when the sandbox ended."
+                    >
+                      final{r.exit_reason ? ` · ${r.exit_reason}` : ''}
+                    </Typography>
+                  )}
+                </TableCell>
+                {showSandbox && (
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <Box
+                      component={NavLink}
+                      to={`/sandboxes/list/${r.sandbox_id}`}
+                      sx={{ fontFamily: mono, fontSize: 12.5, color: color.primary, textDecoration: 'none' }}
+                    >
+                      {shortId(r.sandbox_id)}
+                    </Box>
+                  </TableCell>
+                )}
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>{billed.basis}</TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                  {billed.reserved}
+                </TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                  {fmtQty(billed.cpu)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
+                  {fmtQty(r.cpu_s)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                  {fmtQty(billed.ram)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
+                  {fmtQty(r.ram_gib_s)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  {Math.round(r.memory_peak_mib)} MiB
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: color.textSecondary }}
+                >
+                  {fmtBytes(r.net_egress_bytes)} / {fmtBytes(r.net_ingress_bytes)}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                  <DacPill status={r.dac_status} error={r.dac_error} />
+                  <Typography
+                    sx={{ ...text.caption, fontFamily: mono, marginTop: '3px' }}
+                    title={`record ${r.record_id}\nnode ${r.node}\ncpuUnits ${fmtUnits(r.cpu_units)} (billed × 1e11)\nramUnits ${fmtUnits(r.ram_units)} (billed × 1e11)`}
+                  >
+                    TCA {r.tca_id} · node {shortNode(r.node)}
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            );
+          })}
           {records.length === 0 && (
             <TableRow>
-              <TableCell colSpan={showSandbox ? 7 : 6} sx={{ textAlign: 'center', padding: '28px' }}>
+              <TableCell colSpan={showSandbox ? 11 : 10} sx={{ textAlign: 'center', padding: '28px' }}>
                 <Typography sx={text.secondary}>
                   {empty ?? 'No usage records yet. Nodes write one per minute.'}
                 </Typography>

@@ -4,6 +4,7 @@ import { keyframes } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 
 import type { EgressDecision, SandboxStatus } from '~/compute/types';
+import { EXIT_TOKEN_EXPIRY } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 
 /** Sandbox-specific colours, on top of the console tokens. */
@@ -54,6 +55,20 @@ export const StatusDot = styled('span', { shouldForwardProp: (p) => p !== 'statu
   }),
 );
 
+/** Why a sandbox ended with `token_expiry`, and what to do about it. */
+const TOKEN_EXPIRY_TITLE =
+  'Ended 60 s before the access token it was created with expired. For longer runs, create a new token (Access tokens), or sign in again with cere login.';
+
+/** An exit reason as the node wrote it; `token_expiry` reads "Token expired", with why in its tooltip. */
+export const ExitReason = ({ reason }: { reason: string }) =>
+  reason === EXIT_TOKEN_EXPIRY ? (
+    <Box component="span" title={TOKEN_EXPIRY_TITLE}>
+      Token expired
+    </Box>
+  ) : (
+    <>{reason}</>
+  );
+
 /** Dot + word, for tables and headers. */
 export const SandboxStatusLabel = ({ status, reason }: { status: SandboxStatus; reason?: string | null }) => (
   <Stack direction="row" alignItems="center" gap="8px" component="span">
@@ -69,7 +84,7 @@ export const SandboxStatusLabel = ({ status, reason }: { status: SandboxStatus; 
     </Typography>
     {reason && (
       <Typography component="span" sx={text.caption}>
-        {reason}
+        <ExitReason reason={reason} />
       </Typography>
     )}
   </Stack>

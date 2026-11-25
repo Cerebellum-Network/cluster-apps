@@ -17,9 +17,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHeader, Pill, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useNow, useSandboxes } from '~/compute/hooks';
-import { fmtCpu, fmtDuration, fmtMib, fmtQty, shortImage, shortNode } from '~/compute/format';
+import { fmtCpu, fmtDuration, fmtMib, shortImage, shortNode } from '~/compute/format';
 import { endedBadly, isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
+import BilledUsage, { billedHeader } from '../components/BilledUsage';
 import { NewSandboxDialog } from '../components/NewSandboxDialog';
 import { BucketChip, Meter, Mono, ReadError, SandboxStatusLabel, sbColor } from '../components/ui';
 
@@ -153,7 +154,7 @@ const SandboxList = () => {
                   <TableCell>Running for</TableCell>
                   <TableCell sx={{ minWidth: 130 }}>CPU</TableCell>
                   <TableCell sx={{ minWidth: 130 }}>Memory</TableCell>
-                  <TableCell align="right">Measured</TableCell>
+                  <TableCell align="right">{billedHeader(rows)}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -225,8 +226,7 @@ const SandboxList = () => {
                         />
                       </TableCell>
                       <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{fmtQty(s.usage.cpu_s)} CPU-s</Typography>
-                        <Typography sx={text.caption}>{fmtQty(s.usage.ram_gib_s)} GiB-s</Typography>
+                        <BilledUsage sandbox={s} />
                       </TableCell>
                     </TableRow>
                   );

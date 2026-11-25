@@ -12,7 +12,7 @@ import { readRunFile } from '~/compute/agentStore';
 import { ComputeError, errorMessage } from '~/compute/client';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { useEgressLog, useNow, useSandboxes } from '~/compute/hooks';
-import { fmtDuration, fmtQty, plural, shortNode } from '~/compute/format';
+import { fmtDuration, plural, shortNode } from '~/compute/format';
 import { foldEvents, transcriptItems } from '~/compute/runView';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
@@ -22,6 +22,7 @@ import SandboxEgress from '../../Sandboxes/components/egress/SandboxEgress';
 import { denials } from '~/compute/egressRules';
 import { AGENTS_PATH, agentPath } from '../components/definition';
 import { Mono, ReadError, SandboxStatusLabel } from '../../Sandboxes/components/ui';
+import { billedText } from '../../Sandboxes/components/BilledUsage';
 import { RunOutcomePill } from '../components/RunOutcome';
 import { Label, RunItems } from '../components/RunItems';
 
@@ -284,8 +285,7 @@ const RunDetail = () => {
           </Box>
           <SandboxStatusLabel status={sb.status} reason={!isLive(sb.status) ? sb.exit_reason : undefined} />
           <Typography sx={text.secondary}>
-            node <Mono title={sb.node}>{shortNode(sb.node)}</Mono> · {fmtQty(sb.usage.cpu_s)} CPU-s ·{' '}
-            {fmtQty(sb.usage.ram_gib_s)} GiB-s
+            node <Mono title={sb.node}>{shortNode(sb.node)}</Mono> · {billedText(sb)}
           </Typography>
         </Stack>
       )}

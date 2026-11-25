@@ -70,7 +70,23 @@ export interface Usage {
   net_egress_bytes: number;
   net_ingress_bytes: number;
   disk_peak_mib: number;
+  /**
+   * What the sandbox is billed on: `reserved` (its `resources` × `wall_s`, or the measured amount where that is
+   * more), `measured`, or `''` until the node has reported usage. The billing fields are absent from gateways that
+   * predate them.
+   */
+  billing_basis?: BillingBasis | '';
+  /** `resources.cpu` × `wall_s`. */
+  reserved_cpu_s?: number;
+  /** `resources.memory_mib` / 1024 × `wall_s`. */
+  reserved_ram_gib_s?: number;
+  /** What is billed; includes the open period while the sandbox runs. */
+  billed_cpu_s?: number;
+  billed_ram_gib_s?: number;
 }
+
+/** The node's `SANDBOX_RUNTIME_BILLING_BASIS`, as each usage and record says it. */
+export type BillingBasis = 'reserved' | 'measured';
 
 export interface Sandbox {
   id: string;
@@ -95,7 +111,8 @@ export interface Sandbox {
   /**
    * `terminated by API[: reason]`, `timeout (Ns)`, `idle_timeout (Ns)`,
    * `oom_killed`, `exited with code N`, `failed: <stage> <detail>`,
-   * `lost: runtime restarted`, `lost: host restarted`.
+   * `lost: runtime restarted`, `lost: host restarted`, `token_expiry`
+   * (60 s before the token it was created with expired).
    */
   exit_reason: string | null;
   exit_code: number | null;
@@ -208,8 +225,8 @@ export type DacStatus = 'pending' | 'pushed' | 'failed';
 /**
  * One usage record a node wrote for a sandbox: one per wall-clock minute plus a
  * final one at exit. `cpu_units`/`ram_units` are what the signed DAC record
- * carries (× 1e11), as decimal strings because they exceed JavaScript's safe
- * integer range.
+ * carries (the billed amounts × 1e11), as decimal strings because they exceed
+ * JavaScript's safe integer range. `cpu_s`/`ram_gib_s` are as measured.
  */
 export interface UsageRecord {
   record_id: string;
@@ -233,7 +250,23 @@ export interface UsageRecord {
   /** Why the DAC agent refused the record, when it did. */
   dac_error?: string | null;
   dac_updated_at: string | null;
+  /** The basis this record billed on. The billing fields are absent from gateways that predate them. */
+  billing_basis?: BillingBasis;
+  /** Seconds the sandbox ran in this period. */
+  wall_s?: number;
+  /** The sandbox's reservation: vCPU and MiB. */
+  reserved_cpu?: number;
+  reserved_memory_mib?: number;
+  /** The reservation × `wall_s`. */
+  reserved_cpu_s?: number;
+  reserved_ram_gib_s?: number;
+  /** What the record bills: `cpu_units`/`ram_units` / 1e11. */
+  billed_cpu_s?: number;
+  billed_ram_gib_s?: number;
 }
+
+/** The exit reason of a sandbox the node ended 60 s before the token it was created with expired. */
+export const EXIT_TOKEN_EXPIRY = 'token_expiry';
 
 export const EMPTY_USAGE: Usage = {
   wall_s: 0,

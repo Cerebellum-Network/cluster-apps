@@ -5,7 +5,8 @@ import { NavLink, useParams, useSearchParams } from 'react-router-dom';
 import { Pill, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
-import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, fmtQty, plural, sumRecords } from '~/compute/format';
+import { recordSumsLine } from '~/compute/billing';
+import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, plural, sumRecords } from '~/compute/format';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
@@ -17,7 +18,7 @@ import RecordsTable from '../components/detail/RecordsTable';
 import TerminateDialog from '../components/detail/TerminateDialog';
 import SandboxEgress from '../components/egress/SandboxEgress';
 import UsageMeter from '../components/detail/UsageMeter';
-import { CredentialChip, Field, Mono, ReadError, SandboxStatusLabel } from '../components/ui';
+import { CredentialChip, ExitReason, Field, Mono, ReadError, SandboxStatusLabel } from '../components/ui';
 
 type Tab = 'logs' | 'exec' | 'files' | 'egress' | 'usage';
 const TABS: Tab[] = ['logs', 'exec', 'files', 'egress', 'usage'];
@@ -75,7 +76,11 @@ const Details = ({ sb }: { sb: Sandbox }) => {
           <span title={fmtDateTime(sb.ended_at)}>{fmtAgo(sb.ended_at, now)}</span>
         </Field>
       )}
-      {sb.exit_reason && <Field label="Exit reason">{sb.exit_reason}</Field>}
+      {sb.exit_reason && (
+        <Field label="Exit reason">
+          <ExitReason reason={sb.exit_reason} />
+        </Field>
+      )}
       {sb.exit_code != null && <Field label="Exit code">{sb.exit_code}</Field>}
       {sb.env_keys.length > 0 && (
         <Field label="Environment">
@@ -331,8 +336,8 @@ const SandboxDetail = () => {
           {tab === 'usage' && (
             <Box>
               <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-                {plural(recs.length, 'record')}: {fmtQty(totals.cpu_s)} CPU-seconds and {fmtQty(totals.ram_gib_s)}{' '}
-                GiB-seconds{live ? ' so far' : hasFinal ? ' in all, the final one included' : ''}.{' '}
+                {plural(recs.length, 'record')}: {recordSumsLine(totals)}
+                {live ? ' so far' : hasFinal ? ' in all, the final one included' : ''}.{' '}
                 {!live && !hasFinal && 'The final record is on its way: the node writes it as the sandbox ends. '}
                 The node signs one per minute and a final one when the sandbox ends, and pushes each to its DAC agent.
               </Typography>
