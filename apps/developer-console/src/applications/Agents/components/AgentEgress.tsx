@@ -7,7 +7,8 @@ import type { AgentDefinition } from '~/compute/agentDefinition';
 import { LABEL, modelRule } from '~/compute/agentRun';
 import { saveAgent } from '~/compute/agentStore';
 import { errorMessage } from '~/compute/client';
-import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { credentialsFor, RESOLUTION_NOTE } from '~/compute/credentials';
+import { credentialCoverage, rulesBlocked } from '~/compute/egressCoverage';
 import { allowRule, denials, formFromRule, rulesFromForms, sameRules, type RuleForm } from '~/compute/egressRules';
 import { fmtAgo, plural } from '~/compute/format';
 import { useEgressLog, useNow, useSecrets } from '~/compute/hooks';
@@ -51,7 +52,9 @@ const AgentEgress = ({
   const parsed = rulesFromForms(forms);
   const dirty = !!draft && !sameRules(parsed.allow, saved);
   const model = modelRule(def);
-  const credBlocks = parsed.allow.some((r) => coverageBlocks(credentialCoverage(r.credential, r.host, secrets.data)));
+  // A run's credential names resolve in the agent's secrets, then the bucket's.
+  const creds = useMemo(() => credentialsFor(secrets.data, { agent: def.name }), [secrets.data, def.name]);
+  const credBlocks = rulesBlocked(parsed.allow, creds);
   const [attempted, setAttempted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +172,7 @@ const AgentEgress = ({
       <Box>
         <Stack direction="row" alignItems="baseline" justifyContent="space-between" gap="12px" marginBottom="8px">
           <Typography sx={text.label}>Allowed on every run</Typography>
-          <Button size="small" variant="text" color="secondary" onClick={dialogs.manage}>
+          <Button size="small" variant="text" color="secondary" onClick={() => dialogs.manage({ agent: def.name })}>
             Credentials in this bucket
           </Button>
         </Stack>
@@ -179,7 +182,7 @@ const AgentEgress = ({
             setDraft(rs);
             setNotice(null);
           }}
-          secrets={secrets.data}
+          secrets={creds}
           showErrors={attempted}
           empty="No hosts besides the model: the agent reaches nothing else."
         />
@@ -206,7 +209,7 @@ const AgentEgress = ({
           {model.credential && (
             <Box marginTop="6px">
               <CoverageNote
-                coverage={credentialCoverage(model.credential, model.host, secrets.data)}
+                coverage={credentialCoverage(model.credential, model.host, creds)}
                 host={model.host}
               />
             </Box>
@@ -255,8 +258,8 @@ const AgentEgress = ({
         )}
         <Typography sx={{ ...text.caption, marginTop: '10px' }}>
           Saved in the definition, so runs from then on start with them. A run already going keeps its own rules; change
-          those on the run’s page. Credentials are kept for the bucket, bound to their hosts, and the agent never sees
-          them.
+          those on the run’s page. Credentials are kept for this agent or for the bucket, bound to their hosts, and the
+          agent never sees them. {RESOLUTION_NOTE}
         </Typography>
       </Box>
     </Stack>

@@ -76,6 +76,12 @@ export interface UsageRecordsQuery {
   cursor?: string;
 }
 
+/** Which secret a secrets call means: the bucket's (no `agent`), or that agent's. */
+export interface SecretScope {
+  agent?: string;
+  signal?: AbortSignal;
+}
+
 export interface TerminateOptions {
   /** Absolute paths kept after termination (each ≤ 16 MiB). */
   retain?: string[];
@@ -103,9 +109,17 @@ export interface ComputeClient {
   /** The main process's output from the start; resolves when the gateway sends `end` or closes the stream. */
   logs(id: string, onEvent: (e: LogEvent) => void, signal?: AbortSignal): Promise<void>;
   usage(id: string, signal?: AbortSignal): Promise<Usage>;
+  /** The bucket's secrets and its agents' (each of those with `agent`), never their values. */
   listSecrets(signal?: AbortSignal): Promise<SecretSummary[]>;
-  putSecret(name: string, input: SecretInput, signal?: AbortSignal): Promise<void>;
-  deleteSecret(name: string, signal?: AbortSignal): Promise<void>;
+  /** `PUT /v1/secrets/{name}`, or with `agent` (`?agent=`) a secret only that agent's runs use. */
+  putSecret(name: string, input: SecretInput, opts?: SecretScope): Promise<void>;
+  deleteSecret(name: string, opts?: SecretScope): Promise<void>;
+  /**
+   * `PUT /v1/sandboxes/{id}/secrets/{name}`: a new value for one of a running sandbox's own secrets (header and
+   * hosts stay as created), used from its next request. 404 `secret_not_found` for a name it was not created with,
+   * 409 `not_running` once it has ended.
+   */
+  setSandboxSecret(id: string, name: string, value: string, signal?: AbortSignal): Promise<void>;
   egressLog(q?: EgressLogQuery, signal?: AbortSignal): Promise<Page<EgressEntry>>;
   usageRecords(q?: UsageRecordsQuery, signal?: AbortSignal): Promise<Page<UsageRecord>>;
 }
@@ -143,7 +157,8 @@ async function failure(res: Response): Promise<ComputeError> {
  * egress.allow, command) become empty values, and usage gets every field, so
  * pages never meet a null where the contract has a list.
  */
-export function normSandbox(s: Sandbox): Sandbox {
+export function normSandbox(sandbox: Sandbox): Sandbox {
+  const { secrets, ...s } = sandbox;
   return {
     ...s,
     command: s.command ?? [],
@@ -151,6 +166,7 @@ export function normSandbox(s: Sandbox): Sandbox {
     labels: s.labels ?? {},
     retained: s.retained ?? [],
     egress: { allow: s.egress?.allow ?? [] },
+    ...(secrets ? { secrets: secrets.map((x) => ({ ...x, hosts: x.hosts ?? [] })) } : {}),
     resources: { ...s.resources },
     usage: { ...EMPTY_USAGE, ...(s.usage ?? {}) },
   };
@@ -292,9 +308,17 @@ export function createComputeClient(
     usage: (id, signal) => json<Usage>('GET', `${sb(id)}/usage`, { signal }),
 
     listSecrets: async (signal) => page<SecretSummary>(await json('GET', '/v1/secrets', { signal })).items,
-    putSecret: (name, input, signal) =>
-      json<void>('PUT', `/v1/secrets/${encodeURIComponent(name)}`, { json: input, signal }),
-    deleteSecret: (name, signal) => json<void>('DELETE', `/v1/secrets/${encodeURIComponent(name)}`, { signal }),
+    putSecret: (name, input, opts) =>
+      json<void>('PUT', `/v1/secrets/${encodeURIComponent(name)}${queryString({ agent: opts?.agent })}`, {
+        json: input,
+        signal: opts?.signal,
+      }),
+    deleteSecret: (name, opts) =>
+      json<void>('DELETE', `/v1/secrets/${encodeURIComponent(name)}${queryString({ agent: opts?.agent })}`, {
+        signal: opts?.signal,
+      }),
+    setSandboxSecret: (id, name, value, signal) =>
+      json<void>('PUT', `${sb(id)}/secrets/${encodeURIComponent(name)}`, { json: { value }, signal }),
 
     egressLog: async (q, signal) =>
       page<EgressEntry>(await json('GET', `/v1/egress/log${queryString({ ...q })}`, { signal })),

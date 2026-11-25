@@ -2,12 +2,12 @@ import type { ReactNode } from 'react';
 import { Box, Button, IconButton, Stack, TextField, Typography } from '@cluster-apps/ui';
 import CloseIcon from '@mui/icons-material/Close';
 
-import { credentialCoverage } from '~/compute/egressCoverage';
+import { ruleCoverage } from '~/compute/egressCoverage';
 import { ANY_METHOD, emptyRule, RULE_METHODS, ruleFromForm, ruleProblem, type RuleForm } from '~/compute/egressRules';
-import type { HttpMethod, SecretSummary } from '~/compute/types';
+import type { HttpMethod } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Chip } from '../../pages/SandboxList';
-import { CoverageNote, CredentialSelect } from '../credentials/CredentialPicker';
+import { CoverageNote, CredentialSelect, PlaceholderHint, type Pickable } from '../credentials/CredentialPicker';
 
 const METHOD_CHOICES: { m: HttpMethod; label: string }[] = [
   ...RULE_METHODS.map((m) => ({ m, label: m })),
@@ -25,7 +25,8 @@ export const RuleCard = ({
   onRemove,
 }: {
   rule: RuleForm;
-  secrets: SecretSummary[] | undefined;
+  /** What its credential can be: the scopes the sandbox's name resolves in (credentials.ts). */
+  secrets: Pickable[] | undefined;
   /** Show the rule's problem even before its host is typed (after a save attempt). */
   showError?: boolean;
   disabled?: boolean;
@@ -34,9 +35,13 @@ export const RuleCard = ({
   onRemove: () => void;
 }) => {
   const api = ruleFromForm(rule);
-  const problem = ruleProblem(api);
+  const problem =
+    ruleProblem(api) ??
+    (rule.placeholders && !rule.placeholders.length
+      ? 'Pick the credentials the sandbox may name, or name one credential.'
+      : null);
   const error = problem && (showError || rule.host.trim()) ? problem : null;
-  const coverage = credentialCoverage(rule.credential, api.host, secrets);
+  const coverages = ruleCoverage(api, secrets);
   const toggle = (m: HttpMethod) => {
     if (m === ANY_METHOD) {
       onChange({ methods: rule.methods.includes(ANY_METHOD) ? ['GET'] : [ANY_METHOD] });
@@ -75,6 +80,8 @@ export const RuleCard = ({
             host={api.host}
             ariaLabel="Credential"
             disabled={disabled}
+            placeholders={rule.placeholders}
+            onPlaceholders={(placeholders) => onChange({ placeholders })}
           />
         </Box>
         <IconButton
@@ -96,11 +103,17 @@ export const RuleCard = ({
         {note && <Box sx={{ ...text.caption, marginLeft: '6px' }}>{note}</Box>}
       </Stack>
       {error && <Typography sx={{ ...text.caption, color: color.danger, marginTop: '6px' }}>{error}</Typography>}
-      {!error && rule.credential && (
+      {rule.placeholders && (
         <Box marginTop="6px">
-          <CoverageNote coverage={coverage} host={api.host} />
+          <PlaceholderHint names={rule.placeholders} />
         </Box>
       )}
+      {!error &&
+        coverages.map((c, i) => (
+          <Box marginTop="6px" key={i}>
+            <CoverageNote coverage={c} host={api.host} />
+          </Box>
+        ))}
     </Box>
   );
 };
@@ -122,7 +135,7 @@ const RulesEditor = ({
 }: {
   rules: RuleForm[];
   onChange: (rules: RuleForm[]) => void;
-  secrets: SecretSummary[] | undefined;
+  secrets: Pickable[] | undefined;
   showErrors?: boolean;
   disabled?: boolean;
   /** A note per rule (index-aligned), e.g. how many logged requests it let through. */

@@ -174,6 +174,28 @@ export const CredentialChip = ({ name }: { name: string | null | undefined }) =>
     </Typography>
   );
 
+/** What a rule sends: its credential, or the credentials the sandbox picks per request (placeholders). */
+export const RuleCredentials = ({ rule }: { rule: { credential?: string; placeholders?: string[] } }) =>
+  rule.placeholders?.length ? (
+    <Stack
+      direction="row"
+      gap="4px"
+      alignItems="center"
+      flexWrap="wrap"
+      justifyContent="flex-end"
+      title="The sandbox names one per request (cere:<name> in a header); the egress proxy swaps in its value."
+    >
+      <Typography component="span" sx={{ ...text.caption, marginRight: '2px' }}>
+        per request
+      </Typography>
+      {rule.placeholders.map((n) => (
+        <CredentialChip key={n} name={n} />
+      ))}
+    </Stack>
+  ) : (
+    <CredentialChip name={rule.credential ?? null} />
+  );
+
 export const KeyGlyph = ({ size = 12 }: { size?: number }) => (
   <svg
     width={size}

@@ -58,7 +58,8 @@ export function allowedNow(rules: EgressRule[], e: Pick<EgressEntry, 'host' | 'm
 const sameRule = (a: EgressRule, b: EgressRule) =>
   norm(a.host) === norm(b.host) &&
   (a.path_prefix ?? '') === (b.path_prefix ?? '') &&
-  (a.credential ?? '') === (b.credential ?? '');
+  (a.credential ?? '') === (b.credential ?? '') &&
+  (a.placeholders ?? []).join(',') === (b.placeholders ?? []).join(',');
 
 /**
  * The rules with `add` allowed too. A rule for the same host, path prefix and
@@ -72,6 +73,7 @@ export function allowRule(rules: EgressRule[], add: EgressRule): EgressRule[] {
     methods: [...new Set(add.methods.map((m) => m.toUpperCase() as HttpMethod))],
     ...(add.path_prefix ? { path_prefix: add.path_prefix } : {}),
     ...(add.credential ? { credential: add.credential } : {}),
+    ...(add.placeholders?.length ? { placeholders: [...add.placeholders] } : {}),
   };
   const i = rules.findIndex((r) => sameRule(r, rule));
   if (i < 0) return [rule, ...rules];
@@ -129,8 +131,13 @@ export function denials(
 /** A rule host: an exact DNS name or `*.suffix` (lower case, at least two labels). */
 export const RULE_HOST_RE = /^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
 
+/** The most credentials one rule may let the sandbox name per request. */
+export const MAX_PLACEHOLDERS = 16;
+
 /** Why a rule would be refused by the gateway, in words; null when it is fine. */
-export function ruleProblem(r: Pick<EgressRule, 'host' | 'methods' | 'path_prefix'>): string | null {
+export function ruleProblem(
+  r: Pick<EgressRule, 'host' | 'methods' | 'path_prefix'> & Partial<Pick<EgressRule, 'credential' | 'placeholders'>>,
+): string | null {
   const host = norm(r.host);
   if (!host) return 'Name a host.';
   if (/^[a-z]+:\/\//.test(host) || host.includes('/'))
@@ -140,6 +147,10 @@ export function ruleProblem(r: Pick<EgressRule, 'host' | 'methods' | 'path_prefi
   if (r.methods.some((m) => NEVER_FORWARDED.includes(m.toUpperCase())))
     return 'TRACE, TRACK and CONNECT are never forwarded.';
   if (r.path_prefix && !r.path_prefix.startsWith('/')) return 'A path prefix starts with “/”.';
+  if (r.placeholders) {
+    if (r.credential) return 'A rule names one credential, or lets the sandbox pick per request: not both.';
+    if (r.placeholders.length > MAX_PLACEHOLDERS) return `At most ${MAX_PLACEHOLDERS} credentials per rule.`;
+  }
   return null;
 }
 
@@ -147,12 +158,17 @@ export function ruleProblem(r: Pick<EgressRule, 'host' | 'methods' | 'path_prefi
 export const RULE_METHODS: HttpMethod[] = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 export const ANY_METHOD = '*' as HttpMethod;
 
-/** One rule as a form edits it: strings, an empty one meaning "not set". */
+/**
+ * One rule as a form edits it: strings, an empty one meaning "not set".
+ * `placeholders` null: the rule names one `credential` or none (header mode);
+ * a list: the sandbox picks one of these per request (placeholder mode).
+ */
 export interface RuleForm {
   host: string;
   methods: HttpMethod[];
   path: string;
   credential: string;
+  placeholders?: string[] | null;
 }
 
 export const emptyRule = (host = '', methods: HttpMethod[] = ['GET']): RuleForm => ({
@@ -160,6 +176,7 @@ export const emptyRule = (host = '', methods: HttpMethod[] = ['GET']): RuleForm 
   methods,
   path: '',
   credential: '',
+  placeholders: null,
 });
 
 export const formFromRule = (r: EgressRule): RuleForm => ({
@@ -167,16 +184,19 @@ export const formFromRule = (r: EgressRule): RuleForm => ({
   methods: [...r.methods],
   path: r.path_prefix ?? '',
   credential: r.credential ?? '',
+  placeholders: r.placeholders?.length ? [...r.placeholders] : null,
 });
 
 /** A form's rule as the API takes it: host lower case, methods in the usual order (or just `*`), no empty fields. */
 export function ruleFromForm(f: RuleForm): EgressRule {
   const path = f.path.trim();
+  const perRequest = !!f.placeholders;
   return {
     host: norm(f.host),
     methods: f.methods.includes(ANY_METHOD) ? [ANY_METHOD] : RULE_METHODS.filter((m) => f.methods.includes(m)),
     ...(path ? { path_prefix: path } : {}),
-    ...(f.credential ? { credential: f.credential } : {}),
+    ...(!perRequest && f.credential ? { credential: f.credential } : {}),
+    ...(perRequest && f.placeholders?.length ? { placeholders: [...f.placeholders] } : {}),
   };
 }
 
@@ -187,7 +207,14 @@ export function rulesFromForms(forms: RuleForm[]): {
   ok: boolean;
 } {
   const allow = forms.map(ruleFromForm);
-  const errors = allow.map((r) => ruleProblem(r) ?? undefined);
+  const errors = allow.map(
+    (r, i) =>
+      ruleProblem(r) ??
+      (forms[i].placeholders && !forms[i].placeholders?.length
+        ? 'Pick the credentials the sandbox may name, or name one credential.'
+        : null) ??
+      undefined,
+  );
   return { allow, errors, ok: errors.every((e) => !e) };
 }
 

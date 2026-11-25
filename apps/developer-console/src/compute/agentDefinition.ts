@@ -115,8 +115,10 @@ export function validateAgentDefinition(doc: unknown): string[] {
     else
       allow.forEach((r, i) => {
         if (!isObj(r) || typeof r.host !== 'string' || !r.host) errs.push(`"egress.allow[${i}].host" is required.`);
-        else if (!isStrArray(r.methods) || !r.methods.every((x) => METHODS.includes(x as HttpMethod)))
-          errs.push(`"egress.allow[${i}].methods" must be upper-case HTTP methods.`);
+        else if (!isStrArray(r.methods) || !r.methods.every((x) => x === '*' || METHODS.includes(x as HttpMethod)))
+          errs.push(`"egress.allow[${i}].methods" must be upper-case HTTP methods, or "*".`);
+        else if (r.placeholders !== undefined && !isStrArray(r.placeholders))
+          errs.push(`"egress.allow[${i}].placeholders" must be a list of secret names.`);
       });
   }
   if (doc.files !== undefined && !(isObj(doc.files) && Object.values(doc.files).every((v) => typeof v === 'string')))

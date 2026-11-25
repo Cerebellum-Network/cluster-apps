@@ -29,15 +29,18 @@ export interface SecretDialogProps {
   header?: string;
   /** Why it is being stored, shown above the form (e.g. "for example.com on sandbox sb-…"). */
   purpose?: string;
+  /** Store it for this agent's runs only (`?agent=`), not for the whole bucket. */
+  agent?: string;
   onClose: (saved?: string) => void;
 }
 
 /**
- * Store a credential for the bucket (`PUT /v1/secrets/{name}`): write-only,
- * sent by the egress proxy as a header, and only to the hosts it is bound to.
- * Storing again replaces both the value and the hosts, so binding it to one
- * more host means entering the value again: a token holder can never point an
- * existing value at a host of their own.
+ * Store a credential for the bucket (`PUT /v1/secrets/{name}`), or for one
+ * agent's runs (`?agent=`): write-only, sent by the egress proxy as a header,
+ * and only to the hosts it is bound to. Storing again replaces both the value
+ * and the hosts, so binding it to one more host means entering the value
+ * again: a token holder can never point an existing value at a host of their
+ * own. The value field is a password field, emptied once it is saved.
  */
 const SecretDialog = ({
   name: initial,
@@ -45,6 +48,7 @@ const SecretDialog = ({
   hosts: initialHosts,
   header: initialHeader,
   purpose,
+  agent,
   onClose,
 }: SecretDialogProps) => {
   const client = useComputeClient();
@@ -72,7 +76,8 @@ const SecretDialog = ({
     setBusy(true);
     setError(null);
     try {
-      await client.putSecret(name, { type: 'header', header: header.trim(), value: sent, hosts });
+      const input = { type: 'header', header: header.trim(), value: sent, hosts } as const;
+      await (agent ? client.putSecret(name, input, { agent }) : client.putSecret(name, input));
       setValue('');
       notifySecretsChanged();
       onClose(name);
@@ -86,7 +91,7 @@ const SecretDialog = ({
   return (
     <Dialog open onClose={() => onClose()} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {replacing ? `Store ${initial} again` : 'New credential'}
+        {replacing ? `Store ${initial} again` : agent ? `New credential for ${agent}` : 'New credential'}
         <IconButton aria-label="Close" onClick={() => onClose()} size="small">
           <CloseIcon fontSize="small" />
         </IconButton>
@@ -97,7 +102,7 @@ const SecretDialog = ({
           {replacing && (
             <Typography sx={text.secondary}>
               The value is write-only, so storing {initial} again means entering it again; the new value and hosts
-              replace the old ones for every sandbox of this bucket.
+              replace the old ones {agent ? `for every run of ${agent}` : 'for every sandbox of this bucket'}.
             </Typography>
           )}
           <TextField
@@ -107,7 +112,11 @@ const SecretDialog = ({
             disabled={replacing}
             size="small"
             error={!!name && !SECRET_NAME_RE.test(name)}
-            helperText="Lowercase letters, digits and dashes. Egress rules name it; any sandbox or agent of this bucket can reuse it."
+            helperText={
+              agent
+                ? `Lowercase letters, digits and dashes. Only ${agent}’s runs use it, ahead of a bucket credential of the same name.`
+                : 'Lowercase letters, digits and dashes. Egress rules name it; any sandbox or agent of this bucket can reuse it.'
+            }
             inputProps={{ style: { fontFamily: mono } }}
           />
           <TextField

@@ -17,13 +17,21 @@ import { useNavigate } from 'react-router-dom';
 import { useCompute, useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { useSecrets } from '~/compute/hooks';
-import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { LABEL } from '~/compute/agentRun';
+import {
+  credentialsFor,
+  ownSecretsFromForms,
+  RESOLUTION_NOTE,
+  type OwnSecretForm,
+} from '~/compute/credentials';
+import { rulesBlocked } from '~/compute/egressCoverage';
 import { fmtDateTime } from '~/compute/format';
 import { rulesFromForms, type RuleForm } from '~/compute/egressRules';
 import { EMPTY_RESOURCE_FIELDS, parseResources, SANDBOX_DEFAULTS, type ResourceFields } from '~/compute/resources';
 import type { CreateSandboxRequest } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { parseKeyValues, splitCommand } from './commandLine';
+import OwnSecretsEditor from './credentials/OwnSecretsEditor';
 import RulesEditor from './egress/RulesEditor';
 import ResourceInputs from './ResourceInputs';
 
@@ -59,6 +67,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const [env, setEnv] = useState('');
   const [labels, setLabels] = useState('');
   const [rules, setRules] = useState<RuleForm[]>([]);
+  const [own, setOwn] = useState<OwnSecretForm[]>([]);
   const [attempted, setAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +76,14 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const cmd = splitCommand(command);
   const envKv = parseKeyValues(env);
   const labelKv = parseKeyValues(labels);
-  const egress = rulesFromForms(rules.filter((r) => r.host.trim() || r.credential));
-  const credentialProblem = egress.allow.some((r) =>
-    coverageBlocks(credentialCoverage(r.credential, r.host, secrets.data)),
-  );
+  const egress = rulesFromForms(rules.filter((r) => r.host.trim() || r.credential || r.placeholders));
+  const ownSecrets = ownSecretsFromForms(own);
+  // A rule's credential resolves in this sandbox's own, then its agent's (a `cere.agent` label), then the bucket's.
+  const creds = credentialsFor(secrets.data, {
+    own: ownSecrets.secrets.filter((x) => x.name),
+    agent: labelKv.values[LABEL.agent],
+  });
+  const credentialProblem = rulesBlocked(egress.allow, creds);
   const formError =
     cmd.error ??
     envKv.error ??
@@ -78,6 +91,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     (image.trim() ? null : 'An image is required.') ??
     (Object.keys(resources.errors).length ? 'Fix CPU and memory first.' : null) ??
     (egress.ok ? null : 'Fix the network rules first.') ??
+    (ownSecrets.ok ? null : 'Fix this sandbox’s credentials first.') ??
     (credentialProblem ? 'A rule’s credential can’t be sent to its host: store it again with that host.' : null);
 
   const request = (): CreateSandboxRequest => ({
@@ -90,6 +104,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     ...(Object.keys(envKv.values).length ? { env: envKv.values } : {}),
     ...(Object.keys(labelKv.values).length ? { labels: labelKv.values } : {}),
     egress: { allow: egress.allow },
+    ...(ownSecrets.secrets.length ? { secrets: ownSecrets.secrets } : {}),
   });
 
   const create = async () => {
@@ -99,6 +114,8 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     setError(null);
     try {
       const sb = await client.createSandbox(request());
+      // The values were only ever in this form: drop them now that the egress proxy holds them.
+      setOwn([]);
       onClose();
       navigate(`/sandboxes/list/${sb.id}`);
     } catch (e) {
@@ -214,9 +231,18 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
               None by default. The egress proxy allows only the hosts and methods listed here and refuses the rest; you
               can change them while the sandbox runs. Pick or add a credential to have the proxy add it to a rule’s
-              requests: it is kept for the bucket, bound to its hosts, and the sandbox never sees its value.
+              requests: it is bound to its hosts, and the sandbox never sees its value.
             </Typography>
-            <RulesEditor rules={rules} onChange={setRules} secrets={secrets.data} showErrors={attempted} empty={null} />
+            <RulesEditor rules={rules} onChange={setRules} secrets={creds} showErrors={attempted} empty={null} />
+          </Box>
+          <Box>
+            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>Credentials for this sandbox only</Typography>
+            <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
+              For a token that belongs to this sandbox alone, one person’s for example. The egress proxy holds it for
+              this sandbox and drops it when the sandbox ends; nobody can read it back. Rules above can name it, and a
+              running sandbox’s value can be replaced from its page. {RESOLUTION_NOTE}
+            </Typography>
+            <OwnSecretsEditor value={own} onChange={setOwn} errors={ownSecrets.errors} showErrors={attempted} />
           </Box>
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>

@@ -4,10 +4,11 @@ import { Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@
 import CloseIcon from '@mui/icons-material/Close';
 
 import { errorMessage } from '~/compute/client';
-import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { credentialsFor } from '~/compute/credentials';
+import { rulesBlocked } from '~/compute/egressCoverage';
 import { emptyRule, ruleFromForm, ruleProblem, type RuleForm } from '~/compute/egressRules';
 import { useSecrets } from '~/compute/hooks';
-import type { EgressRule, HttpMethod } from '~/compute/types';
+import type { EgressRule, HttpMethod, SandboxSecret } from '~/compute/types';
 import { text } from '~/theme/tokens';
 import { Mono } from '../ui';
 import { RuleCard } from './RulesEditor';
@@ -25,6 +26,7 @@ const AllowHostDialog = ({
   title,
   target,
   saveLabel = 'Allow',
+  scope,
   onAllow,
   onClose,
 }: {
@@ -34,15 +36,19 @@ const AllowHostDialog = ({
   /** What the rule is added to, in words: "sandbox sb-… (running)". */
   target: ReactNode;
   saveLabel?: string;
+  /** Where the rule's credential names resolve besides the bucket: the sandbox's own, its agent's. */
+  scope?: { own?: SandboxSecret[]; agent?: string | null };
   onAllow: (rule: EgressRule) => Promise<void>;
   onClose: (allowed?: EgressRule) => void;
 }) => {
   const secrets = useSecrets();
+  const creds = credentialsFor(secrets.data, scope);
   const [rule, setRule] = useState<RuleForm>(() => emptyRule(host, methods.length ? methods : ['GET']));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const api = ruleFromForm(rule);
-  const blocked = !!ruleProblem(api) || coverageBlocks(credentialCoverage(rule.credential, api.host, secrets.data));
+  const blocked =
+    !!ruleProblem(api) || (!!rule.placeholders && !rule.placeholders.length) || rulesBlocked([api], creds);
 
   const save = async () => {
     setBusy(true);
@@ -77,7 +83,7 @@ const AllowHostDialog = ({
           </Typography>
           <RuleCard
             rule={rule}
-            secrets={secrets.data}
+            secrets={creds}
             showError
             onChange={(patch) => setRule((r) => ({ ...r, ...patch }))}
             onRemove={() => onClose()}

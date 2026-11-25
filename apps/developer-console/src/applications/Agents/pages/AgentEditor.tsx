@@ -23,6 +23,7 @@ import { useAgentDefinitions } from '~/compute/agentHooks';
 import { bucketNames, saveAgent } from '~/compute/agentStore';
 import { errorMessage } from '~/compute/client';
 import { coverageBlocks } from '~/compute/egressCoverage';
+import { bucketSecrets, credentialsFor } from '~/compute/credentials';
 import { useSecrets } from '~/compute/hooks';
 import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
 import type { HttpMethod } from '~/compute/types';
@@ -50,7 +51,12 @@ import {
   type FormErrors,
   type RuleForm,
 } from '../components/agentForm';
-import { CoverageNote, CredentialSelect } from '../../Sandboxes/components/credentials/CredentialPicker';
+import {
+  CoverageNote,
+  CredentialSelect,
+  PlaceholderHint,
+  type Pickable,
+} from '../../Sandboxes/components/credentials/CredentialPicker';
 import { agentPath, AGENTS_PATH } from '../components/definition';
 import StorageBucketField, { useStorageBucket } from '../components/StorageBucketField';
 
@@ -75,7 +81,7 @@ const RuleRow = ({
   rule: RuleForm;
   error?: string;
   coverage: ReturnType<typeof formCoverage>['rules'][number];
-  secrets: ReturnType<typeof useSecrets>['data'];
+  secrets: Pickable[] | undefined;
   onChange: (patch: Partial<RuleForm>) => void;
   onRemove: () => void;
 }) => {
@@ -108,6 +114,8 @@ const RuleRow = ({
             secrets={secrets}
             host={rule.host.trim().toLowerCase()}
             ariaLabel="Credential"
+            placeholders={rule.placeholders}
+            onPlaceholders={(placeholders) => onChange({ placeholders })}
           />
         </Box>
         <IconButton aria-label="Remove this rule" size="small" onClick={onRemove} sx={{ alignSelf: 'center' }}>
@@ -121,12 +129,18 @@ const RuleRow = ({
           </Chip>
         ))}
       </Stack>
-      {error && <Typography sx={{ ...text.caption, color: color.danger, marginTop: '6px' }}>{error}</Typography>}
-      {!error && rule.credential && (
+      {rule.placeholders && (
         <Box marginTop="6px">
-          <CoverageNote coverage={coverage} host={rule.host.trim().toLowerCase()} />
+          <PlaceholderHint names={rule.placeholders} />
         </Box>
       )}
+      {error && <Typography sx={{ ...text.caption, color: color.danger, marginTop: '6px' }}>{error}</Typography>}
+      {!error &&
+        coverage.map((c, i) => (
+          <Box marginTop="6px" key={i}>
+            <CoverageNote coverage={c} host={rule.host.trim().toLowerCase()} />
+          </Box>
+        ))}
     </Box>
   );
 };
@@ -210,7 +224,9 @@ const AgentEditor = () => {
 
   const mode = gateway ?? (form.baseUrl.replace(/\/+$/, '') === clusterBase ? 'cluster' : 'other');
   const { def, draft, errors } = definitionFromForm(form);
-  const coverage = formCoverage(form, secrets.data);
+  // The definition's credential names resolve, at run time, in the agent's secrets, then the bucket's.
+  const creds = credentialsFor(secrets.data, { agent: form.name.trim() });
+  const coverage = formCoverage(form, creds);
   const show = (k: keyof FormErrors) => (attempted || dirty.has(k) ? (errors[k] as string | undefined) : undefined);
   const set = (patch: Partial<AgentForm>) => {
     setForm({ ...form, ...patch });
@@ -220,7 +236,7 @@ const AgentEditor = () => {
     set({ rules: form.rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
   const bucket = editing?.bucket ?? choice.bucket;
   const replaces = !editing && !!def && defs.agents.some((a) => a.bucket === bucket && a.key === agentKey(def.name));
-  const blocking = [coverage.model, ...coverage.rules].filter(coverageBlocks).length;
+  const blocking = [coverage.model, ...coverage.rules.flat()].filter(coverageBlocks).length;
   const claudeCode = form.harness === 'claude-code';
 
   const save = async () => {
@@ -427,7 +443,7 @@ const AgentEditor = () => {
                   label="Model key"
                   value={form.modelCredential}
                   onChange={(modelCredential) => set({ modelCredential })}
-                  secrets={secrets.data}
+                  secrets={creds}
                   host={modelHost(form.baseUrl)}
                   noneLabel="No key"
                 />
@@ -446,7 +462,7 @@ const AgentEditor = () => {
                     <Box marginTop="10px">
                       <TokenSecretButton
                         name={form.modelCredential}
-                        held={secrets.data?.find((s) => s.name === form.modelCredential)}
+                        held={bucketSecrets(secrets.data)?.find((s) => s.name === form.modelCredential)}
                         onStored={secrets.reload}
                       />
                     </Box>
@@ -591,7 +607,7 @@ const AgentEditor = () => {
                   rule={r}
                   error={attempted || r.host.trim() ? errors.rules?.[i] : undefined}
                   coverage={coverage.rules[i]}
-                  secrets={secrets.data}
+                  secrets={creds}
                   onChange={(patch) => setRule(i, patch)}
                   onRemove={() => set({ rules: form.rules.filter((_, j) => j !== i) })}
                 />

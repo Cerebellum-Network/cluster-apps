@@ -17,8 +17,9 @@ import { useComputeClient } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, Count, Tabs } from '../../Sandboxes/components/bits';
-import { CredentialChip, Field, Mono, ReadError } from '../../Sandboxes/components/ui';
+import { Field, Mono, ReadError, RuleCredentials } from '../../Sandboxes/components/ui';
 import AddDefinitionDialog from '../components/AddDefinitionDialog';
+import AgentCredentials from '../components/AgentCredentials';
 import AgentEgress from '../components/AgentEgress';
 import { agentPath, AGENTS_PATH, missingSecrets } from '../components/definition';
 import MissingSecrets from '../components/MissingSecrets';
@@ -30,12 +31,14 @@ const Rule = ({
   methods,
   path,
   credential,
+  placeholders,
   note,
 }: {
   host: string;
   methods: string[];
   path?: string;
   credential?: string;
+  placeholders?: string[];
   note?: ReactNode;
 }) => (
   <Stack direction="row" alignItems="center" justifyContent="space-between" gap="10px" sx={{ padding: '6px 0' }}>
@@ -49,7 +52,7 @@ const Rule = ({
       </Box>
       {note && <Typography sx={text.caption}>{note}</Typography>}
     </Box>
-    <CredentialChip name={credential ?? null} />
+    <RuleCredentials rule={{ credential, placeholders }} />
   </Stack>
 );
 
@@ -117,7 +120,14 @@ const Definition = ({ def, onEgress }: { def: AgentDefinition; onEgress?: () => 
         <Label>Network access on every run’s sandbox</Label>
         <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '12px', padding: '6px 14px' }}>
           {(def.egress?.allow ?? []).map((r, i) => (
-            <Rule key={i} host={r.host} methods={r.methods} path={r.path_prefix} credential={r.credential} />
+            <Rule
+              key={i}
+              host={r.host}
+              methods={r.methods}
+              path={r.path_prefix}
+              credential={r.credential}
+              placeholders={r.placeholders}
+            />
           ))}
           <Rule
             host={m.host}
@@ -356,6 +366,7 @@ const AgentDetail = () => {
               Run agent
             </Button>
           </Section>
+          <AgentCredentials agent={name} runs={runs.data?.items ?? []} />
         </Stack>
       </Box>
 

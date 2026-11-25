@@ -9,7 +9,8 @@ import { recordSumsLine } from '~/compute/billing';
 import { exitReasonInfo, memoryEnding } from '~/compute/exitReasons';
 import { fmtAgo, fmtDateTime, sumRecords } from '~/compute/format';
 import { cpuLine, memoryLine } from '~/compute/resources';
-import { isLive, type Sandbox } from '~/compute/types';
+import { RESOLUTION_NOTE } from '~/compute/credentials';
+import { isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
 import { quoteArg } from '../components/commandLine';
@@ -20,7 +21,9 @@ import RecordsTable from '../components/detail/RecordsTable';
 import TerminateDialog from '../components/detail/TerminateDialog';
 import SandboxEgress from '../components/egress/SandboxEgress';
 import UsageMeter from '../components/detail/UsageMeter';
-import { CredentialChip, ExitReason, Field, Mono, ReadError, SandboxStatusLabel } from '../components/ui';
+import CredentialList from '../components/credentials/CredentialList';
+import SandboxSecretDialog from '../components/credentials/SandboxSecretDialog';
+import { ExitReason, Field, Mono, ReadError, RuleCredentials, SandboxStatusLabel } from '../components/ui';
 
 type Tab = 'logs' | 'exec' | 'files' | 'egress' | 'usage';
 const TABS: Tab[] = ['logs', 'exec', 'files', 'egress', 'usage'];
@@ -129,7 +132,7 @@ const EgressRules = ({ sb, onOpen }: { sb: Sandbox; onOpen: () => void }) => (
                 {r.methods.join(', ')}
               </Box>
             </Box>
-            <CredentialChip name={r.credential ?? null} />
+            <RuleCredentials rule={r} />
           </Stack>
         ))}
       </Stack>
@@ -138,6 +141,63 @@ const EgressRules = ({ sb, onOpen }: { sb: Sandbox; onOpen: () => void }) => (
     )}
   </Section>
 );
+
+/**
+ * The sandbox's own credentials (given at create): name, header and hosts,
+ * never a value. While it runs, each value can be replaced (an access token
+ * its owner refreshed); they are dropped when the sandbox ends.
+ */
+const OwnCredentials = ({ sb }: { sb: Sandbox }) => {
+  const [replacing, setReplacing] = useState<SandboxSecret | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const live = isLive(sb.status);
+  if (!sb.secrets?.length) return null;
+  return (
+    <Section title="Credentials">
+      <Typography sx={{ ...text.secondary, marginBottom: '6px' }}>
+        {live
+          ? 'This sandbox’s own: the egress proxy adds them to the requests its rules allow, and drops them when the sandbox ends.'
+          : 'This sandbox’s own. They were dropped when it ended.'}
+      </Typography>
+      <CredentialList
+        items={sb.secrets}
+        actions={
+          live
+            ? (name) => (
+                <Button
+                  size="small"
+                  variant="text"
+                  color="secondary"
+                  onClick={() => {
+                    setNotice(null);
+                    setReplacing(sb.secrets?.find((x) => x.name === name) ?? null);
+                  }}
+                >
+                  Replace
+                </Button>
+              )
+            : undefined
+        }
+      />
+      {notice && (
+        <Alert severity="success" sx={{ marginTop: '8px' }} onClose={() => setNotice(null)}>
+          {notice}
+        </Alert>
+      )}
+      <Typography sx={{ ...text.caption, marginTop: '8px' }}>{RESOLUTION_NOTE}</Typography>
+      {replacing && (
+        <SandboxSecretDialog
+          sandboxId={sb.id}
+          secret={replacing}
+          onClose={(done) => {
+            if (done) setNotice(`Replaced ${replacing.name}. The sandbox’s next request uses the new value.`);
+            setReplacing(null);
+          }}
+        />
+      )}
+    </Section>
+  );
+};
 
 /** Shown on a sandbox the node stopped for memory: which kind, and what to raise. */
 const MemoryEnding = ({ sb }: { sb: Sandbox }) => {
@@ -363,6 +423,7 @@ const SandboxDetail = () => {
         <Stack gap="16px">
           <Details sb={sb} />
           {tab !== 'egress' && <EgressRules sb={sb} onOpen={() => setTab('egress')} />}
+          <OwnCredentials sb={sb} />
         </Stack>
       </Box>
 

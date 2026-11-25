@@ -202,8 +202,9 @@ describe('formCoverage', () => {
       name: 'ddc-inference',
       hosts: ['inference-gateway.compute.dev.ddcdragon.com'],
     });
-    expect(cov.rules.map((c) => c.state)).toEqual(['covered', 'not-covered', 'none', 'missing']);
-    expect(cov.rules[1]).toEqual({
+    // One coverage per name a rule uses: none for a rule without a credential.
+    expect(cov.rules.map((cs) => cs.map((c) => c.state))).toEqual([['covered'], ['not-covered'], [], ['missing']]);
+    expect(cov.rules[1][0]).toEqual({
       state: 'not-covered',
       name: 'github-readonly',
       hosts: ['api.github.com'],

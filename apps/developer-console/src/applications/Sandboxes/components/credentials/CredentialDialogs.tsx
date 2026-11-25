@@ -19,18 +19,23 @@ import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { notifySecretsChanged, useNow, useSandboxes, useSecrets } from '~/compute/hooks';
 import { fmtAgo } from '~/compute/format';
-import { isLive } from '~/compute/types';
+import { RESOLUTION_NOTE, sandboxUses, secretAgents } from '~/compute/credentials';
+import { isLive, type SecretSummary } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
+import { Chip } from '../../pages/SandboxList';
 import { KeyGlyph, ReadError, sbColor } from '../ui';
 import SecretDialog, { type SecretDialogProps } from './SecretDialog';
 
 type AddOptions = Omit<SecretDialogProps, 'onClose'>;
 
+/** The filter value for the bucket's own credentials. */
+const BUCKET = '(bucket)';
+
 interface CredentialDialogs {
   /** Open the credential form; resolves with the stored name, or null when it was closed without saving. */
   store: (opts?: AddOptions) => Promise<string | null>;
-  /** Open the list of the bucket's credentials (replace, delete, add). */
-  manage: () => void;
+  /** Open the list of the bucket's credentials and its agents' (replace, delete, add); `agent` filters it to one. */
+  manage: (opts?: { agent?: string }) => void;
 }
 
 const Ctx = createContext<CredentialDialogs | null>(null);
@@ -43,7 +48,7 @@ const Ctx = createContext<CredentialDialogs | null>(null);
  */
 export function CredentialDialogProvider({ children }: { children: ReactNode }) {
   const [form, setForm] = useState<AddOptions | null>(null);
-  const [managing, setManaging] = useState(false);
+  const [managing, setManaging] = useState<{ agent?: string } | null>(null);
   const resolve = useRef<((name: string | null) => void) | null>(null);
 
   const store = useCallback((opts: AddOptions = {}) => {
@@ -53,13 +58,15 @@ export function CredentialDialogProvider({ children }: { children: ReactNode }) 
       resolve.current = r;
     });
   }, []);
-  const manage = useCallback(() => setManaging(true), []);
+  const manage = useCallback((opts?: { agent?: string }) => setManaging({ agent: opts?.agent }), []);
   const value = useMemo(() => ({ store, manage }), [store, manage]);
 
   return (
     <Ctx.Provider value={value}>
       {children}
-      {managing && <ManageCredentialsDialog onClose={() => setManaging(false)} onStore={store} />}
+      {managing && (
+        <ManageCredentialsDialog agent={managing.agent} onClose={() => setManaging(null)} onStore={store} />
+      )}
       {form && (
         <SecretDialog
           {...form}
@@ -80,12 +87,15 @@ export function useCredentialDialogs(): CredentialDialogs {
   return c;
 }
 
-const DeleteConfirm = ({
+export const DeleteConfirm = ({
   name,
+  agent,
   inUse,
   onClose,
 }: {
   name: string;
+  /** Delete that agent's secret of this name (`?agent=`), not the bucket's. */
+  agent?: string;
   inUse: number;
   onClose: (deleted?: boolean) => void;
 }) => {
@@ -96,7 +106,7 @@ const DeleteConfirm = ({
     setBusy(true);
     setError(null);
     try {
-      await client.deleteSecret(name);
+      await (agent ? client.deleteSecret(name, { agent }) : client.deleteSecret(name));
       notifySecretsChanged();
       onClose(true);
     } catch (e) {
@@ -106,13 +116,18 @@ const DeleteConfirm = ({
   };
   return (
     <Dialog open onClose={() => onClose()} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete {name}?</DialogTitle>
+      <DialogTitle>
+        Delete {name}
+        {agent ? ` of ${agent}` : ''}?
+      </DialogTitle>
       <DialogContent dividers>
         <Typography sx={text.body}>
           {inUse
-            ? `${inUse} running sandbox${inUse === 1 ? ' names' : 'es name'} it. Their requests that need it will fail with 502 “credential missing”.`
-            : 'No running sandbox names it.'}{' '}
-          Agent definitions that name it can’t start a run until it is stored again.
+            ? `${inUse} running sandbox${inUse === 1 ? ' uses' : 'es use'} it. Their requests that need it will fail with 502 “credential missing”.`
+            : 'No running sandbox uses it.'}{' '}
+          {agent
+            ? `${agent}’s runs fall back to the bucket’s ${name}, if the bucket has one.`
+            : 'Agent definitions that name it can’t start a run until it is stored again.'}
         </Typography>
         {error && (
           <Alert severity="error" sx={{ marginTop: '12px' }}>
@@ -132,20 +147,33 @@ const DeleteConfirm = ({
   );
 };
 
-/** The bucket's credentials (`GET /v1/secrets`): what each is sent as, where to, and which running sandboxes name it. */
+/**
+ * The bucket's credentials and its agents' (`GET /v1/secrets`): whose each is,
+ * what it is sent as, where to, and which running sandboxes use it. Filtered
+ * to the bucket's or to one agent's.
+ */
 const ManageCredentialsDialog = ({
+  agent: initialAgent,
   onClose,
   onStore,
 }: {
+  agent?: string;
   onClose: () => void;
   onStore: (opts?: AddOptions) => Promise<string | null>;
 }) => {
   const { data, error, loading } = useSecrets();
   const sandboxes = useSandboxes({ status: 'running' });
   const now = useNow(10_000);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<SecretSummary | null>(null);
+  /** '' all, BUCKET the bucket's, else an agent's. */
+  const [filter, setFilter] = useState<string>(initialAgent ?? '');
   const live = (sandboxes.data?.items ?? []).filter((s) => isLive(s.status));
-  const usedBy = (name: string) => live.filter((s) => s.egress.allow.some((r) => r.credential === name)).length;
+  const all = data ?? [];
+  const usedBy = (s: SecretSummary) => live.filter((sb) => sandboxUses(sb, s, all)).length;
+  const agents = secretAgents(data);
+  if (filter && filter !== BUCKET && !agents.includes(filter)) agents.push(filter);
+  const shown = all.filter((s) => !filter || (filter === BUCKET ? !s.agent : s.agent === filter));
+  const storeOpts = filter && filter !== BUCKET ? { agent: filter } : {};
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth scroll="paper">
@@ -157,9 +185,25 @@ const ManageCredentialsDialog = ({
       </DialogTitle>
       <DialogContent dividers sx={{ padding: 0 }}>
         <Typography sx={{ ...text.secondary, padding: '14px 24px 6px' }}>
-          Kept by the egress proxy for the bucket, so any sandbox or agent of it can name one in an egress rule. The
-          proxy adds the value to that rule’s requests, and only to the hosts it is bound to; nobody can read it back.
+          Kept by the egress proxy: the bucket’s for any sandbox or agent of it, an agent’s for that agent’s runs only.
+          The proxy adds the value to the requests a rule allows, and only to the hosts it is bound to; nobody can read
+          it back. {RESOLUTION_NOTE}
         </Typography>
+        {(agents.length > 0 || filter) && (
+          <Stack direction="row" gap="6px" flexWrap="wrap" sx={{ padding: '8px 24px 10px' }}>
+            <Chip active={!filter} onClick={() => setFilter('')}>
+              All
+            </Chip>
+            <Chip active={filter === BUCKET} onClick={() => setFilter(BUCKET)}>
+              The bucket’s
+            </Chip>
+            {agents.map((a) => (
+              <Chip key={a} active={filter === a} onClick={() => setFilter(a)}>
+                Agent {a}
+              </Chip>
+            ))}
+          </Stack>
+        )}
         {error && !data ? (
           <Box padding="12px 24px 18px">
             <ReadError what="your credentials" error={error} />
@@ -169,6 +213,7 @@ const ManageCredentialsDialog = ({
             <TableHead>
               <TableRow>
                 <TableCell sx={{ paddingLeft: '24px' }}>Name</TableCell>
+                <TableCell>Belongs to</TableCell>
                 <TableCell>Added as</TableCell>
                 <TableCell>Sent only to</TableCell>
                 <TableCell>Used by</TableCell>
@@ -177,10 +222,10 @@ const ManageCredentialsDialog = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {(data ?? []).map((s) => {
-                const n = usedBy(s.name);
+              {shown.map((s) => {
+                const n = usedBy(s);
                 return (
-                  <TableRow key={s.name}>
+                  <TableRow key={`${s.agent ?? ''}/${s.name}`}>
                     <TableCell sx={{ paddingLeft: '24px' }}>
                       <Stack direction="row" alignItems="center" gap="8px" sx={{ color: sbColor.credential }}>
                         <KeyGlyph />
@@ -191,6 +236,20 @@ const ManageCredentialsDialog = ({
                           {s.name}
                         </Box>
                       </Stack>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: 13 }}>
+                      {s.agent ? (
+                        <>
+                          Agent{' '}
+                          <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5 }}>
+                            {s.agent}
+                          </Box>
+                        </>
+                      ) : (
+                        <Box component="span" sx={{ color: color.textSecondary }}>
+                          The bucket
+                        </Box>
+                      )}
                     </TableCell>
                     <TableCell sx={{ fontSize: 13 }}>
                       Header{' '}
@@ -221,11 +280,13 @@ const ManageCredentialsDialog = ({
                           size="small"
                           variant="outlined"
                           color="secondary"
-                          onClick={() => void onStore({ name: s.name, hosts: s.hosts, header: s.header })}
+                          onClick={() =>
+                            void onStore({ name: s.name, hosts: s.hosts, header: s.header, agent: s.agent })
+                          }
                         >
                           Store again
                         </Button>
-                        <Button size="small" variant="text" color="error" onClick={() => setDeleting(s.name)}>
+                        <Button size="small" variant="text" color="error" onClick={() => setDeleting(s)}>
                           Delete
                         </Button>
                       </Stack>
@@ -233,10 +294,12 @@ const ManageCredentialsDialog = ({
                   </TableRow>
                 );
               })}
-              {!loading && (data ?? []).length === 0 && (
+              {!loading && shown.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} sx={{ textAlign: 'center', padding: '28px' }}>
-                    <Typography sx={text.secondary}>No credentials yet.</Typography>
+                  <TableCell colSpan={7} sx={{ textAlign: 'center', padding: '28px' }}>
+                    <Typography sx={text.secondary}>
+                      {filter && filter !== BUCKET ? `No credentials of ${filter} yet.` : 'No credentials yet.'}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               )}
@@ -246,7 +309,8 @@ const ManageCredentialsDialog = ({
         <Typography sx={{ ...text.caption, padding: '12px 24px 16px' }}>
           From a terminal:{' '}
           <Box component="span" sx={{ fontFamily: mono }}>
-            cere secret set &lt;name&gt; --header Authorization --host &lt;host&gt; --bearer-stdin
+            cere secret set &lt;name&gt;{storeOpts.agent ? ` --agent ${storeOpts.agent}` : ''} --header Authorization
+            --host &lt;host&gt; --bearer-stdin
           </Box>{' '}
           reads the value from a pipe, so it never appears in your shell history.
         </Typography>
@@ -255,11 +319,18 @@ const ManageCredentialsDialog = ({
         <Button variant="outlined" color="secondary" onClick={onClose}>
           Close
         </Button>
-        <Button variant="contained" onClick={() => void onStore()}>
-          New credential
+        <Button variant="contained" onClick={() => void onStore(storeOpts)}>
+          {storeOpts.agent ? `New credential for ${storeOpts.agent}` : 'New credential'}
         </Button>
       </DialogActions>
-      {deleting && <DeleteConfirm name={deleting} inUse={usedBy(deleting)} onClose={() => setDeleting(null)} />}
+      {deleting && (
+        <DeleteConfirm
+          name={deleting.name}
+          agent={deleting.agent}
+          inUse={usedBy(deleting)}
+          onClose={() => setDeleting(null)}
+        />
+      )}
     </Dialog>
   );
 };

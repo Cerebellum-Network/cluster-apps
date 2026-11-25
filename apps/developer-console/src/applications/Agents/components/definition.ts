@@ -1,14 +1,19 @@
 import type { AgentDefinition } from '~/compute/agentDefinition';
+import { credentialsFor, ruleCredentials } from '~/compute/credentials';
 import type { SecretSummary } from '~/compute/types';
 
-/** The bucket secrets a definition's run needs: the model's credential and every egress rule's. */
+/** The secrets a definition's run needs: the model's credential and every egress rule's (named or per request). */
 export function neededSecrets(def: AgentDefinition): string[] {
-  const names = [def.model.credential, ...(def.egress?.allow ?? []).map((r) => r.credential)];
+  const names = [def.model.credential, ...(def.egress?.allow ?? []).flatMap(ruleCredentials)];
   return [...new Set(names.filter((n): n is string => !!n))];
 }
 
-/** Those the bucket does not hold: a create naming them is refused with 400 `unknown_credential`. */
-export function missingSecrets(def: AgentDefinition, have: SecretSummary[] | undefined): string[] {
+/**
+ * Those that resolve nowhere for a run of this agent, neither the agent's secrets nor the bucket's (`all` is
+ * `GET /v1/secrets`): a create naming them is refused with 400 `unknown_credential`.
+ */
+export function missingSecrets(def: AgentDefinition, all: SecretSummary[] | undefined): string[] {
+  const have = credentialsFor(all, { agent: def.name });
   if (!have) return [];
   return neededSecrets(def).filter((n) => !have.some((s) => s.name === n));
 }

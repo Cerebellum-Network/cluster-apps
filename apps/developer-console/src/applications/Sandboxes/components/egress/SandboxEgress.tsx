@@ -3,7 +3,8 @@ import { Alert, Box, Button, LoadingButton, Stack, Typography } from '@cluster-a
 
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { ComputeError, errorMessage } from '~/compute/client';
-import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { agentOf, credentialsOfSandbox } from '~/compute/credentials';
+import { rulesBlocked } from '~/compute/egressCoverage';
 import {
   allowRule,
   denials,
@@ -21,7 +22,7 @@ import { isLive, type EgressEntry, type EgressRule, type Sandbox } from '~/compu
 import { color, mono, text } from '~/theme/tokens';
 import { useCredentialDialogs } from '../credentials/CredentialDialogs';
 import EgressTable from '../detail/EgressTable';
-import { CredentialChip, Mono, ReadError, sbColor } from '../ui';
+import { Mono, ReadError, RuleCredentials, sbColor } from '../ui';
 import AllowHostDialog from './AllowHostDialog';
 import RulesEditor from './RulesEditor';
 
@@ -112,7 +113,9 @@ const SandboxEgress = ({
   const forms = draft ?? server.map(formFromRule);
   const parsed = rulesFromForms(forms);
   const dirty = !!draft && !sameRules(parsed.allow, server);
-  const credBlocks = parsed.allow.some((r) => coverageBlocks(credentialCoverage(r.credential, r.host, secrets.data)));
+  // A name resolves in the sandbox's own credentials, then its agent's, then the bucket's.
+  const creds = useMemo(() => credentialsOfSandbox(secrets.data, sb), [secrets.data, sb]);
+  const credBlocks = rulesBlocked(parsed.allow, creds);
   const [saving, setSaving] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -156,7 +159,7 @@ const SandboxEgress = ({
       >
         <Stack direction="row" alignItems="baseline" justifyContent="space-between" gap="12px" marginBottom="8px">
           <Typography sx={text.label}>Allowed for this sandbox</Typography>
-          <Button size="small" variant="text" color="secondary" onClick={dialogs.manage}>
+          <Button size="small" variant="text" color="secondary" onClick={() => dialogs.manage()}>
             Credentials in this bucket
           </Button>
         </Stack>
@@ -168,7 +171,7 @@ const SandboxEgress = ({
                 setDraft(rs);
                 setNotice(null);
               }}
-              secrets={secrets.data}
+              secrets={creds}
               showErrors={attempted}
               notes={server.length === forms.length && !dirty ? server.map((r) => hitsNote(r, entries)) : undefined}
               empty="No hosts allowed: this sandbox has no network access. Allow one below, or from a refused request."
@@ -233,7 +236,7 @@ const SandboxEgress = ({
                         {r.methods.join(', ')} · {hitsNote(r, entries)}
                       </Box>
                     </Box>
-                    <CredentialChip name={r.credential ?? null} />
+                    <RuleCredentials rule={r} />
                   </Stack>
                 ))}
               </Stack>
@@ -266,6 +269,7 @@ const SandboxEgress = ({
         <AllowHostDialog
           host={allowing.host}
           methods={allowing.methods}
+          scope={{ own: sb.secrets, agent: agentOf(sb) }}
           title={
             <span>
               Allow <Mono>{allowing.host}</Mono> for this sandbox

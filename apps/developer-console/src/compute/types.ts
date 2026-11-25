@@ -34,14 +34,21 @@ export interface Resources {
   gpu?: null;
 }
 
-/** One egress rule. `credential` names a secret the egress proxy injects; the sandbox never sees it. */
+/**
+ * One egress rule. A rule uses credentials in one of two ways, never both: `credential` names a secret the egress
+ * proxy adds to every request the rule allows (header mode); `placeholders` names the secrets the sandbox may pick
+ * per request by writing `cere:<name>` in a header, which the proxy replaces with the secret's header and value
+ * (placeholder mode, at most 16). Either way the sandbox never sees a value. A name resolves narrowest first: the
+ * sandbox's own secrets, then its agent's, then the bucket's.
+ */
 export interface EgressRule {
   /** Exact host, or `*.suffix`. */
   host: string;
-  /** Upper case. */
+  /** Upper case, or `*` for any. */
   methods: HttpMethod[];
   path_prefix?: string;
   credential?: string;
+  placeholders?: string[];
 }
 
 export interface EgressPolicy {
@@ -66,6 +73,29 @@ export interface CreateSandboxRequest {
   egress?: EgressPolicy;
   /** ≤ 32 pairs. The `cere.` prefix is reserved for the client-side agent layer. */
   labels?: Record<string, string>;
+  /**
+   * The sandbox's own credentials (at most 32): held by the egress proxy for this sandbox only, deleted when it
+   * ends, never returned. Rules name them like the bucket's, and they win over a bucket or agent secret of the
+   * same name.
+   */
+  secrets?: SandboxSecretInput[];
+}
+
+/** One of a sandbox's own credentials at create: `PUT /v1/secrets`' rules, `hosts` required. */
+export interface SandboxSecretInput {
+  name: string;
+  type: 'header';
+  header: string;
+  value: string;
+  hosts: string[];
+}
+
+/** A sandbox's own credential as the sandbox lists it: never its value. */
+export interface SandboxSecret {
+  name: string;
+  type: 'header';
+  header: string;
+  hosts: string[];
 }
 
 /** What the node measures for a sandbox (live while it runs, final after). */
@@ -122,6 +152,8 @@ export interface Sandbox {
   env_keys: string[];
   egress: EgressPolicy;
   labels: Record<string, string>;
+  /** Its own credentials, without values; absent when it was created without any (and from older gateways). */
+  secrets?: SandboxSecret[];
   created_at: string;
   started_at: string | null;
   ended_at: string | null;
@@ -184,6 +216,8 @@ export interface SecretSummary {
   header: string;
   /** The only hosts the egress proxy sends the value to; empty: nowhere. Absent from older gateways. */
   hosts?: string[];
+  /** Set on an agent's secret, which only that agent's runs (sandboxes labelled `cere.agent=<agent>`) use. */
+  agent?: string;
   created_at: string;
   updated_at: string;
 }

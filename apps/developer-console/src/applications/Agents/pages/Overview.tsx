@@ -11,6 +11,7 @@ import { bucketList, bucketNames } from '~/compute/agentStore';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useNow, useSandboxes, useSecrets } from '~/compute/hooks';
+import { bucketSecrets } from '~/compute/credentials';
 import { useCanSign } from '~/compute/walletSigning';
 import { fmtAgo } from '~/compute/format';
 import { isLive } from '~/compute/types';
@@ -77,7 +78,7 @@ const RightNow = observer(() => {
   const today = rows.filter((r) => now - r.startedAt < DAY_MS).length;
   /** No number at all when the read failed: "…" would say it is still coming. */
   const runsValue = (n: number | string) => (runs.data ? n : runs.error ? '—' : '…');
-  const modelKey = secrets.data?.find((s) => s.name === MODEL_KEY_SECRET);
+  const modelKey = bucketSecrets(secrets.data)?.find((s) => s.name === MODEL_KEY_SECRET);
   const examplesOnConsoleGateway = onConsoleGateway(EXAMPLE_MODEL_URL, inferenceConfig.gatewayUrl);
   const buckets = list.state === 'ok' || list.state === 'stale' ? list.names.length : 0;
 

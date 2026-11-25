@@ -16,10 +16,10 @@ import {
   type Harness,
 } from '~/compute/agentDefinition';
 import { DEFAULT_AGENT_TIMEOUT_S } from '~/compute/agentRun';
-import { credentialCoverage, type Coverage } from '~/compute/egressCoverage';
+import { credentialCoverage, ruleCoverage, type Coverage } from '~/compute/egressCoverage';
 import { parseResources } from '~/compute/resources';
-import { RULE_METHODS, type RuleForm } from '~/compute/egressRules';
-import type { EgressRule, SecretSummary } from '~/compute/types';
+import { formFromRule, MAX_PLACEHOLDERS, ruleFromForm, type RuleForm } from '~/compute/egressRules';
+import type { EgressRule } from '~/compute/types';
 import { quoteArg, splitCommand } from '../../Sandboxes/components/commandLine';
 
 /** The agent runner image the claude-code harness runs in (the release's examples use it). */
@@ -158,12 +158,7 @@ export function formFromDefinition(def: AgentDefinition): AgentForm {
     cpuLimit: def.resources?.cpu_limit ? String(def.resources.cpu_limit) : '',
     memoryLimitMib: def.resources?.memory_limit_mib ? String(def.resources.memory_limit_mib) : '',
     timeoutS: String(def.timeout_s ?? DEFAULTS.timeoutS),
-    rules: (def.egress?.allow ?? []).map((r) => ({
-      host: r.host,
-      methods: [...r.methods],
-      path: r.path_prefix ?? '',
-      credential: r.credential ?? '',
-    })),
+    rules: (def.egress?.allow ?? []).map(formFromRule),
     files: { ...(def.files ?? {}) },
     extra,
   };
@@ -263,14 +258,15 @@ export function definitionFromForm(form: AgentForm): {
     const err =
       ruleHostError(host) ??
       (r.methods.length === 0 ? 'Pick at least one method.' : null) ??
-      (path && !path.startsWith('/') ? 'A path prefix starts with /.' : null);
+      (path && !path.startsWith('/') ? 'A path prefix starts with /.' : null) ??
+      (r.placeholders && !r.placeholders.length
+        ? 'Pick the credentials the agent may name, or name one credential.'
+        : null) ??
+      (r.placeholders && r.placeholders.length > MAX_PLACEHOLDERS
+        ? `At most ${MAX_PLACEHOLDERS} credentials per rule.`
+        : null);
     if (err) ruleErrors[i] = err;
-    allow.push({
-      host,
-      methods: RULE_METHODS.filter((m) => r.methods.includes(m)),
-      ...(path ? { path_prefix: path } : {}),
-      ...(r.credential ? { credential: r.credential } : {}),
-    });
+    allow.push({ ...ruleFromForm(r), host });
   });
   if (ruleErrors.length) errors.rules = ruleErrors;
 
@@ -318,13 +314,16 @@ export function modelHost(baseUrl: string): string {
   }
 }
 
-/** Each credential the form names against the bucket's secrets: the model's, then each rule's by index. */
+/**
+ * Each credential the form names against the secrets a run resolves them in (the agent's, then the bucket's): the
+ * model's, then each rule's by index, one per name it uses (its credential, or each name it lets the agent pick).
+ */
 export function formCoverage(
   form: Pick<AgentForm, 'baseUrl' | 'modelCredential' | 'rules'>,
-  secrets: SecretSummary[] | undefined,
-): { model: Coverage; rules: Coverage[] } {
+  secrets: Parameters<typeof credentialCoverage>[2],
+): { model: Coverage; rules: Coverage[][] } {
   return {
     model: credentialCoverage(form.modelCredential, modelHost(form.baseUrl), secrets),
-    rules: form.rules.map((r) => credentialCoverage(r.credential, r.host, secrets)),
+    rules: form.rules.map((r) => ruleCoverage(ruleFromForm(r), secrets)),
   };
 }

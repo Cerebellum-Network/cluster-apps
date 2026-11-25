@@ -12,6 +12,7 @@ import { modelRule } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { saveRunFiles } from '~/compute/agentStore';
 import { useComputeClient } from '~/compute/ComputeProvider';
+import { credentialsFor } from '~/compute/credentials';
 import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
 import { fmtCpu, fmtMib } from '~/compute/format';
 import { useSecrets } from '~/compute/hooks';
@@ -51,8 +52,9 @@ const ExampleRunDialog = ({ onClose }: { onClose: () => void }) => {
   const rules = [...(def.egress?.allow ?? []), m];
   const missing = missingSecrets(def, secrets.data);
   // Held, but not bound to the host the rule needs it for (e.g. a model key stored for another gateway).
+  const creds = credentialsFor(secrets.data, { agent: def.name });
   const unbound = rules
-    .map((r) => ({ host: r.host, c: credentialCoverage(r.credential, r.host, secrets.data) }))
+    .map((r) => ({ host: r.host, c: credentialCoverage(r.credential, r.host, creds) }))
     .filter((x) => x.c.state !== 'missing' && coverageBlocks(x.c));
   const saveTo = canSign && storage.bucket ? storage.bucket : null;
 
