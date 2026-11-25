@@ -5,10 +5,10 @@
  * there first, then here.
  */
 export const QUICKSTART_SHELL = `# 1. Install the CLI and the Python SDK (release assets need access to Cerebellum-Network/ddc-node)
-gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p "cere_$(uname -s | tr A-Z a-z)_$(uname -m).tar.gz" -O - | tar -xz cere
+gh release download cli/v0.1.1 -R Cerebellum-Network/ddc-node -p "cere_$(uname -s | tr A-Z a-z)_$(uname -m).tar.gz" -O - | tar -xz cere
 mkdir -p ~/.local/bin && install cere ~/.local/bin/cere && export PATH="$HOME/.local/bin:$PATH"
-gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p 'cere_sdk-0.1.0-py3-none-any.whl'
-python3 -m venv .venv && . .venv/bin/activate && pip install ./cere_sdk-0.1.0-py3-none-any.whl
+gh release download cli/v0.1.1 -R Cerebellum-Network/ddc-node -p 'cere_sdk-0.1.1-py3-none-any.whl'
+python3 -m venv .venv && . .venv/bin/activate && pip install ./cere_sdk-0.1.1-py3-none-any.whl
 
 # 2. Sign in: Developer Console → Sandboxes → CLI access → Create token, then paste it
 cere login

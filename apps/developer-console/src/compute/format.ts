@@ -24,10 +24,24 @@ export function fmtAgo(iso: string | null | undefined, now = Date.now()): string
   return `${fmtDuration(s)} ago`;
 }
 
+/**
+ * Times on these pages are the browser's local time, and say which zone that
+ * is ("GMT+3", "UTC"): the API and the CLI print UTC (RFC 3339), so a time
+ * without its zone reads as hours off from the CLI's.
+ */
+export function localZone(at: string | number | Date = Date.now()): string {
+  const part = new Intl.DateTimeFormat('en-GB', { timeZoneName: 'short' })
+    .formatToParts(new Date(at))
+    .find((p) => p.type === 'timeZoneName');
+  return part?.value ?? 'local time';
+}
+
+/** "04:02:08", local time; pair it with `localZone()` in a column header. */
 export function fmtClock(iso: string | number): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }
 
+/** "25 Nov, 04:02:08 GMT+3": local time with its zone. */
 export function fmtDateTime(iso: string | number): string {
   return new Date(iso).toLocaleString('en-GB', {
     day: 'numeric',
@@ -35,7 +49,13 @@ export function fmtDateTime(iso: string | number): string {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    timeZoneName: 'short',
   });
+}
+
+/** The RFC 3339 UTC form the API and the CLI print, for a tooltip. */
+export function fmtUtc(iso: string | number): string {
+  return new Date(iso).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
 export function fmtBytes(bytes: number): string {

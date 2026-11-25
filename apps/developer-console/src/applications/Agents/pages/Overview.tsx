@@ -10,6 +10,7 @@ import { bucketList, bucketNames } from '~/compute/agentStore';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
+import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
 import { shortImage } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock } from '../../Sandboxes/components/bits';
@@ -19,13 +20,14 @@ import { addSecretPath } from '../components/MissingSecrets';
 import { agentPath, missingSecrets } from '../components/definition';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 
-const FROM_A_TERMINAL = `gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p '*.json'
+const FROM_A_TERMINAL = `gh release download cli/v0.1.1 -R Cerebellum-Network/ddc-node -p '*.json'
 cere agent run -f research.json "Write a short brief on how gVisor isolates containers, citing https://gvisor.dev/docs/"
 cere agent runs`;
 
 const Overview = () => {
   const account = useAccount();
   const { bucketId } = useCompute();
+  const canSign = useCanSign();
   const list = bucketList(account.buckets, account.bucketsError);
   const defs = useAgentDefinitions(bucketNames(list));
   const secrets = useSecrets();
@@ -76,8 +78,18 @@ const Overview = () => {
         </Stack>
       ) : defs.error ? (
         <ReadError what="agent definitions" error={defs.error} />
+      ) : !canSign ? (
+        <Section>
+          <Typography sx={text.body}>
+            Agent definitions live in your storage buckets on the DDC S3 gateway (
+            <Box component="span" sx={{ fontFamily: mono }}>
+              cere/agents/&lt;name&gt;.json
+            </Box>
+            ), which only your wallet can read. {NO_WALLET_HERE} The runs below are read with the access token.
+          </Typography>
+        </Section>
       ) : list.state === 'unreadable' ? (
-        <ReadError what="your buckets, where agent definitions live" error={list.error} />
+        <ReadError what="your storage buckets, where agent definitions live" error={list.error} />
       ) : defs.agents.length === 0 ? (
         <Section>
           <Typography sx={text.body}>
@@ -214,13 +226,21 @@ const Overview = () => {
           </Typography>
           <CodeBlock code={FROM_A_TERMINAL} />
           <Typography sx={{ ...text.caption, marginTop: '10px' }}>
-            Their model is <Mono>glm-5.3</Mono> on the testnet inference gateway, with the secret{' '}
-            <NavLink to={addSecretPath('ddc-inference')}>ddc-inference</NavLink>: an inference API key from{' '}
+            Their model is <Mono>glm-5.3</Mono> on the <strong>testnet</strong> inference gateway, with the secret{' '}
+            <NavLink to={addSecretPath('ddc-inference')}>ddc-inference</NavLink>: an inference API key of the testnet.
+            Sign in to{' '}
             <a href="https://developer.compute.test.ddcdragon.com" target="_blank" rel="noreferrer">
               developer.compute.test.ddcdragon.com
             </a>{' '}
-            (Inference › API keys). <Mono>cere agent push -f research.json</Mono> keeps a definition in your bucket
-            (with the S3 credential from CLI access), and then <Mono>cere agent run research</Mono> finds it by name.
+            (a testnet SSCP wallet, separate from this one and created the same way), have a testnet bucket with
+            balance, then create a key under Inference › API keys. <Mono>sre.json</Mono> also needs{' '}
+            <NavLink to={addSecretPath('github-readonly')}>github-readonly</NavLink>: a GitHub fine-grained personal
+            access token with read-only access (
+            <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
+              github.com/settings/personal-access-tokens/new
+            </a>
+            ). <Mono>cere agent push -f research.json</Mono> keeps a definition in a storage bucket (with the S3
+            credential from CLI access), and then <Mono>cere agent run research</Mono> finds it by name.
           </Typography>
         </Section>
       </Box>

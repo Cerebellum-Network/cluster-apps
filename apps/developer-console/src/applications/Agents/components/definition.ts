@@ -50,7 +50,23 @@ export type SecretPurpose =
       /** The console of the gateway's network, when it is a DDC inference gateway of another network. */
       console: string | null;
     }
-  | { kind: 'rule'; name: string; hosts: string[] };
+  | {
+      kind: 'rule';
+      name: string;
+      hosts: string[];
+      /** Where the value comes from, for a service the console knows (GitHub). */
+      source: { what: string; url: string } | null;
+    };
+
+/** Where a credential for these hosts comes from, for the services the examples use (as the CLI says it). */
+export function credentialSource(hosts: string[]): { what: string; url: string } | null {
+  if (hosts.some((h) => h === 'api.github.com' || h === 'github.com'))
+    return {
+      what: 'a GitHub fine-grained personal access token with read-only access, to public repositories or to the ones the agent reads (not your gh login’s token, which carries all its scopes)',
+      url: 'https://github.com/settings/personal-access-tokens/new',
+    };
+  return null;
+}
 
 export function secretPurpose(def: AgentDefinition, name: string, inferenceGatewayUrl: string): SecretPurpose {
   if (name === def.model.credential) {
@@ -66,6 +82,6 @@ export function secretPurpose(def: AgentDefinition, name: string, inferenceGatew
       console: sameConsole ? null : consoleForGateway(host),
     };
   }
-  const hosts = (def.egress?.allow ?? []).filter((r) => r.credential === name).map((r) => r.host);
-  return { kind: 'rule', name, hosts: [...new Set(hosts)] };
+  const hosts = [...new Set((def.egress?.allow ?? []).filter((r) => r.credential === name).map((r) => r.host))];
+  return { kind: 'rule', name, hosts, source: credentialSource(hosts) };
 }

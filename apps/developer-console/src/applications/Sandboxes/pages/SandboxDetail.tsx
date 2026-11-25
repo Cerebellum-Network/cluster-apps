@@ -310,7 +310,7 @@ const SandboxDetail = () => {
           {tab === 'egress' && (
             <Box>
               <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-                {entries.length} requests, {refused} refused. The egress proxy adds credentials on the way out; the
+                {entries.length} requests, {refused} denied. The egress proxy adds credentials on the way out; the
                 sandbox never holds them.
               </Typography>
               {egress.error && !egress.data ? (

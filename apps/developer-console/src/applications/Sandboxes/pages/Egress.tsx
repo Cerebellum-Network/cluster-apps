@@ -19,7 +19,7 @@ const WINDOWS = [
 const DECISIONS: { id: EgressDecision | 'all'; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'allowed', label: 'Allowed' },
-  { id: 'denied', label: 'Refused' },
+  { id: 'denied', label: 'Denied' },
   { id: 'error', label: 'Upstream errors' },
 ];
 

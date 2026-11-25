@@ -24,7 +24,7 @@ const Subhead = ({ children }: { children: string }) => (
 const PARTS: { name: string; body: string }[] = [
   {
     name: 'Compute gateway',
-    body: 'The public API. It checks your token for the bucket and its balance on every call.',
+    body: 'The public API. On every call it checks that your token grants compute on the bucket and that the bucket’s owner has balance (read from the blockchain index, cached briefly).',
   },
   {
     name: 'Resource manager',
@@ -62,13 +62,14 @@ const RightNow = () => {
       <Stack direction="row" gap="28px" marginBottom="16px">
         <Box>
           <Typography sx={text.amount}>{data ? live.length : '…'}</Typography>
-          <Typography sx={text.secondary}>running</Typography>
+          <Typography sx={text.secondary}>running now</Typography>
         </Box>
         <Box>
           <Typography sx={{ ...text.value, lineHeight: '34px' }}>{fmtCpu(cpu)}</Typography>
           <Typography sx={text.secondary}>{fmtMib(mem)} memory reserved</Typography>
         </Box>
       </Stack>
+      <Typography sx={{ ...text.label, marginBottom: '6px' }}>Newest sandboxes, running or ended</Typography>
       <Stack sx={{ borderTop: `1px solid ${color.grid}` }}>
         {list.slice(0, 6).map((s) => (
           <Stack
@@ -159,6 +160,12 @@ const Overview = () => {
             <Box>
               <Subhead>From a terminal</Subhead>
               <CodeBlock code={QUICKSTART_SHELL} />
+              <Typography sx={{ ...text.caption, marginTop: '8px' }}>
+                Step 1 needs membership of the Cerebellum-Network GitHub organization: the CLI and the SDK are released
+                privately for now, so <Mono>gh</Mono> must be signed in with a member’s account (an anonymous download
+                answers 404), and there is no public download yet. Step 2 needs this console’s sign-in: creating an SSCP
+                wallet asks for your email address and a one-time code sent to it, then a passkey on this device.
+              </Typography>
             </Box>
             <Box>
               <Subhead>From Python</Subhead>
@@ -197,8 +204,9 @@ const Overview = () => {
           ))}
         </Box>
         <Typography sx={{ ...text.secondary, marginTop: '14px' }}>
-          Usage is billed as measured: CPU-seconds and GiB-seconds of memory, in signed records each node sends to its
-          DAC agent once a minute and when the sandbox ends.
+          Usage is measured, not estimated: CPU-seconds and GiB-seconds of memory, in signed records each node sends to
+          its DAC agent once a minute and when the sandbox ends. Sandboxes have no price list yet, so nothing here is
+          converted to money.
         </Typography>
       </Section>
 

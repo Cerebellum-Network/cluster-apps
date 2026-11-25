@@ -2,7 +2,7 @@ import { Box, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typograph
 import { NavLink } from 'react-router-dom';
 
 import type { EgressEntry } from '~/compute/types';
-import { fmtBytes, fmtDateTime, shortId } from '~/compute/format';
+import { fmtBytes, fmtDateTime, fmtUtc, shortId } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { CredentialChip, DecisionPill, sbColor } from '../ui';
 
@@ -50,7 +50,7 @@ const EgressTable = ({
                     fontSize: 13,
                   }}
                 >
-                  {fmtDateTime(e.ts)}
+                  <span title={`${fmtUtc(e.ts)} (UTC, as the CLI prints it)`}>{fmtDateTime(e.ts)}</span>
                 </TableCell>
                 <TableCell>
                   <DecisionPill decision={e.decision} />

@@ -46,7 +46,16 @@ describe('secretPurpose', () => {
       kind: 'rule',
       name: 'github-readonly',
       hosts: ['api.github.com'],
+      source: {
+        what: expect.stringContaining('GitHub fine-grained personal access token with read-only access'),
+        url: 'https://github.com/settings/personal-access-tokens/new',
+      },
     });
+  });
+
+  it('knows no source for a host it has no rule for', () => {
+    const npm = { ...def, egress: { allow: [{ host: 'registry.npmjs.org', methods: ['GET'], credential: 'npm' }] } };
+    expect(secretPurpose(npm, 'npm', DEVNET_IG)).toMatchObject({ kind: 'rule', source: null });
   });
 
   it('lists only the secrets the bucket lacks', () => {

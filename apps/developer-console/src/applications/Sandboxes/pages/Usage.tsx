@@ -16,7 +16,7 @@ import { NavLink } from 'react-router-dom';
 import { PageHeader, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useUsageRecords } from '~/compute/hooks';
-import { fmtBytes, fmtClock, fmtDateTime, fmtQty, fmtUnits, shortId, sumRecords, sumUnits } from '~/compute/format';
+import { fmtBytes, fmtClock, fmtQty, fmtUnits, localZone, shortId, sumRecords, sumUnits } from '~/compute/format';
 import type { UsageRecord } from '~/compute/types';
 import { chartPalette, color, mono, text } from '~/theme/tokens';
 import RecordsTable from '../components/detail/RecordsTable';
@@ -79,9 +79,11 @@ const SeriesChart = ({
   unit: string;
   barMs: number;
 }) => {
-  const tick = (t: number) => (barMs >= 3600_000 ? fmtDateTime(t).replace(/:\d\d$/, '') : fmtClock(t).slice(0, 5));
+  const dayHour = (t: number) =>
+    new Date(t).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const tick = (t: number) => (barMs >= 3600_000 ? dayHour(t) : fmtClock(t).slice(0, 5));
   return (
-    <Section title={title}>
+    <Section title={`${title} (${localZone()})`}>
       <Box
         role="img"
         aria-label={`${title}, one bar per ${barMs / 60_000} minutes`}
@@ -101,7 +103,7 @@ const SeriesChart = ({
             <YAxis width={52} tickFormatter={(v: number) => fmtQty(v)} tick={TICK} tickLine={false} axisLine={false} />
             <Tooltip
               cursor={{ fill: color.grid }}
-              labelFormatter={(t: number) => `${fmtDateTime(t)} – ${fmtClock(t + barMs)}`}
+              labelFormatter={(t: number) => `${dayHour(t)}–${fmtClock(t + barMs).slice(0, 5)} ${localZone(t)}`}
               formatter={(v) => [`${fmtQty(Number(v))} ${unit}`, title]}
               contentStyle={{ fontSize: 12, borderRadius: 8, borderColor: color.border }}
             />

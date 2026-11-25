@@ -2,7 +2,7 @@ import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } fro
 import { NavLink } from 'react-router-dom';
 
 import type { DacStatus, UsageRecord } from '~/compute/types';
-import { fmtBytes, fmtClock, fmtQty, fmtUnits, shortId, shortNode } from '~/compute/format';
+import { fmtBytes, fmtClock, fmtQty, fmtUnits, fmtUtc, localZone, shortId, shortNode } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 
 const DAC: Record<DacStatus, { label: string; fg: string; bg: string; title: string }> = {
@@ -64,7 +64,7 @@ const RecordsTable = ({
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell sx={head}>Period</TableCell>
+            <TableCell sx={head}>Period ({localZone()})</TableCell>
             {showSandbox && <TableCell sx={head}>Sandbox</TableCell>}
             <TableCell sx={head} align="right">
               CPU-s
@@ -84,7 +84,10 @@ const RecordsTable = ({
         <TableBody>
           {records.map((r) => (
             <TableRow key={r.record_id}>
-              <TableCell sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
+              <TableCell
+                sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}
+                title={`${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} (UTC, as the CLI prints it)`}
+              >
                 {fmtClock(r.period_start)}–{fmtClock(r.period_end)}
                 {r.final && (
                   <Typography

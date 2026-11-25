@@ -16,8 +16,18 @@ const Purpose = ({ def, name }: { def: AgentDefinition; name: string }) => {
   if (p.kind === 'rule') {
     return (
       <>
-        added by the egress proxy to the sandbox’s requests to <Mono>{p.hosts.join(', ')}</Mono>. Its value is the
-        credential that service gave you.
+        added by the egress proxy to the sandbox’s requests to <Mono>{p.hosts.join(', ')}</Mono>.{' '}
+        {p.source ? (
+          <>
+            Its value is {p.source.what}: create one at{' '}
+            <a href={p.source.url} target="_blank" rel="noreferrer">
+              {p.source.url.replace(/^https:\/\//, '')}
+            </a>
+            .
+          </>
+        ) : (
+          <>Its value is the credential that service gave you.</>
+        )}
       </>
     );
   }
@@ -30,11 +40,12 @@ const Purpose = ({ def, name }: { def: AgentDefinition; name: string }) => {
         </>
       ) : p.console ? (
         <>
-          That gateway serves another network than this console, so create the key in{' '}
+          That gateway serves another network than this console, so the key is one of that network: sign in to{' '}
           <a href={p.console} target="_blank" rel="noreferrer">
             {p.console.replace(/^https:\/\//, '')}
           </a>{' '}
-          (Inference › API keys), then add it here.
+          (its SSCP wallet is separate from this one and is created the same way), have a bucket with balance there,
+          create a key under Inference › API keys, then add it here.
         </>
       ) : (
         <>Use the API key that service gave you.</>
