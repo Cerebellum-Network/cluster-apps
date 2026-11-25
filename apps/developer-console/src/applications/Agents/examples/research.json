@@ -1,7 +1,7 @@
 {
   "schema": "cere.agent/v1",
   "name": "research",
-  "description": "Evidence-grounded briefs from public sources, every claim cited and dated (ported from the Agent Bridge research role)",
+  "description": "Writes briefs from public sources that someone can act on, every claim cited and dated",
   "harness": "claude-code",
   "image": "cerebellumnetwork/ddc-agent-runner:0.1.1",
   "command": null,

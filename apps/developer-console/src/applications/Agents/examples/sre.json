@@ -1,7 +1,7 @@
 {
   "schema": "cere.agent/v1",
   "name": "sre",
-  "description": "Read-only status of a GitHub repository: commits, CI, releases (ported from the Agent Bridge sre role)",
+  "description": "Reports the state of a GitHub repository, read-only: recent commits, CI runs and releases",
   "harness": "claude-code",
   "image": "cerebellumnetwork/ddc-agent-runner:0.1.1",
   "command": null,
