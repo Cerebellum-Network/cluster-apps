@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 
 import { ComputeProvider } from '~/compute/ComputeProvider';
+import { DevViewBanner } from '~/compute/walletSigning';
 import ComputeGate from './components/ComputeGate';
 import CliAccess from './pages/CliAccess';
 import Egress from './pages/Egress';
@@ -19,6 +20,7 @@ import Usage from './pages/Usage';
  */
 const Sandboxes = () => (
   <ComputeProvider>
+    <DevViewBanner />
     <Routes>
       <Route index element={<Overview />} />
       <Route path="cli" element={<CliAccess />} />

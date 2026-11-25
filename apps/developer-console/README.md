@@ -63,6 +63,22 @@ DEV_HTTPS_CERT=$HOME/.certs/localhost.pem DEV_HTTPS_KEY=$HOME/.certs/localhost-k
 Over plain http the wallet falls back to a popup (`transport downgraded to "popup"`), and a passkey prompt does not
 appear.
 
+**Signing in to an existing wallet** uses the framed path above. **Creating a wallet** ("Create a new wallet")
+always opens the wallet in a popup window, also over https on a listed port: browsers (Safari) refuse to create a
+passkey inside a cross-origin frame, so `@cef-ai/wallet` runs registration in a popup by design. The popup asks for
+an email address, sends a one-time code to it, and then creates the passkey on this device. So a first sign-in
+needs a mailbox you can read.
+
+### The development view (`?account=`), without a wallet
+
+A local `npm run start` (never a built console) also opens with `?account=<hex public key>`, for example
+`https://localhost:5173/sandboxes?account=f67c…c68e`. It shows that account without signing in, and has **no
+wallet**: the Sandboxes and Agents pages say so in a banner, and read through the compute gateway with the COMPUTE
+token this browser already holds for the account's bucket (the console's own cache, filled by a wallet sign-in
+earlier). Everything that needs a wallet signature is turned off there and says why: Create token and Create S3
+credential (CLI access), and reading or saving agent definitions in the account's storage buckets. It is a tool for
+working on the pages, not a way to sign in.
+
 - You should be able to see the Welcome page
 
   ![Welcome page](./public/images/welcome-screen.png)

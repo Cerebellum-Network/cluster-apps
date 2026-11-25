@@ -6,13 +6,18 @@ import CloseIcon from '@mui/icons-material/Close';
 
 import { useAccount } from '~/hooks';
 import { agentKey, parseAgentDefinition } from '~/compute/agentDefinition';
-import { saveAgent, type StoredAgent } from '~/compute/agentStore';
+import { bucketList, saveAgent, type StoredAgent } from '~/compute/agentStore';
 import { errorMessage } from '~/compute/client';
+import { useCompute } from '~/compute/ComputeProvider';
+import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
 import { mono, text } from '~/theme/tokens';
 
 /**
- * Put a `cere.agent/v1` definition in one of the wallet's buckets, at
- * `cere/agents/<name>.json`, the same place `cere agent push` writes it.
+ * Put a `cere.agent/v1` definition in one of the wallet's storage buckets (the
+ * DDC S3 gateway's, named), at `cere/agents/<name>.json`, the same place
+ * `cere agent push` writes it. Not the numbered compute bucket the sandboxes
+ * are metered to. A bucket list that could not be read is not "no bucket":
+ * the dialog then offers a retry, never a new bucket.
  */
 const AddDefinitionDialog = ({
   existing,
@@ -22,8 +27,13 @@ const AddDefinitionDialog = ({
   onClose: (saved?: { bucket: string; name: string }) => void;
 }) => {
   const account = useAccount();
-  const buckets = account.buckets?.map((b) => b.name) ?? [];
-  const [bucket, setBucket] = useState(buckets[0] ?? '');
+  const { bucketId } = useCompute();
+  const canSign = useCanSign();
+  const list = bucketList(account.buckets, account.bucketsError);
+  const buckets = list.state === 'ok' || list.state === 'stale' ? list.names : [];
+  const [chosen, setBucket] = useState('');
+  const bucket = chosen || buckets[0] || '';
+  const [retrying, setRetrying] = useState(false);
   const [source, setSource] = useState('');
   const [busy, setBusy] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -36,6 +46,15 @@ const AddDefinitionDialog = ({
     const f = e.target.files?.[0];
     e.target.value = '';
     if (f) setSource(await f.text());
+  };
+
+  const retry = async () => {
+    setRetrying(true);
+    try {
+      await account.refreshBuckets();
+    } finally {
+      setRetrying(false);
+    }
   };
 
   const createBucket = async () => {
@@ -82,18 +101,41 @@ const AddDefinitionDialog = ({
             </Box>{' '}
             JSON document. The examples are assets of the CLI’s release:{' '}
             <Box component="span" sx={{ fontFamily: mono }}>
-              gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
+              gh release download cli/v0.1.1 -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
             </Box>
             .
           </Typography>
-          {buckets.length ? (
+          {!canSign ? (
+            <Alert severity="info">
+              Definitions are kept in your storage buckets on the DDC S3 gateway, which only your wallet can read and
+              write. {NO_WALLET_HERE}
+            </Alert>
+          ) : list.state === 'loading' ? (
+            <Typography sx={text.secondary}>Reading your storage buckets…</Typography>
+          ) : list.state === 'unreadable' ? (
+            <Alert
+              severity="error"
+              action={
+                <LoadingButton size="small" loading={retrying} onClick={retry}>
+                  Try again
+                </LoadingButton>
+              }
+            >
+              Couldn’t list your storage buckets ({list.error}), so the console can’t tell whether you have one. Nothing
+              is created until it can.
+            </Alert>
+          ) : buckets.length ? (
             <TextField
               select
-              label="Bucket"
+              label="Storage bucket"
               value={bucket}
               onChange={(e) => setBucket(e.target.value)}
               size="small"
-              helperText="Saved at cere/agents/<name>.json in this bucket."
+              helperText={
+                list.state === 'stale'
+                  ? `Saved at cere/agents/<name>.json in this bucket. The list may be out of date: ${list.error}`
+                  : 'Saved at cere/agents/<name>.json in this bucket, on the DDC S3 gateway.'
+              }
             >
               {buckets.map((b) => (
                 <MenuItem key={b} value={b}>
@@ -112,7 +154,8 @@ const AddDefinitionDialog = ({
                 </LoadingButton>
               }
             >
-              You have no storage bucket yet. Definitions are kept in one.
+              You have no storage bucket on the DDC S3 gateway yet. Definitions are kept in one
+              {bucketId ? ` (not in compute bucket ${bucketId}, which your sandboxes are metered to)` : ''}.
             </Alert>
           )}
           <Stack direction="row" gap="8px" alignItems="center">
@@ -150,7 +193,7 @@ const AddDefinitionDialog = ({
         <Button variant="outlined" color="secondary" onClick={() => onClose()}>
           Cancel
         </Button>
-        <LoadingButton variant="contained" loading={busy} disabled={!parsed?.def || !bucket} onClick={save}>
+        <LoadingButton variant="contained" loading={busy} disabled={!canSign || !parsed?.def || !bucket} onClick={save}>
           Save to bucket
         </LoadingButton>
       </DialogActions>

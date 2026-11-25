@@ -6,6 +6,7 @@ import { PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useCompute } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
+import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
 import { storageConfig } from '~/storage/storageConfig';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, StepTitle, useCopy } from '../components/bits';
@@ -21,6 +22,7 @@ const fmtDate = (ms: number) =>
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZoneName: 'short',
   });
 
 const S3_LABEL = 'cere-cli';
@@ -33,6 +35,7 @@ const S3_LABEL = 'cere-cli';
  */
 const BucketAccess = observer(() => {
   const account = useAccount();
+  const canSign = useCanSign();
   const buckets = account.buckets?.map((b) => b.name) ?? [];
   const [bucket, setBucket] = useState('');
   const chosen = bucket || buckets[0] || '';
@@ -100,13 +103,15 @@ const BucketAccess = observer(() => {
             ))}
           </TextField>
         )}
-        <LoadingButton variant="contained" loading={busy} onClick={create}>
+        <LoadingButton variant="contained" loading={busy} onClick={create} disabled={!canSign}>
           Create S3 credential
         </LoadingButton>
         <Typography sx={text.secondary}>
-          {buckets.length
-            ? 'Your SSCP wallet asks you to approve it.'
-            : 'Creates a bucket first; your SSCP wallet asks you to approve both.'}
+          {!canSign
+            ? NO_WALLET_HERE
+            : buckets.length
+              ? 'Your SSCP wallet asks you to approve it.'
+              : 'Creates a bucket first; your SSCP wallet asks you to approve both.'}
         </Typography>
       </Stack>
       {error && (
@@ -180,6 +185,7 @@ const BucketAccess = observer(() => {
  */
 const CliAccess = () => {
   const account = useAccount();
+  const canSign = useCanSign();
   const { bucketId, ensureBucket, gatewayUrl } = useCompute();
   const [ttlDays, setTtlDays] = useState(7);
   const [busy, setBusy] = useState(false);
@@ -230,10 +236,12 @@ const CliAccess = () => {
                 </MenuItem>
               ))}
             </TextField>
-            <LoadingButton variant="contained" loading={busy} onClick={create}>
+            <LoadingButton variant="contained" loading={busy} onClick={create} disabled={!canSign}>
               Create token
             </LoadingButton>
-            <Typography sx={text.secondary}>Your SSCP wallet asks you to approve it.</Typography>
+            <Typography sx={text.secondary}>
+              {canSign ? 'Your SSCP wallet asks you to approve it.' : NO_WALLET_HERE}
+            </Typography>
           </Stack>
           {error && (
             <Alert severity="error" sx={{ marginTop: '16px' }} onClose={() => setError(null)}>

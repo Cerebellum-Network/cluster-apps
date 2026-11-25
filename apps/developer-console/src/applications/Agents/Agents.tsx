@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 
 import { ComputeProvider } from '~/compute/ComputeProvider';
+import { DevViewBanner } from '~/compute/walletSigning';
 import ComputeGate from '../Sandboxes/components/ComputeGate';
 import AgentDetail from './pages/AgentDetail';
 import Overview from './pages/Overview';
@@ -16,6 +17,7 @@ import Runs from './pages/Runs';
  */
 const Agents = () => (
   <ComputeProvider>
+    <DevViewBanner />
     <ComputeGate title="Agents">
       <Routes>
         <Route index element={<Overview />} />
