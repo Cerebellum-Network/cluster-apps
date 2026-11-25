@@ -13,7 +13,13 @@ import ComputeGate from '../components/ComputeGate';
 import { FirstRunDialog } from '../components/FirstRunDialog';
 import RecentDenials from '../components/egress/RecentDenials';
 import QuickstartTabs from '../components/QuickstartTabs';
-import { QUICKSTART_CLI, QUICKSTART_PYTHON, QUICKSTART_PYTHON_SETUP, UNTIL_PYPI } from '../components/quickstart';
+import {
+  QUICKSTART_CLI,
+  QUICKSTART_PYTHON,
+  QUICKSTART_PYTHON_CREDENTIAL,
+  QUICKSTART_PYTHON_SETUP,
+  UNTIL_PYPI,
+} from '../components/quickstart';
 import { BucketChip, Mono, ReadError, StatusDot } from '../components/ui';
 
 const Subhead = ({ children }: { children: string }) => (
@@ -170,6 +176,12 @@ const Overview = () => {
                 <Stack spacing="12px">
                   <CodeBlock code={QUICKSTART_PYTHON_SETUP} />
                   <CodeBlock code={QUICKSTART_PYTHON} />
+                  <Typography sx={text.caption}>
+                    With a credential: <Mono>secrets</Mono> gives the sandbox its own token, which the egress proxy adds
+                    to the requests its rule allows and deletes when the sandbox ends. The sandbox never sees it;{' '}
+                    <Mono>sb.set_secret(name, value)</Mono> replaces it while it runs.
+                  </Typography>
+                  <CodeBlock code={QUICKSTART_PYTHON_CREDENTIAL} />
                 </Stack>
               }
             />
