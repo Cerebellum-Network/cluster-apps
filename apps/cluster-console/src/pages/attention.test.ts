@@ -87,7 +87,7 @@ describe('attention', () => {
 
   it('flags capacity at 80%, a full disk, a silent node and no sandbox node', () => {
     expect(attention({ summary: { ...base, cpu: { allocatable: 10, allocated: 8 } } })[0].title).toBe(
-      'Sandbox CPU is 80% reserved',
+      'Sandbox CPU is 80% requested',
     );
     expect(attention({ summary: { ...base, nodes: 0, nodes_healthy: 0, cpu: null, memory_mib: null } })[0].title).toBe(
       'No sandbox node is reporting',

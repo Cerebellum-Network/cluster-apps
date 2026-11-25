@@ -19,9 +19,11 @@ import {
   text,
   type Tone,
 } from '~/components/ui';
-import { bytes, gibTime, mib, num, seconds, shortKey, shortTime, vcpuTime } from '~/format';
+import { bytes, gibTime, mib, num, seconds, shortKey, shortTime, timeColumn, vcpuTime } from '~/format';
 import { useView } from '~/hooks/useView';
 
+import { billedOf, billingBasisWords, type BilledSplit, exitReasonWords, limitsOf, resourceUse } from './limits';
+import { BURST, Key, RequestGauge } from './LiveNodes';
 import { placementSummary, verdict } from './placement';
 
 export const STATUS_TONE: Record<string, Tone> = {
@@ -81,6 +83,35 @@ const points = (p: { t: string; v: number | null }[]) => ({
   values: p.map((x) => x.v),
 });
 
+const lastValue = (p: { v: number | null }[] | undefined) => {
+  for (let i = (p?.length ?? 0) - 1; i >= 0; i--) if (p![i].v != null) return p![i].v;
+  return null;
+};
+
+/** Billed for one resource, as one bar split into the request and the burst above it. */
+function SplitBar({ split, format, what }: { split: BilledSplit; format: (v: number) => string; what: string }) {
+  const total = split.billed || 1;
+  return (
+    <Box
+      role="img"
+      aria-label={`${what} billed ${format(split.billed)}: ${format(split.floor)} for the request, ${format(split.burst)} for burst`}
+      sx={{
+        display: 'flex',
+        height: 8,
+        gap: '2px',
+        borderRadius: '4px',
+        overflow: 'hidden',
+        backgroundColor: color.grid,
+      }}
+    >
+      {split.floor > 0 && <Box sx={{ width: `${(100 * split.floor) / total}%`, backgroundColor: SERIES.billed }} />}
+      {split.burst > 0 && (
+        <Box sx={{ width: `${(100 * split.burst) / total}%`, minWidth: 2, backgroundColor: BURST }} />
+      )}
+    </Box>
+  );
+}
+
 /** One sandbox: what it is, its use over time, billed against measured, where it runs and why, its rules. */
 export function SandboxDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   return (
@@ -115,8 +146,66 @@ function DrawerBody({ id }: { id: string }) {
   const where = placementSummary(s.placement, s.resources, s.node, (n) => name(n));
   const cpuPts = m.data ? points(m.data.cpu) : null;
   const memPts = m.data ? points(m.data.memory_bytes) : null;
+  const l = limitsOf(s.resources);
+  const cpuNow = live ? lastValue(m.data?.cpu) : null;
+  const memNow = live ? lastValue(m.data?.memory_bytes) : null;
+  const now = {
+    resources: s.resources,
+    live:
+      cpuNow != null && memNow != null
+        ? {
+            cpu: cpuNow,
+            memory_mib: memNow / 2 ** 20,
+            memory_peak_mib: 0,
+            period_start: '',
+            period_end: '',
+            source: 'node metrics',
+          }
+        : null,
+  };
+  const billed = billedOf(u);
+  const basis = billingBasisWords(u?.billing_basis);
+  const measuredOnly = u?.billing_basis === 'measured';
+  // One unit per column, from its largest amount.
+  const cpuCol = timeColumn(Math.max(billed.cpu?.billed ?? 0, u?.cpu_s ?? 0), 'vCPU');
+  const ramCol = timeColumn(Math.max(billed.memory?.billed ?? 0, u?.ram_gib_s ?? 0), 'GiB');
+  const ended = exitReasonWords(s.exit_reason);
   return (
     <Stack spacing={3}>
+      <DrawerBlock title={live ? 'Request and limit, now' : 'Request and limit'}>
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography sx={{ ...text.caption, fontWeight: 600 }}>vCPU</Typography>
+            <RequestGauge
+              u={resourceUse(now, 'cpu')}
+              scale={l.cpuLimit}
+              fill={SERIES.one}
+              format={(x) => num(x, 2)}
+              unit="vCPU"
+              what="vCPU"
+              noReading={live ? 'no reading yet' : 'not running'}
+            />
+          </Box>
+          <Box>
+            <Typography sx={{ ...text.caption, fontWeight: 600 }}>Memory</Typography>
+            <RequestGauge
+              u={resourceUse(now, 'memory')}
+              scale={l.memoryLimitMiB}
+              fill={SERIES.measured}
+              format={mib}
+              what="memory"
+              noReading={live ? 'no reading yet' : 'not running'}
+            />
+          </Box>
+          <Typography sx={text.caption}>
+            The request is what the node keeps for it and what it pays for at least; the limit is the most it can use.
+            {l.cpuLimit > l.cpu || l.memoryLimitMiB > l.memoryMiB
+              ? ' Use above the request is billed as used.'
+              : ' This sandbox is limited at its request.'}
+          </Typography>
+        </Stack>
+      </DrawerBlock>
+
       <DrawerBlock title="Use, last hour">
         {m.error && <CouldNotRead error={m.error} what="its use over time" />}
         {m.data && cpuPts && cpuPts.starts.length > 0 ? (
@@ -130,8 +219,22 @@ function DrawerBody({ id }: { id: string }) {
                   label: 'vCPU used',
                   color: SERIES.one,
                   values: cpuPts.values,
-                  total: `of ${num(s.resources.cpu, 2)} reserved`,
+                  total: '',
                 },
+              ]}
+              levels={[
+                { key: 'req', label: 'Request', value: l.cpu, display: num(l.cpu, 2), kind: 'floor' },
+                ...(l.cpuLimit > l.cpu
+                  ? [
+                      {
+                        key: 'lim',
+                        label: 'Limit',
+                        value: l.cpuLimit,
+                        display: num(l.cpuLimit, 2),
+                        kind: 'ceiling' as const,
+                      },
+                    ]
+                  : []),
               ]}
               format={(x) => `${num(x, 3)} vCPU`}
               axis={(x) => num(x, 2)}
@@ -148,12 +251,33 @@ function DrawerBody({ id }: { id: string }) {
                     key: 'mem',
                     label: 'Memory used',
                     color: SERIES.measured,
-                    values: memPts.values,
-                    total: `of ${mib(s.resources.memory_mib)} reserved`,
+                    values: memPts.values.map((v) => (v == null ? null : v / 2 ** 20)),
+                    total: '',
                   },
                 ]}
-                format={(x) => bytes(x)}
-                axis={(x) => bytes(x).replace(' ', '')}
+                levels={[
+                  {
+                    key: 'req',
+                    label: 'Request',
+                    value: l.memoryMiB,
+                    display: mib(l.memoryMiB),
+                    kind: 'floor',
+                  },
+                  ...(l.memoryLimitMiB > l.memoryMiB
+                    ? [
+                        {
+                          key: 'lim',
+                          label: 'Limit',
+                          value: l.memoryLimitMiB,
+                          display: mib(l.memoryLimitMiB),
+                          kind: 'ceiling' as const,
+                        },
+                      ]
+                    : []),
+                ]}
+                format={(x) => mib(x)}
+                axis={(x) => mib(x).replace(' ', '')}
+                axisWidth={58}
                 label="Memory used over the last hour"
                 height={110}
                 tableLabel="Time"
@@ -166,35 +290,71 @@ function DrawerBody({ id }: { id: string }) {
         {!m.data && !m.error && <Loading />}
       </DrawerBlock>
 
-      <DrawerBlock title="Billed and measured">
+      <DrawerBlock title="Billed">
         {u ? (
-          <Table
-            size="small"
-            sx={{ '& td, & th': { fontSize: 13, padding: '6px 8px', fontVariantNumeric: 'tabular-nums' } }}
-          >
-            <TableHead>
-              <TableRow>
-                <TableCell />
-                <TableCell align="right">vCPU</TableCell>
-                <TableCell align="right">Memory</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              <TableRow>
-                <TableCell>
-                  Billed{' '}
-                  {u.billing_basis ? `(${u.billing_basis === 'reserved' ? 'on the reservation' : 'on use'})` : ''}
-                </TableCell>
-                <TableCell align="right">{u.billed_cpu_s != null ? vcpuTime(u.billed_cpu_s) : '—'}</TableCell>
-                <TableCell align="right">{u.billed_ram_gib_s != null ? gibTime(u.billed_ram_gib_s) : '—'}</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Measured</TableCell>
-                <TableCell align="right">{vcpuTime(u.cpu_s)}</TableCell>
-                <TableCell align="right">{gibTime(u.ram_gib_s)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <Stack spacing={1.5}>
+            {basis && <Typography sx={{ fontSize: 13.5 }}>{basis}.</Typography>}
+            <Table
+              size="small"
+              sx={{ '& td, & th': { fontSize: 13, padding: '6px 8px', fontVariantNumeric: 'tabular-nums' } }}
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell />
+                  <TableCell align="right">vCPU</TableCell>
+                  <TableCell align="right">Memory</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {!measuredOnly && (
+                  <>
+                    <TableRow>
+                      <TableCell>
+                        <Key fill={SERIES.billed} />
+                        For the request
+                      </TableCell>
+                      <TableCell align="right">{billed.cpu ? cpuCol(billed.cpu.floor) : '—'}</TableCell>
+                      <TableCell align="right">{billed.memory ? ramCol(billed.memory.floor) : '—'}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell>
+                        <Key fill={BURST} />
+                        Burst, above the request
+                      </TableCell>
+                      <TableCell align="right">{billed.cpu ? cpuCol(billed.cpu.burst) : '—'}</TableCell>
+                      <TableCell align="right">{billed.memory ? ramCol(billed.memory.burst) : '—'}</TableCell>
+                    </TableRow>
+                  </>
+                )}
+                <TableRow sx={{ '& td': { fontWeight: 600 } }}>
+                  <TableCell>Billed</TableCell>
+                  <TableCell align="right">{billed.cpu ? cpuCol(billed.cpu.billed) : '—'}</TableCell>
+                  <TableCell align="right">{billed.memory ? ramCol(billed.memory.billed) : '—'}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Measured use</TableCell>
+                  <TableCell align="right">{cpuCol(u.cpu_s)}</TableCell>
+                  <TableCell align="right">{ramCol(u.ram_gib_s)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+            {!measuredOnly && (billed.cpu || billed.memory) && (
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', alignItems: 'center' }}>
+                {billed.cpu && (
+                  <>
+                    <Typography sx={text.caption}>vCPU</Typography>
+                    <SplitBar split={billed.cpu} format={vcpuTime} what="vCPU" />
+                  </>
+                )}
+                {billed.memory && (
+                  <>
+                    <Typography sx={text.caption}>Memory</Typography>
+                    <SplitBar split={billed.memory} format={gibTime} what="Memory" />
+                  </>
+                )}
+              </Box>
+            )}
+          </Stack>
         ) : (
           <Typography sx={text.secondary}>No usage reported yet.</Typography>
         )}
@@ -266,7 +426,13 @@ function DrawerBody({ id }: { id: string }) {
             ['Customer', `Bucket ${s.bucket}`],
             ['Image', <Mono key="i">{s.image}</Mono>],
             ['Command', s.command?.length ? <Mono key="c">{s.command.join(' ')}</Mono> : '—'],
-            ['Size', `${num(s.resources.cpu, 2)} vCPU · ${mib(s.resources.memory_mib)}`],
+            ['Request', `${num(l.cpu, 2)} vCPU · ${mib(l.memoryMiB)}`],
+            [
+              'Limit',
+              l.cpuLimit > l.cpu || l.memoryLimitMiB > l.memoryMiB
+                ? `${num(l.cpuLimit, 2)} vCPU · ${mib(l.memoryLimitMiB)}`
+                : 'the request',
+            ],
             [
               'Started',
               `${shortTime(s.started_at ?? s.created_at)}${s.startup_ms != null ? ` · up in ${num(s.startup_ms, 0)} ms` : ''}`,
@@ -274,12 +440,19 @@ function DrawerBody({ id }: { id: string }) {
             ['Ran', u ? seconds(u.wall_s) : '—'],
             [
               'Ended',
-              s.ended_at
-                ? `${shortTime(s.ended_at)}${s.exit_reason ? ` · ${s.exit_reason}` : ''}${s.exit_code != null ? ` (code ${s.exit_code})` : ''}`
-                : '—',
+              s.ended_at ? (
+                <span key="e" title={s.exit_reason ?? undefined}>
+                  {shortTime(s.ended_at)}
+                  {ended ? ` · ${ended}` : ''}
+                  {s.exit_code != null && !/code/.test(ended ?? '') ? ` (code ${s.exit_code})` : ''}
+                </span>
+              ) : (
+                '—'
+              ),
             ],
             ['Time limit', `${seconds(s.timeout_s)}${s.idle_timeout_s ? ` · idle ${seconds(s.idle_timeout_s)}` : ''}`],
             ['Peak memory', u ? mib(u.memory_peak_mib) : '—'],
+            ...(u?.cpu_peak ? ([['Peak vCPU', num(u.cpu_peak, 2)]] as [string, string][]) : []),
             ['Network out · in', u ? `${bytes(u.net_egress_bytes)} · ${bytes(u.net_ingress_bytes)}` : '—'],
           ]}
         />

@@ -154,6 +154,15 @@ export function vcpuTime(cpuSeconds: number | null | undefined): string {
   return vcpuHours(cpuSeconds);
 }
 
+/**
+ * A formatter for a column of amounts in one unit: the unit `vcpuTime` (or
+ * `gibTime`) picks for the column's largest amount, so rows compare at a glance.
+ */
+export function timeColumn(largest: number, unit: 'vCPU' | 'GiB'): (seconds: number) => string {
+  const [div, suffix] = largest < 60 ? [1, 's'] : largest < 3600 ? [60, 'min'] : [3600, 'h'];
+  return (s) => `${nf(1).format(s / div)} ${unit}-${suffix}`;
+}
+
 /** GiB-seconds in a unit that reads for one sandbox. */
 export function gibTime(gibSeconds: number | null | undefined): string {
   if (gibSeconds === null || gibSeconds === undefined) return '—';

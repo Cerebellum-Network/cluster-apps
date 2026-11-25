@@ -6,7 +6,17 @@ import { CouldNotRead, Loading, LoadMore, Mono, Panel, RowsTable } from '~/compo
 import { mib, num, seconds, shortTime, vcpuTime } from '~/format';
 import { usePaged } from '~/hooks/usePaged';
 
+import { billedOf, limitsOf } from './limits';
 import { StatusPill, useNodeNames, useOpenSandbox } from './sandboxShared';
+
+/** Request, and the limit when it is above it: "0.25 vCPU · 256 MiB, up to 4 vCPU · 1 GiB". */
+function size(r: Sandbox['resources']): string {
+  const l = limitsOf(r);
+  const req = `${num(l.cpu, 2)} vCPU · ${mib(l.memoryMiB)}`;
+  return l.cpuLimit > l.cpu || l.memoryLimitMiB > l.memoryMiB
+    ? `${req}, up to ${num(l.cpuLimit, 2)} vCPU · ${mib(l.memoryLimitMiB)}`
+    : req;
+}
 
 const STATUSES: [string, string][] = [
   ['running', 'Running'],
@@ -44,13 +54,17 @@ export function SandboxList() {
               { label: 'Status', render: (s) => <StatusPill status={s.status} /> },
               { label: 'Customer', render: (s) => `Bucket ${s.bucket}` },
               { label: 'Node', render: (s) => (s.node ? name(s.node) : '—') },
-              { label: 'Size', render: (s) => `${num(s.resources.cpu, 2)} vCPU · ${mib(s.resources.memory_mib)}` },
+              { label: 'Request, limit', render: (s) => size(s.resources) },
               { label: 'Started', render: (s) => shortTime(s.started_at ?? s.created_at) },
               { label: 'Ran', align: 'right', render: (s) => (s.usage ? seconds(s.usage.wall_s) : '—') },
               {
                 label: 'Billed',
                 align: 'right',
-                render: (s) => (s.usage?.billed_cpu_s != null ? vcpuTime(s.usage.billed_cpu_s) : s.usage ? '—' : ''),
+                render: (s) => {
+                  const b = billedOf(s.usage).cpu;
+                  if (!b) return s.usage ? '—' : '';
+                  return b.burst > 0 ? `${vcpuTime(b.billed)} (${vcpuTime(b.burst)} burst)` : vcpuTime(b.billed);
+                },
               },
             ]}
           />

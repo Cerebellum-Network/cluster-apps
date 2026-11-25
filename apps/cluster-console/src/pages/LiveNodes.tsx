@@ -6,8 +6,10 @@ import { KeyboardArrowDown, KeyboardArrowRight } from '@mui/icons-material';
 
 import type { LiveNode, LiveSandbox } from '~/api/types';
 import { SERIES } from '~/components/charts';
-import { color, hairline, Status, text } from '~/components/ui';
+import { color, hairline, Pill, Status, text } from '~/components/ui';
 import { gibTime, mib, num, plural, vcpuTime } from '~/format';
+
+import { laneOf, limitsOf, type ResourceUse, resourceUse } from './limits';
 
 /** A machine's whole CPU and memory, from node metrics, when known. */
 export interface MachineTotal {
@@ -15,8 +17,12 @@ export interface MachineTotal {
   memoryMiB: number | null;
 }
 
-/** The reserved, not-used part of a block: a light step of slot 1. */
-const RESERVED = '#D3C8F3';
+/** A sandbox's request, the part it has not used: a light step of slot 1. */
+export const REQUEST = '#D3C8F3';
+/** Room between a sandbox's request and its limit: it may use it, and pays for it only if it does. */
+export const HEADROOM = '#F1EEF8';
+/** Use above the request: one colour wherever burst shows. */
+export const BURST = SERIES.burst;
 const QUOTA = color.primaryTint;
 
 const arrive = keyframes`
@@ -94,21 +100,33 @@ function useArrivals(nodes: LiveNode[] | undefined): Map<string, Shown[]> {
 }
 
 const tail = (id: string) => `…${id.slice(-5)}`;
-const share = (a: number | null | undefined, b: number) => (a != null && b > 0 ? Math.min(1, a / b) : 0);
+const pctOf = (v: number, span: number) => (span > 0 ? `${(100 * Math.max(0, v)) / span}%` : '0%');
+const gib = (v: number) => num(v, v < 1 ? 2 : 1);
 
 function blockTitle(s: LiveSandbox): string {
+  const l = limitsOf(s.resources);
+  const cpu = resourceUse(s, 'cpu');
+  const mem = resourceUse(s, 'memory');
+  const limit =
+    l.cpuLimit > l.cpu || l.memoryLimitMiB > l.memoryMiB
+      ? `limit ${num(l.cpuLimit, 2)} vCPU · ${mib(l.memoryLimitMiB)}`
+      : 'limited at its request';
   const parts = [
     `${s.id} · bucket ${s.bucket} · ${s.image}`,
-    `reserved ${num(s.resources.cpu, 2)} vCPU · ${mib(s.resources.memory_mib)}`,
+    `request ${num(l.cpu, 2)} vCPU · ${mib(l.memoryMiB)}; ${limit}`,
     s.live
-      ? `using ${num(s.live.cpu, 2)} vCPU · ${mib(s.live.memory_mib)}${s.live.memory_peak_mib ? ` (peak ${mib(s.live.memory_peak_mib)})` : ''} · ${s.live.source === 'node metrics' ? 'node metrics, last minute' : 'usage record, last minute'}`
+      ? [
+          `using ${num(s.live.cpu, 2)} vCPU${cpu.burst > 0 ? ` (${num(cpu.burst, 2)} above its request)` : ''}`,
+          `${mib(s.live.memory_mib)}${mem.burst > 0 ? ` (${mib(mem.burst)} above its request)` : ''}`,
+          'last minute',
+        ].join(' · ')
       : s.status === 'starting'
         ? 'starting'
-        : 'no minute recorded yet',
+        : 'no reading yet',
   ];
   if (s.billed_cpu_s != null)
     parts.push(
-      `billed so far ${vcpuTime(s.billed_cpu_s)}${s.billed_ram_gib_s != null ? ` · ${gibTime(s.billed_ram_gib_s)}` : ''}`,
+      `billed so far ${vcpuTime(s.billed_cpu_s)}${s.burst_cpu_s ? ` (${vcpuTime(s.burst_cpu_s)} of it burst)` : ''}${s.billed_ram_gib_s != null ? ` · ${gibTime(s.billed_ram_gib_s)}` : ''}`,
     );
   return parts.join('\n');
 }
@@ -120,11 +138,31 @@ const motion = (phase: Shown['phase']) =>
       ? { animation: `${leave} ${LEAVE_MS}ms ease-in forwards`, pointerEvents: 'none' as const }
       : {};
 
+/** A small swatch that keys a colour in running text; the words carry the meaning. */
+export function Key({ fill, tick }: { fill: string; tick?: boolean }) {
+  return (
+    <Box
+      component="span"
+      aria-hidden
+      sx={{
+        display: 'inline-block',
+        width: tick ? 2 : 10,
+        height: tick ? 12 : 10,
+        borderRadius: tick ? 0 : '2px',
+        backgroundColor: fill,
+        verticalAlign: '-1px',
+        marginRight: '5px',
+      }}
+    />
+  );
+}
+
 /**
  * One resource of a node as a lane: the machine's total (when known) is the
- * track, the sandbox quota a lighter band with an edge mark, and each
- * sandbox a segment sized by its reservation, filled by what it used in its
- * latest minute.
+ * track, the sandbox quota a lighter band with an edge mark. Each sandbox is a
+ * block sized by its request (what the quota counts), filled by what it uses
+ * within it; a sandbox using more than its request runs past its block into a
+ * burst extension, so the lane's length is what is being billed now.
  */
 function Lane({
   label,
@@ -132,8 +170,8 @@ function Lane({
   total,
   quota,
   list,
-  reserve,
-  used,
+  resource,
+  scale,
   format,
   onOpen,
   fill,
@@ -144,24 +182,39 @@ function Lane({
   total: number | null;
   quota: number | null;
   list: Shown[];
-  reserve: (s: LiveSandbox) => number;
-  used: (s: LiveSandbox) => number | null;
+  resource: 'cpu' | 'memory';
+  /** Divides the resource's own unit (MiB) into the lane's (GiB). */
+  scale: number;
   format: (v: number) => string;
   onOpen: (s: LiveSandbox) => void;
 }) {
-  const span = total ?? quota ?? 0;
-  const reserved = list.filter((s) => s.phase !== 'leaving').reduce((a, s) => a + reserve(s), 0);
-  const pct = (v: number) => (span > 0 ? `${(100 * v) / span}%` : '0%');
+  const lane = laneOf(list, resource, scale);
+  const here = laneOf(
+    list.filter((s) => s.phase !== 'leaving'),
+    resource,
+    scale,
+  );
+  const withUse = list.some((s) => s.phase !== 'leaving' && s.live);
+  const span = Math.max(total ?? quota ?? 0, lane.end);
+  const pct = (v: number) => pctOf(v, span);
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="baseline" spacing={2}>
         <Typography sx={{ ...text.caption, fontWeight: 600 }}>{label}</Typography>
-        <Typography sx={{ ...text.caption, fontVariantNumeric: 'tabular-nums' }}>
-          <b style={{ color: color.text }}>{format(reserved)}</b>
+        <Typography sx={{ ...text.caption, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>
+          <b style={{ color: color.text }}>{format(here.requested)}</b>
           {quota != null
-            ? ` of ${format(quota)} ${unit} quota reserved (${Math.round((100 * reserved) / (quota || 1))}%)`
-            : ` ${unit} reserved · quota not reported`}
-          {total != null ? ` · machine ${format(total)} ${unit}` : ''}
+            ? ` of ${format(quota)} ${unit} quota requested (${Math.round((100 * here.requested) / (quota || 1))}%)`
+            : ` ${unit} requested · quota not reported`}
+          {withUse && ` · ${format(here.used)} in use`}
+          {here.burst > 0 && (
+            <>
+              {' · '}
+              <Key fill={BURST} />
+              <b style={{ color: color.text }}>{format(here.burst)}</b> above requests
+            </>
+          )}
+          {total != null ? ` · machine ${format(total)}` : ''}
         </Typography>
       </Stack>
       <Box
@@ -184,47 +237,68 @@ function Lane({
               width: pct(quota),
               backgroundColor: QUOTA,
               borderRadius: '3px 0 0 3px',
-              // The quota's edge is marked only when it sits inside a known machine total.
-              boxShadow: total != null && quota < total ? `inset -2px 0 0 ${color.primary}` : 'none',
+              // The quota's edge is marked when something lies beyond it: the machine, or burst past the quota.
+              boxShadow: span > quota ? `inset -2px 0 0 ${color.primary}` : 'none',
             }}
           />
         )}
         <Box sx={{ position: 'absolute', inset: 0, display: 'flex' }}>
-          {list.map((s) => {
-            const r = reserve(s);
-            const u = used(s);
+          {list.map((s, i) => {
+            const p = lane.parts[i];
+            const width = p.request + p.burst;
+            const starting = s.status === 'starting';
             return (
               <Tooltip key={s.id} title={<span style={{ whiteSpace: 'pre-line' }}>{blockTitle(s)}</span>}>
                 <Box
                   component="button"
                   onClick={() => onOpen(s)}
-                  aria-label={`${s.id}: reserved ${format(r)} ${unit}${u != null ? `, used ${format(u)}` : ''}`}
+                  aria-label={`${s.id}: requests ${format(p.request)} ${unit}${p.used != null ? `, uses ${format(p.used)}` : ''}${p.burst > 0 ? `, ${format(p.burst)} above its request` : ''}`}
                   sx={{
-                    position: 'relative',
-                    width: pct(r),
+                    display: 'flex',
+                    width: pct(width),
                     flexShrink: 0,
                     padding: 0,
                     border: 0,
                     borderRight: `2px solid ${color.surface}`,
-                    backgroundColor: s.status === 'starting' ? 'transparent' : RESERVED,
-                    outline: s.status === 'starting' ? `1px dashed ${SERIES.one}` : 'none',
-                    outlineOffset: '-1px',
+                    backgroundColor: 'transparent',
                     cursor: 'pointer',
-                    overflow: 'hidden',
                     ...motion(s.phase),
                     '&:hover, &:focus-visible': { filter: 'brightness(0.93)' },
                   }}
                 >
                   <Box
                     sx={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: `${100 * share(u, r)}%`,
-                      backgroundColor: fill,
+                      position: 'relative',
+                      width: `${(100 * p.request) / (width || 1)}%`,
+                      height: '100%',
+                      backgroundColor: starting ? 'transparent' : REQUEST,
+                      outline: starting ? `1px dashed ${SERIES.one}` : 'none',
+                      outlineOffset: '-1px',
+                      overflow: 'hidden',
                     }}
-                  />
+                  >
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: `${p.request > 0 ? (100 * Math.min(p.within, p.request)) / p.request : 0}%`,
+                        backgroundColor: fill,
+                      }}
+                    />
+                  </Box>
+                  {p.burst > 0 && (
+                    <Box
+                      sx={{
+                        flex: 1,
+                        height: '100%',
+                        minWidth: 2,
+                        borderLeft: `2px solid ${color.surface}`,
+                        backgroundColor: BURST,
+                      }}
+                    />
+                  )}
                 </Box>
               </Tooltip>
             );
@@ -235,71 +309,204 @@ function Lane({
   );
 }
 
-/** A sandbox as a labelled block, sized by its CPU reservation within the quota. */
-function Block({ s, quotaCpu, onOpen }: { s: Shown; quotaCpu: number; onOpen: (s: LiveSandbox) => void }) {
-  const widthPct = quotaCpu > 0 ? (100 * s.resources.cpu) / quotaCpu : 0;
-  const cpuShare = share(s.live?.cpu, s.resources.cpu);
-  const memShare = share(s.live?.memory_mib, s.resources.memory_mib);
+/**
+ * One resource of one sandbox against a scale: its request as a block, its
+ * use filling it and running on past it as burst, the room it may still use
+ * up to its limit, and the limit as a tick.
+ */
+export function RequestGauge({
+  u,
+  scale,
+  fill,
+  format,
+  unit,
+  what,
+  noReading = 'no reading yet',
+}: {
+  u: ResourceUse;
+  /** The span of the bar, in the resource's unit: the node's quota, or the sandbox's limit. */
+  scale: number;
+  fill: string;
+  format: (v: number) => string;
+  /** After a figure, when `format` does not say it ("vCPU"). */
+  unit?: string;
+  /** What the resource is, for the accessible name: "vCPU", "memory". */
+  what: string;
+  /** What to say when there is no reading: "no reading yet", or "not running" for a sandbox that ended. */
+  noReading?: string;
+}) {
+  const span = Math.max(scale, u.limit, u.used ?? 0) || 1;
+  const pct = (v: number) => pctOf(v, span);
+  const said = [
+    u.used != null ? `uses ${format(u.used)}${unit ? ` ${unit}` : ''}` : noReading,
+    `requests ${format(u.request)}`,
+    u.canBurst ? `limit ${format(u.limit)}` : 'limited at its request',
+    u.burst > 0 ? `${format(u.burst)} above its request` : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+  return (
+    <Box>
+      <Box role="img" aria-label={`${what}: ${said}`} sx={{ position: 'relative', height: 10, marginTop: '5px' }}>
+        {u.canBurst && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: pct(u.request),
+              width: pct(u.limit - u.request),
+              backgroundColor: HEADROOM,
+              borderRadius: '0 3px 3px 0',
+            }}
+          />
+        )}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: pct(u.request),
+            minWidth: 3,
+            backgroundColor: REQUEST,
+            borderRadius: u.canBurst ? '3px 0 0 3px' : '3px',
+            overflow: 'hidden',
+          }}
+        >
+          <Box
+            sx={{
+              height: '100%',
+              width: `${u.request > 0 ? (100 * u.within) / u.request : 0}%`,
+              backgroundColor: fill,
+            }}
+          />
+        </Box>
+        {u.burst > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              bottom: 0,
+              left: `calc(${pct(u.request)} + 2px)`,
+              width: `max(2px, calc(${pct(u.burst)} - 2px))`,
+              backgroundColor: BURST,
+            }}
+          />
+        )}
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            top: -3,
+            height: 16,
+            width: 2,
+            left: `calc(${pct(u.limit)} - 1px)`,
+            backgroundColor: color.text,
+          }}
+        />
+      </Box>
+      <Typography
+        component="div"
+        sx={{ ...text.caption, marginTop: '6px', fontVariantNumeric: 'tabular-nums', lineHeight: '17px' }}
+      >
+        {u.used != null ? (
+          <>
+            <b style={{ color: color.text }}>{format(u.used)}</b>
+            {unit ? ` ${unit}` : ''}
+          </>
+        ) : (
+          noReading
+        )}
+        {' · '}request {format(u.request)}
+        {' · '}
+        {u.canBurst ? `limit ${format(u.limit)}` : 'limited at its request'}
+        {u.burst > 0 && (
+          <>
+            {' · '}
+            <Key fill={BURST} />
+            {format(u.burst)} above the request
+          </>
+        )}
+      </Typography>
+    </Box>
+  );
+}
+
+/** A sandbox on its node, opened: who it is, then its vCPU and memory against the node's quota. */
+function SandboxRow({
+  s,
+  cpuScale,
+  memScaleMiB,
+  onOpen,
+}: {
+  s: Shown;
+  cpuScale: number;
+  memScaleMiB: number;
+  onOpen: (s: LiveSandbox) => void;
+}) {
   return (
     <Box
-      component="button"
-      onClick={() => onOpen(s)}
-      title={blockTitle(s)}
+      component="li"
       sx={{
-        flex: `0 0 calc(${widthPct}% - 4px)`,
-        minWidth: 0,
-        height: 88,
-        margin: '0 4px 0 0',
-        padding: '7px 8px',
-        textAlign: 'left',
-        border: s.status === 'starting' ? `1px dashed ${SERIES.one}` : `1px solid ${RESERVED}`,
-        borderRadius: '6px',
-        backgroundColor: s.status === 'starting' ? color.surface : '#F3F0FC',
-        cursor: 'pointer',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-        overflow: 'hidden',
-        font: 'inherit',
+        listStyle: 'none',
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: 'minmax(150px, 210px) 1fr 1fr' },
+        gap: { xs: 1, md: 3 },
+        alignItems: 'start',
+        padding: '10px 0',
+        borderTop: hairline,
         ...motion(s.phase),
-        '&:hover': { borderColor: SERIES.one },
-        '&:focus-visible': { outline: `2px solid ${color.primary}`, outlineOffset: '1px' },
       }}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography noWrap sx={{ fontSize: 12.5, fontWeight: 700, lineHeight: '16px', color: color.text }}>
-          {s.status === 'starting' ? 'Starting' : tail(s.id)}
+      <Box
+        component="button"
+        onClick={() => onOpen(s)}
+        title={blockTitle(s)}
+        sx={{
+          minWidth: 0,
+          padding: 0,
+          border: 0,
+          background: 'none',
+          textAlign: 'left',
+          font: 'inherit',
+          cursor: 'pointer',
+          '&:hover .name, &:focus-visible .name': { textDecoration: 'underline' },
+          '&:focus-visible': { outline: `2px solid ${color.primary}`, outlineOffset: '2px', borderRadius: '4px' },
+        }}
+      >
+        <Typography
+          className="name"
+          noWrap
+          sx={{ fontSize: 13, fontWeight: 700, lineHeight: '18px', color: color.text }}
+        >
+          {s.status === 'starting' ? `Starting ${tail(s.id)}` : tail(s.id)}
         </Typography>
-        <Typography noWrap sx={{ fontSize: 11.5, lineHeight: '15px', color: color.textSecondary }}>
-          {s.bucket} · {num(s.resources.cpu, 2)} vCPU · {mib(s.resources.memory_mib)}
+        <Typography noWrap sx={{ ...text.caption }}>
+          Bucket {s.bucket} · {s.image}
         </Typography>
         {s.billed_cpu_s != null && (
-          <Typography noWrap sx={{ fontSize: 11.5, lineHeight: '15px', color: color.textSecondary }}>
+          <Typography noWrap sx={{ ...text.caption }}>
             billed {vcpuTime(s.billed_cpu_s)}
+            {s.burst_cpu_s ? `, ${vcpuTime(s.burst_cpu_s)} burst` : ''}
           </Typography>
         )}
       </Box>
-      <Stack spacing="3px">
-        {[
-          [cpuShare, SERIES.one, 'vCPU'],
-          [memShare, SERIES.measured, 'memory'],
-        ].map(([v, c, l]) => (
-          <Box
-            key={l as string}
-            aria-hidden
-            sx={{ height: 4, borderRadius: '2px', backgroundColor: RESERVED, overflow: 'hidden' }}
-          >
-            <Box
-              sx={{
-                height: '100%',
-                width: `${100 * (v as number)}%`,
-                minWidth: (v as number) > 0 ? 2 : 0,
-                backgroundColor: c as string,
-              }}
-            />
-          </Box>
-        ))}
-      </Stack>
+      <RequestGauge
+        u={resourceUse(s, 'cpu')}
+        scale={cpuScale}
+        fill={SERIES.one}
+        format={(v) => num(v, 2)}
+        unit="vCPU"
+        what="vCPU"
+      />
+      <RequestGauge
+        u={resourceUse(s, 'memory')}
+        scale={memScaleMiB}
+        fill={SERIES.measured}
+        format={mib}
+        what="memory"
+      />
     </Box>
   );
 }
@@ -319,10 +526,15 @@ function NodeRow({
   open: boolean;
   onToggle: () => void;
 }) {
-  const running = list.filter((s) => s.phase !== 'leaving' && s.status === 'running').length;
-  const starting = list.filter((s) => s.phase !== 'leaving' && s.status === 'starting').length;
+  const here = list.filter((s) => s.phase !== 'leaving');
+  const running = here.filter((s) => s.status === 'running').length;
+  const starting = here.filter((s) => s.status === 'starting').length;
   const quotaCpu = node.allocatable?.cpu ?? null;
   const quotaMem = node.allocatable?.memory_mib ?? null;
+  const cpu = laneOf(here, 'cpu');
+  const mem = laneOf(here, 'memory');
+  // Sandboxes together over the node's sandbox memory quota: the one most above its request is reclaimed first.
+  const memoryShort = quotaMem != null && here.some((s) => s.live) && mem.used > quotaMem;
   const health =
     node.healthy == null ? (
       <Status tone="neutral">No report</Status>
@@ -331,6 +543,9 @@ function NodeRow({
     ) : (
       <Status tone="danger">Not healthy</Status>
     );
+  const bursting = [cpu.burst > 0 ? `${num(cpu.burst, 2)} vCPU` : '', mem.burst > 0 ? mib(mem.burst) : '']
+    .filter(Boolean)
+    .join(' · ');
   return (
     <Box
       component="li"
@@ -341,7 +556,7 @@ function NodeRow({
         '&:first-of-type': { borderTop: 'none' },
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ marginBottom: 1.25 }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ marginBottom: 1.25 }} flexWrap="wrap" useFlexGap>
         <IconButton
           size="small"
           onClick={onToggle}
@@ -355,7 +570,22 @@ function NodeRow({
           {node.host || node.id.slice(0, 12)}
         </Typography>
         {health}
+        {memoryShort && (
+          <Pill
+            tone="warning"
+            title="The sandboxes on this node use more memory together than its sandbox quota. A sandbox above its memory request may be stopped to reclaim memory, the one most above it first."
+          >
+            Memory use over the quota
+          </Pill>
+        )}
         <Typography sx={{ ...text.secondary, marginLeft: 'auto !important' }}>
+          {bursting && (
+            <>
+              <Key fill={BURST} />
+              {bursting} above requests
+              {' · '}
+            </>
+          )}
           {running || starting
             ? [running ? `${running} running` : '', starting ? `${starting} starting` : ''].filter(Boolean).join(' · ')
             : 'Idle'}
@@ -369,8 +599,8 @@ function NodeRow({
           total={machine?.cpu ?? null}
           quota={quotaCpu}
           list={list}
-          reserve={(s) => s.resources.cpu}
-          used={(s) => s.live?.cpu ?? null}
+          resource="cpu"
+          scale={1}
           format={(v) => num(v, 2)}
           onOpen={onOpen}
         />
@@ -381,9 +611,9 @@ function NodeRow({
           total={machine?.memoryMiB != null ? machine.memoryMiB / 1024 : null}
           quota={quotaMem != null ? quotaMem / 1024 : null}
           list={list}
-          reserve={(s) => s.resources.memory_mib / 1024}
-          used={(s) => (s.live ? s.live.memory_mib / 1024 : null)}
-          format={(v) => num(v, v < 1 ? 2 : 1)}
+          resource="memory"
+          scale={1024}
+          format={gib}
           onOpen={onOpen}
         />
       </Box>
@@ -392,9 +622,9 @@ function NodeRow({
           {list.length === 0 ? (
             <Typography sx={{ ...text.caption, color: color.textTertiary }}>No sandbox on this node now.</Typography>
           ) : (
-            <Box sx={{ display: 'flex', width: '100%' }}>
+            <Box component="ul" sx={{ margin: 0, padding: 0 }}>
               {list.map((s) => (
-                <Block key={s.id} s={s} quotaCpu={quotaCpu ?? 1} onOpen={onOpen} />
+                <SandboxRow key={s.id} s={s} cpuScale={quotaCpu ?? 0} memScaleMiB={quotaMem ?? 0} onOpen={onOpen} />
               ))}
             </Box>
           )}
@@ -458,8 +688,8 @@ export function LiveStatus({
 
 /**
  * Every sandbox node, live: a row per node with its CPU and memory lanes, and
- * when open, a block per sandbox. Sandboxes appear and go as they start and
- * stop; their use is their latest per-minute record.
+ * when open, a row per sandbox with its request, use and limit. Sandboxes
+ * appear and go as they start and stop; their use is their latest reading.
  */
 export function LiveNodes({
   nodes,
@@ -492,18 +722,20 @@ export function LiveNodes({
         </Typography>
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
           {[
-            [SERIES.one, 'vCPU used, last minute'],
-            [SERIES.measured, 'Memory used, last minute'],
-            [RESERVED, 'Reserved'],
+            [SERIES.one, 'vCPU used'],
+            [SERIES.measured, 'Memory used'],
+            [REQUEST, 'Request, not used'],
+            [BURST, 'Burst: use above the request'],
+            [color.text, 'Limit'],
             [QUOTA, 'Sandbox quota'],
           ].map(([c, l]) => (
             <Stack key={l} direction="row" spacing={0.75} alignItems="center">
               <Box
                 aria-hidden
                 sx={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '2px',
+                  width: l === 'Limit' ? 2 : 10,
+                  height: l === 'Limit' ? 12 : 10,
+                  borderRadius: l === 'Limit' ? 0 : '2px',
                   backgroundColor: c,
                   boxShadow: c === QUOTA ? `inset -2px 0 0 ${color.primary}` : 'none',
                 }}

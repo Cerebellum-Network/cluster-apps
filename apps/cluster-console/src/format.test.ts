@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ago, bytes, chosenNode, groupBy, mib, num, seconds, shortKey } from './format';
+import { ago, bytes, chosenNode, groupBy, mib, num, seconds, shortKey, timeColumn } from './format';
 
 describe('format', () => {
   it('shortens keys', () => {
@@ -45,5 +45,14 @@ describe('format', () => {
     ).toBe('y');
     expect(chosenNode({ attempts: [] }, 'z')).toBe('z');
     expect(chosenNode(null, null)).toBeNull();
+  });
+});
+
+describe('timeColumn', () => {
+  it('keeps one unit down a column, from its largest amount', () => {
+    const f = timeColumn(176, 'GiB');
+    expect([f(150), f(26), f(176)]).toEqual(['2.5 GiB-min', '0.4 GiB-min', '2.9 GiB-min']);
+    expect(timeColumn(30, 'vCPU')(0.1)).toBe('0.1 vCPU-s');
+    expect(timeColumn(7200, 'vCPU')(900)).toBe('0.3 vCPU-h');
   });
 });

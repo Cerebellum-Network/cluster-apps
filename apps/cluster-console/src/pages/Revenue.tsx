@@ -18,7 +18,7 @@ import {
   Status,
   text,
 } from '~/components/ui';
-import { bytes, compact, num, shortTime } from '~/format';
+import { bytes, compact, hoursNumber, num, shortTime, vcpuHours } from '~/format';
 import { useView } from '~/hooks/useView';
 
 import { BILLING_LABEL, BILLING_TONE, billingLines, billingReason } from './billing';
@@ -58,6 +58,8 @@ export function Revenue() {
   const delivered = d ? perEra(d.eras, (u) => u.transferred_bytes) : null;
   const cpuUnits = d ? perEra(d.eras, (u) => u.cpu_units) : null;
   const gpuUnits = d ? perEra(d.eras, (u) => u.gpu_units) : null;
+  // Sandbox use per era from the usage records: billed for the request and the burst above it.
+  const eraUse = usage.data?.by_era?.filter((e) => e.records > 0).length ? usage.data.by_era : null;
 
   return (
     <>
@@ -190,6 +192,36 @@ export function Revenue() {
 
           <Panel title="Sandbox usage" subtitle="Whether DAC counts what sandboxes use, so payouts charge for it.">
             {usage.error && <CouldNotRead error={usage.error} what="sandbox usage" />}
+            {eraUse && (
+              <Box sx={{ marginBottom: 2 }}>
+                <Typography sx={{ ...text.label, marginBottom: 0.5 }}>vCPU-hours billed per era</Typography>
+                <TimeChart
+                  starts={eraUse.map((e) => Date.parse(e.start))}
+                  stepMs={20 * 60_000}
+                  series={[
+                    {
+                      key: 'f',
+                      label: 'For the request',
+                      color: SERIES.billed,
+                      values: eraUse.map((e) => e.floor_cpu_s ?? e.billed_cpu_s),
+                      total: vcpuHours(eraUse.reduce((a, e) => a + (e.floor_cpu_s ?? e.billed_cpu_s), 0)),
+                    },
+                    {
+                      key: 'x',
+                      label: 'Burst, above the request',
+                      color: SERIES.burst,
+                      values: eraUse.map((e) => e.burst_cpu_s ?? 0),
+                      total: vcpuHours(eraUse.reduce((a, e) => a + (e.burst_cpu_s ?? 0), 0)),
+                    },
+                  ]}
+                  format={(x) => vcpuHours(x)}
+                  axis={(x) => hoursNumber(x)}
+                  label="Sandbox vCPU-hours billed per era, for the request and for burst"
+                  height={130}
+                  tableLabel="Era start"
+                />
+              </Box>
+            )}
             {usage.data && lines.length === 0 && (
               <Typography sx={text.secondary}>No sandbox ran in this period.</Typography>
             )}

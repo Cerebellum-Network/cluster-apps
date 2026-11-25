@@ -93,7 +93,7 @@ export function Overview() {
   const inFlight = serving.reduce((a, m) => a + m.in_flight, 0);
   const sbx = live.data?.nodes.flatMap((n) => n.sandboxes) ?? [];
   const quota = live.data?.nodes.reduce((a, n) => a + (n.allocatable?.cpu ?? 0), 0) ?? 0;
-  const reserved = sbx.reduce((a, s) => a + s.resources.cpu, 0);
+  const requested = sbx.reduce((a, s) => a + s.resources.cpu, 0);
   const done = dac.data?.eras.filter((e) => e.status !== 'ERA_IN_PROGRESS') ?? [];
   const sealed = done.filter((e) => e.status !== 'ERA_FORCED_SKIPPED').length;
 
@@ -212,10 +212,10 @@ export function Overview() {
             label="Sandboxes"
             value={live.data ? sbx.length : '…'}
             unit={live.data ? 'running' : undefined}
-            sub={live.data ? `${num(reserved, 2)} of ${num(quota, 1)} vCPU of the sandbox quota reserved` : undefined}
+            sub={live.data ? `${num(requested, 2)} of ${num(quota, 1)} vCPU of the sandbox quota requested` : undefined}
             to="/sandboxes"
           >
-            {live.data && <Meter value={reserved} max={quota} label="vCPU reserved of the sandbox quota" />}
+            {live.data && <Meter value={requested} max={quota} label="vCPU requested of the sandbox quota" />}
           </Figure>
           <Figure
             label="Verified by DAC, 24 h"

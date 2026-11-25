@@ -19,10 +19,11 @@ import {
   Status,
   text,
 } from '~/components/ui';
-import { gibHours, hoursNumber, num, percent, plural, vcpuHours } from '~/format';
+import { gibHours, hoursNumber, mib, num, percent, plural, vcpuHours } from '~/format';
 import { useView } from '~/hooks/useView';
 
 import { BILLING_LABEL, BILLING_TONE, billingLines, billingReason } from './billing';
+import { amountsSplit, laneOf } from './limits';
 import { LiveNodes, LiveStatus, type MachineTotal } from './LiveNodes';
 import { SandboxDrawer, useOpenSandbox } from './sandboxShared';
 
@@ -33,8 +34,8 @@ const TABS = [
 
 /**
  * The Sandboxes service: what runs where right now, how much of the
- * sandbox quota it reserves, whether its use is billed, and its use over
- * time by customer and by node. Then every sandbox, and their outbound
+ * sandbox quota it requests and how much it uses above that, whether its use
+ * is billed, and its use over time by customer and by node. Then every sandbox, and their outbound
  * requests.
  */
 export function SandboxesService() {
@@ -68,6 +69,11 @@ export function SandboxesService() {
   const quotaMem = nodes?.reduce((a, n) => a + (n.allocatable?.memory_mib ?? 0), 0) ?? 0;
   const resCpu = all.reduce((a, s) => a + s.resources.cpu, 0);
   const resMem = all.reduce((a, s) => a + s.resources.memory_mib, 0);
+  const burstCpu = nodes?.reduce((a, n) => a + laneOf(n.sandboxes, 'cpu').burst, 0) ?? 0;
+  const burstMem = nodes?.reduce((a, n) => a + laneOf(n.sandboxes, 'memory').burst, 0) ?? 0;
+  // A backend before limits sends no split: the charts then show billed and measured only.
+  const hasSplit = usage.data?.totals.burst_cpu_s !== undefined;
+  const totals = usage.data ? amountsSplit(usage.data.totals) : null;
   const lines = usage.data ? billingLines(usage.data.billing) : [];
   const main = lines[0];
   const tab = [...TABS].reverse().find((t) => pathname === t.to || pathname.startsWith(`${t.to}/`))?.to ?? TABS[0].to;
@@ -80,7 +86,7 @@ export function SandboxesService() {
     <>
       <PageHeader
         title="Sandboxes"
-        subtitle="What runs on each node right now, what it reserves and uses, and whether that use is billed."
+        subtitle="What runs on each node right now, what it requests and uses, and whether that use is billed."
         actions={<LiveStatus readAt={live.data?.read_at} paused={paused} onPause={() => setPaused((p) => !p)} />}
       />
       {live.error && !live.data && <CouldNotRead error={live.error} what="sandboxes" />}
@@ -98,20 +104,28 @@ export function SandboxesService() {
               }
             />
             <Figure
-              label="vCPU reserved"
+              label="vCPU requested"
               value={num(resCpu, 2)}
               unit={`of ${num(quotaCpu, 1)}`}
-              sub={`${percent(resCpu, quotaCpu)} of the sandbox quota on ${plural(nodes?.length ?? 0, 'node')}`}
+              sub={
+                burstCpu > 0
+                  ? `${percent(resCpu, quotaCpu)} of the sandbox quota · ${num(burstCpu, 2)} in use above requests`
+                  : `${percent(resCpu, quotaCpu)} of the sandbox quota on ${plural(nodes?.length ?? 0, 'node')}`
+              }
             >
-              <Meter value={resCpu} max={quotaCpu} label="vCPU reserved of the sandbox quota" />
+              <Meter value={resCpu} max={quotaCpu} label="vCPU requested of the sandbox quota" />
             </Figure>
             <Figure
-              label="Memory reserved"
+              label="Memory requested"
               value={num(resMem / 1024, 1)}
               unit={`of ${num(quotaMem / 1024, 1)} GiB`}
-              sub={`${percent(resMem, quotaMem)} of the sandbox quota`}
+              sub={
+                burstMem > 0
+                  ? `${percent(resMem, quotaMem)} of the sandbox quota · ${mib(burstMem)} in use above requests`
+                  : `${percent(resMem, quotaMem)} of the sandbox quota`
+              }
             >
-              <Meter value={resMem} max={quotaMem} label="Memory reserved of the sandbox quota" />
+              <Meter value={resMem} max={quotaMem} label="Memory requested of the sandbox quota" />
             </Figure>
             <Figure
               label={`Billing, ${period}`}
@@ -140,7 +154,7 @@ export function SandboxesService() {
 
           <Panel
             title="Nodes"
-            subtitle="Each node’s sandbox quota, and a block per sandbox sized by what it reserves, filled by what it used in its latest minute. Open a block for its use over time."
+            subtitle="Each node’s sandbox quota counts requests. A block per sandbox is sized by its request and filled by what it uses; use above the request runs on past the block. Open a node for each sandbox’s limit, or a block for its use over time."
           >
             <Box sx={{ margin: '0 -22px -20px' }}>
               <LiveNodes nodes={nodes} machines={machines} onOpen={(s) => open(s.id)} />
@@ -148,7 +162,7 @@ export function SandboxesService() {
           </Panel>
 
           <Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={{ marginTop: 1 }}>
-            <SectionTitle sub="Billed is what customers are charged for (the reservation, or use, as the runtime bills it); measured is what sandboxes used.">
+            <SectionTitle sub="Billed is what customers are charged: each sandbox’s request for as long as it runs, and burst when it uses more than its request. Measured is what sandboxes used.">
               Use over time
             </SectionTitle>
             <ToggleButtonGroup
@@ -179,6 +193,17 @@ export function SandboxesService() {
                         values: series.map((p) => p.billed_cpu_s),
                         total: vcpuHours(usage.data.totals.billed_cpu_s),
                       },
+                      ...(hasSplit && totals
+                        ? [
+                            {
+                              key: 'x',
+                              label: 'of it burst',
+                              color: SERIES.burst,
+                              values: series.map((p) => p.burst_cpu_s ?? 0),
+                              total: vcpuHours(totals.cpu.burst),
+                            },
+                          ]
+                        : []),
                       {
                         key: 'm',
                         label: 'Measured',
@@ -189,7 +214,7 @@ export function SandboxesService() {
                     ]}
                     format={(x) => vcpuHours(x)}
                     axis={(x) => hoursNumber(x)}
-                    label={`vCPU-hours per hour, billed and measured, ${period}`}
+                    label={`vCPU-hours per hour, billed, burst and measured, ${period}`}
                   />
                 </Panel>
                 <Panel title="GiB-hours per hour">
@@ -204,6 +229,17 @@ export function SandboxesService() {
                         values: series.map((p) => p.billed_ram_gib_s),
                         total: gibHours(usage.data.totals.billed_ram_gib_s),
                       },
+                      ...(hasSplit && totals
+                        ? [
+                            {
+                              key: 'x',
+                              label: 'of it burst',
+                              color: SERIES.burst,
+                              values: series.map((p) => p.burst_ram_gib_s ?? 0),
+                              total: gibHours(totals.memory.burst),
+                            },
+                          ]
+                        : []),
                       {
                         key: 'm',
                         label: 'Measured',
@@ -214,7 +250,7 @@ export function SandboxesService() {
                     ]}
                     format={(x) => gibHours(x)}
                     axis={(x) => hoursNumber(x)}
-                    label={`GiB-hours per hour, billed and measured, ${period}`}
+                    label={`GiB-hours per hour, billed, burst and measured, ${period}`}
                   />
                 </Panel>
               </Box>
@@ -233,7 +269,7 @@ export function SandboxesService() {
                       sub: `${plural(b.sandboxes, 'sandbox', 'sandboxes')} · ${gibHours(b.billed_ram_gib_s)}`,
                       value: b.billed_cpu_s,
                       display: vcpuHours(b.billed_cpu_s),
-                      title: `Bucket ${b.bucket}: ${vcpuHours(b.billed_cpu_s)} billed, ${vcpuHours(b.cpu_s)} measured`,
+                      title: `Bucket ${b.bucket}: ${vcpuHours(b.billed_cpu_s)} billed${b.burst_cpu_s ? ` (${vcpuHours(b.burst_cpu_s)} burst)` : ''}, ${vcpuHours(b.cpu_s)} measured`,
                     }))}
                   />
                 </Panel>

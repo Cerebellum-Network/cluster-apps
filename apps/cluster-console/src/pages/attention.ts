@@ -107,8 +107,8 @@ export function attention({ summary: s, nodes, usage, signals }: AttentionInputs
     out.push({
       tag: 'Capacity',
       tone: 'warn',
-      title: `Sandbox CPU is ${Math.round((100 * s.cpu.allocated) / s.cpu.allocatable)}% reserved`,
-      detail: `${s.cpu.allocated} of ${s.cpu.allocatable} vCPU reserved by running sandboxes.`,
+      title: `Sandbox CPU is ${Math.round((100 * s.cpu.allocated) / s.cpu.allocatable)}% requested`,
+      detail: `${s.cpu.allocated} of ${s.cpu.allocatable} vCPU requested by running sandboxes.`,
       to: '/sandboxes',
       action: 'See sandboxes',
     });
@@ -117,7 +117,7 @@ export function attention({ summary: s, nodes, usage, signals }: AttentionInputs
     out.push({
       tag: 'Capacity',
       tone: 'warn',
-      title: `Sandbox memory is ${Math.round((100 * s.memory_mib.allocated) / s.memory_mib.allocatable)}% reserved`,
+      title: `Sandbox memory is ${Math.round((100 * s.memory_mib.allocated) / s.memory_mib.allocatable)}% requested`,
       detail: 'New sandboxes may not find room.',
       to: '/sandboxes',
       action: 'See sandboxes',

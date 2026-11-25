@@ -45,6 +45,18 @@ export interface Capacity {
   memory_mib: number;
 }
 
+/**
+ * A sandbox's request and limit. `cpu` and `memory_mib` are the request: what
+ * the node's sandbox quota counts, and the billing floor. `cpu_limit` and
+ * `memory_limit_mib` are the most it can use (use above the request is burst,
+ * billed as used). A backend before limits sends none: the limit is then the
+ * request (`limitsOf`).
+ */
+export interface SandboxResources extends Capacity {
+  cpu_limit?: number | null;
+  memory_limit_mib?: number | null;
+}
+
 export interface Alloc {
   allocatable: number;
   allocated: number;
@@ -189,12 +201,18 @@ export interface Usage {
   net_egress_bytes: number;
   net_ingress_bytes: number;
   disk_peak_mib: number;
-  /** Additive, present only from runtimes that record a billing basis. */
+  /** Additive, present only from runtimes that record a billing basis: `request_or_usage`, `reserved` (older) or `measured`. */
   billing_basis?: string;
+  /** The request over the time it ran: the billing floor. */
   reserved_cpu_s?: number;
   reserved_ram_gib_s?: number;
   billed_cpu_s?: number;
   billed_ram_gib_s?: number;
+  /** The part of billed above the request (filled by the backend for older usage). */
+  burst_cpu_s?: number;
+  burst_ram_gib_s?: number;
+  /** Highest per-second vCPU over the sandbox's life, from runtimes with limits. */
+  cpu_peak?: number;
 }
 
 export interface PlacementCandidate {
@@ -236,7 +254,7 @@ export interface Sandbox {
   image: string;
   command?: string[];
   workdir?: string;
-  resources: { cpu: number; memory_mib: number; pids?: number; disk_mib?: number; gpu?: unknown };
+  resources: SandboxResources & { pids?: number; disk_mib?: number; gpu?: unknown };
   timeout_s: number;
   idle_timeout_s?: number;
   env_keys?: string[];
@@ -301,8 +319,13 @@ export interface UsageRecord {
   reserved_ram_gib_s?: number;
   billed_cpu_s?: number;
   billed_ram_gib_s?: number;
-  /** `measured` or `reserved`: which of the two the units were taken from. */
+  /** `request_or_usage`, `reserved` (older) or `measured`: how the units were reached. */
   billing_basis?: string;
+  cpu_limit?: number;
+  memory_limit_mib?: number;
+  burst_cpu_s?: number;
+  burst_ram_gib_s?: number;
+  cpu_peak?: number;
 }
 
 export interface SourceRow {
@@ -367,12 +390,25 @@ export interface UsageAmounts {
   billed_ram_gib_s: number;
   /** Records with no billed figures (older runtimes): their billed share is unknown, not zero. */
   without_billed: number;
+  /** Billed = floor + burst: billed for the request, and above it. Absent from a backend before limits. */
+  floor_cpu_s?: number;
+  floor_ram_gib_s?: number;
+  burst_cpu_s?: number;
+  burst_ram_gib_s?: number;
 }
 
 export type BillingState = 'counted' | 'waiting' | 'not_counted' | 'unknown';
 
 export interface UsagePoint extends UsageAmounts {
   start: string;
+}
+
+/** One DAC era's sandbox usage: the records whose period ends in it. */
+export interface UsageByEra extends UsageAmounts {
+  era: number;
+  start: string;
+  end: string;
+  status: string;
 }
 
 export interface UsageByNode extends UsageAmounts {
@@ -403,6 +439,8 @@ export interface UsageView {
   totals: UsageAmounts;
   sandboxes: number;
   series: UsagePoint[];
+  /** Oldest first; absent from a backend before limits, empty when DAC is not readable. */
+  by_era?: UsageByEra[];
   by_node: UsageByNode[];
   by_bucket: UsageByBucket[];
   billing: BillingGroup[];
@@ -417,6 +455,8 @@ export interface LiveUse {
   cpu: number;
   memory_mib: number;
   memory_peak_mib: number;
+  /** The latest minute's highest per-second vCPU, from runtimes with limits. */
+  cpu_peak?: number | null;
   period_start: string;
   period_end: string;
   /** "node metrics" (about every 30 s) or "usage record" (the latest minute's record). */
@@ -429,13 +469,17 @@ export interface LiveSandbox {
   bucket: number;
   node: string;
   image: string;
-  resources: Capacity;
+  resources: SandboxResources;
   created_at: string;
   started_at: string | null;
   cpu_s: number | null;
   ram_gib_s: number | null;
   billed_cpu_s: number | null;
   billed_ram_gib_s: number | null;
+  /** The part of billed above the request so far; absent from a backend before limits. */
+  burst_cpu_s?: number | null;
+  burst_ram_gib_s?: number | null;
+  billing_basis?: string;
   live: LiveUse | null;
 }
 

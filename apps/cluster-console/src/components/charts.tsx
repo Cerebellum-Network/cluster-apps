@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { Box, Stack, Typography } from '@cluster-apps/ui';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 import type { DACEra } from '~/api/types';
 
@@ -11,9 +11,27 @@ import { color, Disclosure, text } from './ui';
  * Chart colours. Two series take slots 1 and 3 of the app's chart palette
  * (developer console tokens): purple and teal, validated on white with the
  * dataviz validator (CVD ΔE 24.9, normal-vision ΔE 32.0, both ≥ 3:1 contrast).
- * One series uses slot 1. Status colours are kept for states only.
+ * One series uses slot 1. Burst, use above a sandbox's request, is slot 4
+ * (orange) wherever it shows: validated with the two (worst CVD ΔE 12.1,
+ * normal-vision 23.7); below 3:1 on white, so it always has a legend and a
+ * table view. Status colours are kept for states only.
  */
-export const SERIES = { billed: '#5b2bc9', measured: '#1f9e8f', one: '#5b2bc9' } as const;
+export const SERIES = { billed: '#5b2bc9', measured: '#1f9e8f', one: '#5b2bc9', burst: '#e3892b' } as const;
+
+/** A level drawn across a chart: a sandbox's request (the floor) or its limit (the ceiling). */
+export interface ChartLevel {
+  key: string;
+  label: string;
+  value: number;
+  /** As the legend shows it. */
+  display: string;
+  kind: 'floor' | 'ceiling';
+}
+
+const LEVEL_STYLE = {
+  floor: { stroke: color.textSecondary, dash: undefined },
+  ceiling: { stroke: color.text, dash: '5 4' },
+} as const;
 
 const HOUR = 3_600_000;
 const TICK = { fontSize: 12, fill: color.textTertiary };
@@ -69,10 +87,16 @@ export function TimeChart({
   label,
   height = 200,
   tableLabel = 'Hour',
+  levels = [],
+  axisWidth = 48,
 }: {
   starts: number[];
   stepMs: number;
   series: TimeSeries[];
+  /** Levels across the chart (request, limit); the y-axis always reaches the highest. */
+  levels?: ChartLevel[];
+  /** Room for the y-axis labels, in px. */
+  axisWidth?: number;
   /** A value as the tooltip and table show it. */
   format: (v: number) => string;
   /** A value as the y-axis shows it. */
@@ -108,7 +132,35 @@ export function TimeChart({
               tickLine={false}
               stroke={color.border}
             />
-            <YAxis width={48} tickFormatter={axis} tick={TICK} tickLine={false} axisLine={false} allowDecimals />
+            <YAxis
+              width={axisWidth}
+              tickFormatter={axis}
+              tick={TICK}
+              tickLine={false}
+              axisLine={false}
+              allowDecimals
+              domain={[0, (max: number) => Math.max(max, ...levels.map((l) => l.value))]}
+            />
+            {levels.map((l) => (
+              <ReferenceLine
+                key={l.key}
+                y={l.value}
+                stroke={LEVEL_STYLE[l.kind].stroke}
+                strokeWidth={1}
+                strokeDasharray={LEVEL_STYLE[l.kind].dash}
+                ifOverflow="extendDomain"
+                label={{
+                  value: l.label,
+                  // Below the top line; a floor with a ceiling above it is labelled above its line, clear of the axis.
+                  position:
+                    l.kind === 'floor' && levels.some((c) => c.kind === 'ceiling' && c.value > l.value)
+                      ? 'insideBottomLeft'
+                      : 'insideTopLeft',
+                  fill: color.textSecondary,
+                  fontSize: 11.5,
+                }}
+              />
+            ))}
             <Tooltip
               cursor={{ stroke: color.textTertiary, strokeWidth: 1 }}
               content={({ active, payload, label: t }) =>
@@ -164,6 +216,20 @@ export function TimeChart({
             <Box aria-hidden sx={{ width: 14, height: 2, borderRadius: 1, backgroundColor: s.color }} />
             <Typography sx={{ fontSize: 13, color: color.textSecondary }}>{s.label}</Typography>
             <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{s.total}</Typography>
+          </Stack>
+        ))}
+        {levels.map((l) => (
+          <Stack key={l.key} direction="row" spacing={0.75} alignItems="center">
+            <Box
+              aria-hidden
+              sx={{
+                width: 14,
+                height: 0,
+                borderTop: `1px ${LEVEL_STYLE[l.kind].dash ? 'dashed' : 'solid'} ${LEVEL_STYLE[l.kind].stroke}`,
+              }}
+            />
+            <Typography sx={{ fontSize: 13, color: color.textSecondary }}>{l.label}</Typography>
+            <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{l.display}</Typography>
           </Stack>
         ))}
         {empty && <Typography sx={{ ...text.caption }}>Nothing in this period.</Typography>}

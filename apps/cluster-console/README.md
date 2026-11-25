@@ -33,12 +33,19 @@ Agents) are listed on Data sources with what each needs; their old links go ther
 | Overview | what needs the manager now; one figure per area (nodes, storage, delivery, inference, sandboxes, DAC eras); sandbox use over 24 h, billed and measured; top customers | `/summary`, `/nodes`, `/chain`, `/fleet`, `/storage`, `/delivery`, `/inference`, `/live`, `/usage`, `/dac` |
 | Nodes | every node in one list with the same columns: status, availability over 7 days, uptime, version, CPU, memory, disk or GPU memory, work DAC verified in 24 h; compute identities on chain in one line | `/fleet`, `/nodes`, `/chain`, `/dac` |
 | Customers | customer buckets by billed vCPU-hours on sandboxes | `/usage` |
-| Revenue | every DAC era by status; verified usage per era; whether sandbox usage is counted; days | `/dac`, `/usage` |
+| Revenue | every DAC era by status; verified usage per era; sandbox vCPU-hours billed per era, for the request and for burst; whether sandbox usage is counted; days | `/dac`, `/usage` |
 | Storage | disk used and stored over 30 days, fill projection, a row per storage node with its disk against the machine | `/storage`, `/fleet` |
 | Delivery | served per day from cache and from storage, a row per node | `/delivery`, `/fleet` |
 | Inference | requests at once against capacity, daily peak, refusals, GPU units; a row per model; GPUs per node | `/inference`, `/inference/history`, `/fleet`, `/dac` |
-| Sandboxes | live: a row per node with its sandbox quota and a block per sandbox sized by its reservation, filled by its latest minute of use (polled every second); use over time, billed and measured, by customer and by node; billing state; all sandboxes; outbound requests. A sandbox opens in a drawer with its use over the last hour, billed and measured, where it runs and why, and its rules | `/live`, `/fleet`, `/usage`, `/sandboxes`, `/sandboxes/:id`, `/sandboxes/:id/metrics`, `/egress/log` |
+| Sandboxes | live: a row per node with its sandbox quota (counted in requests) and a block per sandbox sized by its request, filled by its latest use; use above the request (burst) runs on past the block, and an open node shows each sandbox's request, use and limit (polled every second); use over time, billed (and its burst) and measured, by customer and by node; billing state; all sandboxes; outbound requests. A sandbox opens in a drawer with its request and limit, its use over the last hour against them, billed for the request and for burst, how it ended, where it runs and why, and its rules | `/live`, `/fleet`, `/usage`, `/sandboxes`, `/sandboxes/:id`, `/sandboxes/:id/metrics`, `/egress/log` |
 | Data sources | every number to its source; what is not available yet; the DAC collector | `/sources`, `/dac` |
+
+**Requests, limits and burst.** A sandbox's request is what the node keeps for it, what the node's sandbox quota
+counts and what it pays for at least; its limit is the most it can use. Use above the request is burst, billed as used,
+and shows in one colour (orange) everywhere: past the block on a node's lane, past the request on a sandbox's gauge,
+and as its own line or bar in billed use. A sandbox from before limits is limited at its request and never shown as
+bursting. It ends "Out of memory" at its memory limit, or "Memory reclaimed" when it used more than its memory request
+while the node was short of memory.
 
 Billing states are plain: **Counted**, **Waiting for verification**, **Not counted** or **Not known yet**, each with a
 one-line reason. A source that is not read yet is one quiet "Not available yet" line; a source that did not answer is a
