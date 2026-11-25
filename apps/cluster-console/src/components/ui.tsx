@@ -125,11 +125,31 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 }
 
 /** Where a number comes from, in one caption line. */
+/** The line above a service tab's table: what it lists, and its actions. */
+export function TabHeader({ subtitle, actions }: { subtitle: ReactNode; actions?: ReactNode }) {
+  return (
+    <Stack direction="row" alignItems="center" justifyContent="space-between" gap={2} marginBottom={2}>
+      <Typography sx={{ ...text.secondary, minWidth: 0 }}>{subtitle}</Typography>
+      {actions && (
+        <Stack direction="row" spacing={1.5} alignItems="center" flexShrink={0}>
+          {actions}
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
 export function SourceLine({ children }: { children: ReactNode }) {
   return <Typography sx={{ ...text.caption, color: color.textTertiary, fontSize: 11.5 }}>{children}</Typography>;
 }
 
 /** A source that did not answer: shown instead of a number, never a zero. */
+/** A failed view read as a missing source, for a card. */
+export function asMissing(e: ApiError | Error): SourceError {
+  if (e instanceof ApiError && e.source) return e.source;
+  return { source: 'console backend', detail: e.message };
+}
+
 export function Missing({ error, compact }: { error: SourceError | ApiError | Error | string; compact?: boolean }) {
   let source = '';
   let detail = '';

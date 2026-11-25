@@ -11,7 +11,9 @@ import { Login } from '~/pages/Login';
 import { Nodes } from '~/pages/Nodes';
 import { Overview } from '~/pages/Overview';
 import { Placements } from '~/pages/Placements';
+import { Revenue } from '~/pages/Revenue';
 import { Sandboxes } from '~/pages/Sandboxes';
+import { SandboxesService } from '~/pages/SandboxesService';
 import { MissingScreen, Sources } from '~/pages/Sources';
 import { Usage } from '~/pages/Usage';
 import { SessionProvider, useSession } from '~/session/SessionProvider';
@@ -31,6 +33,12 @@ function RequireSession() {
   return <Outlet />;
 }
 
+/** Keeps an old link working: same filters, new place. */
+function Moved({ to }: { to: string }) {
+  const { search } = useLocation();
+  return <Navigate to={to + search} replace />;
+}
+
 const router = createBrowserRouter([
   { path: '/login', element: <Login /> },
   {
@@ -41,11 +49,25 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Overview /> },
           { path: 'nodes', element: <Nodes /> },
-          { path: 'sandboxes', element: <Sandboxes /> },
-          { path: 'placements', element: <Placements /> },
-          { path: 'egress', element: <Egress /> },
-          { path: 'usage', element: <Usage /> },
+          { path: 'revenue', element: <Revenue /> },
           { path: 'inference', element: <Inference /> },
+          {
+            // A service, with its tabs.
+            path: 'sandboxes',
+            element: <SandboxesService />,
+            children: [
+              { index: true, element: <Sandboxes /> },
+              { path: 'placements', element: <Placements /> },
+              { path: 'egress', element: <Egress /> },
+              { path: 'usage', element: <Usage /> },
+            ],
+          },
+          // Earlier addresses of the sandbox tabs and of screens that moved.
+          { path: 'placements', element: <Moved to="/sandboxes/placements" /> },
+          { path: 'egress', element: <Moved to="/sandboxes/egress" /> },
+          { path: 'usage', element: <Moved to="/sandboxes/usage" /> },
+          { path: 'missing/revenue', element: <Moved to="/revenue" /> },
+          { path: 'missing/provider-join', element: <Moved to="/missing/requests" /> },
           { path: 'sources', element: <Sources /> },
           { path: 'missing/:screen', element: <MissingScreen /> },
           { path: '*', element: <Navigate to="/" replace /> },

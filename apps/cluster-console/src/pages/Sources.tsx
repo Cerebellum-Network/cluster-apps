@@ -9,6 +9,7 @@ const KIND: Record<SourceRow['kind'], [string, Tone]> = {
   blockchain: ['Blockchain read', 'primary'],
   'resource-manager': ['Resource manager', 'success'],
   'egress-proxy': ['Egress proxy', 'success'],
+  dac: ['DAC', 'primary'],
   'console-backend': ['Console backend', 'neutral'],
   missing: ['No source yet', 'warning'],
 };
@@ -72,14 +73,20 @@ const SCREENS: Record<string, { title: string; screen: string; canvas: string }>
     screen: 'Customers',
     canvas: 'plan, usage, limits, storage quota and deposit per customer (boards e1, e2)',
   },
-  revenue: { title: 'Revenue', screen: 'Revenue', canvas: 'collected per day in USD and CERE (board f1)' },
   plans: { title: 'Plans', screen: 'Plans', canvas: 'Free and Pro: fee, included use and limits (board e0)' },
-  requests: { title: 'Requests', screen: 'Requests', canvas: 'nodes waiting to join, invites (boards d1, d2)' },
-  'provider-join': {
-    title: 'Provider join',
-    screen: 'Provider join',
-    canvas: 'invite link, add a machine, checks and join, join status (boards pj1, h2, pj3, p2)',
+  requests: {
+    title: 'Requests',
+    screen: 'Requests',
+    canvas:
+      'nodes waiting to join and approving them, invites; the provider’s side of joining is in the Provider role (boards d1, d2; pj1, h2, pj3, p2)',
   },
+  agents: {
+    title: 'Agents',
+    screen: 'Agents',
+    canvas: 'a service entry under Services (board Side); its agent runtime nodes are listed under Nodes',
+  },
+  team: { title: 'Team', screen: 'Team', canvas: 'who signs for the cluster and how many must approve (board n1)' },
+  rules: { title: 'Rules', screen: 'Rules', canvas: 'rules and price votes, later (boards a2, g1)' },
 };
 
 /** A canvas screen with no source today: says so, and why, instead of numbers. */

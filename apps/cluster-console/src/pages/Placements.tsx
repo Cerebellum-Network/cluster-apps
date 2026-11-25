@@ -9,7 +9,7 @@ import {
   LoadMore,
   Missing,
   Mono,
-  PageHeader,
+  TabHeader,
   Pill,
   RowsTable,
   Section,
@@ -35,8 +35,7 @@ export function Placements() {
 
   return (
     <>
-      <PageHeader
-        title="Placements"
+      <TabHeader
         subtitle="Why each sandbox landed on its node: the candidates the resource manager weighed, their free room and score, and each attempt."
         actions={
           <Button size="small" variant="outlined" onClick={p.refresh} disabled={p.loading}>

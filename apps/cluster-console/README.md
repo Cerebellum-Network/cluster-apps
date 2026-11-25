@@ -2,7 +2,7 @@
 
 The console for a DDC cluster's manager (and, next, its node providers). One app; the role is read from the blockchain
 at every sign-in. It talks to one backend only: the cluster's **console backend** (ddc-node `cluster/console-backend`),
-which holds read-only keys to the resource manager and the egress proxy. The browser never holds an upstream key and
+which holds read-only keys to the resource manager and the egress proxy and reads the cluster's DAC grouping collector. The browser never holds an upstream key and
 never sends a query: it asks the backend for named views.
 
 ## Sign-in
@@ -15,19 +15,30 @@ never sends a query: it asks the backend for named views.
 The session is a bearer in `sessionStorage` (this tab only, never in a URL). A manager granted by the backend's
 devnet-only `EXTRA_MANAGERS` is shown as **Manager · by backend config** in the header and sidebar.
 
-## Screens and sources
+## Menu and screens
+
+The menu follows the Cluster Console canvas (boards `Side` and `n1`):
+
+- the first group, with no heading: Overview, Nodes, Requests, Customers, Plans, Revenue, Rules (later);
+- **Services**: Storage, Delivery, Inference, Sandboxes, Agents. Each service page shows its capacity in its own unit,
+  then its usage, served and verified by DAC. Sandboxes has tabs: Sandboxes, Placements, Egress, Usage;
+- the footer: Team, and "What backs each number".
 
 | Screen | What | Source (via the console backend) |
 | --- | --- | --- |
-| Overview | sandbox nodes, CPU and memory allocated of allocatable, sandboxes running, egress and usage records in the last hour, compute nodes by runtime, nodes on the blockchain, "needs your attention" | `/summary` |
-| Nodes (c1) | sandbox runtime per node (arch, kernel, runsc, runtimes, allocatable, allocated by RM and as reported, sandboxes, disk free, health, matching on-chain node), inference nodes (GPUs, VRAM, models, requests at once, in flight), agent nodes, on-chain nodes not reporting | `/nodes`, `/chain` |
-| Sandboxes | every sandbox across buckets, list or grouped by node or by customer bucket; a row opens its spec, egress rules, usage and placement | `/sandboxes` |
-| Placements | why each sandbox landed on its node: candidates, free room, score, fits or why not, attempts | `/sandboxes` (`placement`) |
-| Egress log | allowed, denied and error requests with the credential **name** the proxy added (values are never logged) | `/egress/log` |
-| Usage records | per sandbox per minute and final, CPU-s, GiB-s, DAC units, TCA, and whether each reached the host's DAC agent | `/usage/records` |
-| Inference | per model: ready nodes, requests at once, in flight, queued (snapshot of node reports) | `/inference` |
-| Storage, Delivery, Requests, Customers, Plans, Revenue | no source this backend can read today: each says what it would need | `/sources` |
+| Overview (Main) | one card per area: nodes, storage, delivery, inference, sandboxes, revenue, customers; "needs your attention" | `/summary`, `/inference`, `/dac` |
+| Nodes (c1) | sandbox, inference and agent nodes from the resource manager; the on-chain roster with each node's matching report and its work verified by DAC in the last 24 h | `/nodes`, `/chain`, `/dac` |
+| Revenue (f1) | per UTC day and per era: payout status and verified usage by bill line (storage and delivery, GPU, CPU and RAM) from DAC; collected, reserve and providers paid shown as missing (payout receipts not read) | `/dac` |
+| Inference (b2) | requests at once in flight against capacity, GPU units verified by DAC, per model: ready nodes, requests at once, in flight, queued | `/inference`, `/dac` |
+| Sandboxes (service) | capacity (nodes, CPU, memory, running), egress and usage records in the last hour, and what DAC verified for the sandbox nodes (missing while their IDs are not nodes of the cluster on the blockchain) | `/summary`, `/nodes`, `/chain`, `/dac` |
+| Sandboxes › Sandboxes | every sandbox across buckets, list or grouped by node or by customer bucket; a row opens its spec, egress rules, usage and placement | `/sandboxes` |
+| Sandboxes › Placements | why each sandbox landed on its node: candidates, free room, score, fits or why not, attempts | `/sandboxes` (`placement`) |
+| Sandboxes › Egress | allowed, denied and error requests with the credential **name** the proxy added (values are never logged) | `/egress/log` |
+| Sandboxes › Usage | the path to payouts (measured, at the DAC agent, collected by DAC, charged); per sandbox per minute and final, CPU-s, GiB-s, DAC units, TCA, whether each reached the host's DAC agent; billed figures when the runtime records them | `/usage/records` |
+| Storage, Delivery, Requests, Customers, Plans, Agents, Team, Rules | no source this backend can read today: each says what it would need | `/sources` |
 | What backs each number | every number to its component, route and table, or why it is missing (the canvas's z1) | `/sources` |
+
+The old addresses `/placements`, `/egress` and `/usage` redirect to the Sandboxes tabs with their filters.
 
 A source that does not answer is shown as **Source missing** with the backend's reason; it is never replaced by a zero.
 

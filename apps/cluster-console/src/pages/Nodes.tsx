@@ -1,7 +1,8 @@
 import { Box, Stack, Typography } from '@cluster-apps/ui';
 import { Button } from '@mui/material';
 
-import type { ChainNode, ChainSnapshot, NodeView, NodesView } from '~/api/types';
+import type { ApiError } from '~/api/client';
+import type { ChainNode, ChainSnapshot, DACView, NodeView, NodesView } from '~/api/types';
 import {
   Chip,
   color,
@@ -18,6 +19,8 @@ import {
 } from '~/components/ui';
 import { ago, bytes, cpu, mib, num, shortKey, time } from '~/format';
 import { useView } from '~/hooks/useView';
+
+import { workLine } from './dac';
 
 const healthPill = (n: NodeView) =>
   n.healthy ? <Pill tone="success">Healthy</Pill> : <Pill tone="danger">Not healthy</Pill>;
@@ -238,21 +241,40 @@ function AgentNodes({ nodes }: { nodes: NodeView[] }) {
   );
 }
 
-function ChainOnly({ nodes, compared }: { nodes: ChainNode[]; compared: boolean }) {
+function ChainRoster({
+  nodes,
+  reporting,
+  compared,
+  dac,
+  dacError,
+}: {
+  nodes: ChainNode[];
+  reporting: Map<string, NodeView>;
+  compared: boolean;
+  dac: DACView | null;
+  dacError: ApiError | Error | null;
+}) {
+  const recorded = dac ? dac.eras.filter((e) => e.consumed).length : 0;
   return (
     <Section
       flush
-      title={
-        compared
-          ? `On the blockchain, not reporting to the resource manager · ${nodes.length}`
-          : `On the blockchain · ${nodes.length}`
-      }
+      title={`On the blockchain · ${nodes.length}`}
       subtitle={
-        compared
-          ? 'Storage, cache and compute nodes the blockchain lists in this cluster, with no matching report in the resource manager (matched by host).'
-          : 'The resource manager registry is missing, so these are not compared with it.'
+        <>
+          The cluster&apos;s nodes on the blockchain.{' '}
+          {compared
+            ? 'Matched to the resource manager’s reports by host.'
+            : 'The resource manager registry is missing, so these are not matched with it.'}{' '}
+          Verified work is each node&apos;s provided usage in DAC, summed over the{' '}
+          {dac ? `${recorded} of ${dac.eras.length}` : ''} eras of the last 24 h this console recorded.
+        </>
       }
     >
+      {dacError && (
+        <Box sx={{ padding: '0 22px 12px' }}>
+          <Missing error={dacError} compact />
+        </Box>
+      )}
       <RowsTable
         rows={nodes}
         rowKey={(n) => n.pub_key}
@@ -261,6 +283,29 @@ function ChainOnly({ nodes, compared }: { nodes: ChainNode[]; compared: boolean 
           { label: 'Mode', render: (n) => n.mode },
           { label: 'Host', render: (n) => `${n.host}${n.http_port ? `:${n.http_port}` : ''}` },
           { label: 'Provider', render: (n) => <Mono title={n.provider}>{shortKey(n.provider)}</Mono> },
+          {
+            label: 'Resource manager report (by host)',
+            render: (n) => {
+              const r = reporting.get(n.pub_key);
+              if (!compared) return '—';
+              const kind = r?.sandbox ? 'sandbox' : r?.inference ? 'inference' : r?.agent ? 'agent' : 'compute';
+              return r ? (
+                <span>
+                  same host as {kind} node <Mono title={r.id}>{shortKey(r.id)}</Mono>
+                </span>
+              ) : (
+                <span style={{ color: color.textTertiary }}>none</span>
+              );
+            },
+          },
+          {
+            label: 'Verified work, last 24 h',
+            render: (n) => {
+              if (!dac) return '—';
+              const line = workLine(dac.nodes[n.pub_key.toLowerCase().replace(/^0x/, '')], bytes);
+              return line ?? <span style={{ color: color.textTertiary }}>none in the recorded eras</span>;
+            },
+          },
         ]}
       />
     </Section>
@@ -276,8 +321,8 @@ export function Nodes() {
   const agent = items.filter((n) => !n.sandbox && !n.inference && n.agent);
   const registryMissing = !!v.data?.missing.some((m) => m.source.endsWith('/api/v1/nodes'));
   const allocationMissing = !!v.data?.missing.some((m) => m.source.endsWith('/api/v1/sandbox-nodes'));
-  const matched = new Set(items.map((n) => n.chain?.pub_key).filter(Boolean));
-  const chainOnly = (chain.data?.nodes ?? []).filter((c) => !matched.has(c.pub_key));
+  const dac = useView<DACView>('/dac', { hours: 24 }, 60_000);
+  const reporting = new Map(items.filter((n) => n.chain).map((n) => [n.chain!.pub_key, n]));
   const unhealthy = items.filter((n) => !n.healthy).length;
 
   return (
@@ -292,6 +337,7 @@ export function Nodes() {
             onClick={() => {
               v.refresh();
               chain.refresh();
+              dac.refresh();
             }}
             disabled={v.loading}
           >
@@ -324,13 +370,20 @@ export function Nodes() {
           {!(registryMissing && allocationMissing) && <SandboxNodes nodes={sandbox} />}
           {inference.length > 0 && <InferenceNodes nodes={inference} />}
           {agent.length > 0 && <AgentNodes nodes={agent} />}
-          {chain.data && <ChainOnly nodes={chainOnly} compared={!registryMissing} />}
+          {chain.data && (
+            <ChainRoster
+              nodes={chain.data.nodes}
+              reporting={reporting}
+              compared={!registryMissing}
+              dac={dac.data}
+              dacError={dac.error}
+            />
+          )}
           <Box>
             <SourceLine>
               Not shown, no source yet: reporting history over 30 days and underperforming (the resource manager keeps
-              only the last report), in cluster since and stake (needs a blockchain history read), work yesterday
-              (verified usage per era), disk per storage node (node metrics). A node that stops reporting disappears
-              from the registry list.
+              only the last report), in cluster since and stake (needs a blockchain history read), disk per storage node
+              (node metrics). A node that stops reporting disappears from the registry list.
             </SourceLine>
           </Box>
         </Stack>

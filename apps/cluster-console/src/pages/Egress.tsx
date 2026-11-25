@@ -10,7 +10,7 @@ import {
   LoadMore,
   Missing,
   Mono,
-  PageHeader,
+  TabHeader,
   Pill,
   RowsTable,
   Section,
@@ -36,8 +36,7 @@ export function Egress() {
 
   return (
     <>
-      <PageHeader
-        title="Egress log"
+      <TabHeader
         subtitle="Every request a sandbox made to the outside, allowed or denied, across customer buckets. The credential column is the name of the secret the proxy added; values are never logged."
         actions={
           <Button size="small" variant="outlined" onClick={p.refresh} disabled={p.loading}>

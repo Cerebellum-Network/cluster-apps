@@ -15,33 +15,37 @@ interface NavItem {
   label: string;
   /** No source this backend can read yet: the page says why. */
   missing?: boolean;
+  /** On the canvas as "later". */
+  later?: boolean;
 }
 
-const MAIN: NavItem[] = [
+/** The canvas's first group (Side, n1): no heading, the cluster card above names it. */
+const MANAGE: NavItem[] = [
   { to: '/', label: 'Overview' },
   { to: '/nodes', label: 'Nodes' },
-  { to: '/sandboxes', label: 'Sandboxes' },
-  { to: '/placements', label: 'Placements' },
-  { to: '/egress', label: 'Egress log' },
-  { to: '/usage', label: 'Usage records' },
-];
-
-const SERVICES: NavItem[] = [
-  { to: '/inference', label: 'Inference' },
-  { to: '/missing/storage', label: 'Storage', missing: true },
-  { to: '/missing/delivery', label: 'Delivery', missing: true },
-];
-
-const BUSINESS: NavItem[] = [
   { to: '/missing/requests', label: 'Requests', missing: true },
   { to: '/missing/customers', label: 'Customers', missing: true },
   { to: '/missing/plans', label: 'Plans', missing: true },
-  { to: '/missing/revenue', label: 'Revenue', missing: true },
+  { to: '/revenue', label: 'Revenue' },
+  { to: '/missing/rules', label: 'Rules', later: true },
 ];
 
-const PROVIDERS: NavItem[] = [{ to: '/missing/provider-join', label: 'Provider join', missing: true }];
+/** One entry per service the cluster runs; each page shows its capacity in its own unit. */
+const SERVICES: NavItem[] = [
+  { to: '/missing/storage', label: 'Storage', missing: true },
+  { to: '/missing/delivery', label: 'Delivery', missing: true },
+  { to: '/inference', label: 'Inference' },
+  { to: '/sandboxes', label: 'Sandboxes' },
+  { to: '/missing/agents', label: 'Agents', missing: true },
+];
 
-function Item({ to, label, missing }: NavItem) {
+const FOOTER: NavItem[] = [
+  { to: '/missing/team', label: 'Team', missing: true },
+  { to: '/sources', label: 'What backs each number' },
+];
+
+function Item({ to, label, missing, later }: NavItem) {
+  const dim = missing || later;
   return (
     <Box
       component={NavLink}
@@ -51,21 +55,21 @@ function Item({ to, label, missing }: NavItem) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: 34,
+        height: 32,
         padding: '0 12px',
         borderRadius: '8px',
         textDecoration: 'none',
         fontSize: 14,
         fontWeight: 500,
-        color: missing ? color.textTertiary : color.text,
+        color: dim ? color.textTertiary : color.text,
         '&:hover': { backgroundColor: color.grid },
         '&.active': { backgroundColor: color.neutralFill, fontWeight: 700 },
       }}
     >
       <span>{label}</span>
-      {missing && (
+      {dim && (
         <Box component="span" sx={{ fontSize: 11, color: color.textTertiary }}>
-          no source
+          {later ? 'later' : 'no source'}
         </Box>
       )}
     </Box>
@@ -76,7 +80,16 @@ function Group({ label, items }: { label?: string; items: NavItem[] }) {
   return (
     <Stack spacing={0.25}>
       {label && (
-        <Typography sx={{ fontSize: 13, color: color.textSecondary, paddingLeft: 1.5, marginBottom: 0.5 }}>
+        <Typography
+          sx={{
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            color: color.textSecondary,
+            padding: '6px 12px 4px',
+          }}
+        >
           {label}
         </Typography>
       )}
@@ -221,12 +234,12 @@ export function Shell() {
           }}
         >
           <ClusterCard />
-          <Group items={MAIN} />
+          <Group items={MANAGE} />
           <Group label="Services" items={SERVICES} />
-          <Group label="Business" items={BUSINESS} />
-          <Group label="Providers" items={PROVIDERS} />
+          <Box sx={{ paddingTop: 1, borderTop: `1px solid ${color.border}` }}>
+            <Group items={FOOTER} />
+          </Box>
           <Box sx={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Group items={[{ to: '/sources', label: 'What backs each number' }]} />
             <Typography
               sx={{
                 fontSize: 11.5,

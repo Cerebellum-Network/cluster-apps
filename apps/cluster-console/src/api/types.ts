@@ -189,6 +189,9 @@ export interface Usage {
   net_egress_bytes: number;
   net_ingress_bytes: number;
   disk_peak_mib: number;
+  /** Additive, present only from runtimes that bill on the reservation. */
+  billed_cpu_s?: number;
+  billed_ram_gib_s?: number;
 }
 
 export interface PlacementCandidate {
@@ -286,14 +289,64 @@ export interface UsageRecord {
   dac_status: 'pending' | 'pushed' | 'failed' | string;
   dac_updated_at: string | null;
   dac_error?: string | null;
+  /** Additive, from runtimes that bill on the reservation: present only when the record carries them. */
+  wall_s?: number;
+  reserved_cpu?: number;
+  reserved_memory_mib?: number;
+  billed_cpu_s?: number;
+  billed_ram_gib_s?: number;
+  billing_basis?: string;
 }
 
 export interface SourceRow {
   screen: string;
   field: string;
-  kind: 'blockchain' | 'resource-manager' | 'egress-proxy' | 'console-backend' | 'missing';
+  kind: 'blockchain' | 'resource-manager' | 'egress-proxy' | 'dac' | 'console-backend' | 'missing';
   component?: string;
   route?: string;
   table?: string;
   note?: string;
+}
+
+/** One DAC aggregate, in DAC's own units (bytes, request counts, signed cpu/ram/gpu units). */
+export interface DACUsage {
+  puts: number;
+  gets: number;
+  stored_bytes: number;
+  transferred_bytes: number;
+  cpu_units: number;
+  ram_units: number;
+  gpu_units: number;
+  compute_count: number;
+}
+
+/** One era from the cluster's DAC grouping collector. */
+export interface DACEra {
+  id: number;
+  /** As DAC names it: ERA_IN_PROGRESS, ERA_EMPTY, ERA_PROCESSED, ERA_INSPECTED, ERA_PAID, ERA_FORCED_SKIPPED. */
+  status: string;
+  start: string;
+  end: string;
+  customers: number;
+  providers: number;
+  /** Customers' consumed usage (what payouts charge); null when the era's EHD was not read. */
+  consumed: DACUsage | null;
+  /** Providers' provided usage (what payouts reward). */
+  provided: DACUsage | null;
+  missing?: SourceError;
+}
+
+/** GET /api/v1/dac. */
+export interface DACView {
+  collector: { key: string; url: string; from: 'blockchain' | 'backend_config' | string };
+  hours: number;
+  since: string;
+  eras: DACEra[];
+  consumed: DACUsage;
+  provided: DACUsage;
+  /** Provided usage per node key (hex) over the eras read. */
+  nodes: Record<string, DACUsage>;
+  truncated: boolean;
+  kept_since: string;
+  read_at: string;
 }

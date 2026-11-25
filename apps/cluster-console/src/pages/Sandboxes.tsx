@@ -4,7 +4,7 @@ import { Button, ToggleButton, ToggleButtonGroup } from '@mui/material';
 
 import type { Sandbox } from '~/api/types';
 import { SelectFilter, TextFilter, useFilters } from '~/components/Filters';
-import { Loading, LoadMore, Missing, Mono, PageHeader, RowsTable, Section, SourceLine, color } from '~/components/ui';
+import { Loading, LoadMore, Missing, Mono, TabHeader, RowsTable, Section, SourceLine, color } from '~/components/ui';
 import { cpu, mib, num, seconds, time } from '~/format';
 import { usePaged } from '~/hooks/usePaged';
 
@@ -53,8 +53,7 @@ export function Sandboxes() {
 
   return (
     <>
-      <PageHeader
-        title="Sandboxes"
+      <TabHeader
         subtitle="Every sandbox on the cluster, across customer buckets, newest first. Click a row for its spec, egress rules and placement."
         actions={
           <Button size="small" variant="outlined" onClick={p.refresh} disabled={p.loading}>

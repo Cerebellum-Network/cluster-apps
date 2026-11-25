@@ -2,8 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Stack, Typography } from '@cluster-apps/ui';
 import { Button } from '@mui/material';
 
-import type { Counts, SourceRow, Summary } from '~/api/types';
-import { color, Loading, Missing, PageHeader, Pill, Section, SourceLine, Stat, text } from '~/components/ui';
+import type { Counts, DACView, InferenceView, SourceError, SourceRow, Summary } from '~/api/types';
+import { asMissing, color, Loading, Missing, PageHeader, Pill, Section, SourceLine, Stat, text } from '~/components/ui';
 import { mib, num, time } from '~/format';
 import { useView } from '~/hooks/useView';
 
@@ -20,11 +20,28 @@ const list = (c: Counts | null, order?: string[]) => {
 
 const pct = (a: number, b: number) => (b > 0 ? ` (${Math.round((100 * a) / b)}%)` : '');
 
+/** A screen with no source here: the card says so and why, from the sources list. */
+function sourceNote(rows: SourceRow[] | undefined, screen: string): SourceError {
+  const r = rows?.find((x) => x.screen === screen && x.kind === 'missing');
+  return { source: screen, detail: r ? `${r.field}: ${r.note}` : 'no source this console backend reads' };
+}
+
+/** The canvas's Main board: one card per area, each opening its page; what needs the manager. */
 export function Overview() {
   const nav = useNavigate();
   const v = useView<Summary>('/summary');
+  const inf = useView<InferenceView>('/inference');
+  const dac = useView<DACView>('/dac', { hours: 24 }, 60_000);
   const sources = useView<{ items: SourceRow[] }>('/sources', undefined, 0);
   const s = v.data;
+  const rows = sources.data?.items;
+  const models = inf.data?.models ?? [];
+  const serving = models.filter((m) => m.ceiling > 0);
+  const capacity = serving.reduce((a, m) => a + m.ceiling, 0);
+  const inFlight = serving.reduce((a, m) => a + m.in_flight, 0);
+  const eras = dac.data?.eras ?? [];
+  const paid = eras.filter((e) => e.status === 'ERA_PAID').length;
+  const refresh = () => [v, inf, dac].forEach((x) => x.refresh());
 
   return (
     <>
@@ -34,7 +51,7 @@ export function Overview() {
           s ? `Totals as of ${time(s.generated_at)}; “last hour” counts from ${time(s.last_hour_since)}.` : undefined
         }
         actions={
-          <Button size="small" variant="outlined" onClick={v.refresh} disabled={v.loading}>
+          <Button size="small" variant="outlined" onClick={refresh} disabled={v.loading || inf.loading || dac.loading}>
             Refresh
           </Button>
         }
@@ -45,116 +62,89 @@ export function Overview() {
         <Stack spacing={2}>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 2 }}>
             <Stat
-              label="Sandbox nodes"
-              value={`${num(s.nodes_healthy, 0)} of ${num(s.nodes, 0)}`}
-              sub="healthy, reporting a sandbox runtime"
-              source="resource manager · sandbox-nodes"
-              missing={s.sections.sandbox_nodes.missing}
-              onClick={() => nav('/nodes')}
-            />
-            <Stat
-              label="Sandbox CPU"
-              value={s.cpu ? `${num(s.cpu.allocated, 2)} of ${num(s.cpu.allocatable, 2)}` : '—'}
-              sub={s.cpu ? `CPU allocated to live sandboxes${pct(s.cpu.allocated, s.cpu.allocatable)}` : undefined}
-              source="resource manager · sandbox-nodes (allocatable from node reports, allocated = live sandboxes)"
-              missing={s.sections.sandbox_nodes.missing}
-              onClick={() => nav('/nodes')}
-            />
-            <Stat
-              label="Sandbox memory"
-              value={s.memory_mib ? `${mib(s.memory_mib.allocated)} of ${mib(s.memory_mib.allocatable)}` : '—'}
+              label="Nodes"
+              value={`${num(s.chain_nodes, 0)} in the cluster`}
               sub={
-                s.memory_mib
-                  ? `allocated to live sandboxes${pct(s.memory_mib.allocated, s.memory_mib.allocatable)}`
-                  : undefined
+                <>
+                  {list(s.chain_nodes_by_mode, ['storage', 'full', 'cache', 'compute'])}
+                  {s.compute_nodes !== null && (
+                    <>
+                      <br />
+                      {num(s.compute_nodes, 0)} compute nodes reporting:{' '}
+                      {list(s.compute_nodes_by_module, ['sandbox', 'inference', 'agent'])}
+                    </>
+                  )}
+                </>
               }
-              source="resource manager · sandbox-nodes"
-              missing={s.sections.sandbox_nodes.missing}
-              onClick={() => nav('/nodes')}
-            />
-            <Stat
-              label="Sandboxes running"
-              value={`${num(s.sandboxes_running, 0)}${s.sections.sandboxes.truncated ? '+' : ''}`}
-              sub="all customer buckets"
-              source="resource manager · sandboxes?status=running"
-              missing={s.sections.sandboxes.missing}
-              onClick={() => nav('/sandboxes?status=running')}
-            />
-            <Stat
-              label="Egress, last hour"
-              value={`${num(s.egress_last_hour?.allowed, 0)} allowed`}
-              sub={
-                s.egress_last_hour
-                  ? `${num(s.egress_last_hour.denied, 0)} denied · ${num(s.egress_last_hour.error, 0)} error${s.sections.egress.truncated ? ' (at least)' : ''}`
-                  : undefined
-              }
-              source="egress proxy · log"
-              missing={s.sections.egress.missing}
-              onClick={() => nav('/egress')}
-            />
-            <Stat
-              label="Usage records, last hour"
-              value={`${num(s.records_last_hour?.pushed, 0)} reached DAC`}
-              sub={
-                s.records_last_hour
-                  ? `${num(s.records_last_hour.pending, 0)} pending · ${num(s.records_last_hour.failed, 0)} failed`
-                  : undefined
-              }
-              source="resource manager · usage-records (DAC status from the node)"
-              missing={s.sections.records.missing}
-              onClick={() => nav('/usage')}
-            />
-            <Stat
-              label="Compute nodes reporting"
-              value={num(s.compute_nodes, 0)}
-              sub={list(s.compute_nodes_by_module, ['sandbox', 'inference', 'agent'])}
-              source="resource manager · nodes (last 30 s of reports)"
-              missing={s.sections.registry.missing}
-              onClick={() => nav('/nodes')}
-            />
-            <Stat
-              label="Nodes on the blockchain"
-              value={num(s.chain_nodes, 0)}
-              sub={list(s.chain_nodes_by_mode, ['storage', 'full', 'cache', 'compute'])}
-              source="blockchain · cluster nodes"
+              source="blockchain · cluster nodes; resource manager · nodes (last 30 s of reports)"
               missing={s.sections.chain.missing}
               onClick={() => nav('/nodes')}
             />
+            <Stat
+              label="Storage"
+              value=""
+              source="Storage"
+              missing={sourceNote(rows, 'Storage')}
+              onClick={() => nav('/missing/storage')}
+            />
+            <Stat
+              label="Delivery"
+              value=""
+              source="Delivery"
+              missing={sourceNote(rows, 'Delivery')}
+              onClick={() => nav('/missing/delivery')}
+            />
+            <Stat
+              label="Inference"
+              value={inf.data ? `${num(inFlight, 0)} of ${num(capacity, 0)}` : '…'}
+              sub={
+                inf.data
+                  ? `requests at once now, all models together · ${serving.length} models serving, ${models.length - serving.length} with no capacity`
+                  : undefined
+              }
+              source="resource manager · nodes (inference modules' last reports)"
+              missing={inf.error ? asMissing(inf.error) : (inf.data?.missing[0] ?? null)}
+              onClick={() => nav('/inference')}
+            />
+            <Stat
+              label="Sandboxes"
+              value={`${num(s.sandboxes_running, 0)}${s.sections.sandboxes.truncated ? '+' : ''} running`}
+              sub={
+                s.cpu && s.memory_mib
+                  ? `${num(s.cpu.allocated, 2)} of ${num(s.cpu.allocatable, 2)} CPU${pct(s.cpu.allocated, s.cpu.allocatable)} · ${mib(s.memory_mib.allocated)} of ${mib(s.memory_mib.allocatable)} allocated · ${num(s.nodes_healthy, 0)} of ${num(s.nodes, 0)} nodes healthy`
+                  : undefined
+              }
+              source="resource manager · sandboxes?status=running, sandbox-nodes"
+              missing={s.sections.sandboxes.missing ?? s.sections.sandbox_nodes.missing}
+              onClick={() => nav('/sandboxes')}
+            />
+            <Stat
+              label="Revenue"
+              value={dac.data ? `${num(paid, 0)} of ${num(eras.length, 0)} eras paid` : '…'}
+              sub={
+                dac.data
+                  ? 'last 24 h, from DAC · collected in USD and CERE: no source (payout receipts not read)'
+                  : undefined
+              }
+              source="DAC grouping collector · eras"
+              missing={dac.error ? asMissing(dac.error) : null}
+              onClick={() => nav('/revenue')}
+            />
+            <Stat
+              label="Customers"
+              value=""
+              source="Customers"
+              missing={sourceNote(rows, 'Customers')}
+              onClick={() => nav('/missing/customers')}
+            />
           </Box>
 
-          <Box
-            sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 2fr)', gap: 2, alignItems: 'start' }}
+          <Section
+            title="Needs your attention"
+            subtitle="Worked out from the counts above; a missing source is not guessed at."
           >
-            <Section
-              title="Needs your attention"
-              subtitle="Worked out from the counts above; a missing source is not guessed at."
-            >
-              <Attention s={s} onOpen={(to) => nav(to)} />
-            </Section>
-            <Section
-              title="Not available yet"
-              subtitle="On the canvas, with no source this console backend can read today."
-            >
-              <Stack spacing={1}>
-                {(sources.data?.items ?? [])
-                  .filter(
-                    (r) => r.kind === 'missing' && ['Storage', 'Delivery', 'Revenue', 'Customers'].includes(r.screen),
-                  )
-                  .map((r) => (
-                    <Box key={r.screen + r.field}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{r.screen}</Typography>
-                        <Pill tone="warning">source missing</Pill>
-                      </Stack>
-                      <Typography sx={{ ...text.caption }}>
-                        {r.field}: {r.note}
-                      </Typography>
-                    </Box>
-                  ))}
-                {sources.error && <Missing error={sources.error} compact />}
-              </Stack>
-            </Section>
-          </Box>
+            <Attention s={s} onOpen={(to) => nav(to)} />
+          </Section>
           <SourceLine>
             Every number on this page and where it comes from: “What backs each number” in the sidebar.
           </SourceLine>

@@ -40,7 +40,7 @@ export function attention(s: Summary): Attention[] {
       tone: 'warn',
       title: `Sandbox CPU is ${Math.round((100 * s.cpu.allocated) / s.cpu.allocatable)}% allocated`,
       detail: `${s.cpu.allocated} of ${s.cpu.allocatable} CPU allocated to live sandboxes.`,
-      to: '/nodes',
+      to: '/sandboxes',
     });
   }
   if (s.memory_mib && s.memory_mib.allocatable > 0 && s.memory_mib.allocated / s.memory_mib.allocatable >= 0.8) {
@@ -49,7 +49,7 @@ export function attention(s: Summary): Attention[] {
       tone: 'warn',
       title: `Sandbox memory is ${Math.round((100 * s.memory_mib.allocated) / s.memory_mib.allocatable)}% allocated`,
       detail: `${s.memory_mib.allocated} of ${s.memory_mib.allocatable} MiB allocated to live sandboxes.`,
-      to: '/nodes',
+      to: '/sandboxes',
     });
   }
   const failed = s.records_last_hour?.failed ?? 0;
@@ -59,7 +59,7 @@ export function attention(s: Summary): Attention[] {
       tone: 'bad',
       title: `${failed} usage record${failed === 1 ? '' : 's'} failed to reach the DAC agent in the last hour`,
       detail: 'The sandbox runtime keeps them spooled and pushes them again.',
-      to: '/usage?dac_status=failed',
+      to: '/sandboxes/usage?dac_status=failed',
     });
   }
   const pending = s.records_last_hour?.pending ?? 0;
@@ -69,7 +69,7 @@ export function attention(s: Summary): Attention[] {
       tone: 'warn',
       title: `${pending} usage record${pending === 1 ? ' is' : 's are'} still pending`,
       detail: 'Written and spooled on the node, not yet accepted by its DAC agent.',
-      to: '/usage?dac_status=pending',
+      to: '/sandboxes/usage?dac_status=pending',
     });
   }
   const denied = s.egress_last_hour?.denied ?? 0;
@@ -79,7 +79,7 @@ export function attention(s: Summary): Attention[] {
       tone: 'warn',
       title: `${denied} egress request${denied === 1 ? '' : 's'} denied in the last hour`,
       detail: 'A sandbox asked for a host, method or path its rules do not allow.',
-      to: '/egress?decision=denied',
+      to: '/sandboxes/egress?decision=denied',
     });
   }
   const errors = s.egress_last_hour?.error ?? 0;
@@ -89,7 +89,7 @@ export function attention(s: Summary): Attention[] {
       tone: 'bad',
       title: `${errors} egress request${errors === 1 ? '' : 's'} failed upstream in the last hour`,
       detail: 'The egress proxy could not reach the host or a credential was missing.',
-      to: '/egress?decision=error',
+      to: '/sandboxes/egress?decision=error',
     });
   }
   return out;
