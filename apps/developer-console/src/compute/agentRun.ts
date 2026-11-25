@@ -10,13 +10,15 @@
  *   3. exec the runner (`claude-code`) or the definition's command (`container`)
  *      with streaming, and turn its stdout JSON lines into events;
  *   4. read /workspace/output.json;
- *   5. terminate, retaining the run's files;
+ *   5. terminate, retaining the run's files, with a reason that records the
+ *      run's result on the sandbox (agentOutcome.ts);
  *   6. copy output.json and transcript.jsonl to the bucket, when the caller can.
  *
  * Everything goes through the public compute API with the caller's token;
  * nothing here is simulated.
  */
 import type { AgentDefinition } from './agentDefinition';
+import { terminateReason, withoutFiles } from './agentOutcome';
 import { ComputeError, errorMessage, type ComputeClient } from './client';
 import type { CreateSandboxRequest, EgressRule, ExecExit, Sandbox } from './types';
 import { ulid } from './ulid';
@@ -225,6 +227,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
   const stdoutLines: string[] = [];
   const stderrTail: string[] = [];
   let created: Sandbox | null = null;
+  let stopped = false;
 
   try {
     // 1. Create and wait for it to run.
@@ -312,14 +315,16 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
       }
     }
   } catch (e) {
-    result.error = e instanceof DOMException && e.name === 'AbortError' ? 'Stopped.' : errorMessage(e);
+    stopped = e instanceof DOMException && e.name === 'AbortError';
+    result.error = stopped ? 'Stopped.' : errorMessage(e);
   }
 
   // 5. Terminate, keeping the run's files. Always, unless asked to keep it:
-  // a run never leaves a sandbox behind because something above failed.
+  // a run never leaves a sandbox behind because something above failed. The
+  // reason records the run's result, where every client reads it.
   if (created && !keep) {
     step('terminate');
-    const final = await terminateRetaining(client, created.id, 'agent run finished');
+    const final = await terminateRetaining(client, created.id, terminateReason({ stopped, error: result.error }));
     if (final) setSandbox(final);
     else if (!result.error) result.error = 'Couldn’t terminate the sandbox; it stops at its timeout.';
   }
@@ -334,7 +339,7 @@ export async function terminateRetaining(client: ComputeClient, id: string, reas
   } catch (e) {
     if (e instanceof ComputeError && e.status >= 400 && e.status < 500 && e.status !== 404) {
       try {
-        return await client.terminate(id, { reason });
+        return await client.terminate(id, { reason: withoutFiles(reason) });
       } catch {
         return null;
       }

@@ -216,7 +216,7 @@ describe('runAgent', () => {
       workdir: '/workspace',
     });
     expect(Object.keys(log.files)).toContain('/workspace/input.txt');
-    expect(log.terminated).toEqual({ retain: RETAINED_FILES, reason: 'agent run finished' });
+    expect(log.terminated).toEqual({ retain: RETAINED_FILES, reason: 'agent run succeeded' });
     expect(events.filter((e) => e.event !== 'raw').map((e) => e.event)).toEqual([
       'log',
       'tool_call',
@@ -246,6 +246,27 @@ describe('runAgent', () => {
     const res = await runAgent({ client, def: SRE, input: 'q', sleep: async () => undefined });
     expect(res.error).toMatch(/wrote no \/workspace\/output.json/);
     expect(log.terminated?.retain).toEqual(RETAINED_FILES);
+    expect(log.terminated?.reason).toMatch(/^agent run failed: The agent wrote no \/workspace\/output.json\./);
+  });
+
+  it('records the agent’s own error as a failed run', async () => {
+    const { client, log } = fakeClient({
+      stdout: [],
+      output: '{"output":"","turns":1,"error":"There\'s an issue with the selected model (glm-5.3)."}',
+      exitCode: 1,
+    });
+    const res = await runAgent({ client, def: SRE, input: 'q', sleep: async () => undefined });
+    expect(res.error).toBe("There's an issue with the selected model (glm-5.3).");
+    expect(log.terminated?.reason).toBe("agent run failed: There's an issue with the selected model (glm-5.3).");
+  });
+
+  it('records a stopped run as stopped', async () => {
+    const { client, log } = fakeClient({ stdout: [], output: null });
+    const ctl = new AbortController();
+    ctl.abort();
+    const res = await runAgent({ client, def: SRE, input: 'q', sleep: async () => undefined, signal: ctl.signal });
+    expect(res.error).toBe('Stopped.');
+    expect(log.terminated?.reason).toBe('agent run stopped');
   });
 
   it('reports a sandbox that failed to start, and still deletes it', async () => {

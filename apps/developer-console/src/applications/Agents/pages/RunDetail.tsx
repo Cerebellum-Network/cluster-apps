@@ -5,19 +5,21 @@ import { NavLink, useParams } from 'react-router-dom';
 
 import { Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
+import { legacyOutcome, outcomeOf, type RunOutcome } from '~/compute/agentOutcome';
 import { LABEL, parseRunOutput, type RunOutput, type RunStep } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { readRunFile } from '~/compute/agentStore';
 import { ComputeError, errorMessage } from '~/compute/client';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { useEgressLog, useNow, useSandboxes } from '~/compute/hooks';
-import { fmtDuration, fmtQty, shortNode } from '~/compute/format';
+import { fmtDuration, fmtQty, plural, shortNode } from '~/compute/format';
 import { foldEvents, transcriptItems } from '~/compute/runView';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Markdown, Tabs } from '../../Sandboxes/components/bits';
 import EgressTable from '../../Sandboxes/components/detail/EgressTable';
 import { Mono, ReadError, SandboxStatusLabel } from '../../Sandboxes/components/ui';
+import { RunOutcomePill } from '../components/RunOutcome';
 import { Label, RunItems } from '../components/RunItems';
 
 const STEPS: { id: RunStep; label: string }[] = [
@@ -84,8 +86,8 @@ function useRunFile(sb: Sandbox | null, name: string, pollMs: number | null, ver
 
 const NO_FILE: FileState = { text: null, from: null, error: null, loading: false };
 
-const Output = ({ output, from }: { output: RunOutput | null; from?: string | null }) => {
-  if (!output) return <Typography sx={text.secondary}>No output yet.</Typography>;
+const Output = ({ output, from, empty }: { output: RunOutput | null; from?: string | null; empty: string }) => {
+  if (!output) return <Typography sx={text.secondary}>{empty}</Typography>;
   const usage = output.model_usage ?? {};
   return (
     <Box>
@@ -106,10 +108,11 @@ const Output = ({ output, from }: { output: RunOutput | null; from?: string | nu
         marginTop="12px"
         sx={{ ...text.caption, fontVariantNumeric: 'tabular-nums' }}
       >
-        {output.turns != null && <span>{output.turns} model turns</span>}
+        {output.turns != null && <span>{plural(output.turns, 'model turn')}</span>}
         {output.tool_calls != null && (
           <span>
-            {output.tool_calls} tool calls{output.denied ? `, ${output.denied} refused by the policy` : ''}
+            {plural(output.tool_calls, 'tool call')}
+            {output.denied ? `, ${output.denied} refused by the agent’s policy` : ''}
           </span>
         )}
         {typeof usage.input_tokens === 'number' && (
@@ -129,7 +132,12 @@ const RunDetail = () => {
   const { runId = '' } = useParams<{ runId: string }>();
   const live = agentRuns.get(runId);
   const listed = useSandboxes({ label: [`${LABEL.run}:${runId}`] });
-  const sb: Sandbox | null = listed.data?.items[0] ?? live?.sandbox ?? null;
+  // This tab's final copy of the sandbox is newer than the last listing.
+  const sb: Sandbox | null =
+    (live?.sandbox && !isLive(live.sandbox.status) ? live.sandbox : null) ??
+    listed.data?.items[0] ??
+    live?.sandbox ??
+    null;
   const egress = useEgressLog({ sandbox_id: sb?.id }, { enabled: !!sb });
   const now = useNow(1000);
   const [tab, setTab] = useState<'did' | 'egress'>('did');
@@ -161,7 +169,28 @@ const RunDetail = () => {
   const end = live?.endedAt ?? (sb?.ended_at ? Date.parse(sb.ended_at) : now);
   const stepIndex = live ? STEPS.findIndex((s) => s.id === live.step) : -1;
   const entries = egress.data?.items ?? [];
-  const refused = entries.filter((e) => e.decision === 'denied').length;
+  const denied = entries.filter((e) => e.decision === 'denied').length;
+  // The run's result: this tab's own while it drives the run, else what its
+  // sandbox records (agentOutcome.ts), read the same way by the CLI and the SDK.
+  let outcome: RunOutcome | null = null;
+  if (driving) outcome = { state: 'running' };
+  else if (sb && !isLive(sb.status)) {
+    outcome = outcomeOf(sb);
+    if (outcome.legacy)
+      outcome =
+        outputFile.loading && sb.retained.includes('/workspace/output.json')
+          ? { state: 'unknown', detail: 'Reading its output…' }
+          : legacyOutcome(sb, outputFile.from === 'sandbox' ? outputFile.text : null);
+  } else if (live?.endedAt) {
+    const error = live.result?.error;
+    outcome =
+      error === 'Stopped.'
+        ? { state: 'stopped', detail: 'Stopped by its client.' }
+        : error
+          ? { state: 'failed', detail: error }
+          : { state: 'succeeded' };
+  }
+  const failure = outcome && outcome.state !== 'running' && outcome.state !== 'succeeded' ? outcome.detail : null;
 
   return (
     <Box>
@@ -186,15 +215,7 @@ const RunDetail = () => {
           <Typography component="h1" sx={{ ...text.pageTitle, fontFamily: mono, fontSize: 20 }}>
             {runId}
           </Typography>
-          {driving ? (
-            <Pill tone="primary">Running</Pill>
-          ) : live?.result?.error ? (
-            <Pill tone="warning">Failed</Pill>
-          ) : ended ? (
-            <Pill tone="success">Done</Pill>
-          ) : (
-            <Pill tone="primary">Running elsewhere</Pill>
-          )}
+          {outcome ? <RunOutcomePill outcome={outcome} /> : <Pill tone="primary">Running elsewhere</Pill>}
           <Typography sx={text.secondary}>
             {agent} · {harness} · {fmtDuration((end - started) / 1000)}
           </Typography>
@@ -243,9 +264,9 @@ const RunDetail = () => {
         </Stack>
       )}
 
-      {live?.result?.error && (
-        <Alert severity="error" sx={{ marginBottom: '16px' }}>
-          {live.result.error}
+      {failure && (
+        <Alert severity={outcome?.state === 'failed' ? 'error' : 'info'} sx={{ marginBottom: '16px' }}>
+          {outcome?.state === 'stopped' ? 'Stopped before it finished.' : failure}
         </Alert>
       )}
       {!live && sb && isLive(sb.status) && (
@@ -308,7 +329,19 @@ const RunDetail = () => {
             ) : outputFile.error && !output ? (
               <ReadError what="output.json" error={outputFile.error} />
             ) : (
-              <Output output={output} from={live?.result?.output ? null : outputFile.from} />
+              <Output
+                output={output}
+                from={live?.result?.output ? null : outputFile.from}
+                empty={
+                  !ended
+                    ? 'No output yet.'
+                    : outputFile.loading
+                      ? 'Reading…'
+                      : sb && !sb.retained.includes('/workspace/output.json')
+                        ? 'No output: the agent wrote no /workspace/output.json before the run ended.'
+                        : 'No output was kept.'
+                }
+              />
             )}
           </Section>
         </Stack>
@@ -320,7 +353,7 @@ const RunDetail = () => {
               onChange={setTab}
               tabs={[
                 { id: 'did', label: 'What it did' },
-                { id: 'egress', label: `Egress (${entries.length}${refused ? `, ${refused} refused` : ''})` },
+                { id: 'egress', label: `Egress (${entries.length}${denied ? `, ${denied} denied` : ''})` },
               ]}
             />
           </Box>

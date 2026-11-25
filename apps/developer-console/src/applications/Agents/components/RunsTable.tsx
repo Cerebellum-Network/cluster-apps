@@ -3,13 +3,15 @@ import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import { Pill } from '~/components';
+import type { RunOutcome } from '~/compute/agentOutcome';
 import { LABEL } from '~/compute/agentRun';
 import { agentRuns, type LiveRun } from '~/compute/agentRuns';
 import { useNow } from '~/compute/hooks';
 import { fmtAgo, fmtDuration, fmtQty, shortId } from '~/compute/format';
-import type { Sandbox } from '~/compute/types';
+import { useRunOutcomes } from '~/compute/runOutcomes';
+import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
-import { SandboxStatusLabel } from '../../Sandboxes/components/ui';
+import { RunOutcomeLabel } from './RunOutcome';
 
 export interface RunRow {
   runId: string;
@@ -42,8 +44,11 @@ export function runRows(sandboxes: Sandbox[], live: LiveRun[]): RunRow[] {
   }
   for (const r of live) {
     const row = rows.get(r.runId);
-    if (row) row.live = r;
-    else
+    if (row) {
+      row.live = r;
+      // This tab terminated it: its final state is newer than the last listing.
+      if (r.sandbox && !isLive(r.sandbox.status)) row.sandbox = r.sandbox;
+    } else
       rows.set(r.runId, {
         runId: r.runId,
         agent: r.def.name,
@@ -57,9 +62,19 @@ export function runRows(sandboxes: Sandbox[], live: LiveRun[]): RunRow[] {
   return [...rows.values()].sort((a, b) => b.startedAt - a.startedAt);
 }
 
+/** A row's result: the live run's while this tab drives it, else what its sandbox records. */
+export function rowOutcome(r: RunRow, outcomes: Map<string, RunOutcome>): RunOutcome {
+  if (r.live && !r.live.endedAt) return { state: 'running' };
+  const recorded = r.sandbox ? outcomes.get(r.sandbox.id) : undefined;
+  if (recorded) return recorded;
+  if (r.live?.result?.error) return { state: 'failed', detail: r.live.result.error };
+  return { state: 'running', detail: 'creating…' };
+}
+
 const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgent?: boolean; empty?: string }) => {
   const now = useNow(1000);
   const navigate = useNavigate();
+  const outcomes = useRunOutcomes(rows.flatMap((r) => (r.sandbox ? [r.sandbox] : [])));
   return (
     <TableContainer sx={{ '& td': { whiteSpace: 'nowrap' } }}>
       <Table>
@@ -67,7 +82,7 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
           <TableRow>
             <TableCell>Run</TableCell>
             {showAgent && <TableCell>Agent</TableCell>}
-            <TableCell>Status</TableCell>
+            <TableCell>Result</TableCell>
             <TableCell>Started</TableCell>
             <TableCell>Took</TableCell>
             <TableCell>Sandbox</TableCell>
@@ -100,14 +115,8 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
                     <Typography sx={text.caption}>{r.harness}</Typography>
                   </TableCell>
                 )}
-                <TableCell>
-                  {r.sandbox ? (
-                    <SandboxStatusLabel status={r.sandbox.status} />
-                  ) : r.live?.result?.error ? (
-                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: color.danger }}>Failed</Typography>
-                  ) : (
-                    <Typography sx={text.secondary}>creating…</Typography>
-                  )}
+                <TableCell sx={{ whiteSpace: 'normal !important' }}>
+                  <RunOutcomeLabel outcome={rowOutcome(r, outcomes)} />
                 </TableCell>
                 <TableCell sx={{ color: color.textSecondary }}>
                   {fmtAgo(new Date(r.startedAt).toISOString(), now)}
