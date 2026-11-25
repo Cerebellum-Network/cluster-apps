@@ -203,7 +203,10 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
               minRows={2}
               placeholder="KEY=value"
               error={!!envKv.error}
-              helperText={envKv.error ?? 'One KEY=value per line. Not for secrets: add a credential and name it in an egress rule.'}
+              helperText={
+                envKv.error ??
+                'One KEY=value per line. Not for secrets: add a credential and name it in an egress rule.'
+              }
               InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
             />
             <TextField
