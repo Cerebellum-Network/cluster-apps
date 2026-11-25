@@ -2,7 +2,7 @@
  * A run's result, recorded on its sandbox. Step 5 terminates the sandbox with
  * a reason that says how the run ended, and the sandbox keeps it as its
  * exit_reason ("terminated by API: <reason>"). The cere CLI
- * (client/cere/agent/outcome.go), the Python SDK (`cere.run_outcome`) and this
+ * (packages/cli/agent/outcome.go), the Python SDK (`cere.run_outcome`) and this
  * console write and read the same reasons, so a run shows the same result
  * whichever client started it and whichever one looks at it.
  */

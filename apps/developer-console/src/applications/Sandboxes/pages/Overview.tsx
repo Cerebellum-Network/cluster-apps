@@ -13,7 +13,7 @@ import ComputeGate from '../components/ComputeGate';
 import { FirstRunDialog } from '../components/FirstRunDialog';
 import RecentDenials from '../components/egress/RecentDenials';
 import QuickstartTabs from '../components/QuickstartTabs';
-import { QUICKSTART_CLI, QUICKSTART_PYTHON, QUICKSTART_PYTHON_SETUP } from '../components/quickstart';
+import { QUICKSTART_CLI, QUICKSTART_PYTHON, QUICKSTART_PYTHON_SETUP, UNTIL_PYPI } from '../components/quickstart';
 import { BucketChip, Mono, ReadError, StatusDot } from '../components/ui';
 
 const Subhead = ({ children }: { children: string }) => (
@@ -155,6 +155,15 @@ const Overview = () => {
       >
         <Section title="Quickstart">
           <Stack spacing="20px">
+            {UNTIL_PYPI && (
+              <Stack spacing="8px">
+                <Typography sx={text.caption}>
+                  Until <Mono>cere</Mono> is on PyPI, install it from the GitHub release instead (members of the
+                  Cerebellum-Network organization, with <Mono>gh</Mono> signed in):
+                </Typography>
+                <CodeBlock code={UNTIL_PYPI} />
+              </Stack>
+            )}
             <QuickstartTabs
               cli={<CodeBlock code={QUICKSTART_CLI} />}
               python={
@@ -165,10 +174,12 @@ const Overview = () => {
               }
             />
             <Typography sx={{ ...text.caption, marginTop: '8px' }}>
-              Step 1 needs membership of the Cerebellum-Network GitHub organization: the CLI and the SDK are released
-              privately for now, so <Mono>gh</Mono> must be signed in with a member’s account (an anonymous download
-              answers 404), and there is no public download yet. <Mono>cere login</Mono> opens this console, which asks
-              you to approve the CLI for a bucket; your SSCP wallet signs it. In CI, use a token from{' '}
+              <Mono>pip install cere</Mono> brings the <Mono>cere</Mono> command and the Python SDK, for macOS and Linux
+              with Python 3.9 or later; run it in a virtual environment (
+              <Mono>python3 -m venv .venv &amp;&amp; . .venv/bin/activate</Mono>). <Mono>cere login</Mono> opens this
+              console, where you approve with your wallet; the SDK reads what it saves. <Mono>cere sandbox create</Mono>{' '}
+              prints the sandbox id. The sandbox runs, and is billed, until its <Mono>--timeout</Mono> or{' '}
+              <Mono>cere sandbox terminate &lt;id&gt;</Mono>. In CI, use a token from{' '}
               <NavLink to="/access-tokens">Access tokens</NavLink> with <Mono>cere login --token-stdin</Mono>.
             </Typography>
             <Box>

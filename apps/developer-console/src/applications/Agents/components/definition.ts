@@ -24,7 +24,7 @@ export const agentPath = (bucket: string, name: string) =>
  * The Developer Console of the network a DDC inference gateway serves, or null
  * for any other host. Both are deployed under one ingress host per network:
  * `inference-gateway.<host>` and `developer.<host>` (the cere CLI derives it
- * the same way, client/cere/agent/secrets.go).
+ * the same way, packages/cli/agent/secrets.go).
  */
 export function consoleForGateway(host: string): string | null {
   const prefix = 'inference-gateway.';
@@ -41,7 +41,7 @@ const hostOf = (url: string): string => {
   }
 };
 
-/** The example definitions' model gateway (ddc-node client/examples/agents): devnet's inference gateway. */
+/** The example definitions' model gateway (ddc-node examples/agents): devnet's inference gateway. */
 export const EXAMPLE_MODEL_URL = 'https://inference-gateway.compute.dev.ddcdragon.com/anthropic';
 
 /**

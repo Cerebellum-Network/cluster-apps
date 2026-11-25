@@ -1,7 +1,7 @@
 /**
  * What a sandbox is billed, next to what its node measured, worded as the cere
- * CLI prints it (ddc-node `client/cere/output.go` `billingLine`, and
- * `client/cere/records.go` for `cere usage`, as of b2b367cc1), so a sandbox reads
+ * CLI prints it (ddc-node `packages/cli/output.go` `billingLine`, and
+ * `packages/cli/records.go` for `cere usage`, as of b2b367cc1), so a sandbox reads
  * the same here and in a terminal.
  *
  * On the `reserved` basis a sandbox is billed for what it reserves for as long

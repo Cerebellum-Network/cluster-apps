@@ -1,28 +1,15 @@
 /**
  * The canonical quickstart, verbatim: the CLI and Python SDK's own text (ddc-node
- * `docs/compute/sandboxes/README.md`, quickstart section), one block per tab. The
- * console shows it exactly as written, so a reader can diff the page against the
- * docs. Change it there first, then here.
+ * `docs/compute/sandboxes/README.md`, quickstart section, and `API.md` 3.10), one
+ * block per tab. The console shows it exactly as written, so a reader can diff the
+ * page against the docs. Change it there first, then here.
  */
-export const QUICKSTART_CLI = `# 1. Install the CLI (release assets need access to Cerebellum-Network/ddc-node)
-gh release download cli/v0.1.6 -R Cerebellum-Network/ddc-node -p "cere_$(uname -s | tr A-Z a-z)_$(uname -m).tar.gz" -O - | tar -xz cere
-mkdir -p ~/.local/bin && install cere ~/.local/bin/cere && export PATH="$HOME/.local/bin:$PATH"
-
-# 2. Sign in: opens the Developer Console in your browser, where you approve
+export const QUICKSTART_CLI = `pip install cere
 cere login
+cere sandbox create --image python:3.12-slim --timeout 600
+cere sandbox exec <id> -- python -c "print('hello from a DDC sandbox')"`;
 
-# 3. Run something
-cere sandbox create --image python:3.12-slim --timeout 600          # prints the sandbox id
-cere sandbox exec <id> -- python -c "print('hello from a DDC sandbox')"
-cere sandbox terminate <id>`;
-
-export const QUICKSTART_PYTHON_SETUP = `# 1. Install the Python SDK, and the CLI that signs you in (release assets need access to Cerebellum-Network/ddc-node)
-gh release download cli/v0.1.6 -R Cerebellum-Network/ddc-node -p 'cere_sdk-0.1.6-py3-none-any.whl'
-python3 -m venv .venv && . .venv/bin/activate && pip install ./cere_sdk-0.1.6-py3-none-any.whl
-gh release download cli/v0.1.6 -R Cerebellum-Network/ddc-node -p "cere_$(uname -s | tr A-Z a-z)_$(uname -m).tar.gz" -O - | tar -xz cere
-mkdir -p ~/.local/bin && install cere ~/.local/bin/cere && export PATH="$HOME/.local/bin:$PATH"
-
-# 2. Sign in: opens the Developer Console in your browser, where you approve; the SDK reads what it saves
+export const QUICKSTART_PYTHON_SETUP = `pip install cere
 cere login`;
 
 export const QUICKSTART_PYTHON = `import cere
@@ -31,6 +18,13 @@ sb = cere.Sandbox.create(image="python:3.12-slim", timeout=600)
 p = sb.exec("python", "-c", "print('hello from a DDC sandbox')")
 print(p.stdout.read(), end="")
 sb.terminate()`;
+
+/**
+ * Until `cere` is on PyPI: the install that works today, shown above the tabs
+ * instead of `pip install cere` (the docs' "> Until `cere` is on PyPI" line).
+ * When `pip install cere` works, set it to '' and the note disappears.
+ */
+export const UNTIL_PYPI: string = `gh release download cli/v0.1.7 -R Cerebellum-Network/ddc-node -p 'cere-*.whl' -D cere-wheels && pip install --no-index --find-links cere-wheels cere`;
 
 /** What "Try it here" runs: the Python example's sandbox and command, through the same API. */
 export const FIRST_RUN = {

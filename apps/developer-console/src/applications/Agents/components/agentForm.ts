@@ -22,7 +22,7 @@ import { quoteArg, splitCommand } from '../../Sandboxes/components/commandLine';
 
 /** The agent runner image the claude-code harness runs in (the release's examples use it). */
 export const RUNNER_IMAGE = 'cerebellumnetwork/ddc-agent-runner:0.1.1';
-/** Claude Code's tools, as the runner names them (ddc-node client/images/agent-runner, `TOOL_NAMES`). */
+/** Claude Code's tools, as the runner names them (ddc-node packages/agent-runner, `TOOL_NAMES`). */
 export const CLAUDE_CODE_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Bash', 'Write', 'Edit'];
 /** The runner's defaults when a definition leaves them out. */
 export const DEFAULTS = { maxTurns: 30, cpu: 1, memoryMib: 2048, timeoutS: DEFAULT_AGENT_TIMEOUT_S } as const;

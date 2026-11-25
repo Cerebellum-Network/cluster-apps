@@ -17,7 +17,7 @@ import { EMPTY_USAGE, type Usage, type UsageRecord } from './types';
 
 const usage = (u: Partial<Usage>): Usage => ({ ...EMPTY_USAGE, ...u });
 
-// The cases of the cere CLI's TestBillingLine and TestQuickstart (ddc-node client/cere/main_test.go, cli/v0.1.5).
+// The cases of the cere CLI's TestBillingLine and TestQuickstart (ddc-node packages/cli/main_test.go, cli/v0.1.5).
 describe('billingLine', () => {
   const reserved = usage({
     wall_s: 54,

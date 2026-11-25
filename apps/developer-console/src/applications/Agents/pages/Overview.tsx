@@ -260,10 +260,10 @@ const Overview = () => {
                 }
               />
               <Typography sx={{ ...text.caption, marginTop: '8px' }}>
-                Install the <Mono>cere</Mono> CLI (and, for Python, the SDK) and sign in first:{' '}
-                <NavLink to="/sandboxes">Sandboxes › Overview</NavLink>, steps 1 and 2 ({EXAMPLES_RELEASE}). The model
-                key is the token you signed in with; it stops working when that sign-in expires, so store it again after
-                the next <Mono>cere login</Mono>. <Mono>sre.json</Mono> also needs{' '}
+                Install and sign in first: <Mono>pip install cere</Mono> and <Mono>cere login</Mono> (
+                <NavLink to="/sandboxes">Sandboxes › Overview</NavLink>); the examples are assets of {EXAMPLES_RELEASE}.
+                The model key is the token you signed in with; it stops working when that sign-in expires, so store it
+                again after the next <Mono>cere login</Mono>. <Mono>sre.json</Mono> also needs{' '}
                 <Link
                   component="button"
                   type="button"

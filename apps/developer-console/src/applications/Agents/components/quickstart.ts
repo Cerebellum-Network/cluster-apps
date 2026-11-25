@@ -1,9 +1,9 @@
 /**
  * The agents quickstart: the example definitions from the CLI's release, their
  * model key, and one run, from a terminal and from the Python SDK (ddc-node
- * `client/python`: `cere.Secret.set_from_login`, `cere.Agent.from_file`,
+ * `packages/sdk/python`: `cere.Secret.set_from_login`, `cere.Agent.from_file`,
  * `agent.run` → `AgentResult` with `output` and `error`). Installing and
- * signing in are the Sandboxes quickstart's steps 1 and 2.
+ * signing in (`pip install cere`, `cere login`) are the Sandboxes quickstart's.
  */
 import { MODEL_KEY_SECRET } from '../../Sandboxes/components/TokenSecretButton';
 import { AGENT_EXAMPLES, EXAMPLES_RELEASE } from '../examples';
