@@ -56,7 +56,7 @@ const TerminateDialog = ({
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography sx={text.secondary}>
-            The node stops it, writes the final usage record and keeps the files you list for a week.
+            It stops at once, its last minute of usage is recorded, and the files you list stay readable for a week.
           </Typography>
           <TextField
             label="Keep these files"

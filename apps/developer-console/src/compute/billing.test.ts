@@ -6,6 +6,7 @@ import {
   billedShort,
   billingLine,
   cores,
+  countingState,
   fmtFixed,
   recordBilling,
   recordSumsLine,
@@ -222,5 +223,14 @@ describe('usage records', () => {
     expect(all.reserved_cpu_s).toBe(60);
     expect(all.cpu_s).toBeCloseTo(11.4);
     expect(Number.isNaN(all.reserved_ram_gib_s)).toBe(false);
+  });
+});
+
+describe('countingState', () => {
+  it('is the worst state of the records: refused, then waiting, then counted', () => {
+    expect(countingState([])).toBeNull();
+    expect(countingState([{ dac_status: 'pushed' }, { dac_status: 'pushed' }])).toBe('pushed');
+    expect(countingState([{ dac_status: 'pushed' }, { dac_status: 'pending' }])).toBe('pending');
+    expect(countingState([{ dac_status: 'pending' }, { dac_status: 'failed' }])).toBe('failed');
   });
 });

@@ -6,7 +6,7 @@ import { Pill, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
 import { recordSumsLine } from '~/compute/billing';
-import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, plural, sumRecords } from '~/compute/format';
+import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, sumRecords } from '~/compute/format';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
@@ -336,13 +336,11 @@ const SandboxDetail = () => {
           {tab === 'usage' && (
             <Box>
               <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-                {plural(recs.length, 'record')}: {recordSumsLine(totals)}
-                {live ? ' so far' : hasFinal ? ' in all, the final one included' : ''}.{' '}
-                {!live && !hasFinal && 'The final record is on its way: the node writes it as the sandbox ends. '}
-                The node signs one per minute and a final one when the sandbox ends, and pushes each to its DAC agent.
+                {live ? 'So far: ' : hasFinal ? 'In all: ' : 'So far (the last minute is on its way): '}
+                {recordSumsLine(totals)}. One row per minute it ran.
               </Typography>
               {records.error && !records.data ? (
-                <ReadError what="usage records" error={records.error} />
+                <ReadError what="its usage" error={records.error} />
               ) : (
                 <RecordsTable records={recs} />
               )}

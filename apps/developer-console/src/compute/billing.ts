@@ -11,7 +11,7 @@
  * gateway that predates the billing fields sends none, and then there is
  * nothing extra to say (records then bill their DAC units).
  */
-import type { Usage, UsageRecord } from './types';
+import type { DacStatus, Usage, UsageRecord } from './types';
 
 /**
  * `v` with `digits` decimals, as Go's `%.<digits>f` prints it: a value exactly
@@ -176,4 +176,16 @@ export function recordSumsLine(t: {
 }) {
   const f3 = (v: number) => fmtFixed(v, 3);
   return `billed ${f3(t.billed_cpu_s)} CPU-s, ${f3(t.billed_ram_gib_s)} GiB-s (measured ${f3(t.cpu_s)} CPU-s, ${f3(t.ram_gib_s)} GiB-s)`;
+}
+
+/**
+ * Whether a set of usage records has been counted for billing, as one state:
+ * `failed` when any was refused, else `pending` when any is still waiting,
+ * else `pushed`; null for none.
+ */
+export function countingState(rs: Pick<UsageRecord, 'dac_status'>[]): DacStatus | null {
+  if (!rs.length) return null;
+  if (rs.some((r) => r.dac_status === 'failed')) return 'failed';
+  if (rs.some((r) => r.dac_status !== 'pushed')) return 'pending';
+  return 'pushed';
 }

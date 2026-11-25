@@ -22,28 +22,19 @@ const Subhead = ({ children }: { children: string }) => (
   </Typography>
 );
 
-/** The parts a sandbox passes through, as the cluster names them. */
-const PARTS: { name: string; body: ReactNode }[] = [
+/** What a developer needs to know about a sandbox, in three facts. */
+const FACTS: { name: string; body: ReactNode }[] = [
   {
-    name: 'Compute gateway',
-    body: 'The public API. On every call it checks that your token grants compute on the bucket and that the bucket’s owner has balance (read from the blockchain index, cached briefly).',
+    name: 'Isolated',
+    body: 'Any public image runs in gVisor on a DDC node, with the CPU and memory you reserve and a time limit. Exec commands, read and write files, and stream its logs while it runs.',
   },
   {
-    name: 'Resource manager',
-    body: 'Places each sandbox on the node with the most free memory left, from the capacity nodes report.',
+    name: 'Closed network',
+    body: 'It reaches only the hosts you allow, and you can allow more while it runs. A credential a rule names is added to its requests on the way out; the sandbox never sees it.',
   },
   {
-    name: 'Sandbox runtime',
-    body: 'Runs it in gVisor on that node and measures CPU and memory from the host, minute by minute.',
-  },
-  {
-    name: 'Egress proxy',
-    body: (
-      <>
-        The only way out. It allows the hosts and methods each sandbox lists, adds the credentials its rules name, and
-        logs each request. A sandbox’s rules can change while it runs: open it, then Egress.
-      </>
-    ),
+    name: 'Billed while it runs',
+    body: 'Your compute bucket pays for the CPU and memory the sandbox reserves, from start to stop, or for what it used where that is more. There is no price list yet.',
   },
 ];
 
@@ -203,15 +194,15 @@ const Overview = () => {
         )}
       </Box>
 
-      <Section title="How a sandbox runs">
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' } }}>
-          {PARTS.map((p, i) => (
+      <Section title="How sandboxes work">
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' } }}>
+          {FACTS.map((p, i) => (
             <Box
               key={p.name}
               sx={{
                 padding: { xs: '12px 0', md: '4px 22px 4px 0' },
-                marginRight: { md: i < PARTS.length - 1 ? '22px' : 0 },
-                borderRight: { md: i < PARTS.length - 1 ? `1px solid ${color.grid}` : 'none' },
+                marginRight: { md: i < FACTS.length - 1 ? '22px' : 0 },
+                borderRight: { md: i < FACTS.length - 1 ? `1px solid ${color.grid}` : 'none' },
               }}
             >
               <Typography sx={{ fontSize: 15, fontWeight: 700, marginBottom: '4px' }}>{p.name}</Typography>
@@ -219,12 +210,6 @@ const Overview = () => {
             </Box>
           ))}
         </Box>
-        <Typography sx={{ ...text.secondary, marginTop: '14px' }}>
-          A sandbox is billed for the CPU and memory it reserves, for as long as it runs (from start to stop; the image
-          pull and anything after it stops are free), or for what it measured where that is more. Each node signs a
-          usage record once a minute and when the sandbox ends, with both amounts, and sends it to its DAC agent.
-          Sandboxes have no price list yet, so nothing here is converted to money.
-        </Typography>
       </Section>
 
       <FirstRunDialog open={firstRunOpen} onClose={closeFirstRun} />
