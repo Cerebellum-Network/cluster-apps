@@ -37,6 +37,18 @@ const hostOf = (url: string): string => {
   }
 };
 
+/** The example definitions' model gateway (ddc-node client/examples/agents): devnet's inference gateway. */
+export const EXAMPLE_MODEL_URL = 'https://inference-gateway.compute.dev.ddcdragon.com/anthropic';
+
+/**
+ * Whether a model at `baseUrl` is on this console's own inference gateway, which takes this console's COMPUTE token
+ * for the bucket as its key (and bills the calls to the same bucket).
+ */
+export function onConsoleGateway(baseUrl: string, inferenceGatewayUrl: string): boolean {
+  const host = hostOf(baseUrl);
+  return !!host && host === hostOf(inferenceGatewayUrl);
+}
+
 /** What a secret a definition names is for, and where its value comes from when that can be told. */
 export type SecretPurpose =
   | {
@@ -45,7 +57,7 @@ export type SecretPurpose =
       model: string;
       baseUrl: string;
       host: string;
-      /** The model's gateway is this console's own inference gateway: Inference → API keys makes its key. */
+      /** The model's gateway is this console's own inference gateway: it takes this console's token as the key. */
       sameConsole: boolean;
       /** The console of the gateway's network, when it is a DDC inference gateway of another network. */
       console: string | null;
@@ -71,7 +83,7 @@ export function credentialSource(hosts: string[]): { what: string; url: string }
 export function secretPurpose(def: AgentDefinition, name: string, inferenceGatewayUrl: string): SecretPurpose {
   if (name === def.model.credential) {
     const host = hostOf(def.model.base_url);
-    const sameConsole = !!host && host === hostOf(inferenceGatewayUrl);
+    const sameConsole = onConsoleGateway(def.model.base_url, inferenceGatewayUrl);
     return {
       kind: 'model',
       name,

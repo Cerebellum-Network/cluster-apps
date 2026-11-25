@@ -52,14 +52,19 @@ describe('useComputeToken', () => {
     await act(async () => root.render(wrap(<>{[<Probe key="a" i={0} />, <Probe key="b" i={1} />]}</>)));
     await flush();
     expect(account.createInferenceApiKey).toHaveBeenCalledTimes(1);
-    expect(seen[0].at(-1)).toEqual({ kind: 'ready', key: 'tok-1' });
-    expect(seen[1].at(-1)).toEqual({ kind: 'ready', key: 'tok-1' });
-    expect(JSON.parse(localStorage.getItem(usageTokenKey('aa', '7'))!).token).toBe('tok-1');
+    const cached = JSON.parse(localStorage.getItem(usageTokenKey('aa', '7'))!);
+    expect(cached.token).toBe('tok-1');
+    // The state says when the token stops working: what a secret stored from it says too.
+    expect(seen[0].at(-1)).toEqual({ kind: 'ready', key: 'tok-1', expiresAt: cached.expiresAt });
+    expect(seen[1].at(-1)).toEqual({ kind: 'ready', key: 'tok-1', expiresAt: cached.expiresAt });
+    expect(cached.expiresAt - Date.now()).toBeGreaterThan(23 * 3600 * 1000);
 
-    // A later page reads the cached token: no second wallet prompt.
+    // A later page reads the cached token, with the same expiry: no second wallet prompt.
+    seen[0].length = 0;
     await act(async () => root.render(wrap(<Probe i={0} />)));
     await flush();
     expect(account.createInferenceApiKey).toHaveBeenCalledTimes(1);
+    expect(seen[0].at(-1)).toEqual({ kind: 'ready', key: 'tok-1', expiresAt: cached.expiresAt });
   });
 
   it('does not loop wallet prompts when a fresh token is refused', async () => {
@@ -80,7 +85,7 @@ describe('useComputeToken', () => {
     await act(async () => api!.retry());
     await flush();
     expect(account.createInferenceApiKey).toHaveBeenCalledTimes(2);
-    expect(api!.state).toEqual({ kind: 'ready', key: 'tok-2' });
+    expect(api!.state).toMatchObject({ kind: 'ready', key: 'tok-2' });
   });
 
   it('says why when the wallet does not sign', async () => {
@@ -109,6 +114,8 @@ describe('usePolled', () => {
     onAuthError,
     retry: vi.fn(),
     ensureBucket: vi.fn(),
+    tokenExpiresAt: null,
+    storeTokenAsSecret: null,
   });
 
   it('keeps the last answer through a failed poll and hands a 401 to the provider', async () => {

@@ -3,7 +3,7 @@
  * wallet's first on-chain bucket (the same one Inference bills to) and the
  * console's COMPUTE token for it. Pages read it with `useCompute()`.
  */
-import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
 import { useOwnerBuckets } from '~/inference/useInference';
 import { createComputeClient, type ComputeClient } from './client';
@@ -36,6 +36,14 @@ export interface Compute {
   retry: () => void;
   /** Create the billing bucket when there is none (wallet consent). */
   ensureBucket: () => Promise<string>;
+  /** When the console's COMPUTE token stops working (ms since the epoch); set when `status` is `ready`. */
+  tokenExpiresAt: number | null;
+  /**
+   * Store the console's COMPUTE token as the bucket secret `name`, `Authorization: Bearer <token>`, through the
+   * gateway's write-only secrets API. The inference gateway of the same network takes that token as the model key
+   * for this bucket; the secret stops working at `tokenExpiresAt`. Null until `status` is `ready`.
+   */
+  storeTokenAsSecret: ((name: string) => Promise<void>) | null;
 }
 
 const TOKEN_MESSAGES = {
@@ -53,7 +61,15 @@ export function ComputeProvider({ children }: { children: ReactNode }) {
   // No gateway, no token: the wallet is not asked to sign for a gateway that isn't there.
   const { state, onAuthError, retry } = useComputeToken(configured ? bucketId : null, TOKEN_MESSAGES);
   const key = state.kind === 'ready' ? state.key : null;
+  const tokenExpiresAt = state.kind === 'ready' ? state.expiresAt : null;
   const client = useMemo(() => (key ? createComputeClient(key) : null), [key]);
+  const storeToken = useCallback(
+    (name: string) =>
+      client && key
+        ? client.putSecret(name, { type: 'header', header: 'Authorization', value: `Bearer ${key}` })
+        : Promise.reject(new Error('the compute client is not ready')),
+    [client, key],
+  );
 
   const value = useMemo<Compute>(() => {
     let status: ComputeStatus;
@@ -84,8 +100,22 @@ export function ComputeProvider({ children }: { children: ReactNode }) {
       onAuthError,
       retry,
       ensureBucket,
+      tokenExpiresAt: status === 'ready' ? tokenExpiresAt : null,
+      storeTokenAsSecret: status === 'ready' ? storeToken : null,
     };
-  }, [configured, bucketsError, bucketId, loading, state, client, onAuthError, retry, ensureBucket]);
+  }, [
+    configured,
+    bucketsError,
+    bucketId,
+    loading,
+    state,
+    client,
+    onAuthError,
+    retry,
+    ensureBucket,
+    tokenExpiresAt,
+    storeToken,
+  ]);
 
   return <ComputeContext.Provider value={value}>{children}</ComputeContext.Provider>;
 }

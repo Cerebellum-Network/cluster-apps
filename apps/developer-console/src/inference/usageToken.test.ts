@@ -4,6 +4,7 @@ import {
   clearUsageTokens,
   dropUsageToken,
   readUsageToken,
+  readUsageTokenEntry,
   usageTokenKey,
   writeUsageToken,
   USAGE_TOKEN_MARGIN_MS,
@@ -31,6 +32,13 @@ describe('usage token cache', () => {
     expect(readUsageToken('acc1', '7', 0, s)).toBe('tok');
     expect(readUsageToken('acc1', '8', 0, s)).toBeNull();
     expect(readUsageToken('acc2', '7', 0, s)).toBeNull();
+  });
+
+  it('gives the token with its expiry, for what a secret stored from it says', () => {
+    const s = fakeStorage();
+    writeUsageToken('a', '1', 'tok', 10_000_000, s);
+    expect(readUsageTokenEntry('a', '1', 0, s)).toEqual({ token: 'tok', expiresAt: 10_000_000 });
+    expect(readUsageTokenEntry('a', '1', 10_000_000, s)).toBeNull();
   });
 
   it('forgets a token within the safety margin of its expiry', () => {

@@ -11,16 +11,18 @@ import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
 import { useCanSign } from '~/compute/walletSigning';
-import { shortImage } from '~/compute/format';
+import { fmtAgo, shortImage } from '~/compute/format';
+import { inferenceConfig } from '~/inference/inferenceConfig';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock } from '../../Sandboxes/components/bits';
+import TokenSecretButton, { MODEL_KEY_SECRET } from '../../Sandboxes/components/TokenSecretButton';
 import { BucketChip, CredentialChip, Mono, ReadError } from '../../Sandboxes/components/ui';
 import AddDefinitionDialog from '../components/AddDefinitionDialog';
 import { addSecretPath } from '../components/MissingSecrets';
-import { agentPath, missingSecrets } from '../components/definition';
+import { agentPath, EXAMPLE_MODEL_URL, missingSecrets, onConsoleGateway } from '../components/definition';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 
-const FROM_A_TERMINAL = `gh release download cli/v0.1.1 -R Cerebellum-Network/ddc-node -p '*.json'
+const FROM_A_TERMINAL = `gh release download cli/v0.1.2 -R Cerebellum-Network/ddc-node -p '*.json'
 cere agent run -f research.json "Write a short brief on how gVisor isolates containers, citing https://gvisor.dev/docs/"
 cere agent runs`;
 
@@ -35,6 +37,8 @@ const Overview = () => {
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const rows = runRows(runs.data?.items ?? [], liveRuns());
+  const modelKey = secrets.data?.find((x) => x.name === MODEL_KEY_SECRET);
+  const examplesOnConsoleGateway = onConsoleGateway(EXAMPLE_MODEL_URL, inferenceConfig.gatewayUrl);
 
   return (
     <Box>
@@ -227,22 +231,46 @@ const Overview = () => {
           </Typography>
           <CodeBlock code={FROM_A_TERMINAL} />
           <Typography sx={{ ...text.caption, marginTop: '10px' }}>
-            Their model is <Mono>glm-5.3</Mono> on the <strong>testnet</strong> inference gateway, with the secret{' '}
-            <NavLink to={addSecretPath('ddc-inference')}>ddc-inference</NavLink>: an inference API key of the testnet.
-            Sign in to{' '}
-            <a href="https://developer.compute.test.ddcdragon.com" target="_blank" rel="noreferrer">
-              developer.compute.test.ddcdragon.com
-            </a>{' '}
-            (a testnet SSCP wallet, separate from this one and created the same way), have a testnet bucket with
-            balance, then create a key under Inference › API keys. <Mono>sre.json</Mono> also needs{' '}
-            <NavLink to={addSecretPath('github-readonly')}>github-readonly</NavLink>: a GitHub fine-grained personal
-            access token with read-only access (
+            Their model is <Mono>glm-5.3</Mono> on devnet’s inference gateway, the cluster your sandboxes run on, with
+            the secret <NavLink to={addSecretPath(MODEL_KEY_SECRET)}>{MODEL_KEY_SECRET}</NavLink>: your own bucket’s
+            COMPUTE token, which that gateway takes as the model key and bills to the same bucket. From a terminal,{' '}
+            <Mono>cere secret set {MODEL_KEY_SECRET} --from-login</Mono> stores the token the CLI logged in with; the
+            button below stores this console’s. Either stops working when its token expires. <Mono>sre.json</Mono> also
+            needs <NavLink to={addSecretPath('github-readonly')}>github-readonly</NavLink>: a GitHub fine-grained
+            personal access token with read-only access (
             <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">
               github.com/settings/personal-access-tokens/new
             </a>
             ). <Mono>cere agent push -f research.json</Mono> keeps a definition in a storage bucket (with the S3
             credential from CLI access), and then <Mono>cere agent run research</Mono> finds it by name.
           </Typography>
+          <Stack gap="8px" marginTop="14px">
+            <Typography sx={text.secondary}>
+              {secrets.error && !secrets.data ? (
+                <>Couldn’t read your secrets: {secrets.error}</>
+              ) : !secrets.data ? (
+                'Reading your secrets…'
+              ) : modelKey ? (
+                <>
+                  This bucket holds <Mono>{MODEL_KEY_SECRET}</Mono>, updated{' '}
+                  <span title={modelKey.updated_at}>{fmtAgo(modelKey.updated_at)}</span>.
+                </>
+              ) : (
+                <>
+                  This bucket has no <Mono>{MODEL_KEY_SECRET}</Mono> yet.
+                </>
+              )}
+            </Typography>
+            {examplesOnConsoleGateway ? (
+              <TokenSecretButton held={modelKey} onStored={secrets.reload} />
+            ) : (
+              <Typography sx={text.caption}>
+                This console’s inference gateway (<Mono>{inferenceConfig.gatewayUrl}</Mono>) is not the examples’ one,
+                so its token is not their key: add a key of their gateway under{' '}
+                <NavLink to={addSecretPath(MODEL_KEY_SECRET)}>Secrets</NavLink>.
+              </Typography>
+            )}
+          </Stack>
         </Section>
       </Box>
 

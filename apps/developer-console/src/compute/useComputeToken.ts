@@ -17,11 +17,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAccount } from '~/hooks';
-import { dropUsageToken, readUsageToken, USAGE_TOKEN_TTL_MS, writeUsageToken } from '~/inference/usageToken';
+import { dropUsageToken, readUsageTokenEntry, USAGE_TOKEN_TTL_MS, writeUsageToken } from '~/inference/usageToken';
 
 export type ComputeToken =
   | { kind: 'minting' }
-  | { kind: 'ready'; key: string }
+  /** `expiresAt`: when the token stops working (ms since the epoch), as it was minted. */
+  | { kind: 'ready'; key: string; expiresAt: number }
   | { kind: 'error'; message: string; detail: string };
 
 /** What each consumer shows when minting fails or the gateway keeps refusing. */
@@ -32,7 +33,7 @@ export interface TokenMessages {
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-const inFlight = new Map<string, Promise<string>>();
+const inFlight = new Map<string, Promise<{ token: string; expiresAt: number }>>();
 
 /** A token rejected within this long of its mint is not re-minted again. */
 const FRESH_MS = 10 * 60 * 1000;
@@ -61,9 +62,9 @@ export function useComputeToken(
   useEffect(() => {
     if (!bucketId || !owner) return undefined;
     let dead = false;
-    const cached = readUsageToken(owner, bucketId);
+    const cached = readUsageTokenEntry(owner, bucketId);
     if (cached) {
-      setState({ kind: 'ready', key: cached });
+      setState({ kind: 'ready', key: cached.token, expiresAt: cached.expiresAt });
       return undefined;
     }
     setState({ kind: 'minting' });
@@ -74,15 +75,15 @@ export function useComputeToken(
       mintedAt.current = Date.now();
       mint = accountRef.current.createInferenceApiKey(BigInt(bucketId), USAGE_TOKEN_TTL_MS).then((token) => {
         writeUsageToken(owner, bucketId, token, expiresAt);
-        return token;
+        return { token, expiresAt };
       });
       inFlight.set(id, mint);
       const clear = () => inFlight.delete(id);
       mint.then(clear, clear);
     }
     mint.then(
-      (key) => {
-        if (!dead) setState({ kind: 'ready', key });
+      ({ token, expiresAt }) => {
+        if (!dead) setState({ kind: 'ready', key: token, expiresAt });
       },
       (e: unknown) => {
         if (!dead) setState({ kind: 'error', message: messagesRef.current.mintFailed, detail: messageOf(e) });

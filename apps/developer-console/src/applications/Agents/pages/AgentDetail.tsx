@@ -283,7 +283,7 @@ const AgentDetail = () => {
             />
             {def && missing.length > 0 && (
               <Alert severity="warning" sx={{ marginTop: '10px', '& .MuiAlert-message': { width: '100%' } }}>
-                <MissingSecrets def={def} missing={missing} />
+                <MissingSecrets def={def} missing={missing} onStored={secrets.reload} />
               </Alert>
             )}
             <Button

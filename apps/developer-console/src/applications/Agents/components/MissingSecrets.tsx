@@ -5,6 +5,7 @@ import type { AgentDefinition } from '~/compute/agentDefinition';
 import { inferenceConfig } from '~/inference/inferenceConfig';
 import { color, text } from '~/theme/tokens';
 import { Mono } from '../../Sandboxes/components/ui';
+import TokenSecretButton from '../../Sandboxes/components/TokenSecretButton';
 import { secretPurpose } from './definition';
 
 /** Where Secrets opens its add dialog for `name`, ready to save. */
@@ -36,7 +37,9 @@ const Purpose = ({ def, name }: { def: AgentDefinition; name: string }) => {
       the key for the model <Mono>{p.model}</Mono> at <Mono>{p.host}</Mono>, an inference API key for that gateway.{' '}
       {p.sameConsole ? (
         <>
-          Create one under <NavLink to="/inference/keys">Inference › API keys</NavLink>, then add it here.
+          That gateway takes this console’s access token for your bucket as its key, and bills the calls to the same
+          bucket: store it with the button below. For a key that lives longer, create one under{' '}
+          <NavLink to="/inference/keys">Inference › API keys</NavLink> and add it here.
         </>
       ) : p.console ? (
         <>
@@ -57,32 +60,49 @@ const Purpose = ({ def, name }: { def: AgentDefinition; name: string }) => {
 /**
  * Why a run can't start yet: each secret the definition names that the bucket
  * lacks (the gateway refuses such a sandbox with 400 `unknown_credential`),
- * what it is for, where its value comes from, and a button that adds it.
+ * what it is for, where its value comes from, and a button that adds it. A
+ * model on this console's own inference gateway also gets the button that
+ * stores this console's token as its key; `onStored` reads the secrets again.
  */
-const MissingSecrets = ({ def, missing }: { def: AgentDefinition; missing: string[] }) => (
+const MissingSecrets = ({
+  def,
+  missing,
+  onStored,
+}: {
+  def: AgentDefinition;
+  missing: string[];
+  onStored?: () => void;
+}) => (
   <Stack gap="10px">
     <Typography sx={{ ...text.body, fontWeight: 600 }}>
       The run needs {missing.length > 1 ? 'secrets' : 'a secret'} this bucket doesn’t hold:
     </Typography>
-    {missing.map((name) => (
-      <Stack key={name} direction="row" gap="12px" alignItems="flex-start" justifyContent="space-between">
-        <Typography sx={{ ...text.secondary, color: color.text }}>
-          <Box component="span" sx={{ fontWeight: 600 }}>
-            <Mono>{name}</Mono>
-          </Box>
-          : <Purpose def={def} name={name} />
-        </Typography>
-        <Button
-          size="small"
-          variant="outlined"
-          component={NavLink}
-          to={addSecretPath(name)}
-          sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-        >
-          Add {name}
-        </Button>
-      </Stack>
-    ))}
+    {missing.map((name) => {
+      const p = secretPurpose(def, name, inferenceConfig.gatewayUrl);
+      return (
+        <Stack key={name} gap="8px">
+          <Stack direction="row" gap="12px" alignItems="flex-start" justifyContent="space-between">
+            <Typography sx={{ ...text.secondary, color: color.text }}>
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                <Mono>{name}</Mono>
+              </Box>
+              : <Purpose def={def} name={name} />
+            </Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              color={p.kind === 'model' && p.sameConsole ? 'secondary' : 'primary'}
+              component={NavLink}
+              to={addSecretPath(name)}
+              sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              {p.kind === 'model' && p.sameConsole ? 'Add another key' : `Add ${name}`}
+            </Button>
+          </Stack>
+          {p.kind === 'model' && p.sameConsole && <TokenSecretButton name={name} onStored={onStored} />}
+        </Stack>
+      );
+    })}
   </Stack>
 );
 

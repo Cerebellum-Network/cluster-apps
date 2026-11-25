@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AgentDefinition } from '~/compute/agentDefinition';
-import { consoleForGateway, missingSecrets, secretPurpose } from './definition';
+import { consoleForGateway, EXAMPLE_MODEL_URL, missingSecrets, onConsoleGateway, secretPurpose } from './definition';
 
 const def = {
   schema: 'cere.agent/v1',
@@ -36,7 +36,7 @@ describe('secretPurpose', () => {
     });
   });
 
-  it('points at this console’s own Inference → API keys when the model is on its gateway', () => {
+  it('says a model on this console’s own gateway takes this console’s token', () => {
     const p = secretPurpose(def, 'ddc-inference', 'https://inference-gateway.compute.test.ddcdragon.com/');
     expect(p).toMatchObject({ kind: 'model', sameConsole: true, console: null });
   });
@@ -61,6 +61,16 @@ describe('secretPurpose', () => {
   it('lists only the secrets the bucket lacks', () => {
     const have = [{ name: 'github-readonly', type: 'header', header: 'Authorization', created_at: '', updated_at: '' }];
     expect(missingSecrets(def, have)).toEqual(['ddc-inference']);
+  });
+});
+
+describe('onConsoleGateway', () => {
+  it('is true for the examples’ model on a devnet console, and only for the same host', () => {
+    expect(onConsoleGateway(EXAMPLE_MODEL_URL, DEVNET_IG)).toBe(true);
+    expect(onConsoleGateway(EXAMPLE_MODEL_URL, `${DEVNET_IG}/`)).toBe(true);
+    expect(onConsoleGateway(EXAMPLE_MODEL_URL, 'https://inference-gateway.compute.test.ddcdragon.com')).toBe(false);
+    expect(onConsoleGateway('not a url', DEVNET_IG)).toBe(false);
+    expect(onConsoleGateway(EXAMPLE_MODEL_URL, '')).toBe(false);
   });
 });
 

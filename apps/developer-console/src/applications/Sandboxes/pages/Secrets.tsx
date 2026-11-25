@@ -33,7 +33,10 @@ import { useNow, useSandboxes, useSecrets } from '~/compute/hooks';
 import { fmtAgo } from '~/compute/format';
 import { isLive, SECRET_NAME_RE } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
-import { BucketChip, KeyGlyph, ReadError, sbColor } from '../components/ui';
+import { inferenceConfig } from '~/inference/inferenceConfig';
+import { EXAMPLE_MODEL_URL, onConsoleGateway } from '../../Agents/components/definition';
+import TokenSecretButton, { MODEL_KEY_SECRET } from '../components/TokenSecretButton';
+import { BucketChip, KeyGlyph, Mono, ReadError, sbColor } from '../components/ui';
 
 const VALUE_MAX = 8 * 1024;
 
@@ -208,6 +211,7 @@ const Secrets = () => {
   };
   const [deleting, setDeleting] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const examplesOnConsoleGateway = onConsoleGateway(EXAMPLE_MODEL_URL, inferenceConfig.gatewayUrl);
 
   /** Running sandboxes whose egress rules name each secret. */
   const usedBy = useMemo(() => {
@@ -334,8 +338,27 @@ const Secrets = () => {
         <Box component="span" sx={{ fontFamily: mono }}>
           cere secret set &lt;name&gt; --header Authorization --bearer-stdin
         </Box>{' '}
-        reads the value from a pipe, so it never appears in your shell history.
+        reads the value from a pipe, so it never appears in your shell history;{' '}
+        <Box component="span" sx={{ fontFamily: mono }}>
+          cere secret set {MODEL_KEY_SECRET} --from-login
+        </Box>{' '}
+        stores the token the CLI logged in with.
       </Typography>
+
+      {examplesOnConsoleGateway && (
+        <Box marginTop="20px">
+          <Section title="The example agents’ model key">
+            <Stack gap="10px" marginTop="-6px">
+              <Typography sx={text.secondary}>
+                The example agents name <Mono>{MODEL_KEY_SECRET}</Mono> as their model key. Their model is on this
+                network’s inference gateway, which takes this console’s access token for compute bucket {bucketId} as
+                the key and bills the calls to the same bucket.
+              </Typography>
+              <TokenSecretButton held={data?.find((s) => s.name === MODEL_KEY_SECRET)} onStored={reload} />
+            </Stack>
+          </Section>
+        </Box>
+      )}
 
       {dialog && (
         <SecretDialog
