@@ -35,11 +35,10 @@ print(p.stdout.read(), end="")
 sb.terminate()`;
 
 /**
- * Until `cere` is on PyPI: the install that works today, shown above the tabs
- * instead of `pip install cere` (the docs' "> Until `cere` is on PyPI" line).
- * When `pip install cere` works, set it to '' and the note disappears.
+ * A note shown above the tabs when the install differs from `pip install cere`.
+ * Empty since `cere` went live on PyPI (cli/v0.1.11); the note is not shown.
  */
-export const UNTIL_PYPI: string = `gh release download cli/v0.1.7 -R Cerebellum-Network/ddc-node -p 'cere-*.whl' -D cere-wheels && pip install --no-index --find-links cere-wheels cere`;
+export const UNTIL_PYPI: string = '';
 
 /** What "Try it here" runs: the Python example's sandbox and command, through the same API. */
 export const FIRST_RUN = {
