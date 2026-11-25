@@ -7,10 +7,17 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 import { useOwnerBuckets } from '~/inference/useInference';
 import { createComputeClient, type ComputeClient } from './client';
-import { computeConfig } from './computeConfig';
+import { computeConfig, isComputeConfigured } from './computeConfig';
 import { useComputeToken } from './useComputeToken';
 
-export type ComputeStatus = 'buckets-loading' | 'buckets-error' | 'no-bucket' | 'minting' | 'token-error' | 'ready';
+export type ComputeStatus =
+  | 'not-configured'
+  | 'buckets-loading'
+  | 'buckets-error'
+  | 'no-bucket'
+  | 'minting'
+  | 'token-error'
+  | 'ready';
 
 export interface Compute {
   status: ComputeStatus;
@@ -21,6 +28,8 @@ export interface Compute {
   /** Why the client isn't ready, in words (detail: the raw cause). */
   error: { message: string; detail?: string } | null;
   gatewayUrl: string;
+  /** The network whose buckets the console bills, and whose gateway it calls. */
+  network: string;
   /** A call got 401: drop the token and mint once more. */
   onAuthError: () => void;
   /** Mint again after an error. */
@@ -39,15 +48,24 @@ export const ComputeContext = createContext<Compute | null>(null);
 
 export function ComputeProvider({ children }: { children: ReactNode }) {
   const { buckets, loading, error: bucketsError, ensureBucket } = useOwnerBuckets();
+  const configured = isComputeConfigured();
   const bucketId = buckets[0]?.id ?? null;
-  const { state, onAuthError, retry } = useComputeToken(bucketId, TOKEN_MESSAGES);
+  // No gateway, no token: the wallet is not asked to sign for a gateway that isn't there.
+  const { state, onAuthError, retry } = useComputeToken(configured ? bucketId : null, TOKEN_MESSAGES);
   const key = state.kind === 'ready' ? state.key : null;
   const client = useMemo(() => (key ? createComputeClient(key) : null), [key]);
 
   const value = useMemo<Compute>(() => {
     let status: ComputeStatus;
     let error: Compute['error'] = null;
-    if (bucketsError) {
+    if (!configured) {
+      status = 'not-configured';
+      error = {
+        message: `This console has no compute gateway for ${computeConfig.network}. Sandboxes and agents run on devnet.`,
+        detail:
+          'Set compute.gatewayUrl in /config.js (VITE_COMPUTE_GATEWAY_URL for a local run) to the compute gateway of the network the console bills, or run the console against devnet (apps/developer-console/README.md).',
+      };
+    } else if (bucketsError) {
       status = 'buckets-error';
       error = { message: 'Couldn’t read your buckets from the blockchain index.', detail: bucketsError };
     } else if (!bucketId) status = loading ? 'buckets-loading' : 'no-bucket';
@@ -62,11 +80,12 @@ export function ComputeProvider({ children }: { children: ReactNode }) {
       client: status === 'ready' ? client : null,
       error,
       gatewayUrl: computeConfig.gatewayUrl,
+      network: computeConfig.network,
       onAuthError,
       retry,
       ensureBucket,
     };
-  }, [bucketsError, bucketId, loading, state, client, onAuthError, retry, ensureBucket]);
+  }, [configured, bucketsError, bucketId, loading, state, client, onAuthError, retry, ensureBucket]);
 
   return <ComputeContext.Provider value={value}>{children}</ComputeContext.Provider>;
 }

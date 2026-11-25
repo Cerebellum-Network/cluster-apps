@@ -105,6 +105,7 @@ describe('usePolled', () => {
     client,
     error: null,
     gatewayUrl: 'x',
+    network: 'devnet',
     onAuthError,
     retry: vi.fn(),
     ensureBucket: vi.fn(),

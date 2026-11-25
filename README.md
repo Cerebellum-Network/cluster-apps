@@ -20,7 +20,8 @@ A collection Web Applications to manage a DDC Cluster
 nvm exec npm i
 ```
 
-2. Copy ENV file:
+2. Copy ENV file (`.env.dev` is Dragon 1 devnet, `.env.stage` testnet, `.env.prod` mainnet; the Developer
+   Console's Sandboxes and Agents run on devnet, see [its README](apps/developer-console/README.md)):
 
 ```bash
 cp .env.dev .env

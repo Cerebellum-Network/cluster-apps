@@ -44,7 +44,15 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
           <PageHeader title={title} />
         </Box>
       )}
-      <Section title={c.status === 'no-bucket' ? 'Set up billing' : 'Connecting to the compute gateway'}>
+      <Section
+        title={
+          c.status === 'no-bucket'
+            ? 'Set up billing'
+            : c.status === 'not-configured'
+              ? 'Sandboxes are not available here'
+              : 'Connecting to the compute gateway'
+        }
+      >
         {c.status === 'buckets-loading' && <Waiting>Reading your buckets…</Waiting>}
         {c.status === 'minting' && (
           <Waiting>
@@ -54,7 +62,8 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
         {c.status === 'no-bucket' && (
           <Stack spacing="12px" alignItems="flex-start">
             <Typography sx={text.body}>
-              Sandboxes and agent runs bill to a bucket you own, and you have none yet. The console makes one for you.
+              Sandboxes and agent runs bill to a bucket you own on {c.network}, and you have none yet. The console makes
+              one for you.
             </Typography>
             <LoadingButton variant="contained" loading={busy} onClick={setUp}>
               Set up billing
@@ -63,7 +72,7 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
             {err && <Alert severity="error">{err}</Alert>}
           </Stack>
         )}
-        {(c.status === 'token-error' || c.status === 'buckets-error') && c.error && (
+        {(c.status === 'token-error' || c.status === 'buckets-error' || c.status === 'not-configured') && c.error && (
           <Stack spacing="12px" alignItems="flex-start">
             <Alert severity="error" sx={{ width: '100%' }}>
               <Box title={c.error.detail}>{c.error.message}</Box>
