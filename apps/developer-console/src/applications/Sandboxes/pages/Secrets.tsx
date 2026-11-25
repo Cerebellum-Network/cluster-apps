@@ -24,6 +24,7 @@ import {
   IconButton,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { useSearchParams } from 'react-router-dom';
 
 import { PageHeader, Section } from '~/components';
 import { useCompute, useComputeClient } from '~/compute/ComputeProvider';
@@ -36,9 +37,21 @@ import { BucketChip, KeyGlyph, ReadError, sbColor } from '../components/ui';
 
 const VALUE_MAX = 8 * 1024;
 
-const SecretDialog = ({ name: initial, onClose }: { name?: string; onClose: (saved?: string) => void }) => {
+/**
+ * Add (or, with `name`, replace) a secret. `suggested` fills the name of a new
+ * one: the link an agent shows for a secret its run needs.
+ */
+const SecretDialog = ({
+  name: initial,
+  suggested,
+  onClose,
+}: {
+  name?: string;
+  suggested?: string;
+  onClose: (saved?: string) => void;
+}) => {
   const client = useComputeClient();
-  const [name, setName] = useState(initial ?? '');
+  const [name, setName] = useState(initial ?? suggested ?? '');
   const [header, setHeader] = useState('Authorization');
   const [bearer, setBearer] = useState(true);
   const [value, setValue] = useState('');
@@ -180,7 +193,19 @@ const Secrets = () => {
   const { data, loading, error, reload } = useSecrets();
   const sandboxes = useSandboxes({ status: 'running' });
   const now = useNow(10_000);
-  const [dialog, setDialog] = useState<{ name?: string } | null>(null);
+  const [params, setParams] = useSearchParams();
+  // ?add=<name>: an agent's "Add <name>" link opens the dialog with that name.
+  const suggested = params.get('add') ?? '';
+  const [dialog, setDialog] = useState<{ name?: string; suggested?: string } | null>(() =>
+    SECRET_NAME_RE.test(suggested) ? { suggested } : null,
+  );
+  const closeDialog = () => {
+    setDialog(null);
+    if (params.has('add')) {
+      params.delete('add');
+      setParams(params, { replace: true });
+    }
+  };
   const [deleting, setDeleting] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -315,8 +340,9 @@ const Secrets = () => {
       {dialog && (
         <SecretDialog
           name={dialog.name}
+          suggested={dialog.suggested}
           onClose={(name) => {
-            setDialog(null);
+            closeDialog();
             if (name) {
               setNotice(`Saved ${name}. Its value can’t be read back; replace it to change it.`);
               reload();

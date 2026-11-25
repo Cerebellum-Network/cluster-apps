@@ -80,9 +80,9 @@ const AddDefinitionDialog = ({
             <Box component="span" sx={{ fontFamily: mono }}>
               cere.agent/v1
             </Box>{' '}
-            JSON document. The examples ship with the CLI in{' '}
+            JSON document. The examples are assets of the CLI’s release:{' '}
             <Box component="span" sx={{ fontFamily: mono }}>
-              client/examples/agents/
+              gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
             </Box>
             .
           </Typography>

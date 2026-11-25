@@ -6,9 +6,9 @@
  */
 export const QUICKSTART_SHELL = `# 1. Install the CLI and the Python SDK (release assets need access to Cerebellum-Network/ddc-node)
 gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p "cere_$(uname -s | tr A-Z a-z)_$(uname -m).tar.gz" -O - | tar -xz cere
-sudo install cere /usr/local/bin/cere
+mkdir -p ~/.local/bin && install cere ~/.local/bin/cere && export PATH="$HOME/.local/bin:$PATH"
 gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p 'cere_sdk-0.1.0-py3-none-any.whl'
-pip install ./cere_sdk-0.1.0-py3-none-any.whl
+python3 -m venv .venv && . .venv/bin/activate && pip install ./cere_sdk-0.1.0-py3-none-any.whl
 
 # 2. Sign in: Developer Console → Sandboxes → CLI access → Create token, then paste it
 cere login
@@ -22,7 +22,7 @@ export const QUICKSTART_PYTHON = `import cere
 
 sb = cere.Sandbox.create(image="python:3.12-slim", timeout=600)
 p = sb.exec("python", "-c", "print('hello from a DDC sandbox')")
-print(p.stdout.read())
+print(p.stdout.read(), end="")
 sb.terminate()`;
 
 /** What "Try it here" runs: the Python example's sandbox and command, through the same API. */

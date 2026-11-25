@@ -13,13 +13,14 @@ import { useSandboxes, useSecrets } from '~/compute/hooks';
 import { shortImage } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock } from '../../Sandboxes/components/bits';
-import { BucketChip, CredentialChip, ReadError } from '../../Sandboxes/components/ui';
+import { BucketChip, CredentialChip, Mono, ReadError } from '../../Sandboxes/components/ui';
 import AddDefinitionDialog from '../components/AddDefinitionDialog';
+import { addSecretPath } from '../components/MissingSecrets';
 import { agentPath, missingSecrets } from '../components/definition';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 
-const FROM_A_TERMINAL = `cere agent push -f client/examples/agents/research.json
-cere agent run research "Write a short brief on how gVisor isolates containers, citing https://gvisor.dev/docs/"
+const FROM_A_TERMINAL = `gh release download cli/v0.1.0 -R Cerebellum-Network/ddc-node -p '*.json'
+cere agent run -f research.json "Write a short brief on how gVisor isolates containers, citing https://gvisor.dev/docs/"
 cere agent runs`;
 
 const Overview = () => {
@@ -153,9 +154,15 @@ const Overview = () => {
                     </Stack>
                     {missing.length > 0 && (
                       <Typography sx={{ ...text.caption, color: color.warning }}>
-                        Needs the secret{missing.length > 1 ? 's' : ''} {missing.join(', ')}. Add{' '}
-                        {missing.length > 1 ? 'them' : 'it'} under{' '}
-                        <NavLink to="/sandboxes/secrets">Sandboxes › Secrets</NavLink>.
+                        Needs the secret{missing.length > 1 ? 's' : ''}{' '}
+                        {missing.map((n, i) => (
+                          <span key={n}>
+                            {i > 0 && ', '}
+                            <NavLink to={addSecretPath(n)}>{n}</NavLink>
+                            {n === a.def!.model.credential && ' (the model’s key)'}
+                          </span>
+                        ))}
+                        . Open the agent for what {missing.length > 1 ? 'each is' : 'it is'} and where to get it.
                       </Typography>
                     )}
                   </>
@@ -202,9 +209,19 @@ const Overview = () => {
         <Section title="From a terminal">
           <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
             The CLI runs the same definitions the same way: a sandbox per run, with the same labels, so its runs show
-            here too.
+            here too. The examples (<Mono>research.json</Mono>, <Mono>sre.json</Mono>, <Mono>langgraph.json</Mono>) are
+            assets of the CLI’s release, and a local file needs no bucket.
           </Typography>
           <CodeBlock code={FROM_A_TERMINAL} />
+          <Typography sx={{ ...text.caption, marginTop: '10px' }}>
+            Their model is <Mono>glm-5.3</Mono> on the testnet inference gateway, with the secret{' '}
+            <NavLink to={addSecretPath('ddc-inference')}>ddc-inference</NavLink>: an inference API key from{' '}
+            <a href="https://developer.compute.test.ddcdragon.com" target="_blank" rel="noreferrer">
+              developer.compute.test.ddcdragon.com
+            </a>{' '}
+            (Inference › API keys). <Mono>cere agent push -f research.json</Mono> keeps a definition in your bucket
+            (with the S3 credential from CLI access), and then <Mono>cere agent run research</Mono> finds it by name.
+          </Typography>
         </Section>
       </Box>
 

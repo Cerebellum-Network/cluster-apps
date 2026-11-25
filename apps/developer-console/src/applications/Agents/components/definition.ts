@@ -15,3 +15,57 @@ export function missingSecrets(def: AgentDefinition, have: SecretSummary[] | und
 
 export const agentPath = (bucket: string, name: string) =>
   `/agents/a/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;
+
+/**
+ * The Developer Console of the network a DDC inference gateway serves, or null
+ * for any other host. Both are deployed under one ingress host per network:
+ * `inference-gateway.<host>` and `developer.<host>` (the cere CLI derives it
+ * the same way, client/cere/agent/secrets.go).
+ */
+export function consoleForGateway(host: string): string | null {
+  const prefix = 'inference-gateway.';
+  return host.startsWith(prefix) && host.length > prefix.length
+    ? `https://developer.${host.slice(prefix.length)}`
+    : null;
+}
+
+const hostOf = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+};
+
+/** What a secret a definition names is for, and where its value comes from when that can be told. */
+export type SecretPurpose =
+  | {
+      kind: 'model';
+      name: string;
+      model: string;
+      baseUrl: string;
+      host: string;
+      /** The model's gateway is this console's own inference gateway: Inference → API keys makes its key. */
+      sameConsole: boolean;
+      /** The console of the gateway's network, when it is a DDC inference gateway of another network. */
+      console: string | null;
+    }
+  | { kind: 'rule'; name: string; hosts: string[] };
+
+export function secretPurpose(def: AgentDefinition, name: string, inferenceGatewayUrl: string): SecretPurpose {
+  if (name === def.model.credential) {
+    const host = hostOf(def.model.base_url);
+    const sameConsole = !!host && host === hostOf(inferenceGatewayUrl);
+    return {
+      kind: 'model',
+      name,
+      model: def.model.model,
+      baseUrl: def.model.base_url,
+      host,
+      sameConsole,
+      console: sameConsole ? null : consoleForGateway(host),
+    };
+  }
+  const hosts = (def.egress?.allow ?? []).filter((r) => r.credential === name).map((r) => r.host);
+  return { kind: 'rule', name, hosts: [...new Set(hosts)] };
+}

@@ -19,6 +19,7 @@ import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, Tabs } from '../../Sandboxes/components/bits';
 import { CredentialChip, Field, Mono, ReadError } from '../../Sandboxes/components/ui';
 import { missingSecrets } from '../components/definition';
+import MissingSecrets from '../components/MissingSecrets';
 import { Label } from '../components/RunItems';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 
@@ -280,11 +281,9 @@ const AgentDetail = () => {
               inputProps={{ 'aria-label': 'Input for the agent' }}
               InputProps={{ sx: { fontSize: 14 } }}
             />
-            {missing.length > 0 && (
-              <Alert severity="warning" sx={{ marginTop: '10px' }}>
-                The run needs the secret{missing.length > 1 ? 's' : ''} {missing.join(', ')}, which this bucket doesn’t
-                hold. Add {missing.length > 1 ? 'them' : 'it'} under{' '}
-                <NavLink to="/sandboxes/secrets">Sandboxes › Secrets</NavLink>.
+            {def && missing.length > 0 && (
+              <Alert severity="warning" sx={{ marginTop: '10px', '& .MuiAlert-message': { width: '100%' } }}>
+                <MissingSecrets def={def} missing={missing} />
               </Alert>
             )}
             <Button
