@@ -174,7 +174,7 @@ const ManageCredentialsDialog = ({
   const storeOpts = filter && filter !== BUCKET ? { agent: filter } : {};
 
   return (
-    <Dialog open onClose={onClose} maxWidth="md" fullWidth scroll="paper">
+    <Dialog open onClose={onClose} maxWidth="lg" fullWidth scroll="paper">
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         Credentials in this bucket
         <IconButton aria-label="Close" onClick={onClose} size="small">
@@ -207,12 +207,11 @@ const ManageCredentialsDialog = ({
             <ReadError what="your credentials" error={error} />
           </Box>
         ) : (
-          <Table size="small">
+          <Table size="small" sx={{ '& td, & th': { verticalAlign: 'top' } }}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ paddingLeft: '24px' }}>Name</TableCell>
                 <TableCell>Belongs to</TableCell>
-                <TableCell>Added as</TableCell>
                 <TableCell>Sent only to</TableCell>
                 <TableCell>Used by</TableCell>
                 <TableCell>Updated</TableCell>
@@ -234,8 +233,14 @@ const ManageCredentialsDialog = ({
                           {s.name}
                         </Box>
                       </Stack>
+                      <Typography sx={{ ...text.caption, whiteSpace: 'nowrap' }}>
+                        as{' '}
+                        <Box component="span" sx={{ fontFamily: mono }}>
+                          {s.header}
+                        </Box>
+                      </Typography>
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13 }}>
+                    <TableCell sx={{ fontSize: 13, whiteSpace: 'nowrap' }}>
                       {s.agent ? (
                         <>
                           Agent{' '}
@@ -249,12 +254,6 @@ const ManageCredentialsDialog = ({
                         </Box>
                       )}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13 }}>
-                      Header{' '}
-                      <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, color: color.textSecondary }}>
-                        {s.header}
-                      </Box>
-                    </TableCell>
                     <TableCell>
                       {s.hosts && s.hosts.length > 0 ? (
                         <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, color: color.textSecondary }}>
@@ -266,18 +265,22 @@ const ManageCredentialsDialog = ({
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13, color: n ? color.text : color.textTertiary }}>
+                    <TableCell sx={{ fontSize: 13, whiteSpace: 'nowrap', color: n ? color.text : color.textTertiary }}>
                       {n ? `${n} running sandbox${n === 1 ? '' : 'es'}` : 'not in use'}
                     </TableCell>
-                    <TableCell sx={{ fontSize: 13, color: color.textSecondary }} title={s.updated_at}>
+                    <TableCell
+                      sx={{ fontSize: 13, whiteSpace: 'nowrap', color: color.textSecondary }}
+                      title={s.updated_at}
+                    >
                       {fmtAgo(s.updated_at, now)}
                     </TableCell>
                     <TableCell align="right" sx={{ paddingRight: '24px' }}>
-                      <Stack direction="row" gap="6px" justifyContent="flex-end">
+                      <Stack direction="row" gap="6px" justifyContent="flex-end" flexWrap="nowrap">
                         <Button
                           size="small"
                           variant="outlined"
                           color="secondary"
+                          sx={{ whiteSpace: 'nowrap' }}
                           onClick={() =>
                             void onStore({ name: s.name, hosts: s.hosts, header: s.header, agent: s.agent })
                           }
@@ -294,7 +297,7 @@ const ManageCredentialsDialog = ({
               })}
               {!loading && shown.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ textAlign: 'center', padding: '28px' }}>
+                  <TableCell colSpan={6} sx={{ textAlign: 'center', padding: '28px' }}>
                     <Typography sx={text.secondary}>
                       {filter && filter !== BUCKET ? `No credentials of ${filter} yet.` : 'No credentials yet.'}
                     </Typography>

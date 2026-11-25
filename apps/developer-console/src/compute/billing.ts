@@ -14,6 +14,7 @@
  * and then there is nothing extra to say (records then bill their units, as
  * measured).
  */
+import { fmtQty, fmtQtyAt, qtyDecimals } from './format';
 import type { DacStatus, Usage, UsageRecord } from './types';
 
 /**
@@ -107,6 +108,27 @@ export function partsLine(p: BilledParts, fmt: (v: number) => string = f1): stri
   if (!parts.length) return '';
   if (p.burst === 0 && p.asMeasured === 0) return `${parts[0]}, no burst`;
   return parts.join(' + ');
+}
+
+/**
+ * A bill's parts as they show next to its total (`fmtQty(billed)`), so they add up to the total as shown: each at the
+ * total's precision, the burst being the shown total less the shown request (as the CLI does). "74.4 CPU-s" then reads
+ * "19.8 request + 54.6 burst", not "+ 54.7".
+ */
+export function shownParts(p: BilledParts): { parts: BilledParts; fmt: (v: number) => string } {
+  const d = qtyDecimals(p.billed);
+  const r = (v: number) => Math.round(v * 10 ** d) / 10 ** d;
+  const billed = r(p.billed);
+  const floor = r(p.floor);
+  const asMeasured = r(p.asMeasured);
+  const burst = p.burst > 0 ? Math.max(0, r(billed - floor - asMeasured)) : 0;
+  return { parts: { floor, burst, asMeasured, billed }, fmt: (v) => fmtQtyAt(v, d) };
+}
+
+/** `partsLine` at the precision of the total shown above it. */
+export function shownPartsLine(p: BilledParts): string {
+  const s = shownParts(p);
+  return partsLine(s.parts, s.fmt);
 }
 
 /**
@@ -306,9 +328,8 @@ export function recordParts(r: RecordBillingFields): { cpu: BilledParts; ram: Bi
 }
 
 /**
- * `cere usage`'s sums: "billed 54.000 CPU-s, 54.000 GiB-s (measured 9.400
- * CPU-s, 15.000 GiB-s)", with the burst in it when there was any: "billed
- * 18.200 CPU-s, 13.400 GiB-s, of which burst 3.200 CPU-s, 0.000 GiB-s (…)".
+ * A sandbox's records summed, in words: "billed 98.3 CPU-s (22.7 request + 75.6 burst) and 25.5 GiB-s (11.4 request
+ * + 14.1 burst); measured 86.7 CPU-s and 20.0 GiB-s". Without a burst, or on an older basis, the billed amount alone.
  */
 export function recordSumsLine(t: {
   billed_cpu_s: number;
@@ -318,12 +339,16 @@ export function recordSumsLine(t: {
   burst_cpu_s?: number;
   burst_ram_gib_s?: number;
 }) {
-  const f3 = (v: number) => fmtFixed(v, 3);
-  const burst =
-    (t.burst_cpu_s ?? 0) > 0 || (t.burst_ram_gib_s ?? 0) > 0
-      ? `, of which burst ${f3(t.burst_cpu_s ?? 0)} CPU-s, ${f3(t.burst_ram_gib_s ?? 0)} GiB-s`
-      : '';
-  return `billed ${f3(t.billed_cpu_s)} CPU-s, ${f3(t.billed_ram_gib_s)} GiB-s${burst} (measured ${f3(t.cpu_s)} CPU-s, ${f3(t.ram_gib_s)} GiB-s)`;
+  const one = (billed: number, burst: number | undefined, unit: string) => {
+    const p = shownParts({ floor: billed - (burst ?? 0), burst: burst ?? 0, asMeasured: 0, billed });
+    return p.parts.burst > 0
+      ? `${p.fmt(p.parts.billed)} ${unit} (${p.fmt(p.parts.floor)} request + ${p.fmt(p.parts.burst)} burst)`
+      : `${p.fmt(p.parts.billed)} ${unit}`;
+  };
+  return (
+    `billed ${one(t.billed_cpu_s, t.burst_cpu_s, 'CPU-s')} and ${one(t.billed_ram_gib_s, t.burst_ram_gib_s, 'GiB-s')}` +
+    `; measured ${fmtQty(t.cpu_s)} CPU-s and ${fmtQty(t.ram_gib_s)} GiB-s`
+  );
 }
 
 /**

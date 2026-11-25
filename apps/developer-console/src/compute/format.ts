@@ -84,9 +84,17 @@ export function fmtCpu(cpu: number): string {
 /** Quantities like CPU-seconds: 2 decimals under 10, 1 under 100, then whole numbers with separators. */
 export function fmtQty(v: number): string {
   if (!Number.isFinite(v) || v === 0) return '0';
-  if (Math.abs(v) < 10) return v.toFixed(2);
-  if (Math.abs(v) < 100) return v.toFixed(1);
-  return Math.round(v).toLocaleString('en-US');
+  return fmtQtyAt(v, qtyDecimals(v));
+}
+
+/** The decimals `fmtQty` shows for `v`: 2 below 10, 1 below 100, none above. */
+export const qtyDecimals = (v: number): number => (Math.abs(v) < 10 ? 2 : Math.abs(v) < 100 ? 1 : 0);
+
+/** `v` with `d` decimals, whole numbers with thousands separators (as `fmtQty` writes them). */
+export function fmtQtyAt(v: number, d: number): string {
+  if (!Number.isFinite(v)) return String(v);
+  if (v === 0) return '0';
+  return d > 0 ? v.toFixed(d) : Math.round(v).toLocaleString('en-US');
 }
 
 /** A decimal-string integer (DAC units exceed 2^53) with thousands separators, exact. */

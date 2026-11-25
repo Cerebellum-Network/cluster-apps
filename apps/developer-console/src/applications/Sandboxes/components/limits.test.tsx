@@ -188,7 +188,7 @@ describe('a sandbox’s usage', () => {
       },
     });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[0.1, 1, 0.2]} />));
-    expect(host.textContent).toContain('CPU billed18.2 CPU-s15.0 request + 3.20 burst');
+    expect(host.textContent).toContain('CPU billed18.2 CPU-s15.0 request + 3.2 burst');
     expect(host.textContent).toContain('uses 0.12 vCPU on average, peak 1; 0.25 vCPU guaranteed, up to 4 vCPU');
     expect(host.textContent).toContain('peak 700 MiB; 256 MiB guaranteed, up to 1 GiB');
     const cpuCell = [...host.querySelectorAll('[title]')].find((e) => e.textContent?.startsWith('CPU billed'));
@@ -221,7 +221,7 @@ describe('memory billed below what was measured', () => {
       },
     });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
-    expect(host.textContent).toContain('Memory billed20.0 GiB-s15.0 request + 5.00 burst');
+    expect(host.textContent).toContain('Memory billed20.0 GiB-s15.0 request + 5.0 burst');
     expect(host.textContent).toContain('Measured 30.0 GiB-s, file cache is measured, not billed.');
   });
 });

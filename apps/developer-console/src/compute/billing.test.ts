@@ -221,12 +221,12 @@ describe('usage records', () => {
     expect(recordBilling(older[0])).toEqual({ basis: '—', reserved: '—', cpu: 0.5, ram: 1.5 });
   });
 
-  it('sum billed and measured, as cere usage does', () => {
+  it('sum billed and measured, in words', () => {
     expect(recordSumsLine(sumRecords([reserved]))).toBe(
-      'billed 60.000 CPU-s, 60.000 GiB-s (measured 9.400 CPU-s, 15.000 GiB-s)',
+      'billed 60.0 CPU-s and 60.0 GiB-s; measured 9.40 CPU-s and 15.0 GiB-s',
     );
     expect(recordSumsLine(sumRecords(older))).toBe(
-      'billed 2.000 CPU-s, 3.000 GiB-s (measured 2.000 CPU-s, 3.000 GiB-s)',
+      'billed 2.00 CPU-s and 3.00 GiB-s; measured 2.00 CPU-s and 3.00 GiB-s',
     );
     const all = sumRecords([reserved, ...older]);
     expect(all.billed_cpu_s).toBe(62);

@@ -13,6 +13,8 @@ import {
   partsLine,
   recordParts,
   recordSumsLine,
+  shownParts,
+  shownPartsLine,
   usageParts,
   type RecordBillingFields,
 } from './billing';
@@ -221,11 +223,21 @@ describe('floor and burst', () => {
 
   it('puts the burst in the sums line only when there was some', () => {
     expect(recordSumsLine(sumRecords([burstMinute]))).toBe(
-      'billed 18.200 CPU-s, 15.000 GiB-s, of which burst 3.200 CPU-s, 0.000 GiB-s (measured 6.900 CPU-s, 14.000 GiB-s)',
+      'billed 18.2 CPU-s (15.0 request + 3.2 burst) and 15.0 GiB-s; measured 6.90 CPU-s and 14.0 GiB-s',
     );
     expect(recordSumsLine(sumRecords([measuredMinute]))).toBe(
-      'billed 9.400 CPU-s, 15.000 GiB-s (measured 9.400 CPU-s, 15.000 GiB-s)',
+      'billed 9.40 CPU-s and 15.0 GiB-s; measured 9.40 CPU-s and 15.0 GiB-s',
     );
+  });
+
+  it('shows a bill’s parts at its total’s precision, so they add up to it', () => {
+    // devnet, sb-01m8aaqf5mk704ea7q86y68qag: 74.4 CPU-s billed read "19.8 request + 54.7 burst" before.
+    const p = shownParts({ floor: 19.79, burst: 54.66, asMeasured: 0, billed: 74.45 - 0.01 });
+    expect(p.parts).toEqual({ floor: 19.8, burst: 54.6, asMeasured: 0, billed: 74.4 });
+    expect(shownPartsLine({ floor: 1727.2, burst: 79.04, asMeasured: 0, billed: 1806.24 })).toBe(
+      '1,727 request + 79 burst',
+    );
+    expect(shownPartsLine({ floor: 7.7, burst: 0.05, asMeasured: 0, billed: 7.75 })).toBe('7.70 request + 0.05 burst');
   });
 });
 

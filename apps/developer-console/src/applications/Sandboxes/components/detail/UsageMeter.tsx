@@ -3,7 +3,14 @@ import { Box, Typography } from '@cluster-apps/ui';
 
 import type { Sandbox } from '~/compute/types';
 import { isLive } from '~/compute/types';
-import { billedCPU, billedMemory, CACHE_NOTE, measuredIncludesCache, partsLine, usageParts } from '~/compute/billing';
+import {
+  billedCPU,
+  billedMemory,
+  CACHE_NOTE,
+  measuredIncludesCache,
+  shownPartsLine,
+  usageParts,
+} from '~/compute/billing';
 import { fmtBytes, fmtDuration, fmtMib, fmtQty } from '~/compute/format';
 import { cpuCeiling, cpuLine, memoryCeiling, memoryLine } from '~/compute/resources';
 import { color, text } from '~/theme/tokens';
@@ -135,7 +142,7 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
       <Cell
         label={parts ? 'CPU billed' : 'CPU'}
         value={`${fmtQty(parts ? parts.cpu.billed : u.cpu_s)} CPU-s`}
-        sub={parts ? partsLine(parts.cpu, fmtQty) : 'measured'}
+        sub={parts ? shownPartsLine(parts.cpu) : 'measured'}
         title={billedCPU(u, r.cpu) ? `billed ${billedCPU(u, r.cpu)}` : undefined}
         note={cpuUse}
       >
@@ -144,7 +151,7 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
       <Cell
         label={parts ? 'Memory billed' : 'Memory'}
         value={`${fmtQty(parts ? parts.ram.billed : u.ram_gib_s)} GiB-s`}
-        sub={parts ? partsLine(parts.ram, fmtQty) : 'measured'}
+        sub={parts ? shownPartsLine(parts.ram) : 'measured'}
         title={billedMemory(u, r.memory_mib) ? `billed ${billedMemory(u, r.memory_mib)}` : undefined}
         note={memoryUse}
       >

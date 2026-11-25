@@ -17,7 +17,14 @@ import { PageHeader, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useUsageRecords } from '~/compute/hooks';
 import { fmtBytes, fmtClock, fmtQty, localZone, shortId, sumRecords } from '~/compute/format';
-import { CACHE_NOTE, countingState, measuredIncludesCache, recordParts, type BilledParts } from '~/compute/billing';
+import {
+  CACHE_NOTE,
+  countingState,
+  measuredIncludesCache,
+  recordParts,
+  shownParts,
+  type BilledParts,
+} from '~/compute/billing';
 import { isLive, type UsageRecord } from '~/compute/types';
 import { chartPalette, color, mono, text } from '~/theme/tokens';
 import { BilledCell, CountedLabel } from '../components/detail/RecordsTable';
@@ -54,18 +61,22 @@ const Swatch = ({ tone }: { tone: string }) => (
 );
 
 /** A bill's parts with their colours, as the chart below draws them: "■ 15.0 request ■ 3.20 burst". */
-const PartsKey = ({ p }: { p: BilledParts }) => (
-  <Stack direction="row" gap="4px 14px" flexWrap="wrap" sx={{ marginTop: '6px' }}>
-    {PARTS.filter((x) => x.key !== 'asMeasured' || p.asMeasured > 0).map((x) => (
-      <Stack key={x.key} direction="row" alignItems="center" gap="6px" component="span">
-        <Swatch tone={x.color} />
-        <Typography component="span" sx={{ ...text.caption, color: color.text, fontVariantNumeric: 'tabular-nums' }}>
-          {fmtQty(p[x.key])} {x.name.toLowerCase()}
-        </Typography>
-      </Stack>
-    ))}
-  </Stack>
-);
+const PartsKey = ({ p: bill }: { p: BilledParts }) => {
+  // At the total's precision, so the parts add up to the total shown above them.
+  const { parts: p, fmt } = shownParts(bill);
+  return (
+    <Stack direction="row" gap="4px 14px" flexWrap="wrap" sx={{ marginTop: '6px' }}>
+      {PARTS.filter((x) => x.key !== 'asMeasured' || p.asMeasured > 0).map((x) => (
+        <Stack key={x.key} direction="row" alignItems="center" gap="6px" component="span">
+          <Swatch tone={x.color} />
+          <Typography component="span" sx={{ ...text.caption, color: color.text, fontVariantNumeric: 'tabular-nums' }}>
+            {fmt(p[x.key])} {x.name.toLowerCase()}
+          </Typography>
+        </Stack>
+      ))}
+    </Stack>
+  );
+};
 
 const Tile = ({ label, value, parts, sub }: { label: string; value: string; parts?: BilledParts; sub: string }) => (
   <Box
@@ -168,7 +179,7 @@ const ChartTip = ({
       {line(null, 'Billed', billed, true)}
       {PARTS.filter((x) => x.key !== 'asMeasured' || q.asMeasured > 0).map((x) => line(x.color, x.name, q[x.key]))}
       <Box sx={{ borderTop: `1px solid ${color.grid}`, marginTop: '4px', paddingTop: '4px' }}>
-        {line(USED_COLOR, 'Used', q.used)}
+        {line(USED_COLOR, 'Measured', q.used)}
         {quantity === 'ram' && measuredIncludesCache(q.used, billed) && (
           <Box sx={{ color: color.textSecondary, maxWidth: 220 }}>File cache is measured, not billed.</Box>
         )}
@@ -203,7 +214,7 @@ const BilledChart = ({
     <Section title={`${title} (${localZone()})`}>
       <Box
         role="img"
-        aria-label={`${title}: billed as guaranteed and burst, against what was used, one bar per ${barMs / 60_000} minutes`}
+        aria-label={`${title}: billed as request and burst, against what was measured, one bar per ${barMs / 60_000} minutes`}
         sx={{ width: '100%', height: 220 }}
       >
         <ResponsiveContainer width="100%" height="100%">
@@ -246,7 +257,7 @@ const BilledChart = ({
             ))}
             <Line
               dataKey={(r: Row) => r[quantity].used}
-              name="Used"
+              name="Measured"
               type="monotone"
               stroke={USED_COLOR}
               strokeWidth={2}
@@ -347,13 +358,13 @@ const Usage = () => {
               label="Billed CPU-seconds"
               value={fmtQty(total.billed_cpu_s)}
               parts={total.cpu}
-              sub={`used ${fmtQty(total.cpu_s)}`}
+              sub={`measured ${fmtQty(total.cpu_s)}`}
             />
             <Tile
               label="Billed GiB-seconds of memory"
               value={fmtQty(total.billed_ram_gib_s)}
               parts={total.ram}
-              sub={`used ${fmtQty(total.ram_gib_s)}${
+              sub={`measured ${fmtQty(total.ram_gib_s)}${
                 measuredIncludesCache(total.ram_gib_s, total.billed_ram_gib_s) ? `, ${CACHE_NOTE}` : ''
               }`}
             />
@@ -384,9 +395,9 @@ const Usage = () => {
                     <TableCell>Sandbox</TableCell>
                     <TableCell>State</TableCell>
                     <TableCell align="right">Billed CPU-s</TableCell>
-                    <TableCell align="right">Used CPU-s</TableCell>
+                    <TableCell align="right">Measured CPU-s</TableCell>
                     <TableCell align="right">Billed GiB-s</TableCell>
-                    <TableCell align="right">Used GiB-s</TableCell>
+                    <TableCell align="right">Measured GiB-s</TableCell>
                     <TableCell>Billing</TableCell>
                   </TableRow>
                 </TableHead>
