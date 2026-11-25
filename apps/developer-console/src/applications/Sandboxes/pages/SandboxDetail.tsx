@@ -6,7 +6,8 @@ import { Pill, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
 import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, fmtQty, plural, sumRecords } from '~/compute/format';
-import { isLive, type Sandbox } from '~/compute/types';
+import { secretHostMatches } from '~/compute/egressCoverage';
+import { isLive, type EgressEntry, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
 import { quoteArg } from '../components/commandLine';
@@ -97,14 +98,26 @@ const Details = ({ sb }: { sb: Sandbox }) => {
   );
 };
 
-const EgressRules = ({ sb }: { sb: Sandbox }) => (
-  <Section title="Network access">
-    <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-      The egress proxy allows only these. Everything else is refused and logged.
-    </Typography>
-    {sb.egress.allow.length ? (
-      <Stack spacing="8px">
-        {sb.egress.allow.map((r, i) => (
+/** Requests in the log a rule's host matches: exact, or one more label for `*.example.com`. */
+const ruleHits = (host: string, entries: EgressEntry[]) => {
+  const hits = entries.filter((e) => secretHostMatches(host, e.host));
+  return {
+    allowed: hits.filter((e) => e.decision === 'allowed').length,
+    other: hits.length - hits.filter((e) => e.decision === 'allowed').length,
+  };
+};
+
+/**
+ * The sandbox's allow-list: the only hosts the egress proxy lets it reach, set
+ * when it was created. With `entries`, each rule also says how many of the
+ * logged requests went to its host.
+ */
+const AllowList = ({ sb, entries }: { sb: Sandbox; entries?: EgressEntry[] }) =>
+  sb.egress.allow.length ? (
+    <Stack spacing="8px">
+      {sb.egress.allow.map((r, i) => {
+        const hits = entries ? ruleHits(r.host, entries) : null;
+        return (
           <Stack key={`${r.host}-${i}`} direction="row" alignItems="center" justifyContent="space-between" gap="8px">
             <Box minWidth={0}>
               <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, fontWeight: 600 }}>
@@ -114,14 +127,27 @@ const EgressRules = ({ sb }: { sb: Sandbox }) => (
               <Box component="span" sx={{ ...text.caption, marginLeft: '6px' }}>
                 {r.methods.join(', ')}
               </Box>
+              {hits && (
+                <Box component="span" sx={{ ...text.caption, marginLeft: '6px' }}>
+                  · {plural(hits.allowed, 'request')} allowed{hits.other ? `, ${hits.other} denied or failed` : ''}
+                </Box>
+              )}
             </Box>
             <CredentialChip name={r.credential ?? null} />
           </Stack>
-        ))}
-      </Stack>
-    ) : (
-      <Typography sx={text.secondary}>No hosts allowed: this sandbox has no network access.</Typography>
-    )}
+        );
+      })}
+    </Stack>
+  ) : (
+    <Typography sx={text.secondary}>No hosts allowed: this sandbox has no network access.</Typography>
+  );
+
+const EgressRules = ({ sb }: { sb: Sandbox }) => (
+  <Section title="Network access">
+    <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
+      The egress proxy allows only these. Everything else is refused and logged.
+    </Typography>
+    <AllowList sb={sb} />
   </Section>
 );
 
@@ -309,6 +335,22 @@ const SandboxDetail = () => {
           {tab === 'files' && <FilesPanel sb={sb} refreshKey={filesKey} />}
           {tab === 'egress' && (
             <Box>
+              <Box
+                sx={{
+                  border: `1px solid ${color.border}`,
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  marginBottom: '14px',
+                }}
+              >
+                <Typography sx={{ ...text.label, marginBottom: '8px' }}>Allowed for this sandbox</Typography>
+                <AllowList sb={sb} entries={entries} />
+                <Typography sx={{ ...text.caption, marginTop: '10px' }}>
+                  Set when the sandbox was created; a running sandbox’s rules don’t change. Credentials come from{' '}
+                  <NavLink to="/sandboxes/secrets">Secrets</NavLink>, sent only to the hosts each is bound to. All
+                  sandboxes’ requests: <NavLink to="/sandboxes/egress">Egress</NavLink>.
+                </Typography>
+              </Box>
               <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
                 {entries.length} requests, {refused} denied. The egress proxy adds credentials on the way out; the
                 sandbox never holds them.
@@ -338,7 +380,7 @@ const SandboxDetail = () => {
         </Section>
         <Stack gap="16px">
           <Details sb={sb} />
-          <EgressRules sb={sb} />
+          {tab !== 'egress' && <EgressRules sb={sb} />}
         </Stack>
       </Box>
 

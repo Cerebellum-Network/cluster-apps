@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Box, Stack, Typography, styled } from '@cluster-apps/ui';
 import { keyframes } from '@mui/material';
+import { NavLink } from 'react-router-dom';
 
 import type { EgressDecision, SandboxStatus } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
@@ -232,9 +233,18 @@ export const BucketChip = ({ bucketId }: { bucketId: string | null }) =>
     </Box>
   ) : null;
 
-/** A failed read, in words, with the raw message as a tooltip. */
+/** The gateway's 403 when the bucket's owner has no balance (it checks on every call). */
+export const isNoBalance = (error: string) => /insufficient balance/i.test(error);
+
+/** A failed read, in words, with the raw message as a tooltip; a refusal for balance says where to top up. */
 export const ReadError = ({ what, error }: { what: string; error: string }) => (
   <Typography color="error" variant="body2" title={error}>
     Couldn’t read {what}: {error}
+    {isNoBalance(error) && (
+      <>
+        . The compute gateway serves a bucket only while its owner has a balance:{' '}
+        <NavLink to="/billing">top up in Billing</NavLink>.
+      </>
+    )}
   </Typography>
 );

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Box, Button, Stack, Typography } from '@cluster-apps/ui';
 import { NavLink, useSearchParams } from 'react-router-dom';
 
@@ -21,7 +21,7 @@ const Subhead = ({ children }: { children: string }) => (
 );
 
 /** The parts a sandbox passes through, as the cluster names them. */
-const PARTS: { name: string; body: string }[] = [
+const PARTS: { name: string; body: ReactNode }[] = [
   {
     name: 'Compute gateway',
     body: 'The public API. On every call it checks that your token grants compute on the bucket and that the bucket’s owner has balance (read from the blockchain index, cached briefly).',
@@ -36,7 +36,12 @@ const PARTS: { name: string; body: string }[] = [
   },
   {
     name: 'Egress proxy',
-    body: 'The only way out. It allows the hosts and methods you list, adds your secrets, and logs each request.',
+    body: (
+      <>
+        The only way out. It allows the hosts and methods you list, adds your secrets, and logs each request: see{' '}
+        <NavLink to="/sandboxes/egress">Egress</NavLink>.
+      </>
+    ),
   },
 ];
 
