@@ -65,6 +65,76 @@ describe('transcriptItems', () => {
       { kind: 'log', text: 'not json' },
     ]);
   });
+
+  // The shape of the LangGraph example's transcript (a real run's lines, trimmed).
+  it('reads the LangGraph example’s {ts, node, message} lines', () => {
+    const lines = [
+      { ts: 1, kind: 'input', data: { prompt: 'Latest requests release?' } },
+      {
+        ts: 2,
+        node: 'agent',
+        message: {
+          content: [{ signature: '', thinking: 'Look it up.', type: 'thinking' }],
+          type: 'ai',
+          tool_calls: [{ name: 'pypi_latest', args: { package: 'requests' }, id: 'call_1', type: 'tool_call' }],
+          usage_metadata: { input_tokens: 271, output_tokens: 124 },
+        },
+      },
+      {
+        ts: 3,
+        node: 'tools',
+        message: {
+          content: '{"package": "requests", "version": "2.34.2"}',
+          type: 'tool',
+          name: 'pypi_latest',
+          tool_call_id: 'call_1',
+          status: 'success',
+        },
+      },
+      {
+        ts: 4,
+        node: 'agent',
+        message: {
+          content: [{ type: 'thinking', thinking: 'Now the age.' }],
+          type: 'ai',
+          tool_calls: [{ name: 'days_since', args: { timestamp: '2026-05-14T19:25:26Z' }, id: 'call_2' }],
+        },
+      },
+      { ts: 5, node: 'tools', message: { content: 'boom', type: 'tool', tool_call_id: 'call_2', status: 'error' } },
+      { ts: 6, node: 'agent', message: { content: 'requests 2.34.2, 194 days ago.', type: 'ai', tool_calls: [] } },
+    ]
+      .map((l) => JSON.stringify(l))
+      .join('\n');
+    const t = transcriptItems(lines);
+    expect(t.prompt).toBe('Latest requests release?');
+    expect(t.items).toEqual([
+      {
+        kind: 'tool',
+        id: 'call_1',
+        tool: 'pypi_latest',
+        input: '{"package":"requests"}',
+        status: 'ok',
+        output: '{"package": "requests", "version": "2.34.2"}',
+      },
+      {
+        kind: 'tool',
+        id: 'call_2',
+        tool: 'days_since',
+        input: '{"timestamp":"2026-05-14T19:25:26Z"}',
+        status: 'error',
+        output: 'boom',
+      },
+      { kind: 'text', text: 'requests 2.34.2, 194 days ago.' },
+    ]);
+  });
+
+  it('shows a line of an unknown shape as it is, instead of nothing', () => {
+    const t = transcriptItems('{"step":1,"thought":"x"}\n[1,2]\n');
+    expect(t.items).toEqual([
+      { kind: 'log', text: '{"step":1,"thought":"x"}' },
+      { kind: 'log', text: '[1,2]' },
+    ]);
+  });
 });
 
 describe('summariseInput', () => {
