@@ -263,7 +263,8 @@ export interface EgressEntry {
   method: string;
   path: string | null;
   status: number | null;
-  decision: 'allowed' | 'denied' | 'error' | string;
+  /** `policy`: a rule added to or removed from a running sandbox's allow-list (an event, not a request). */
+  decision: 'allowed' | 'denied' | 'error' | 'policy' | string;
   reason: string | null;
   credential: string | null;
   bytes_up: number;
@@ -307,7 +308,7 @@ export interface UsageRecord {
 export interface SourceRow {
   screen: string;
   field: string;
-  kind: 'blockchain' | 'resource-manager' | 'egress-proxy' | 'dac' | 'console-backend' | 'missing';
+  kind: 'blockchain' | 'resource-manager' | 'egress-proxy' | 'dac' | 'metrics' | 'console-backend' | 'missing';
   component?: string;
   route?: string;
   table?: string;
@@ -354,5 +355,104 @@ export interface DACView {
   nodes: Record<string, DACUsage>;
   truncated: boolean;
   kept_since: string;
+  read_at: string;
+}
+
+/** Sandbox usage records summed, in their own units: CPU-seconds and GiB-seconds. */
+export interface UsageAmounts {
+  records: number;
+  cpu_s: number;
+  ram_gib_s: number;
+  billed_cpu_s: number;
+  billed_ram_gib_s: number;
+  /** Records with no billed figures (older runtimes): their billed share is unknown, not zero. */
+  without_billed: number;
+}
+
+export type BillingState = 'counted' | 'waiting' | 'not_counted' | 'unknown';
+
+export interface UsagePoint extends UsageAmounts {
+  start: string;
+}
+
+export interface UsageByNode extends UsageAmounts {
+  node: string;
+  host: string;
+  on_chain: boolean;
+  billing: BillingState;
+  reason: string;
+}
+
+export interface UsageByBucket extends UsageAmounts {
+  bucket: number;
+  sandboxes: number;
+  last_active: string;
+}
+
+export interface BillingGroup extends UsageAmounts {
+  state: BillingState;
+  reason: string;
+  nodes: string[];
+}
+
+/** GET /api/v1/usage?hours=N: the sandbox service's usage over the window. */
+export interface UsageView {
+  hours: number;
+  since: string;
+  step_s: number;
+  totals: UsageAmounts;
+  sandboxes: number;
+  series: UsagePoint[];
+  by_node: UsageByNode[];
+  by_bucket: UsageByBucket[];
+  billing: BillingGroup[];
+  truncated: boolean;
+  missing: SourceError[];
+  read_at: string;
+}
+
+/** A sandbox's use over its latest per-minute usage record. */
+export interface LiveUse {
+  /** Average vCPU used over the record's minute. */
+  cpu: number;
+  memory_mib: number;
+  memory_peak_mib: number;
+  period_start: string;
+  period_end: string;
+  /** "node metrics" (about every 30 s) or "usage record" (the latest minute's record). */
+  source: string;
+}
+
+export interface LiveSandbox {
+  id: string;
+  status: string;
+  bucket: number;
+  node: string;
+  image: string;
+  resources: Capacity;
+  created_at: string;
+  started_at: string | null;
+  cpu_s: number | null;
+  ram_gib_s: number | null;
+  billed_cpu_s: number | null;
+  billed_ram_gib_s: number | null;
+  live: LiveUse | null;
+}
+
+export interface LiveNode {
+  id: string;
+  host: string;
+  healthy: boolean | null;
+  last_seen: string | null;
+  allocatable: Capacity | null;
+  allocated: Capacity | null;
+  sandboxes: LiveSandbox[];
+}
+
+/** GET /api/v1/live: every sandbox node with the sandboxes on it now. */
+export interface LiveView {
+  nodes: LiveNode[];
+  unplaced: LiveSandbox[];
+  missing: SourceError[];
   read_at: string;
 }

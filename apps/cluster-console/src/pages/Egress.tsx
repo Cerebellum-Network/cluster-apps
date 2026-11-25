@@ -1,88 +1,82 @@
-import { Stack, Typography } from '@cluster-apps/ui';
-import { Button } from '@mui/material';
+import { Stack } from '@cluster-apps/ui';
 
 import type { EgressEntry } from '~/api/types';
-import { SelectFilter, TextFilter, useFilters } from '~/components/Filters';
-import {
-  color,
-  Facts,
-  Loading,
-  LoadMore,
-  Missing,
-  Mono,
-  TabHeader,
-  Pill,
-  RowsTable,
-  Section,
-  SourceLine,
-} from '~/components/ui';
-import { bytes, num, shortKey, time } from '~/format';
+import { SelectFilter, useFilters } from '~/components/Filters';
+import { color, CouldNotRead, Facts, Loading, LoadMore, Mono, Panel, Pill, RowsTable } from '~/components/ui';
+import { bytes, num, shortTime, time } from '~/format';
 import { usePaged } from '~/hooks/usePaged';
 
 import { useNodeNames } from './sandboxShared';
 
-const TONE = { allowed: 'success', denied: 'warning', error: 'danger' } as const;
+const TONE = { allowed: 'success', denied: 'warning', error: 'danger', policy: 'neutral' } as const;
+const WORD: Record<string, string> = { allowed: 'Allowed', denied: 'Denied', error: 'Failed', policy: 'Rule changed' };
 
+/**
+ * A rule added to or removed from a running sandbox's allow-list is logged as
+ * `decision: "policy"`: an event about the rules, not a request, so it never
+ * counts as traffic.
+ */
+const isRuleChange = (e: EgressEntry) => e.decision === 'policy';
+const ruleText = (e: EgressEntry) => `${e.method ? `${e.method.replace(/,/g, ', ')} ` : ''}${e.host}${e.path ?? ''}`;
+
+/** What sandboxes reached outside, and what was refused. Details open in place. */
 export function Egress() {
-  const f = useFilters(['decision', 'bucket', 'sandbox_id', 'node']);
+  const f = useFilters(['decision', 'bucket', 'sandbox_id']);
   const name = useNodeNames();
   const p = usePaged<EgressEntry>('/egress/log', {
     decision: f.values.decision,
     bucket: f.values.bucket,
     sandbox_id: f.values.sandbox_id,
-    node: f.values.node,
     limit: 100,
   });
 
   return (
-    <>
-      <TabHeader
-        subtitle="Every request a sandbox made to the outside, allowed or denied, across customer buckets. The credential column is the name of the secret the proxy added; values are never logged."
-        actions={
-          <Button size="small" variant="outlined" onClick={p.refresh} disabled={p.loading}>
-            Refresh
-          </Button>
-        }
-      />
-      <Stack direction="row" spacing={1.5} sx={{ marginBottom: 2 }} flexWrap="wrap" useFlexGap>
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
         <SelectFilter
           label="Decision"
           value={f.values.decision}
           options={[
             ['allowed', 'Allowed'],
             ['denied', 'Denied'],
-            ['error', 'Error'],
+            ['error', 'Failed'],
+            ['policy', 'Rule changes'],
           ]}
           onChange={(v) => f.set('decision', v)}
         />
-        <TextFilter label="Customer bucket" value={f.values.bucket} onChange={(v) => f.set('bucket', v)} width={150} />
-        <TextFilter label="Sandbox" value={f.values.sandbox_id} onChange={(v) => f.set('sandbox_id', v)} width={260} />
-        <TextFilter label="Node ID" value={f.values.node} onChange={(v) => f.set('node', v)} width={220} />
       </Stack>
-      {p.error && <Missing error={p.error} />}
+      {p.error && <CouldNotRead error={p.error} what="the egress log" />}
       {!p.loaded && !p.error && <Loading />}
       {p.loaded && (
-        <Section flush>
+        <Panel flush>
           <RowsTable
             rows={p.items}
             rowKey={(e) => `${e.id}`}
-            empty="No egress request matches."
+            empty={f.values.decision ? 'No request with this decision.' : 'No sandbox has reached outside yet.'}
             columns={[
-              { label: 'Time', render: (e) => <span style={{ whiteSpace: 'nowrap' }}>{time(e.ts)}</span> },
+              { label: 'Time', render: (e) => <span style={{ whiteSpace: 'nowrap' }}>{shortTime(e.ts)}</span> },
               {
                 label: 'Decision',
-                render: (e) => <Pill tone={TONE[e.decision as keyof typeof TONE] ?? 'neutral'}>{e.decision}</Pill>,
+                render: (e) => (
+                  <Pill tone={TONE[e.decision as keyof typeof TONE] ?? 'neutral'}>
+                    {WORD[e.decision] ?? e.decision}
+                  </Pill>
+                ),
               },
               {
                 label: 'Request',
-                render: (e) => (
-                  <Mono>
-                    {e.method} {e.host}
-                    {e.path ?? ''}
-                  </Mono>
-                ),
+                render: (e) =>
+                  isRuleChange(e) ? (
+                    <span>
+                      {e.reason === 'rule removed' ? 'Removed' : 'Added'} rule <Mono>{ruleText(e)}</Mono>
+                    </span>
+                  ) : (
+                    <Mono>
+                      {e.method} {e.host}
+                      {e.path ?? ''}
+                    </Mono>
+                  ),
               },
-              { label: 'Status', align: 'right', render: (e) => (e.status != null ? e.status : '—') },
               {
                 label: 'Credential added',
                 render: (e) =>
@@ -92,45 +86,46 @@ export function Egress() {
                     <span style={{ color: color.textTertiary }}>none</span>
                   ),
               },
-              { label: 'Reason', render: (e) => e.reason ?? '—' },
-              { label: 'Bucket', align: 'right', render: (e) => e.bucket ?? '—' },
-              {
-                label: 'Sandbox',
-                render: (e) => <Mono title={e.sandbox_id ?? ''}>{shortKey(e.sandbox_id, 9, 4)}</Mono>,
-              },
-              { label: 'Up · down', align: 'right', render: (e) => `${bytes(e.bytes_up)} · ${bytes(e.bytes_down)}` },
-              {
-                label: 'Took',
-                align: 'right',
-                render: (e) => (e.duration_ms != null ? `${num(e.duration_ms, 0)} ms` : '—'),
-              },
+              { label: 'Customer', render: (e) => (e.bucket != null ? `Bucket ${e.bucket}` : '—') },
+              { label: 'Why', render: (e) => (isRuleChange(e) ? '' : (e.reason ?? '')) },
             ]}
-            detail={(e) => (
-              <Facts
-                items={[
-                  ['Entry', `${e.id}`],
-                  ['Sandbox', <Mono key="s">{e.sandbox_id ?? '—'}</Mono>],
-                  ['Node', e.node ? `${name(e.node)} (${shortKey(e.node)})` : '—'],
-                  ['Path', <Mono key="p">{e.path ?? 'n/a (refused at CONNECT)'}</Mono>],
-                  [
-                    'Credential',
-                    e.credential
-                      ? `secret “${e.credential}” of bucket ${e.bucket}, injected as a header by the proxy`
-                      : 'none',
-                  ],
-                ]}
-              />
-            )}
+            detail={(e) =>
+              isRuleChange(e) ? (
+                <Facts
+                  items={[
+                    ['When', time(e.ts)],
+                    ['Sandbox', <Mono key="s">{e.sandbox_id ?? '—'}</Mono>],
+                    [
+                      'Change',
+                      `${e.reason === 'rule removed' ? 'Removed from' : 'Added to'} the sandbox’s allow-list while it ran`,
+                    ],
+                    ['Rule', <Mono key="r">{ruleText(e)}</Mono>],
+                    ['Credential', e.credential ? `“${e.credential}”, added as a header by the egress proxy` : 'none'],
+                  ]}
+                />
+              ) : (
+                <Facts
+                  items={[
+                    ['When', time(e.ts)],
+                    ['Sandbox', <Mono key="s">{e.sandbox_id ?? '—'}</Mono>],
+                    ['Node', e.node ? name(e.node) : '—'],
+                    ['Answer', e.status != null ? `HTTP ${e.status}` : 'none (refused before the request was sent)'],
+                    ['Sent · received', `${bytes(e.bytes_up)} · ${bytes(e.bytes_down)}`],
+                    ['Took', e.duration_ms != null ? `${num(e.duration_ms, 0)} ms` : '—'],
+                    [
+                      'Credential',
+                      e.credential
+                        ? `“${e.credential}”, a secret of bucket ${e.bucket}, added as a header by the egress proxy. Its value is never logged.`
+                        : 'none',
+                    ],
+                  ]}
+                />
+              )
+            }
           />
           <LoadMore cursor={p.cursor} onMore={p.loadMore} loading={p.loading} />
-        </Section>
+        </Panel>
       )}
-      <Typography component="div" sx={{ marginTop: 1 }}>
-        <SourceLine>
-          Source: egress proxy GET /admin/v1/log (table egress_requests), read with its read-only key. Query strings and
-          header values are never stored.
-        </SourceLine>
-      </Typography>
-    </>
+    </Stack>
   );
 }

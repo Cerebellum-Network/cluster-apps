@@ -1,12 +1,28 @@
+import { useSearchParams } from 'react-router-dom';
 import { Box, Stack, Typography } from '@cluster-apps/ui';
 import { Table, TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 
-import type { NodesView, Placement, Sandbox } from '~/api/types';
-import { color, Facts, Mono, Pill, text, type Tone } from '~/components/ui';
-import { bytes, chosenNode, cpu, mib, num, seconds, shortKey, time } from '~/format';
+import type { SandboxMetrics } from '~/api/metricsTypes';
+import type { NodesView, Sandbox } from '~/api/types';
+import { SERIES, TimeChart } from '~/components/charts';
+import {
+  color,
+  CouldNotRead,
+  Disclosure,
+  DrawerBlock,
+  Facts,
+  Loading,
+  Mono,
+  NotYet,
+  Pill,
+  SideDrawer,
+  text,
+  type Tone,
+} from '~/components/ui';
+import { bytes, gibTime, mib, num, seconds, shortKey, shortTime, vcpuTime } from '~/format';
 import { useView } from '~/hooks/useView';
 
-import { verdict } from './placement';
+import { placementSummary, verdict } from './placement';
 
 export const STATUS_TONE: Record<string, Tone> = {
   running: 'success',
@@ -16,8 +32,16 @@ export const STATUS_TONE: Record<string, Tone> = {
   unknown: 'warning',
 };
 
+const STATUS_WORD: Record<string, string> = {
+  running: 'Running',
+  starting: 'Starting',
+  terminated: 'Ended',
+  failed: 'Failed',
+  unknown: 'Unknown',
+};
+
 export function StatusPill({ status }: { status: string }) {
-  return <Pill tone={STATUS_TONE[status] ?? 'neutral'}>{status}</Pill>;
+  return <Pill tone={STATUS_TONE[status] ?? 'neutral'}>{STATUS_WORD[status] ?? status}</Pill>;
 }
 
 /** Node id → a readable name (its host), from the nodes view. */
@@ -25,8 +49,8 @@ export function useNodeNames(): (id: string | null | undefined) => string {
   const v = useView<NodesView>('/nodes', undefined, 60_000);
   const names = new Map<string, string>();
   for (const n of v.data?.items ?? []) {
-    const ep = n.sandbox?.endpoint;
     let host = n.chain?.host || n.host;
+    const ep = n.sandbox?.endpoint;
     if (ep) {
       try {
         host = new URL(ep).hostname;
@@ -34,201 +58,273 @@ export function useNodeNames(): (id: string | null | undefined) => string {
         // keep the registry host
       }
     }
-    names.set(n.id, host);
+    names.set(n.id, host.replace(/:\d+$/, ''));
   }
   return (id) => (id ? (names.get(id) ?? shortKey(id)) : '—');
 }
 
-export function NodeName({
-  id,
-  name,
-}: {
-  id: string | null | undefined;
-  name: (id: string | null | undefined) => string;
-}) {
-  if (!id) return <Typography sx={{ fontSize: 12.5, color: color.textTertiary }}>not placed</Typography>;
+/** The sandbox a page shows in its drawer: `?sandbox=<id>`, so a link opens it. */
+export function useOpenSandbox(): [string | null, (id: string | null) => void] {
+  const [sp, setSp] = useSearchParams();
+  const id = sp.get('sandbox');
+  const set = (next: string | null) => {
+    const q = new URLSearchParams(sp);
+    if (next) q.set('sandbox', next);
+    else q.delete('sandbox');
+    setSp(q, { replace: false });
+  };
+  return [id, set];
+}
+
+const points = (p: { t: string; v: number | null }[]) => ({
+  starts: p.map((x) => Date.parse(x.t)),
+  values: p.map((x) => x.v),
+});
+
+/** One sandbox: what it is, its use over time, billed against measured, where it runs and why, its rules. */
+export function SandboxDrawer({ id, onClose }: { id: string | null; onClose: () => void }) {
   return (
-    <Stack>
-      <span style={{ whiteSpace: 'nowrap' }}>{name(id)}</span>
-      <Mono title={id}>{shortKey(id)}</Mono>
+    <SideDrawer open={!!id} onClose={onClose} title={id ?? ''} subtitle={id ? <DrawerSubtitle id={id} /> : undefined}>
+      {id && <DrawerBody id={id} />}
+    </SideDrawer>
+  );
+}
+
+function DrawerSubtitle({ id }: { id: string }) {
+  const v = useView<Sandbox>(`/sandboxes/${id}`, undefined, 5_000);
+  if (!v.data) return null;
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" component="span">
+      <StatusPill status={v.data.status} />
+      <span>
+        Bucket {v.data.bucket} · {v.data.image}
+      </span>
     </Stack>
   );
 }
 
-export function PlacementTable({
-  p,
-  name,
-  chosen,
-  asked,
-}: {
-  p: Placement;
-  name: (id: string) => string;
-  chosen: string | null;
-  asked: { cpu: number; memory_mib: number };
-}) {
-  const attempts = new Map(p.attempts?.map((a) => [a.node, a]) ?? []);
-  const ranked = [...(p.candidates ?? [])].sort((a, b) => b.score - a.score);
+function DrawerBody({ id }: { id: string }) {
+  const name = useNodeNames();
+  const v = useView<Sandbox>(`/sandboxes/${id}`, undefined, 5_000);
+  const live = v.data?.status === 'running' || v.data?.status === 'starting';
+  const m = useView<SandboxMetrics>(`/sandboxes/${id}/metrics`, { minutes: 60 }, live ? 15_000 : 0);
+  if (v.error && !v.data) return <CouldNotRead error={v.error} what="this sandbox" />;
+  if (!v.data) return <Loading />;
+  const s = v.data;
+  const u = s.usage;
+  const where = placementSummary(s.placement, s.resources, s.node, (n) => name(n));
+  const cpuPts = m.data ? points(m.data.cpu) : null;
+  const memPts = m.data ? points(m.data.memory_bytes) : null;
   return (
-    <Table
-      size="small"
-      sx={{
-        backgroundColor: color.surface,
-        borderRadius: '8px',
-        '& td, & th': { fontSize: 12.5, padding: '5px 10px' },
-      }}
-    >
-      <TableHead>
-        <TableRow>
-          <TableCell>Candidate node</TableCell>
-          <TableCell align="right">Free CPU</TableCell>
-          <TableCell align="right">Free memory</TableCell>
-          <TableCell align="right" title="Memory left after placement (MiB); -1 when the sandbox does not fit">
-            Score
-          </TableCell>
-          <TableCell>Fits</TableCell>
-          <TableCell>Attempt</TableCell>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {ranked.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={6} sx={{ color: color.textSecondary }}>
-              The resource manager recorded no candidates: no node had room for this sandbox.
-            </TableCell>
-          </TableRow>
+    <Stack spacing={3}>
+      <DrawerBlock title="Use, last hour">
+        {m.error && <CouldNotRead error={m.error} what="its use over time" />}
+        {m.data && cpuPts && cpuPts.starts.length > 0 ? (
+          <Stack spacing={2}>
+            <TimeChart
+              starts={cpuPts.starts}
+              stepMs={m.data.step_s * 1000}
+              series={[
+                {
+                  key: 'cpu',
+                  label: 'vCPU used',
+                  color: SERIES.one,
+                  values: cpuPts.values,
+                  total: `of ${num(s.resources.cpu, 2)} reserved`,
+                },
+              ]}
+              format={(x) => `${num(x, 3)} vCPU`}
+              axis={(x) => num(x, 2)}
+              label="vCPU used over the last hour"
+              height={110}
+              tableLabel="Time"
+            />
+            {memPts && (
+              <TimeChart
+                starts={memPts.starts}
+                stepMs={m.data.step_s * 1000}
+                series={[
+                  {
+                    key: 'mem',
+                    label: 'Memory used',
+                    color: SERIES.measured,
+                    values: memPts.values,
+                    total: `of ${mib(s.resources.memory_mib)} reserved`,
+                  },
+                ]}
+                format={(x) => bytes(x)}
+                axis={(x) => bytes(x).replace(' ', '')}
+                label="Memory used over the last hour"
+                height={110}
+                tableLabel="Time"
+              />
+            )}
+          </Stack>
+        ) : (
+          !m.error && m.data && <Typography sx={text.secondary}>No samples in the last hour.</Typography>
         )}
-        {ranked.map((c) => {
-          const a = attempts.get(c.node);
-          return (
-            <TableRow key={c.node} sx={c.node === chosen ? { backgroundColor: color.successTint } : undefined}>
-              <TableCell>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <span>{name(c.node)}</span>
-                  {c.node === chosen && <Pill tone="success">placed here</Pill>}
-                </Stack>
-              </TableCell>
-              <TableCell align="right">{cpu(c.free_cpu)}</TableCell>
-              <TableCell align="right">{mib(c.free_memory_mib)}</TableCell>
-              <TableCell align="right">{num(c.score, 0)}</TableCell>
-              <TableCell>
-                <Verdict v={verdict(c, asked)} />
-              </TableCell>
-              <TableCell>
-                {a ? (
-                  <span>
-                    {a.result}
-                    {a.detail ? ` · ${a.detail}` : ''}
-                  </span>
-                ) : (
-                  <span style={{ color: color.textTertiary }}>not tried</span>
-                )}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
-}
+        {!m.data && !m.error && <Loading />}
+      </DrawerBlock>
 
-function Verdict({ v }: { v: ReturnType<typeof verdict> }) {
-  if (v.fits) return <Pill tone="success">fits</Pill>;
-  return (
-    <span>
-      <Pill tone="warning">does not fit</Pill> {v.why}
-      {!v.recorded && v.why.startsWith('not enough') && (
-        <span style={{ color: color.textTertiary }}> (from the recorded free room)</span>
-      )}
-    </span>
-  );
-}
+      <DrawerBlock title="Billed and measured">
+        {u ? (
+          <Table
+            size="small"
+            sx={{ '& td, & th': { fontSize: 13, padding: '6px 8px', fontVariantNumeric: 'tabular-nums' } }}
+          >
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                <TableCell align="right">vCPU</TableCell>
+                <TableCell align="right">Memory</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <TableRow>
+                <TableCell>
+                  Billed{' '}
+                  {u.billing_basis ? `(${u.billing_basis === 'reserved' ? 'on the reservation' : 'on use'})` : ''}
+                </TableCell>
+                <TableCell align="right">{u.billed_cpu_s != null ? vcpuTime(u.billed_cpu_s) : '—'}</TableCell>
+                <TableCell align="right">{u.billed_ram_gib_s != null ? gibTime(u.billed_ram_gib_s) : '—'}</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Measured</TableCell>
+                <TableCell align="right">{vcpuTime(u.cpu_s)}</TableCell>
+                <TableCell align="right">{gibTime(u.ram_gib_s)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        ) : (
+          <Typography sx={text.secondary}>No usage reported yet.</Typography>
+        )}
+        {u && u.billed_cpu_s == null && <NotYet>billed figures: this runtime reports measured use only.</NotYet>}
+      </DrawerBlock>
 
-export function SandboxDetail({ s, name }: { s: Sandbox; name: (id: string | null | undefined) => string }) {
-  const chosen = chosenNode(s.placement, s.node);
-  return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 3 }}>
-      <Stack spacing={1.5}>
+      <DrawerBlock title="Where it runs">
+        <Typography sx={{ fontSize: 13.5 }}>{where.sentence}</Typography>
+        {where.refused.length > 0 && (
+          <Stack spacing={0.5} sx={{ marginTop: 1 }}>
+            {where.refused.map((r) => (
+              <Typography key={r.why} sx={{ ...text.secondary }}>
+                {r.nodes.length === 1 ? r.nodes[0] : `${r.nodes.length} nodes`} didn’t fit: {r.why}.
+              </Typography>
+            ))}
+          </Stack>
+        )}
+        {where.retried.map((r) => (
+          <Typography key={r.node} sx={{ ...text.secondary, marginTop: 0.5 }}>
+            Tried {r.node} first: {r.detail}.
+          </Typography>
+        ))}
+        {s.placement && s.placement.candidates?.length > 0 && (
+          <Box sx={{ marginTop: 1 }}>
+            <Disclosure label="Show the placement record">
+              <Table
+                size="small"
+                sx={{ '& td, & th': { fontSize: 12.5, padding: '4px 8px', fontVariantNumeric: 'tabular-nums' } }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Node</TableCell>
+                    <TableCell align="right">Free vCPU</TableCell>
+                    <TableCell align="right">Free memory</TableCell>
+                    <TableCell>Fit</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {[...s.placement.candidates]
+                    .sort((a, b) => b.score - a.score)
+                    .map((c) => {
+                      const vd = verdict(c, s.resources);
+                      return (
+                        <TableRow
+                          key={c.node}
+                          sx={c.node === where.node ? { backgroundColor: color.successTint } : undefined}
+                        >
+                          <TableCell>{name(c.node)}</TableCell>
+                          <TableCell align="right">{num(c.free_cpu, 2)}</TableCell>
+                          <TableCell align="right">{mib(c.free_memory_mib)}</TableCell>
+                          <TableCell>{vd.fits ? (c.node === where.node ? 'placed here' : 'fits') : vd.why}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+              <Typography sx={{ ...text.caption, marginTop: 1 }}>
+                The resource manager puts a sandbox on the node with the most free memory after placement, among the
+                nodes with room. Decided {shortTime(s.placement.decided_at)}.
+              </Typography>
+            </Disclosure>
+          </Box>
+        )}
+      </DrawerBlock>
+
+      <DrawerBlock title="What it is">
         <Facts
           items={[
-            ['Sandbox', <Mono key="id">{s.id}</Mono>],
-            ['Customer bucket', `${s.bucket}`],
-            ['Owner account', s.owner ? <Mono key="o">{s.owner}</Mono> : '—'],
+            ['Customer', `Bucket ${s.bucket}`],
             ['Image', <Mono key="i">{s.image}</Mono>],
             ['Command', s.command?.length ? <Mono key="c">{s.command.join(' ')}</Mono> : '—'],
+            ['Size', `${num(s.resources.cpu, 2)} vCPU · ${mib(s.resources.memory_mib)}`],
             [
-              'Resources',
-              `${cpu(s.resources.cpu)} · ${mib(s.resources.memory_mib)} · pids ${num(s.resources.pids, 0)}`,
+              'Started',
+              `${shortTime(s.started_at ?? s.created_at)}${s.startup_ms != null ? ` · up in ${num(s.startup_ms, 0)} ms` : ''}`,
             ],
-            ['Timeout', `${seconds(s.timeout_s)}${s.idle_timeout_s ? ` · idle ${seconds(s.idle_timeout_s)}` : ''}`],
-            ['Created · started · ended', `${time(s.created_at)} · ${time(s.started_at)} · ${time(s.ended_at)}`],
-            ['Startup', s.startup_ms != null ? `${num(s.startup_ms, 0)} ms` : '—'],
-            ['Exit', s.exit_reason ? `${s.exit_reason}${s.exit_code != null ? ` (code ${s.exit_code})` : ''}` : '—'],
-            ['Environment keys', s.env_keys?.length ? s.env_keys.join(', ') : 'none'],
+            ['Ran', u ? seconds(u.wall_s) : '—'],
+            [
+              'Ended',
+              s.ended_at
+                ? `${shortTime(s.ended_at)}${s.exit_reason ? ` · ${s.exit_reason}` : ''}${s.exit_code != null ? ` (code ${s.exit_code})` : ''}`
+                : '—',
+            ],
+            ['Time limit', `${seconds(s.timeout_s)}${s.idle_timeout_s ? ` · idle ${seconds(s.idle_timeout_s)}` : ''}`],
+            ['Peak memory', u ? mib(u.memory_peak_mib) : '—'],
+            ['Network out · in', u ? `${bytes(u.net_egress_bytes)} · ${bytes(u.net_ingress_bytes)}` : '—'],
+          ]}
+        />
+      </DrawerBlock>
+
+      <DrawerBlock title="May reach">
+        {s.egress?.allow?.length ? (
+          <Stack spacing={0.5}>
+            {s.egress.allow.map((r, i) => (
+              <Typography key={i} sx={{ fontSize: 13 }}>
+                <Mono>
+                  {r.methods?.join(', ') || 'any method'} {r.host}
+                  {r.path_prefix ?? ''}
+                </Mono>
+                {r.credential && (
+                  <>
+                    {' '}
+                    with credential <b>{r.credential}</b>
+                  </>
+                )}
+              </Typography>
+            ))}
+          </Stack>
+        ) : (
+          <Typography sx={text.secondary}>No host outside.</Typography>
+        )}
+      </DrawerBlock>
+
+      <Disclosure label="Identifiers">
+        <Facts
+          items={[
+            ['Sandbox', <Mono key="s">{s.id}</Mono>],
+            ['Node', <Mono key="n">{s.node ?? '—'}</Mono>],
+            ['Owner account', s.owner ? <Mono key="o">{s.owner}</Mono> : '—'],
             [
               'Labels',
               s.labels && Object.keys(s.labels).length
                 ? Object.entries(s.labels)
-                    .map(([k, v]) => `${k}=${v}`)
+                    .map(([k, val]) => `${k}=${val}`)
                     .join(', ')
                 : 'none',
             ],
-            ['Retained files', s.retained?.length ? s.retained.join(', ') : 'none'],
           ]}
         />
-        {s.usage && (
-          <Box>
-            <Typography sx={text.label}>Usage</Typography>
-            <Typography sx={{ fontSize: 12.5 }}>
-              wall {seconds(s.usage.wall_s)} · CPU {num(s.usage.cpu_s, 2)} CPU-s · memory {num(s.usage.ram_gib_s, 2)}{' '}
-              GiB-s (peak {mib(s.usage.memory_peak_mib)}) · network out {bytes(s.usage.net_egress_bytes)}, in{' '}
-              {bytes(s.usage.net_ingress_bytes)} · disk peak {mib(s.usage.disk_peak_mib)}
-            </Typography>
-            {s.usage.billing_basis !== undefined && (
-              <Typography sx={{ fontSize: 12.5 }}>
-                billed {num(s.usage.billed_cpu_s, 2)} CPU-s · {num(s.usage.billed_ram_gib_s, 2)} GiB-s (basis:{' '}
-                {s.usage.billing_basis}; reserved {num(s.usage.reserved_cpu_s, 2)} CPU-s ·{' '}
-                {num(s.usage.reserved_ram_gib_s, 2)} GiB-s)
-              </Typography>
-            )}
-          </Box>
-        )}
-      </Stack>
-      <Stack spacing={1.5}>
-        <Box>
-          <Typography sx={text.label}>Egress rules</Typography>
-          {s.egress?.allow?.length ? (
-            s.egress.allow.map((r, i) => (
-              <Typography key={i} sx={{ fontSize: 12.5 }}>
-                {r.methods?.join(',') || 'any method'} {r.host}
-                {r.path_prefix ?? ''}
-                {r.credential ? (
-                  <>
-                    {' '}
-                    · adds credential <b>{r.credential}</b>
-                  </>
-                ) : null}
-              </Typography>
-            ))
-          ) : (
-            <Typography sx={{ fontSize: 12.5, color: color.textSecondary }}>none: no host is reachable</Typography>
-          )}
-        </Box>
-        <Box>
-          <Typography sx={text.label}>Placement</Typography>
-          {s.placement ? (
-            <Stack spacing={0.75}>
-              <Typography sx={{ fontSize: 12.5 }}>
-                Decided {time(s.placement.decided_at)}; placed on {name(chosen)}. {s.placement.rule ?? ''}
-              </Typography>
-              <PlacementTable p={s.placement} name={(id) => name(id)} chosen={chosen} asked={s.resources} />
-            </Stack>
-          ) : (
-            <Typography sx={{ fontSize: 12.5, color: color.textSecondary }}>
-              The resource manager returned no placement for this sandbox.
-            </Typography>
-          )}
-        </Box>
-      </Stack>
-    </Box>
+      </Disclosure>
+    </Stack>
   );
 }

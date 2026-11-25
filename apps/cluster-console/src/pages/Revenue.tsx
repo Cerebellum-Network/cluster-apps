@@ -1,250 +1,290 @@
 import { Box, Stack, Typography } from '@cluster-apps/ui';
-import { Button, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { ToggleButton, ToggleButtonGroup } from '@mui/material';
 
-import type { DACEra, DACUsage, DACView } from '~/api/types';
+import type { DACEra, DACView, UsageView } from '~/api/types';
+import { EraStrip, SERIES, TimeChart } from '~/components/charts';
+import { useFilters } from '~/components/Filters';
 import {
   color,
-  Facts,
+  CouldNotRead,
+  Figure,
+  Figures,
   Loading,
-  Missing,
-  Mono,
+  NotYet,
   PageHeader,
-  Pill,
+  Panel,
   RowsTable,
-  Section,
-  SourceLine,
-  Stat,
-  type Tone,
+  SectionTitle,
+  Status,
+  text,
 } from '~/components/ui';
-import { useFilters } from '~/components/Filters';
-import { bytes, num, shortKey, time } from '~/format';
+import { bytes, compact, num, shortTime } from '~/format';
 import { useView } from '~/hooks/useView';
 
-import { byDay, eraStatus, type Day } from './dac';
+import { BILLING_LABEL, BILLING_TONE, billingLines, billingReason } from './billing';
+import { byDay, type Day } from './dac';
 
-const STATUS_TONE: Record<string, Tone> = {
-  ERA_PAID: 'success',
-  ERA_IN_PROGRESS: 'primary',
-  ERA_PROCESSED: 'neutral',
-  ERA_INSPECTED: 'neutral',
-  ERA_EMPTY: 'neutral',
-  ERA_FORCED_SKIPPED: 'warning',
-};
+const SEALED = new Set(['ERA_PROCESSED', 'ERA_INSPECTED', 'ERA_PAID', 'ERA_EMPTY']);
 
-const NO_SOURCE = (
-  <Tooltip title="Payout receipts on the blockchain (DdcPayouts) and the CERE rate: not read by this console backend.">
-    <span style={{ color: color.textTertiary }}>no source</span>
-  </Tooltip>
-);
-
-/** Storage and delivery as one line: what was transferred and stored, and the requests. */
-const storageLine = (u: DACUsage) =>
-  `${bytes(u.transferred_bytes)} transferred · ${bytes(u.stored_bytes)} stored · ${num(u.gets, 0)} GET · ${num(u.puts, 0)} PUT`;
-
-function Usage({ u, read, of }: { u: DACUsage | null; read: number; of: number }) {
-  return u === null ? (
-    <span style={{ color: color.textTertiary }}>not recorded</span>
-  ) : (
-    <Stack>
-      <span>{storageLine(u)}</span>
-      {read < of && (
-        <Typography sx={{ fontSize: 11.5, color: color.textSecondary }}>
-          {read} of {of} eras recorded
-        </Typography>
-      )}
-    </Stack>
-  );
+/** The eras of a window, oldest first, as chart points; an era not recorded is a gap. */
+function perEra(eras: DACEra[], pick: (e: NonNullable<DACEra['consumed']>) => number) {
+  const ordered = [...eras].sort((a, b) => a.start.localeCompare(b.start));
+  return {
+    starts: ordered.map((e) => Date.parse(e.start)),
+    values: ordered.map((e) => (e.consumed ? pick(e.consumed) : null)),
+  };
 }
 
-const statusLine = (d: Day) =>
-  Object.entries(d.statuses)
-    .map(([k, n]) => `${n} ${eraStatus(k).toLowerCase()}`)
-    .join(' · ');
-
 /**
- * Revenue (canvas f1, Dragon 2 T28): per day, each era's payout status and
- * the usage DAC verified, by bill line. The money columns stay missing until
- * payout receipts are read.
+ * Revenue (canvas f1, Dragon 2 T28): is DAC verifying the cluster's work, and
+ * what it verified, era by era. Money needs payout receipts, which are not
+ * read yet; that is said once.
  */
 export function Revenue() {
   const f = useFilters(['hours']);
   const hours = f.values.hours === '168' ? 168 : 24;
   const v = useView<DACView>('/dac', { hours }, 60_000);
+  const usage = useView<UsageView>('/usage', { hours }, 60_000);
   const d = v.data;
-  const days = d ? byDay(d.eras) : [];
-  const read = d?.eras.filter((e) => e.consumed).length ?? 0;
-  const paid = d?.eras.filter((e) => e.status === 'ERA_PAID').length ?? 0;
-  const label = hours === 24 ? 'last 24 h' : 'last 7 days';
+  const period = hours === 24 ? 'last 24 h' : 'last 7 days';
+  const done = d?.eras.filter((e) => e.status !== 'ERA_IN_PROGRESS') ?? [];
+  const sealed = done.filter((e) => SEALED.has(e.status)).length;
+  const paid = done.filter((e) => e.status === 'ERA_PAID').length;
+  const recorded = d?.eras.filter((e) => e.consumed).length ?? 0;
+  const lines = usage.data ? billingLines(usage.data.billing) : [];
+  // Usage sums cover only the eras whose report this backend recorded.
+  const covered = recorded < done.length ? `${recorded} of ${done.length} eras recorded` : period;
+
+  const delivered = d ? perEra(d.eras, (u) => u.transferred_bytes) : null;
+  const cpuUnits = d ? perEra(d.eras, (u) => u.cpu_units) : null;
+  const gpuUnits = d ? perEra(d.eras, (u) => u.gpu_units) : null;
 
   return (
     <>
       <PageHeader
         title="Revenue"
-        subtitle="What the cluster's work earns, per day: each era's payout status from DAC, and the usage DAC verified, by bill line. Days are UTC."
+        subtitle="Whether DAC verifies the cluster’s work, era by era, and what it verified. Days are UTC."
+        updatedAt={v.updatedAt}
+        onRefresh={() => [v, usage].forEach((x) => x.refresh())}
+        refreshing={v.loading}
         actions={
-          <>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={`${hours}`}
-              onChange={(_, val) => val && f.set('hours', val === '24' ? '' : val)}
-            >
-              <ToggleButton value="24">24 h</ToggleButton>
-              <ToggleButton value="168">7 days</ToggleButton>
-            </ToggleButtonGroup>
-            <Button size="small" variant="outlined" onClick={v.refresh} disabled={v.loading}>
-              Refresh
-            </Button>
-          </>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={`${hours}`}
+            onChange={(_, val) => val && f.set('hours', val === '24' ? '' : val)}
+            aria-label="Period"
+          >
+            <ToggleButton value="24">24 h</ToggleButton>
+            <ToggleButton value="168">7 days</ToggleButton>
+          </ToggleButtonGroup>
         }
       />
-      {v.error && !d && <Missing error={v.error} />}
+      {v.error && !d && <CouldNotRead error={v.error} what="eras" />}
       {!d && !v.error && <Loading />}
       {d && (
         <Stack spacing={2}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 2 }}>
-            <Stat
-              label={`Eras, ${label}`}
-              value={`${num(paid, 0)} paid of ${num(d.eras.length, 0)}${d.truncated ? '+' : ''}`}
-              sub={`${num(read, 0)} with their usage recorded by this console`}
-              source="DAC grouping collector · eras"
+          <Figures columns={4}>
+            <Figure
+              label={`Eras verified, ${period}`}
+              value={`${num(sealed, 0)} of ${num(done.length, 0)}`}
+              sub={`${num(paid, 0)} paid · ${d.eras.length - done.length} in progress`}
             />
-            <Stat
-              label={`Storage and delivery, ${label}`}
+            <Figure
+              label={`Data delivered, ${covered}`}
               value={bytes(d.consumed.transferred_bytes)}
-              sub={`transferred · ${bytes(d.consumed.stored_bytes)} stored · ${num(d.consumed.gets, 0)} GET · ${num(d.consumed.puts, 0)} PUT`}
-              source="DAC · customers' consumed usage, recorded eras"
+              sub={`${bytes(d.consumed.stored_bytes)} stored · ${compact(d.consumed.gets)} reads · ${compact(d.consumed.puts)} writes`}
             />
-            <Stat
-              label={`GPU, ${label}`}
-              value={`${num(d.consumed.gpu_units, 0)} units`}
-              sub="verified GPU units, recorded eras"
-              source="DAC · customers' consumed usage, recorded eras"
+            <Figure
+              label={`Compute verified, ${covered}`}
+              value={compact(d.consumed.cpu_units)}
+              unit="CPU units"
+              sub={`${compact(d.consumed.ram_units)} RAM units · ${compact(d.consumed.gpu_units)} GPU units`}
             />
-            <Stat
-              label={`CPU and RAM, ${label}`}
-              value={`${num(d.consumed.cpu_units, 0)} · ${num(d.consumed.ram_units, 0)}`}
-              sub="verified CPU · RAM units, recorded eras; sandbox records are not collected yet (Sandboxes › Usage)"
-              source="DAC · customers' consumed usage, recorded eras"
+            <Figure
+              label="Earned"
+              value="—"
+              sub={
+                <NotYet why="Collected, your reserve and providers paid come from each era's payout receipt on the blockchain (DdcPayouts) and the CERE rate. The console backend does not read them yet.">
+                  in CERE and USD
+                </NotYet>
+              }
             />
+          </Figures>
+
+          <Panel
+            title="Every era"
+            subtitle={`One cell per era, by the status DAC gives it. ${recorded < done.length ? `Usage below covers the ${recorded} eras recorded since ${shortTime(d.kept_since)}.` : ''}`}
+          >
+            <EraStrip eras={d.eras} />
+          </Panel>
+
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 2 }}>
+            <Panel title="Data delivered per era">
+              {delivered && (
+                <TimeChart
+                  starts={delivered.starts}
+                  stepMs={20 * 60_000}
+                  series={[
+                    {
+                      key: 'b',
+                      label: 'Delivered',
+                      color: SERIES.one,
+                      values: delivered.values,
+                      total: bytes(d.consumed.transferred_bytes),
+                    },
+                  ]}
+                  format={(x) => bytes(x)}
+                  axis={(x) => bytes(x).replace(' ', '')}
+                  label="Bytes delivered per era"
+                  height={150}
+                  tableLabel="Era start"
+                />
+              )}
+            </Panel>
+            <Panel title="CPU units per era">
+              {cpuUnits && (
+                <TimeChart
+                  starts={cpuUnits.starts}
+                  stepMs={20 * 60_000}
+                  series={[
+                    {
+                      key: 'c',
+                      label: 'CPU units',
+                      color: SERIES.one,
+                      values: cpuUnits.values,
+                      total: compact(d.consumed.cpu_units),
+                    },
+                  ]}
+                  format={(x) => compact(x)}
+                  axis={(x) => compact(x)}
+                  label="CPU units verified per era"
+                  height={150}
+                  tableLabel="Era start"
+                />
+              )}
+            </Panel>
+            <Panel title="GPU units per era">
+              {gpuUnits && (
+                <TimeChart
+                  starts={gpuUnits.starts}
+                  stepMs={20 * 60_000}
+                  series={[
+                    {
+                      key: 'g',
+                      label: 'GPU units',
+                      color: SERIES.one,
+                      values: gpuUnits.values,
+                      total: compact(d.consumed.gpu_units),
+                    },
+                  ]}
+                  format={(x) => compact(x)}
+                  axis={(x) => compact(x)}
+                  label="GPU units verified per era"
+                  height={150}
+                  tableLabel="Era start"
+                />
+              )}
+            </Panel>
           </Box>
-          <Missing
-            error={{
-              source: 'payout receipts (DdcPayouts) and the cluster’s prices',
-              detail:
-                'Collected, your reserve and providers paid, in USD and CERE, come from the payout receipt of each era on the blockchain, and the split by bill line in money from verified usage × the cluster’s prices. This console backend reads neither yet, so those columns show “no source”.',
-            }}
-          />
-          <Section flush>
+
+          <Panel title="Sandbox usage" subtitle="Whether DAC counts what sandboxes use, so payouts charge for it.">
+            {usage.error && <CouldNotRead error={usage.error} what="sandbox usage" />}
+            {usage.data && lines.length === 0 && (
+              <Typography sx={text.secondary}>No sandbox ran in this period.</Typography>
+            )}
+            <Stack spacing={1}>
+              {lines.map((l) => (
+                <Stack
+                  key={l.state + l.reason}
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={{ xs: 0.5, sm: 2 }}
+                  alignItems={{ sm: 'center' }}
+                >
+                  <Box sx={{ width: 220, flexShrink: 0 }}>
+                    <Status tone={BILLING_TONE[l.state]}>{BILLING_LABEL[l.state]}</Status>
+                  </Box>
+                  <Typography sx={{ ...text.secondary, color: color.text }}>
+                    {billingReason(l.reason, l.nodes)}
+                    {lines.length > 1 && (
+                      <span style={{ color: color.textSecondary }}> {Math.round(l.share * 100)}% of billed use.</span>
+                    )}
+                  </Typography>
+                </Stack>
+              ))}
+            </Stack>
+          </Panel>
+
+          <SectionTitle sub="Open a day for its eras.">By day</SectionTitle>
+          <Panel flush>
             <RowsTable
-              rows={days}
+              rows={byDay(d.eras)}
               rowKey={(day) => day.day}
-              empty="DAC lists no era in this window."
+              empty="DAC lists no era in this period."
               columns={[
+                { label: 'Day', render: (day) => <b>{day.day}</b> },
+                { label: 'Eras', render: (day) => eraLine(day) },
                 {
-                  label: 'Day',
-                  render: (day) => <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{day.day}</span>,
-                },
-                {
-                  label: 'Eras',
-                  render: (day) => (
-                    <Stack>
-                      <Mono>
-                        {day.eras[day.eras.length - 1].id}–{day.eras[0].id}
-                      </Mono>
-                      <Typography sx={{ fontSize: 11.5, color: color.textSecondary }}>
-                        {day.eras.length} eras
-                      </Typography>
-                    </Stack>
-                  ),
-                },
-                { label: 'Payout', render: (day) => statusLine(day) },
-                { label: 'Collected', align: 'right', render: () => NO_SOURCE },
-                {
-                  label: 'Storage and delivery',
-                  render: (day) => <Usage u={day.consumed} read={day.withUsage} of={day.eras.length} />,
-                },
-                {
-                  label: 'GPU',
+                  label: 'Delivered',
                   align: 'right',
-                  render: (day) => (day.consumed ? `${num(day.consumed.gpu_units, 0)} units` : '—'),
+                  render: (day) => (day.consumed ? bytes(day.consumed.transferred_bytes) : '—'),
                 },
                 {
-                  label: 'CPU and RAM',
+                  label: 'Stored',
+                  align: 'right',
+                  render: (day) => (day.consumed ? bytes(day.consumed.stored_bytes) : '—'),
+                },
+                {
+                  label: 'Reads · writes',
                   align: 'right',
                   render: (day) =>
-                    day.consumed ? `${num(day.consumed.cpu_units, 0)} · ${num(day.consumed.ram_units, 0)} units` : '—',
+                    day.consumed ? `${compact(day.consumed.gets)} · ${compact(day.consumed.puts)}` : '—',
                 },
-                { label: 'Your reserve', align: 'right', render: () => NO_SOURCE },
-                { label: 'Providers paid', align: 'right', render: () => NO_SOURCE },
+                {
+                  label: 'CPU units',
+                  align: 'right',
+                  render: (day) => (day.consumed ? compact(day.consumed.cpu_units) : '—'),
+                },
+                {
+                  label: 'GPU units',
+                  align: 'right',
+                  render: (day) => (day.consumed ? compact(day.consumed.gpu_units) : '—'),
+                },
+                { label: 'Recorded', align: 'right', render: (day) => `${day.withUsage} of ${day.eras.length}` },
               ]}
-              detail={(day) => <EraTable eras={day.eras} />}
+              detail={(day) => <EraList eras={day.eras} />}
             />
-          </Section>
-          <Section title="Where these numbers come from">
-            <Facts
-              items={[
-                [
-                  'DAC grouping collector',
-                  <span key="c">
-                    <Mono title={d.collector.key}>{shortKey(d.collector.key, 8, 6)}</Mono> at{' '}
-                    <Mono>{d.collector.url}</Mono>,{' '}
-                    {d.collector.from === 'blockchain'
-                      ? 'found on the blockchain (a storage node names it; its host and port are on its node record)'
-                      : 'set in the console backend config'}
-                    ; every page carries its signature
-                  </span>,
-                ],
-                ['Eras', 'GET /activity/v1/eras: status, customers and providers of each era'],
-                [
-                  'Usage',
-                  'GET /activity/v1/ehds/traverse/{era}: the sealed era document payouts charge from; the customers’ consumed usage is summed here',
-                ],
-                [
-                  'Recorded since',
-                  `${time(d.kept_since)}. The collector serves an era’s document only for its last few eras, so the console backend records each one while it is served; earlier eras show “not recorded”.`,
-                ],
-              ]}
-            />
-          </Section>
-          <SourceLine>Read {time(d.read_at)}. Every number and its source: “What backs each number”.</SourceLine>
+          </Panel>
         </Stack>
       )}
     </>
   );
 }
 
-function EraTable({ eras }: { eras: DACEra[] }) {
+function eraLine(d: Day): string {
+  const paid = d.statuses.ERA_PAID ?? 0;
+  const open = d.statuses.ERA_IN_PROGRESS ?? 0;
+  return `${paid} paid${open ? ` · ${open} in progress` : ''} of ${d.eras.length}`;
+}
+
+function EraList({ eras }: { eras: DACEra[] }) {
+  const hm = (iso: string) =>
+    new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   return (
-    <Stack spacing={0.5}>
+    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '4px 24px' }}>
       {eras.map((e) => (
-        <Stack key={e.id} direction="row" spacing={1.5} alignItems="center" sx={{ fontSize: 12.5 }}>
-          <Mono>{e.id}</Mono>
-          <span style={{ whiteSpace: 'nowrap', minWidth: 210 }}>
-            {time(e.start)} – {time(e.end).replace(/^.*, /, '')}
-          </span>
-          <Box sx={{ minWidth: 96 }}>
-            <Pill tone={STATUS_TONE[e.status] ?? 'neutral'}>{eraStatus(e.status)}</Pill>
-          </Box>
-          <span style={{ whiteSpace: 'nowrap', color: color.textSecondary }}>
-            {e.customers} customers · {e.providers} providers
-          </span>
-          <Box minWidth={0}>
-            {e.consumed ? (
-              <span>
-                {storageLine(e.consumed)} · GPU {num(e.consumed.gpu_units, 0)} · CPU {num(e.consumed.cpu_units, 0)} ·
-                RAM {num(e.consumed.ram_units, 0)}
-              </span>
-            ) : (
-              <Tooltip title={e.missing?.detail ?? ''}>
-                <span style={{ color: color.textTertiary }}>
-                  {e.status === 'ERA_IN_PROGRESS' ? 'era in progress' : 'not recorded'}
-                </span>
-              </Tooltip>
-            )}
-          </Box>
-        </Stack>
+        <Typography key={e.id} sx={{ fontSize: 12.5, fontVariantNumeric: 'tabular-nums', color: color.textSecondary }}>
+          <b style={{ color: color.text }}>
+            {hm(e.start)}–{hm(e.end)}
+          </b>{' '}
+          {e.status === 'ERA_PAID'
+            ? 'paid'
+            : e.status === 'ERA_IN_PROGRESS'
+              ? 'in progress'
+              : e.status.replace('ERA_', '').toLowerCase()}
+          {e.consumed ? ` · ${bytes(e.consumed.transferred_bytes)}` : ' · not recorded'} · era {e.id}
+        </Typography>
       ))}
-    </Stack>
+    </Box>
   );
 }

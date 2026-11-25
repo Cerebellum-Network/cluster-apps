@@ -1,167 +1,279 @@
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Box, Stack } from '@cluster-apps/ui';
-import { Button, Tab, Tabs } from '@mui/material';
+import { useMemo, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Box, Stack, Typography } from '@cluster-apps/ui';
+import { Tab, Tabs, ToggleButton, ToggleButtonGroup } from '@mui/material';
 
-import type { ApiError } from '~/api/client';
-import type { ChainSnapshot, DACView, NodesView, Summary } from '~/api/types';
-import { asMissing, PageHeader, Stat } from '~/components/ui';
-import { mib, num } from '~/format';
+import type { FleetView } from '~/api/metricsTypes';
+import type { LiveView, UsageView } from '~/api/types';
+import { RankedBars, SERIES, TimeChart } from '~/components/charts';
+import { useFilters } from '~/components/Filters';
+import {
+  CouldNotRead,
+  Figure,
+  Figures,
+  Loading,
+  Meter,
+  PageHeader,
+  Panel,
+  SectionTitle,
+  Status,
+  text,
+} from '~/components/ui';
+import { gibHours, hoursNumber, num, percent, plural, vcpuHours } from '~/format';
 import { useView } from '~/hooks/useView';
 
-import { sandboxVerification, type SandboxVerification } from './dac';
-
-/** What the service page has read, for its tabs (useOutletContext). */
-export interface SandboxesContext {
-  summary: Summary | null;
-  verification: SandboxVerification | null;
-  verifyError: ApiError | Error | null;
-}
+import { BILLING_LABEL, BILLING_TONE, billingLines, billingReason } from './billing';
+import { LiveNodes, LiveStatus, type MachineTotal } from './LiveNodes';
+import { SandboxDrawer, useOpenSandbox } from './sandboxShared';
 
 const TABS = [
-  { to: '/sandboxes', label: 'Sandboxes' },
-  { to: '/sandboxes/placements', label: 'Placements' },
-  { to: '/sandboxes/egress', label: 'Egress' },
-  { to: '/sandboxes/usage', label: 'Usage' },
+  { to: '/sandboxes', label: 'All sandboxes' },
+  { to: '/sandboxes/egress', label: 'Outbound requests' },
 ];
 
-const pct = (a: number, b: number) => (b > 0 ? ` (${Math.round((100 * a) / b)}%)` : '');
-
 /**
- * The Sandboxes service (a service under Services, as Storage and Inference
- * are): its capacity in its own unit, its usage up to DAC, then its tabs.
+ * The Sandboxes service: what runs where right now, how much of the
+ * sandbox quota it reserves, whether its use is billed, and its use over
+ * time by customer and by node. Then every sandbox, and their outbound
+ * requests.
  */
 export function SandboxesService() {
-  const nav = useNavigate();
   const { pathname } = useLocation();
-  const summary = useView<Summary>('/summary');
-  const nodes = useView<NodesView>('/nodes', undefined, 60_000);
-  const chain = useView<ChainSnapshot>('/chain', undefined, 60_000);
-  const dac = useView<DACView>('/dac', { hours: 24 }, 60_000);
-  const s = summary.data;
+  const [paused, setPaused] = useState(false);
+  const [openId, open] = useOpenSandbox();
+  const f = useFilters(['hours']);
+  const hours = f.values.hours === '168' ? 168 : 24;
+
+  const live = useView<LiveView>('/live', undefined, paused ? 0 : 1_000);
+  const fleet = useView<FleetView>('/fleet', undefined, 60_000);
+  const usage = useView<UsageView>('/usage', { hours }, 60_000);
+
+  const machines = useMemo(() => {
+    const m = new Map<string, MachineTotal>();
+    for (const x of fleet.data?.machines ?? []) {
+      if (x.host)
+        m.set(x.host, {
+          cpu: x.cpu_cores,
+          memoryMiB: x.memory_total_bytes != null ? x.memory_total_bytes / 2 ** 20 : null,
+        });
+    }
+    return m;
+  }, [fleet.data]);
+
+  const nodes = live.data?.nodes;
+  const all = nodes?.flatMap((n) => n.sandboxes) ?? [];
+  const running = all.filter((s) => s.status === 'running').length;
+  const starting = all.length - running + (live.data?.unplaced.length ?? 0);
+  const quotaCpu = nodes?.reduce((a, n) => a + (n.allocatable?.cpu ?? 0), 0) ?? 0;
+  const quotaMem = nodes?.reduce((a, n) => a + (n.allocatable?.memory_mib ?? 0), 0) ?? 0;
+  const resCpu = all.reduce((a, s) => a + s.resources.cpu, 0);
+  const resMem = all.reduce((a, s) => a + s.resources.memory_mib, 0);
+  const lines = usage.data ? billingLines(usage.data.billing) : [];
+  const main = lines[0];
   const tab = [...TABS].reverse().find((t) => pathname === t.to || pathname.startsWith(`${t.to}/`))?.to ?? TABS[0].to;
 
-  const refresh = () => [summary, nodes, chain, dac].forEach((v) => v.refresh());
-  const loading = summary.loading || nodes.loading || chain.loading || dac.loading;
-
-  const verification =
-    nodes.data && chain.data && dac.data ? sandboxVerification(nodes.data, chain.data, dac.data) : null;
-  const verifyError = nodes.error ?? chain.error ?? dac.error;
+  const series = usage.data?.series ?? [];
+  const starts = series.map((p) => Date.parse(p.start));
+  const period = hours === 24 ? 'last 24 h' : 'last 7 days';
 
   return (
     <>
       <PageHeader
         title="Sandboxes"
-        subtitle="gVisor sandboxes the cluster runs for customer buckets: capacity, the usage they recorded up to DAC, then each sandbox, where it was placed and what it reached outside."
-        actions={
-          <Button size="small" variant="outlined" onClick={refresh} disabled={loading}>
-            Refresh
-          </Button>
-        }
+        subtitle="What runs on each node right now, what it reserves and uses, and whether that use is billed."
+        actions={<LiveStatus readAt={live.data?.read_at} paused={paused} onPause={() => setPaused((p) => !p)} />}
       />
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 2, marginBottom: 2 }}>
-        <Stat
-          label="Sandbox nodes"
-          value={s ? `${num(s.nodes_healthy, 0)} of ${num(s.nodes, 0)}` : '…'}
-          sub="healthy, reporting a sandbox runtime"
-          source="resource manager · sandbox-nodes"
-          missing={s?.sections.sandbox_nodes.missing ?? (summary.error ? asMissing(summary.error) : null)}
-          onClick={() => nav('/nodes')}
-        />
-        <Stat
-          label="CPU"
-          value={s?.cpu ? `${num(s.cpu.allocated, 2)} of ${num(s.cpu.allocatable, 2)}` : '…'}
-          sub={s?.cpu ? `allocated to live sandboxes${pct(s.cpu.allocated, s.cpu.allocatable)}` : undefined}
-          source="resource manager · sandbox-nodes"
-          missing={s?.sections.sandbox_nodes.missing}
-        />
-        <Stat
-          label="Memory"
-          value={s?.memory_mib ? `${mib(s.memory_mib.allocated)} of ${mib(s.memory_mib.allocatable)}` : '…'}
-          sub={
-            s?.memory_mib
-              ? `allocated to live sandboxes${pct(s.memory_mib.allocated, s.memory_mib.allocatable)}`
-              : undefined
-          }
-          source="resource manager · sandbox-nodes"
-          missing={s?.sections.sandbox_nodes.missing}
-        />
-        <Stat
-          label="Running"
-          value={s ? `${num(s.sandboxes_running, 0)}${s.sections.sandboxes.truncated ? '+' : ''}` : '…'}
-          sub="sandboxes, all customer buckets"
-          source="resource manager · sandboxes?status=running"
-          missing={s?.sections.sandboxes.missing}
-          onClick={() => nav('/sandboxes?status=running')}
-        />
-        <Stat
-          label="Egress, last hour"
-          value={s?.egress_last_hour ? `${num(s.egress_last_hour.allowed, 0)} allowed` : '…'}
-          sub={
-            s?.egress_last_hour
-              ? `${num(s.egress_last_hour.denied, 0)} denied · ${num(s.egress_last_hour.error, 0)} error${s.sections.egress.truncated ? ' (at least)' : ''}`
-              : undefined
-          }
-          source="egress proxy · log"
-          missing={s?.sections.egress.missing}
-          onClick={() => nav('/sandboxes/egress')}
-        />
-        <Stat
-          label="Usage records, last hour"
-          value={s?.records_last_hour ? `${num(s.records_last_hour.pushed, 0)} at the DAC agent` : '…'}
-          sub={
-            s?.records_last_hour
-              ? `${num(s.records_last_hour.pending, 0)} pending · ${num(s.records_last_hour.failed, 0)} failed`
-              : undefined
-          }
-          source="resource manager · usage-records (the node's push to its host's DAC agent)"
-          missing={s?.sections.records.missing}
-          onClick={() => nav('/sandboxes/usage')}
-        />
-        <Box sx={{ gridColumn: 'span 2', display: 'grid' }}>
-          <Stat
-            label="Verified by DAC, last 24 h"
-            value={
-              verification?.verified
-                ? `${num(verification.verified.cpu_units, 0)} CPU · ${num(verification.verified.ram_units, 0)} RAM units`
-                : '…'
-            }
-            sub={
-              verification?.verified
-                ? `${verification.registered.length} of ${verification.sandboxNodes.length} sandbox nodes are nodes of the cluster on the blockchain · charged in Revenue, CPU and RAM`
-                : undefined
-            }
-            source="DAC grouping collector · EHD per era, provided usage per node; sandbox node IDs against the blockchain roster"
-            missing={
-              verifyError
-                ? asMissing(verifyError)
-                : verification && !verification.verified
-                  ? { source: 'DAC collection of sandbox records', detail: verification.why ?? '' }
-                  : null
-            }
-            onClick={() => nav('/sandboxes/usage')}
-          />
-        </Box>
-      </Box>
-      <Tabs
-        value={tab}
-        sx={{ marginBottom: 2, borderBottom: '1px solid', borderColor: 'divider', minHeight: 40 }}
-        aria-label="Sandboxes"
-      >
-        {TABS.map((t) => (
-          <Tab
-            key={t.to}
-            value={t.to}
-            label={t.label}
-            component={NavLink}
-            to={t.to}
-            end
-            sx={{ minHeight: 40, textTransform: 'none', fontSize: 14 }}
-          />
-        ))}
-      </Tabs>
-      <Stack>
-        <Outlet context={{ summary: s, verification, verifyError } satisfies SandboxesContext} />
-      </Stack>
+      {live.error && !live.data && <CouldNotRead error={live.error} what="sandboxes" />}
+      {!live.data && !live.error && <Loading />}
+      {live.data && (
+        <Stack spacing={2}>
+          <Figures columns={4}>
+            <Figure
+              label="Running now"
+              value={num(running, 0)}
+              sub={
+                starting > 0
+                  ? `${starting} starting`
+                  : `on ${plural(nodes?.filter((n) => n.sandboxes.length).length ?? 0, 'node')}`
+              }
+            />
+            <Figure
+              label="vCPU reserved"
+              value={num(resCpu, 2)}
+              unit={`of ${num(quotaCpu, 1)}`}
+              sub={`${percent(resCpu, quotaCpu)} of the sandbox quota on ${plural(nodes?.length ?? 0, 'node')}`}
+            >
+              <Meter value={resCpu} max={quotaCpu} label="vCPU reserved of the sandbox quota" />
+            </Figure>
+            <Figure
+              label="Memory reserved"
+              value={num(resMem / 1024, 1)}
+              unit={`of ${num(quotaMem / 1024, 1)} GiB`}
+              sub={`${percent(resMem, quotaMem)} of the sandbox quota`}
+            >
+              <Meter value={resMem} max={quotaMem} label="Memory reserved of the sandbox quota" />
+            </Figure>
+            <Figure
+              label={`Billing, ${period}`}
+              value={
+                main ? (
+                  <Status tone={BILLING_TONE[main.state]}>{BILLING_LABEL[main.state]}</Status>
+                ) : usage.data ? (
+                  '—'
+                ) : (
+                  '…'
+                )
+              }
+              sub={
+                main
+                  ? billingReason(main.reason, main.nodes)
+                  : usage.data
+                    ? 'No sandbox ran in this period.'
+                    : undefined
+              }
+              to="/revenue"
+            />
+          </Figures>
+          {live.data.missing.length > 0 && (
+            <CouldNotRead error={live.data.missing[0]} what="each sandbox’s latest minute" />
+          )}
+
+          <Panel
+            title="Nodes"
+            subtitle="Each node’s sandbox quota, and a block per sandbox sized by what it reserves, filled by what it used in its latest minute. Open a block for its use over time."
+          >
+            <Box sx={{ margin: '0 -22px -20px' }}>
+              <LiveNodes nodes={nodes} machines={machines} onOpen={(s) => open(s.id)} />
+            </Box>
+          </Panel>
+
+          <Stack direction="row" alignItems="flex-end" justifyContent="space-between" sx={{ marginTop: 1 }}>
+            <SectionTitle sub="Billed is what customers are charged for (the reservation, or use, as the runtime bills it); measured is what sandboxes used.">
+              Use over time
+            </SectionTitle>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={`${hours}`}
+              onChange={(_, v) => v && f.set('hours', v === '24' ? '' : v)}
+              aria-label="Period"
+              sx={{ marginBottom: '12px' }}
+            >
+              <ToggleButton value="24">24 h</ToggleButton>
+              <ToggleButton value="168">7 days</ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+          {usage.error && <CouldNotRead error={usage.error} what="usage" />}
+          {usage.data && (
+            <>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2 }}>
+                <Panel title="vCPU-hours per hour">
+                  <TimeChart
+                    starts={starts}
+                    stepMs={usage.data.step_s * 1000}
+                    series={[
+                      {
+                        key: 'b',
+                        label: 'Billed',
+                        color: SERIES.billed,
+                        values: series.map((p) => p.billed_cpu_s),
+                        total: vcpuHours(usage.data.totals.billed_cpu_s),
+                      },
+                      {
+                        key: 'm',
+                        label: 'Measured',
+                        color: SERIES.measured,
+                        values: series.map((p) => p.cpu_s),
+                        total: vcpuHours(usage.data.totals.cpu_s),
+                      },
+                    ]}
+                    format={(x) => vcpuHours(x)}
+                    axis={(x) => hoursNumber(x)}
+                    label={`vCPU-hours per hour, billed and measured, ${period}`}
+                  />
+                </Panel>
+                <Panel title="GiB-hours per hour">
+                  <TimeChart
+                    starts={starts}
+                    stepMs={usage.data.step_s * 1000}
+                    series={[
+                      {
+                        key: 'b',
+                        label: 'Billed',
+                        color: SERIES.billed,
+                        values: series.map((p) => p.billed_ram_gib_s),
+                        total: gibHours(usage.data.totals.billed_ram_gib_s),
+                      },
+                      {
+                        key: 'm',
+                        label: 'Measured',
+                        color: SERIES.measured,
+                        values: series.map((p) => p.ram_gib_s),
+                        total: gibHours(usage.data.totals.ram_gib_s),
+                      },
+                    ]}
+                    format={(x) => gibHours(x)}
+                    axis={(x) => hoursNumber(x)}
+                    label={`GiB-hours per hour, billed and measured, ${period}`}
+                  />
+                </Panel>
+              </Box>
+              {usage.data.totals.without_billed > 0 && (
+                <Typography sx={{ ...text.caption }}>
+                  {plural(usage.data.totals.without_billed, 'record')} came from a runtime that reports no billed
+                  figures; they count as measured only.
+                </Typography>
+              )}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2 }}>
+                <Panel title="By customer" subtitle="Billed vCPU-hours.">
+                  <RankedBars
+                    rows={usage.data.by_bucket.slice(0, 6).map((b) => ({
+                      key: `${b.bucket}`,
+                      label: `Bucket ${b.bucket}`,
+                      sub: `${plural(b.sandboxes, 'sandbox', 'sandboxes')} · ${gibHours(b.billed_ram_gib_s)}`,
+                      value: b.billed_cpu_s,
+                      display: vcpuHours(b.billed_cpu_s),
+                      title: `Bucket ${b.bucket}: ${vcpuHours(b.billed_cpu_s)} billed, ${vcpuHours(b.cpu_s)} measured`,
+                    }))}
+                  />
+                </Panel>
+                <Panel title="By node" subtitle="Billed vCPU-hours, and whether DAC counts them.">
+                  <RankedBars
+                    rows={usage.data.by_node.map((n) => ({
+                      key: n.node,
+                      label: n.host || n.node.slice(0, 12),
+                      sub: <Status tone={BILLING_TONE[n.billing]}>{BILLING_LABEL[n.billing]}</Status>,
+                      value: n.billed_cpu_s,
+                      display: vcpuHours(n.billed_cpu_s),
+                      title: `${n.host}: ${vcpuHours(n.billed_cpu_s)} billed · ${BILLING_LABEL[n.billing]}: ${billingReason(n.reason)}`,
+                    }))}
+                  />
+                </Panel>
+              </Box>
+            </>
+          )}
+
+          <Tabs
+            value={tab}
+            sx={{ marginTop: 2, borderBottom: '1px solid', borderColor: 'divider', minHeight: 40 }}
+            aria-label="Sandboxes lists"
+          >
+            {TABS.map((t) => (
+              <Tab
+                key={t.to}
+                value={t.to}
+                label={t.label}
+                component={NavLink}
+                to={t.to}
+                end
+                sx={{ minHeight: 40, textTransform: 'none', fontSize: 14 }}
+              />
+            ))}
+          </Tabs>
+          <Outlet />
+        </Stack>
+      )}
+      <SandboxDrawer id={openId} onClose={() => open(null)} />
     </>
   );
 }

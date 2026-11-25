@@ -1,4 +1,4 @@
-import type { ChainSnapshot, DACEra, DACUsage, DACView, NodesView } from '~/api/types';
+import type { DACEra, DACUsage } from '~/api/types';
 
 export const ZERO: DACUsage = {
   puts: 0,
@@ -65,54 +65,4 @@ export function byDay(eras: DACEra[]): Day[] {
     }
   }
   return [...days.values()].sort((a, b) => b.day.localeCompare(a.day));
-}
-
-export interface SandboxVerification {
-  /** Sandbox node IDs the resource manager reports. */
-  sandboxNodes: string[];
-  /** Of those, the ones that are nodes of the cluster on the blockchain. */
-  registered: string[];
-  /** The registered nodes' provided usage over the DAC window; null when none is registered. */
-  verified: DACUsage | null;
-  /** Why verified is null, in words. */
-  why: string | null;
-}
-
-/**
- * What DAC verified of the sandbox service's work. DAC collectors ask only
- * nodes of the cluster on the blockchain, so a sandbox node whose ID is not
- * there has its records reach its host's DAC agent and go no further.
- */
-export function sandboxVerification(nodes: NodesView, chain: ChainSnapshot, dac: DACView): SandboxVerification {
-  const sandboxNodes = nodes.items.filter((n) => n.sandbox).map((n) => n.id.toLowerCase());
-  const onChain = new Set(chain.nodes.map((n) => n.pub_key.toLowerCase().replace(/^0x/, '')));
-  const registered = sandboxNodes.filter((id) => onChain.has(id));
-  if (sandboxNodes.length === 0) {
-    return { sandboxNodes, registered, verified: null, why: 'The resource manager reports no sandbox node.' };
-  }
-  if (registered.length === 0) {
-    return {
-      sandboxNodes,
-      registered,
-      verified: null,
-      why:
-        sandboxNodes.length === 1
-          ? 'The sandbox node ID is not a node of the cluster on the blockchain, so DAC collectors never ask for its records: they reach the host’s DAC agent and stop there.'
-          : `None of the ${sandboxNodes.length} sandbox node IDs is a node of the cluster on the blockchain, so DAC collectors never ask for their records: they reach the hosts’ DAC agents and stop there.`,
-    };
-  }
-  const verified = registered.reduce((acc, id) => (dac.nodes[id] ? addUsage(acc, dac.nodes[id]) : acc), ZERO);
-  return { sandboxNodes, registered, verified, why: null };
-}
-
-/** A node's verified work in a short line, or null when DAC has none for it. */
-export function workLine(u: DACUsage | undefined, fmtBytes: (n: number) => string): string | null {
-  if (!u) return null;
-  const parts: string[] = [];
-  if (u.gets || u.puts) parts.push(`${u.gets} GET · ${u.puts} PUT`);
-  if (u.stored_bytes) parts.push(`${fmtBytes(u.stored_bytes)} stored`);
-  if (u.transferred_bytes) parts.push(`${fmtBytes(u.transferred_bytes)} transferred`);
-  if (u.cpu_units || u.ram_units) parts.push(`${u.cpu_units} CPU · ${u.ram_units} RAM units`);
-  if (u.gpu_units) parts.push(`${u.gpu_units} GPU units`);
-  return parts.length ? parts.join(' · ') : 'no activity';
 }

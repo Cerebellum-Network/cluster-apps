@@ -5,17 +5,18 @@ import { developerConsoleTheme } from '@cluster-apps/developer-console/src/theme
 import { color } from '@cluster-apps/developer-console/src/theme/tokens';
 
 import { Shell } from '~/components/Shell';
+import { Customers } from '~/pages/Customers';
+import { Delivery } from '~/pages/Delivery';
 import { Egress } from '~/pages/Egress';
 import { Inference } from '~/pages/Inference';
 import { Login } from '~/pages/Login';
 import { Nodes } from '~/pages/Nodes';
 import { Overview } from '~/pages/Overview';
-import { Placements } from '~/pages/Placements';
 import { Revenue } from '~/pages/Revenue';
-import { Sandboxes } from '~/pages/Sandboxes';
+import { SandboxList } from '~/pages/SandboxList';
 import { SandboxesService } from '~/pages/SandboxesService';
-import { MissingScreen, Sources } from '~/pages/Sources';
-import { Usage } from '~/pages/Usage';
+import { Sources } from '~/pages/Sources';
+import { Storage } from '~/pages/Storage';
 import { SessionProvider, useSession } from '~/session/SessionProvider';
 
 /** Pages need a backend session; without one, sign in and come back. */
@@ -49,27 +50,33 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Overview /> },
           { path: 'nodes', element: <Nodes /> },
+          { path: 'customers', element: <Customers /> },
           { path: 'revenue', element: <Revenue /> },
+          { path: 'storage', element: <Storage /> },
+          { path: 'delivery', element: <Delivery /> },
           { path: 'inference', element: <Inference /> },
           {
-            // A service, with its tabs.
+            // A service: live nodes and usage on top, then its lists.
             path: 'sandboxes',
             element: <SandboxesService />,
             children: [
-              { index: true, element: <Sandboxes /> },
-              { path: 'placements', element: <Placements /> },
+              { index: true, element: <SandboxList /> },
               { path: 'egress', element: <Egress /> },
-              { path: 'usage', element: <Usage /> },
+              // Placements and usage records are no longer tabs: a sandbox's
+              // drawer says where it runs and why; usage is the charts above.
+              { path: 'placements', element: <Moved to="/sandboxes" /> },
+              { path: 'usage', element: <Moved to="/sandboxes" /> },
             ],
           },
-          // Earlier addresses of the sandbox tabs and of screens that moved.
-          { path: 'placements', element: <Moved to="/sandboxes/placements" /> },
+          // Earlier addresses.
+          { path: 'placements', element: <Moved to="/sandboxes" /> },
           { path: 'egress', element: <Moved to="/sandboxes/egress" /> },
-          { path: 'usage', element: <Moved to="/sandboxes/usage" /> },
-          { path: 'missing/revenue', element: <Moved to="/revenue" /> },
-          { path: 'missing/provider-join', element: <Moved to="/missing/requests" /> },
+          { path: 'usage', element: <Moved to="/sandboxes" /> },
           { path: 'sources', element: <Sources /> },
-          { path: 'missing/:screen', element: <MissingScreen /> },
+          { path: 'missing/storage', element: <Moved to="/storage" /> },
+          { path: 'missing/delivery', element: <Moved to="/delivery" /> },
+          { path: 'missing/customers', element: <Moved to="/customers" /> },
+          { path: 'missing/:screen', element: <Navigate to="/sources" replace /> },
           { path: '*', element: <Navigate to="/" replace /> },
         ],
       },
@@ -81,7 +88,14 @@ export default function App() {
   return (
     <UIProvider>
       <ThemeProvider theme={developerConsoleTheme}>
-        <GlobalStyles styles={{ body: { background: color.page } }} />
+        <GlobalStyles
+          styles={{
+            body: { background: color.page },
+            '@media (prefers-reduced-motion: reduce)': {
+              '*': { animation: 'none !important', transition: 'none !important' },
+            },
+          }}
+        />
         <SessionProvider>
           <RouterProvider router={router} />
         </SessionProvider>

@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@cef-ai/wallet": "^4.1.0",
-    "@cef-ai/wallet-react": "^3.1.0"
+    "@cef-ai/wallet-react": "^3.1.0",
+    "recharts": "^2.15.3"
   }
 }

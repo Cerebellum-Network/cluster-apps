@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Box, Logo, Stack, Typography } from '@cluster-apps/ui';
 import { Button, Tooltip } from '@mui/material';
@@ -6,46 +5,33 @@ import { Button, Tooltip } from '@mui/material';
 import type { ChainSnapshot } from '~/api/types';
 import { shortKey } from '~/format';
 import { useView } from '~/hooks/useView';
+import { nodeCounts } from '~/pages/nodeModel';
 import { useSession } from '~/session/SessionProvider';
 
-import { color, Pill } from './ui';
+import { color, hairline } from './ui';
 
 interface NavItem {
   to: string;
   label: string;
-  /** No source this backend can read yet: the page says why. */
-  missing?: boolean;
-  /** On the canvas as "later". */
-  later?: boolean;
 }
 
-/** The canvas's first group (Side, n1): no heading, the cluster card above names it. */
+/** The screens with data, in the canvas's order (Side, n1). Screens with no source are listed on Data sources. */
 const MANAGE: NavItem[] = [
   { to: '/', label: 'Overview' },
   { to: '/nodes', label: 'Nodes' },
-  { to: '/missing/requests', label: 'Requests', missing: true },
-  { to: '/missing/customers', label: 'Customers', missing: true },
-  { to: '/missing/plans', label: 'Plans', missing: true },
+  { to: '/customers', label: 'Customers' },
   { to: '/revenue', label: 'Revenue' },
-  { to: '/missing/rules', label: 'Rules', later: true },
 ];
 
-/** One entry per service the cluster runs; each page shows its capacity in its own unit. */
+/** One entry per service the cluster runs; each page shows its use of each node. */
 const SERVICES: NavItem[] = [
-  { to: '/missing/storage', label: 'Storage', missing: true },
-  { to: '/missing/delivery', label: 'Delivery', missing: true },
+  { to: '/storage', label: 'Storage' },
+  { to: '/delivery', label: 'Delivery' },
   { to: '/inference', label: 'Inference' },
   { to: '/sandboxes', label: 'Sandboxes' },
-  { to: '/missing/agents', label: 'Agents', missing: true },
 ];
 
-const FOOTER: NavItem[] = [
-  { to: '/missing/team', label: 'Team', missing: true },
-  { to: '/sources', label: 'What backs each number' },
-];
-
-function Item({ to, label, missing, later }: NavItem) {
-  const dim = missing || later;
+function Item({ to, label }: NavItem) {
   return (
     <Box
       component={NavLink}
@@ -54,24 +40,19 @@ function Item({ to, label, missing, later }: NavItem) {
       sx={{
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        height: 32,
+        height: 34,
         padding: '0 12px',
         borderRadius: '8px',
         textDecoration: 'none',
         fontSize: 14,
         fontWeight: 500,
-        color: dim ? color.textTertiary : color.text,
+        color: color.text,
         '&:hover': { backgroundColor: color.grid },
-        '&.active': { backgroundColor: color.neutralFill, fontWeight: 700 },
+        '&.active': { backgroundColor: color.surface, fontWeight: 700, boxShadow: `inset 0 0 0 1px ${color.border}` },
+        '&:focus-visible': { outline: `2px solid ${color.primary}`, outlineOffset: '-2px' },
       }}
     >
-      <span>{label}</span>
-      {dim && (
-        <Box component="span" sx={{ fontSize: 11, color: color.textTertiary }}>
-          {later ? 'later' : 'no source'}
-        </Box>
-      )}
+      {label}
     </Box>
   );
 }
@@ -80,16 +61,7 @@ function Group({ label, items }: { label?: string; items: NavItem[] }) {
   return (
     <Stack spacing={0.25}>
       {label && (
-        <Typography
-          sx={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: color.textSecondary,
-            padding: '6px 12px 4px',
-          }}
-        >
+        <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: color.textTertiary, padding: '4px 12px 2px' }}>
           {label}
         </Typography>
       )}
@@ -100,160 +72,112 @@ function Group({ label, items }: { label?: string; items: NavItem[] }) {
   );
 }
 
+/** The cluster, and its nodes counted the way they are: machines and compute identities, never one total. */
 function ClusterCard() {
   const { info } = useSession();
   const chain = useView<ChainSnapshot>('/chain', undefined, 60_000);
-  const nodes = chain.data?.nodes.length;
+  const c = chain.data ? nodeCounts(chain.data.nodes) : null;
   return (
-    <Box
-      sx={{
-        padding: '10px 12px',
-        border: `1px solid ${color.border}`,
-        borderRadius: '10px',
-        backgroundColor: color.surface,
-      }}
-    >
-      <Typography sx={{ fontSize: 13.5, fontWeight: 700 }}>{info?.cluster.name || 'Cluster'}</Typography>
-      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ marginTop: '2px' }}>
-        <Box
-          sx={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            backgroundColor: chain.error ? color.warning : color.success,
-          }}
-        />
-        <Typography sx={{ fontSize: 11.5, color: color.textSecondary }}>
-          {chain.error
-            ? 'blockchain read failed'
-            : nodes === undefined
-              ? 'reading the blockchain…'
-              : `${nodes} nodes on the blockchain`}
+    <Tooltip title={info?.cluster.id ? `Cluster ${info.cluster.id}` : ''} placement="right">
+      <Box sx={{ padding: '12px 14px', border: hairline, borderRadius: '12px', backgroundColor: color.surface }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
+          {info?.cluster.name || shortKey(info?.cluster.id)}
         </Typography>
-      </Stack>
-      <Tooltip title={info?.cluster.id ?? ''}>
-        <Typography
-          sx={{
-            fontSize: 11,
-            color: color.textTertiary,
-            marginTop: '2px',
-            fontFamily: 'ui-monospace, Menlo, monospace',
-          }}
-        >
-          {shortKey(info?.cluster.id, 8, 6)}
-        </Typography>
-      </Tooltip>
-    </Box>
+        <Stack direction="row" alignItems="center" spacing={0.75} sx={{ marginTop: '4px' }}>
+          <Box
+            aria-hidden
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              backgroundColor: chain.error ? color.warning : color.success,
+            }}
+          />
+          <Typography sx={{ fontSize: 12.5, color: color.textSecondary }}>
+            {chain.error
+              ? 'Couldn’t read the blockchain'
+              : c
+                ? `${c.machines} nodes · ${c.compute} compute identities`
+                : 'Reading the blockchain…'}
+          </Typography>
+        </Stack>
+      </Box>
+    </Tooltip>
   );
-}
-
-function Header({ right }: { right: ReactNode }) {
-  return (
-    <Box
-      component="header"
-      sx={{
-        height: 56,
-        flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        backgroundColor: color.surface,
-        borderBottom: `1px solid ${color.border}`,
-      }}
-    >
-      <Logo>
-        <Typography sx={{ fontSize: 15, fontWeight: 700, lineHeight: 1.15, color: 'text.primary' }}>
-          Cluster Console
-        </Typography>
-        <Typography sx={{ fontSize: 12, color: color.textTertiary, lineHeight: 1.2 }}>
-          Powered by Cere Network
-        </Typography>
-      </Logo>
-      {right}
-    </Box>
-  );
-}
-
-/** How the signed-in account holds its role, in words. */
-export function roleLine(manager: boolean, source?: string): string {
-  if (!manager) return 'Provider';
-  return source === 'backend_config' ? 'Manager by backend config' : 'Manager on the blockchain';
 }
 
 export function Shell() {
   const { info, signOut } = useSession();
   const manager = !!info?.roles.includes('manager');
   const byConfig = info?.manager_source === 'backend_config';
+  const role = manager ? (byConfig ? 'Manager · set by backend config' : 'Manager') : 'Provider';
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: color.page }}>
-      <Header
-        right={
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              <Typography sx={{ fontSize: 12.5, color: color.textSecondary }}>Role</Typography>
-              <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{manager ? 'Manager' : 'Provider'}</Typography>
-              {byConfig && (
-                <Pill
-                  tone="warning"
-                  title="Devnet only: this account is a manager because the console backend's EXTRA_MANAGERS lists it, not because the blockchain says so."
-                >
-                  by backend config
-                </Pill>
-              )}
+      <Box
+        component="header"
+        sx={{
+          height: 56,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 20px 0 24px',
+          backgroundColor: color.surface,
+          borderBottom: hairline,
+        }}
+      >
+        <Logo>
+          <Typography sx={{ fontSize: 15, fontWeight: 700, lineHeight: 1.15 }}>Cluster Console</Typography>
+          <Typography sx={{ fontSize: 12, color: color.textTertiary, lineHeight: 1.2 }}>
+            Powered by Cere Network
+          </Typography>
+        </Logo>
+        <Stack direction="row" spacing={2} alignItems="center">
+          <Tooltip
+            title={
+              byConfig
+                ? `${info?.account ?? ''} — devnet only: a manager because the console backend's EXTRA_MANAGERS lists this account, not because the blockchain says so.`
+                : (info?.account ?? '')
+            }
+          >
+            <Stack alignItems="flex-end" sx={{ lineHeight: '16px' }}>
+              <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{shortKey(info?.account)}</Typography>
+              <Typography sx={{ fontSize: 12, color: byConfig ? color.warning : color.textSecondary }}>
+                {role}
+              </Typography>
             </Stack>
-            <Tooltip title={info?.account ?? ''}>
-              <Stack sx={{ lineHeight: '15px' }}>
-                <Typography sx={{ fontSize: 12.5, fontWeight: 600 }}>SSCP wallet</Typography>
-                <Typography
-                  sx={{ fontSize: 11, color: color.textSecondary, fontFamily: 'ui-monospace, Menlo, monospace' }}
-                >
-                  {shortKey(info?.account)}
-                </Typography>
-              </Stack>
-            </Tooltip>
-            <Button size="small" variant="text" color="secondary" onClick={signOut}>
-              Sign out
-            </Button>
-          </Stack>
-        }
-      />
+          </Tooltip>
+          <Button size="small" variant="text" color="secondary" onClick={signOut}>
+            Sign out
+          </Button>
+        </Stack>
+      </Box>
       <Box sx={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <Box
           component="nav"
           aria-label="Main"
           sx={{
-            width: 232,
+            width: 228,
             flexShrink: 0,
             backgroundColor: color.inset,
-            borderRight: `1px solid ${color.border}`,
+            borderRight: hairline,
             padding: '16px 12px',
-            display: 'flex',
+            display: { xs: 'none', md: 'flex' },
             flexDirection: 'column',
-            gap: 2,
+            gap: 2.5,
           }}
         >
           <ClusterCard />
           <Group items={MANAGE} />
           <Group label="Services" items={SERVICES} />
-          <Box sx={{ paddingTop: 1, borderTop: `1px solid ${color.border}` }}>
-            <Group items={FOOTER} />
-          </Box>
-          <Box sx={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Typography
-              sx={{
-                fontSize: 11.5,
-                color: color.textSecondary,
-                padding: '8px 12px 0',
-                borderTop: `1px solid ${color.border}`,
-              }}
-            >
-              {roleLine(manager, info?.manager_source)}
-            </Typography>
+          <Box sx={{ marginTop: 'auto', paddingTop: 1, borderTop: hairline }}>
+            <Group items={[{ to: '/sources', label: 'Data sources' }]} />
           </Box>
         </Box>
-        <Box component="main" sx={{ flex: 1, minWidth: 0, padding: '22px 28px 32px' }}>
-          <Outlet />
+        <Box component="main" sx={{ flex: 1, minWidth: 0, padding: { xs: '20px 16px 32px', md: '26px 32px 40px' } }}>
+          <Box sx={{ maxWidth: 1440, margin: '0 auto' }}>
+            <Outlet />
+          </Box>
         </Box>
       </Box>
     </Box>

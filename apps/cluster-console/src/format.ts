@@ -91,3 +91,73 @@ export function chosenNode(
   const ok = p?.attempts?.find((a) => a.result === 'accepted');
   return ok?.node ?? fallback;
 }
+
+/** Hours from seconds, as a figure: 2 decimals under 10, 1 under 1,000, then compact. */
+function hoursFigure(seconds: number): string {
+  const h = seconds / 3600;
+  if (h === 0) return '0';
+  if (Math.abs(h) < 0.01) return '<0.01';
+  if (Math.abs(h) < 10) return nf(2).format(h);
+  if (Math.abs(h) < 1000) return nf(1).format(h);
+  return compact(h);
+}
+
+/** CPU-seconds as vCPU-hours: `0.77 vCPU-h`, `12.4 vCPU-h`. */
+export function vcpuHours(cpuSeconds: number | null | undefined): string {
+  return cpuSeconds === null || cpuSeconds === undefined ? '—' : `${hoursFigure(cpuSeconds)} vCPU-h`;
+}
+
+/** GiB-seconds as GiB-hours: `0.71 GiB-h`. */
+export function gibHours(gibSeconds: number | null | undefined): string {
+  return gibSeconds === null || gibSeconds === undefined ? '—' : `${hoursFigure(gibSeconds)} GiB-h`;
+}
+
+/** Hours as a bare figure, for chart axes and tooltips. */
+export const hoursNumber = (seconds: number) => hoursFigure(seconds);
+
+/** 1,284 → 1.3K; 12,900,000 → 12.9M. */
+export function compact(n: number | null | undefined): string {
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+}
+
+/** A whole percent of a whole; '—' without a whole. */
+export function percent(part: number | null | undefined, whole: number | null | undefined): string {
+  if (part === null || part === undefined || !whole) return '—';
+  return `${Math.round((100 * part) / whole)}%`;
+}
+
+/** An RFC 3339 time as `Nov 25, 10:46` (no seconds), in the viewer's zone. */
+export function shortTime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
+
+/** A count with its noun: `1 node`, `9 nodes`. */
+export function plural(n: number, one: string, many = `${one}s`): string {
+  return `${nf(0).format(n)} ${n === 1 ? one : many}`;
+}
+
+/** CPU-seconds in a unit that reads for one sandbox: `25 vCPU-s`, `4.2 vCPU-min`, `1.3 vCPU-h`. */
+export function vcpuTime(cpuSeconds: number | null | undefined): string {
+  if (cpuSeconds === null || cpuSeconds === undefined) return '—';
+  if (cpuSeconds < 60) return `${nf(1).format(cpuSeconds)} vCPU-s`;
+  if (cpuSeconds < 3600) return `${nf(1).format(cpuSeconds / 60)} vCPU-min`;
+  return vcpuHours(cpuSeconds);
+}
+
+/** GiB-seconds in a unit that reads for one sandbox. */
+export function gibTime(gibSeconds: number | null | undefined): string {
+  if (gibSeconds === null || gibSeconds === undefined) return '—';
+  if (gibSeconds < 60) return `${nf(1).format(gibSeconds)} GiB-s`;
+  if (gibSeconds < 3600) return `${nf(1).format(gibSeconds / 60)} GiB-min`;
+  return gibHours(gibSeconds);
+}

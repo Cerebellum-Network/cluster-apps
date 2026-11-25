@@ -7,40 +7,44 @@ never sends a query: it asks the backend for named views.
 
 ## Sign-in
 
-1. **Connect SSCP wallet** (`@cef-ai/wallet-react`, appId `cluster-console`): the passkey ceremony runs at the wallet.
-2. **Sign and continue**: the wallet signs the backend's challenge (`cluster-console sign-in`, cluster, account, nonce,
-   expiry) as raw bytes; the backend checks it, reads the account's roles from the blockchain and returns a session.
-   An account with no role gets "This wallet has no role in this cluster".
+One button, **Sign in with SSCP wallet** (`@cef-ai/wallet-react`, appId `cluster-console`):
 
-The session is a bearer in `sessionStorage` (this tab only, never in a URL). A manager granted by the backend's
-devnet-only `EXTRA_MANAGERS` is shown as **Manager · by backend config** in the header and sidebar.
+1. The wallet connects. The passkey ceremony runs at the wallet; a wallet resumed from an earlier visit is offered as
+   "Continue as …".
+2. In the same click, the console asks the wallet to sign the backend's challenge (`cluster-console sign-in`, cluster,
+   account, nonce, expiry) as raw bytes with the `data` intent. A wallet that has just logged in signs without a prompt;
+   a resumed one runs one passkey step-up in its own frame. If the wallet answers `gesture-required` or `popup-blocked`,
+   one **Continue** button signs from a fresh click.
+3. The backend checks the signature, reads the account's roles from the blockchain and returns a session. An account
+   with no role gets "This wallet has no role in this cluster".
+
+The signature is what proves the person holds the wallet's key; it moves no money and sends no transaction. The
+session is a bearer in `sessionStorage` (this tab only, never in a URL). A manager granted by the backend's devnet-only
+`EXTRA_MANAGERS` is shown as **Manager · set by backend config** under the account.
 
 ## Menu and screens
 
-The menu follows the Cluster Console canvas (boards `Side` and `n1`):
+The menu has only screens with data: Overview, Nodes, Customers, Revenue; then **Services**: Storage, Delivery,
+Inference, Sandboxes; and **Data sources** in the footer. Screens with no source yet (Requests, Plans, Team, Rules,
+Agents) are listed on Data sources with what each needs; their old links go there.
 
-- the first group, with no heading: Overview, Nodes, Requests, Customers, Plans, Revenue, Rules (later);
-- **Services**: Storage, Delivery, Inference, Sandboxes, Agents. Each service page shows its capacity in its own unit,
-  then its usage, served and verified by DAC. Sandboxes has tabs: Sandboxes, Placements, Egress, Usage;
-- the footer: Team, and "What backs each number".
-
-| Screen | What | Source (via the console backend) |
+| Screen | What it answers | Source (via the console backend) |
 | --- | --- | --- |
-| Overview (Main) | one card per area: nodes, storage, delivery, inference, sandboxes, revenue, customers; "needs your attention" | `/summary`, `/inference`, `/dac` |
-| Nodes (c1) | sandbox, inference and agent nodes from the resource manager; the on-chain roster with each node's matching report and its work verified by DAC in the last 24 h | `/nodes`, `/chain`, `/dac` |
-| Revenue (f1) | per UTC day and per era: payout status and verified usage by bill line (storage and delivery, GPU, CPU and RAM) from DAC; collected, reserve and providers paid shown as missing (payout receipts not read) | `/dac` |
-| Inference (b2) | requests at once in flight against capacity, GPU units verified by DAC, per model: ready nodes, requests at once, in flight, queued | `/inference`, `/dac` |
-| Sandboxes (service) | capacity (nodes, CPU, memory, running), egress and usage records in the last hour, and what DAC verified for the sandbox nodes (missing while their IDs are not nodes of the cluster on the blockchain) | `/summary`, `/nodes`, `/chain`, `/dac` |
-| Sandboxes › Sandboxes | every sandbox across buckets, list or grouped by node or by customer bucket; a row opens its spec, egress rules, usage and placement | `/sandboxes` |
-| Sandboxes › Placements | why each sandbox landed on its node: candidates, free room, score, fits or why not, attempts | `/sandboxes` (`placement`) |
-| Sandboxes › Egress | allowed, denied and error requests with the credential **name** the proxy added (values are never logged) | `/egress/log` |
-| Sandboxes › Usage | the path to payouts (measured, at the DAC agent, collected by DAC, charged); per sandbox per minute and final, CPU-s, GiB-s, DAC units, TCA, whether each reached the host's DAC agent; billed figures when the runtime records them | `/usage/records` |
-| Storage, Delivery, Requests, Customers, Plans, Agents, Team, Rules | no source this backend can read today: each says what it would need | `/sources` |
-| What backs each number | every number to its component, route and table, or why it is missing (the canvas's z1) | `/sources` |
+| Overview | what needs the manager now; one figure per area (nodes, storage, delivery, inference, sandboxes, DAC eras); sandbox use over 24 h, billed and measured; top customers | `/summary`, `/nodes`, `/chain`, `/fleet`, `/storage`, `/delivery`, `/inference`, `/live`, `/usage`, `/dac` |
+| Nodes | every node in one list with the same columns: status, availability over 7 days, uptime, version, CPU, memory, disk or GPU memory, work DAC verified in 24 h; compute identities on chain in one line | `/fleet`, `/nodes`, `/chain`, `/dac` |
+| Customers | customer buckets by billed vCPU-hours on sandboxes | `/usage` |
+| Revenue | every DAC era by status; verified usage per era; whether sandbox usage is counted; days | `/dac`, `/usage` |
+| Storage | disk used and stored over 30 days, fill projection, a row per storage node with its disk against the machine | `/storage`, `/fleet` |
+| Delivery | served per day from cache and from storage, a row per node | `/delivery`, `/fleet` |
+| Inference | requests at once against capacity, daily peak, refusals, GPU units; a row per model; GPUs per node | `/inference`, `/inference/history`, `/fleet`, `/dac` |
+| Sandboxes | live: a row per node with its sandbox quota and a block per sandbox sized by its reservation, filled by its latest minute of use (polled every second); use over time, billed and measured, by customer and by node; billing state; all sandboxes; outbound requests. A sandbox opens in a drawer with its use over the last hour, billed and measured, where it runs and why, and its rules | `/live`, `/fleet`, `/usage`, `/sandboxes`, `/sandboxes/:id`, `/sandboxes/:id/metrics`, `/egress/log` |
+| Data sources | every number to its source; what is not available yet; the DAC collector | `/sources`, `/dac` |
 
-The old addresses `/placements`, `/egress` and `/usage` redirect to the Sandboxes tabs with their filters.
+Billing states are plain: **Counted**, **Waiting for verification**, **Not counted** or **Not known yet**, each with a
+one-line reason. A source that is not read yet is one quiet "Not available yet" line; a source that did not answer is a
+"Couldn't read …" warning. Neither is ever shown as zero.
 
-A source that does not answer is shown as **Source missing** with the backend's reason; it is never replaced by a zero.
+The old addresses `/placements`, `/egress`, `/usage`, `/sandboxes/placements` and `/sandboxes/usage` redirect.
 
 ## Run locally
 
