@@ -107,3 +107,40 @@ describe('helpers', () => {
     expect(toHex(new Uint8Array([0, 15, 16, 255]))).toBe('000f10ff');
   });
 });
+
+describe('signIn in one step', () => {
+  it('tells the caller once the wallet has signed, before the backend answers', async () => {
+    const order: string[] = [];
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      order.push(String(url).endsWith('/auth/challenge') ? 'challenge' : 'verify');
+      return String(url).endsWith('/auth/challenge')
+        ? json(200, { challenge_id: 'x', message: 'm', expires_at: '' })
+        : json(200, {
+            session: 't',
+            account: 'aa',
+            roles: ['manager'],
+            expires_at: '',
+            cluster: { id: 'c', name: '' },
+          });
+    });
+    const api = new ConsoleApi('', () => null, fetchImpl as unknown as typeof fetch);
+    const signer = {
+      type: 'ed25519',
+      sign: async () => {
+        order.push('sign');
+        return new Uint8Array([1]);
+      },
+    };
+    await signIn(api, 'aa', signer, () => order.push('signed'));
+    expect(order).toEqual(['challenge', 'sign', 'signed', 'verify']);
+  });
+
+  it('knows when the wallet needs one more click', async () => {
+    const { needsClick, walletMessage } = await import('./signIn');
+    expect(needsClick({ code: 'gesture-required' })).toBe(true);
+    expect(needsClick({ code: 'popup-blocked' })).toBe(true);
+    expect(needsClick(new Error('x'))).toBe(false);
+    expect(walletMessage({ code: 'user-cancelled' })).toBe('Sign-in was cancelled in the wallet.');
+    expect(walletMessage(new Error('x'))).toBeNull();
+  });
+});

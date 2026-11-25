@@ -2,15 +2,14 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Box, Logo, Stack, Typography } from '@cluster-apps/ui';
 import { Button, CircularProgress } from '@mui/material';
 
-import { color, text } from '~/components/ui';
+import { color, hairline, text } from '~/components/ui';
 import { shortKey } from '~/format';
 import { useSession } from '~/session/SessionProvider';
-import { useWalletSignIn } from '~/session/useWalletSignIn';
+import { useWalletSignIn, type SignInPhase } from '~/session/useWalletSignIn';
 
 /**
- * Sign-in: connect the SSCP wallet, then sign the console backend's challenge.
- * The backend reads the account's roles from the blockchain; an account with
- * no role in this cluster is told so.
+ * Sign-in in one step: one button connects the SSCP wallet and signs the
+ * console backend's challenge; the backend reads the role from the blockchain.
  */
 export function Login() {
   const session = useSession();
@@ -30,115 +29,89 @@ export function Login() {
   return <SignIn />;
 }
 
+const PHASE: Record<Exclude<SignInPhase, 'idle' | 'needs-click'>, string> = {
+  wallet: 'Confirm with your passkey in the wallet…',
+  signing: 'Signing you in…',
+  checking: 'Checking your role on the blockchain…',
+};
+
 function SignIn() {
   const s = useWalletSignIn();
-  const step = s.account ? 'challenge' : 'wallet';
   return (
     <Stack
       minHeight="100vh"
       alignItems="center"
       justifyContent="center"
-      sx={{ backgroundColor: color.page, padding: 3 }}
+      sx={{ backgroundColor: color.page, padding: 2 }}
     >
       <Box
         sx={{
-          width: 460,
+          width: '100%',
+          maxWidth: 420,
           backgroundColor: color.surface,
-          border: `1px solid ${color.border}`,
+          border: hairline,
           borderRadius: '16px',
-          padding: '28px 32px',
+          padding: { xs: '24px 20px', sm: '32px 36px 28px' },
         }}
       >
         <Logo>
           <Typography sx={{ fontSize: 15, fontWeight: 700 }}>Cluster Console</Typography>
           <Typography sx={{ fontSize: 12, color: color.textTertiary }}>Powered by Cere Network</Typography>
         </Logo>
-        <Typography sx={{ ...text.pageTitle, marginTop: 3 }}>Sign in</Typography>
+        <Typography component="h1" sx={{ ...text.pageTitle, marginTop: 4 }}>
+          Sign in
+        </Typography>
         <Typography sx={{ ...text.secondary, marginTop: 1 }}>
-          For the cluster manager and node providers. Your role is read from the blockchain each time you sign in.
+          For the cluster manager. Your role is read from the blockchain when you sign in.
         </Typography>
 
-        <Stack spacing={1.5} sx={{ marginTop: 3 }}>
-          <Step
-            n={1}
-            done={step === 'challenge'}
-            title="Connect your SSCP wallet"
-            sub={s.account ? `Account ${shortKey(s.account)}` : 'Passkey sign-in at the wallet'}
-          >
-            {step === 'wallet' && (
-              <Button variant="contained" fullWidth onClick={s.connect} disabled={s.busy}>
-                {s.busy ? 'Waiting for the wallet…' : 'Connect SSCP wallet'}
+        <Stack spacing={1.25} sx={{ marginTop: 3.5 }}>
+          {s.phase === 'needs-click' ? (
+            <>
+              <Button variant="contained" size="large" fullWidth onClick={s.resume}>
+                Continue
               </Button>
-            )}
-          </Step>
-          <Step
-            n={2}
-            done={false}
-            title="Sign the cluster challenge"
-            sub="Proves you hold the account. It moves no money and signs no transaction."
-          >
-            {step === 'challenge' && (
-              <Stack direction="row" spacing={1}>
-                <Button variant="contained" fullWidth onClick={s.sign} disabled={s.signing}>
-                  {s.signing ? 'Signing…' : 'Sign and continue'}
-                </Button>
-                <Button variant="text" color="secondary" onClick={s.useAnother} disabled={s.signing}>
+              <Typography sx={{ ...text.caption, textAlign: 'center' }}>
+                The wallet needs one more click to sign you in.
+              </Typography>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={s.start}
+                disabled={s.busy || s.restoring}
+                startIcon={s.busy ? <CircularProgress size={16} color="inherit" /> : undefined}
+              >
+                {s.resumed ? `Continue as ${shortKey(s.resumed)}` : 'Sign in with SSCP wallet'}
+              </Button>
+              {s.resumed && !s.busy && (
+                <Button variant="text" color="secondary" size="small" onClick={s.useAnother}>
                   Use another wallet
                 </Button>
-              </Stack>
-            )}
-          </Step>
+              )}
+            </>
+          )}
+          <Typography role="status" aria-live="polite" sx={{ ...text.secondary, minHeight: 18, textAlign: 'center' }}>
+            {s.phase !== 'idle' && s.phase !== 'needs-click' ? PHASE[s.phase] : ''}
+          </Typography>
         </Stack>
 
         {s.error && (
-          <Typography role="alert" sx={{ marginTop: 2, fontSize: 13, color: color.danger }}>
+          <Typography role="alert" sx={{ marginTop: 1, fontSize: 13, color: color.danger }}>
             {s.error}
           </Typography>
         )}
+
+        <Typography
+          sx={{ ...text.caption, color: color.textTertiary, marginTop: 3, paddingTop: 2, borderTop: hairline }}
+        >
+          Signing in has the wallet sign a one-time message, which proves you hold its key. It moves no money and sends
+          no transaction.
+        </Typography>
       </Box>
     </Stack>
-  );
-}
-
-function Step({
-  n,
-  title,
-  sub,
-  done,
-  children,
-}: {
-  n: number;
-  title: string;
-  sub: string;
-  done: boolean;
-  children?: React.ReactNode;
-}) {
-  return (
-    <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '12px', padding: '12px 14px' }}>
-      <Stack direction="row" spacing={1.5} alignItems="flex-start">
-        <Box
-          sx={{
-            width: 22,
-            height: 22,
-            borderRadius: '50%',
-            flexShrink: 0,
-            backgroundColor: done ? color.success : color.primaryTint,
-            color: done ? '#fff' : color.primaryDark,
-            fontSize: 12,
-            fontWeight: 700,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {done ? '✓' : n}
-        </Box>
-        <Box flex={1} minWidth={0}>
-          <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{title}</Typography>
-          <Typography sx={{ ...text.caption, marginTop: '2px' }}>{sub}</Typography>
-          {children && <Box sx={{ marginTop: 1.25 }}>{children}</Box>}
-        </Box>
-      </Stack>
-    </Box>
   );
 }
