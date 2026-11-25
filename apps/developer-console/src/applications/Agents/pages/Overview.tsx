@@ -22,7 +22,7 @@ import { addSecretPath } from '../components/MissingSecrets';
 import { agentPath, EXAMPLE_MODEL_URL, missingSecrets, onConsoleGateway } from '../components/definition';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 
-const FROM_A_TERMINAL = `gh release download cli/v0.1.2 -R Cerebellum-Network/ddc-node -p '*.json'
+const FROM_A_TERMINAL = `gh release download cli/v0.1.3 -R Cerebellum-Network/ddc-node -p '*.json'
 cere agent run -f research.json "Write a short brief on how gVisor isolates containers, citing https://gvisor.dev/docs/"
 cere agent runs`;
 

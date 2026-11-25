@@ -101,7 +101,7 @@ const AddDefinitionDialog = ({
             </Box>{' '}
             JSON document. The examples are assets of the CLI’s release:{' '}
             <Box component="span" sx={{ fontFamily: mono }}>
-              gh release download cli/v0.1.2 -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
+              gh release download cli/v0.1.3 -R Cerebellum-Network/ddc-node -p &apos;*.json&apos;
             </Box>
             .
           </Typography>
