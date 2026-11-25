@@ -1,7 +1,7 @@
 /**
  * What a sandbox is billed, next to what its node measured, worded as the cere
  * CLI prints it (ddc-node `client/cere/output.go` `billingLine`, and
- * `client/cere/records.go` for `cere usage`, cli/v0.1.5), so a sandbox reads
+ * `client/cere/records.go` for `cere usage`, as of b2b367cc1), so a sandbox reads
  * the same here and in a terminal.
  *
  * On the `reserved` basis a sandbox is billed for what it reserves for as long
@@ -56,18 +56,23 @@ export function billedPart(
 ): string {
   const over = `${reservation} × ${f1(wall)} s = ${f1(reserved)}`;
   if (basis === 'measured') return `${f1(billed)} ${unit} as measured (reserved ${over})`;
-  if (billed > reserved + 0.05) return `${f1(billed)} ${unit} measured, above the reservation (${over})`;
+  // A run billed less than its reservation had part of it billed as measured (its node changed basis while it ran).
+  if (billed < reserved - 0.05)
+    return `${f1(billed)} ${unit}, part of the run as measured (measured ${f1(measured)}; reserved ${over})`;
+  if (billed > reserved + 0.05)
+    return `${f1(billed)} ${unit}, the larger of reserved and measured per minute (measured ${f1(measured)}; reserved ${over})`;
   return `${over} ${unit} (measured ${f1(measured)})`;
 }
 
 /**
  * `billedPart` without the reservation arithmetic, for a table cell (the full
  * text goes in its tooltip): "54.0 CPU-s (measured 9.4)",
- * "60.2 CPU-s measured, above the reservation", "9.4 CPU-s as measured".
+ * "60.2 CPU-s (measured 60.2)", "9.4 CPU-s as measured".
  */
 export function billedPartShort(basis: string, unit: string, reserved: number, billed: number, measured: number) {
   if (basis === 'measured') return `${f1(billed)} ${unit} as measured`;
-  if (billed > reserved + 0.05) return `${f1(billed)} ${unit} measured, above the reservation`;
+  if (billed < reserved - 0.05) return `${f1(billed)} ${unit}, part as measured`;
+  if (billed > reserved + 0.05) return `${f1(billed)} ${unit} (measured ${f1(measured)})`;
   return `${f1(reserved)} ${unit} (measured ${f1(measured)})`;
 }
 

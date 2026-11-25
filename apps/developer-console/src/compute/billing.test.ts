@@ -83,7 +83,9 @@ describe('billingLine', () => {
       billed_cpu_s: 20,
       billed_ram_gib_s: 2.5,
     });
-    expect(billedCPU(busy, 0.5)).toBe('20.0 CPU-s measured, above the reservation (0.5 vCPU × 10.0 s = 5.0)');
+    expect(billedCPU(busy, 0.5)).toBe(
+      '20.0 CPU-s, the larger of reserved and measured per minute (measured 20.0; reserved 0.5 vCPU × 10.0 s = 5.0)',
+    );
     expect(billedMemory(busy, 256)).toBe('0.25 GiB × 10.0 s = 2.5 GiB-s (measured 1.0)');
   });
 
@@ -109,12 +111,20 @@ describe('billingLine', () => {
     expect(billedShort(usage({ wall_s: 54, cpu_s: 9.4 }))).toBeNull();
   });
 
+  it('says a run billed less than its reservation was billed partly as measured (cli b2b367cc1)', () => {
+    const mixed = usage({ billing_basis: 'reserved', wall_s: 10, cpu_s: 1, reserved_cpu_s: 10, billed_cpu_s: 4 });
+    expect(billedCPU(mixed, 1)).toBe(
+      '4.0 CPU-s, part of the run as measured (measured 1.0; reserved 1.0 vCPU × 10.0 s = 10.0)',
+    );
+    expect(billedShort(mixed)?.cpu).toBe('4.0 CPU-s, part as measured');
+  });
+
   it('has a short form for table cells, without the arithmetic', () => {
     expect(billedShort(reserved)).toEqual({ cpu: '54.0 CPU-s (measured 9.4)', memory: '54.0 GiB-s (measured 15.0)' });
     expect(
       billedShort(usage({ billing_basis: 'reserved', cpu_s: 20, reserved_cpu_s: 5, billed_cpu_s: 20, ram_gib_s: 1 }))
         ?.cpu,
-    ).toBe('20.0 CPU-s measured, above the reservation');
+    ).toBe('20.0 CPU-s (measured 20.0)');
     expect(billedShort(usage({ billing_basis: 'measured', cpu_s: 9.4, billed_cpu_s: 9.4 }))?.cpu).toBe(
       '9.4 CPU-s as measured',
     );
