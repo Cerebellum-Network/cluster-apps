@@ -112,3 +112,43 @@ export function postToCli(port: number, fields: Record<string, string>, doc: Doc
   doc.body.appendChild(form);
   form.submit();
 }
+
+/** How long the page waits to be replaced by the CLI's own page before it says the hand-over was blocked. */
+export const HANDOVER_TIMEOUT_MS = 5000;
+
+/**
+ * Watch a hand-over to the CLI (`postToCli`): when this page is replaced, the
+ * CLI got it. A Content Security Policy that blocks the form (`form-action`; an
+ * extension, a strict browser setting, a policy) reports a
+ * `securitypolicyviolation`, and anything else that stops it leaves this page
+ * where it is: `onBlocked` is called on the first of the violation and the
+ * timer, once. Start it before the POST. Returns a function that stops it.
+ */
+export function watchHandover(
+  onBlocked: (why: 'policy' | 'timeout') => void,
+  { doc = document, timeoutMs = HANDOVER_TIMEOUT_MS }: { doc?: Document; timeoutMs?: number } = {},
+): () => void {
+  let done = false;
+  const win = doc.defaultView;
+  const stop = () => {
+    done = true;
+    doc.removeEventListener('securitypolicyviolation', onViolation);
+    win?.removeEventListener('pagehide', stop);
+    if (timer !== undefined) win?.clearTimeout(timer);
+  };
+  const fire = (why: 'policy' | 'timeout') => {
+    if (done) return;
+    stop();
+    onBlocked(why);
+  };
+  function onViolation(e: Event) {
+    const v = e as SecurityPolicyViolationEvent;
+    const directive = v.effectiveDirective || v.violatedDirective || '';
+    if (directive.startsWith('form-action')) fire('policy');
+  }
+  doc.addEventListener('securitypolicyviolation', onViolation);
+  // Leaving for the CLI's page is the hand-over working: nothing to say.
+  win?.addEventListener('pagehide', stop);
+  const timer = win?.setTimeout(() => fire('timeout'), timeoutMs);
+  return stop;
+}

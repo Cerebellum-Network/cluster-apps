@@ -81,7 +81,53 @@ describe('/cli/authorize', () => {
     expect(posted).toEqual([
       { action: 'http://127.0.0.1:53682/callback', fields: { state: STATE, error: 'access_denied' } },
     ]);
-    expect(document.body.textContent).toContain('Denied. Nothing was signed, and the CLI was told.');
+    expect(document.body.textContent).toContain('Denied. Nothing was signed. Telling cere on this computer…');
+  });
+
+  it('shows the grant for pasting when the browser blocks the hand-over (a form-action violation)', async () => {
+    await open(`key=${KEY}&state=${STATE}&port=53682`);
+    await act(async () => button('Approve').click());
+    await flush();
+    expect(posted).toHaveLength(1);
+    expect(document.body.textContent).toContain('Handing the sign-in to the CLI on this computer…');
+    await act(async () => {
+      document.dispatchEvent(
+        Object.assign(new Event('securitypolicyviolation'), { effectiveDirective: 'form-action' }),
+      );
+    });
+    const page = document.body.textContent ?? '';
+    expect(page).not.toContain('Handing the sign-in');
+    expect(page).toContain('Your browser didn’t hand the sign-in to cere on this computer.');
+    expect(page).toContain('cere login --no-browser');
+    expect(page).toContain('GRANT58');
+  });
+
+  it('says so when the page is still here a few seconds after the hand-over', async () => {
+    await open(`key=${KEY}&state=${STATE}&port=53682`);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      await act(async () => button('Approve').click());
+      await act(async () => vi.advanceTimersByTimeAsync(4000));
+      expect(document.body.textContent).toContain('Handing the sign-in to the CLI on this computer…');
+      await act(async () => vi.advanceTimersByTimeAsync(1500));
+      expect(document.body.textContent).toContain('Your browser didn’t hand the sign-in to cere');
+      expect(document.body.textContent).toContain('GRANT58');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says a refusal didn’t reach the CLI when the browser blocks it', async () => {
+    await open(`key=${KEY}&state=${STATE}&port=53682`);
+    await act(async () => button('Deny').click());
+    await act(async () => {
+      document.dispatchEvent(
+        Object.assign(new Event('securitypolicyviolation'), { effectiveDirective: 'form-action' }),
+      );
+    });
+    expect(document.body.textContent).toContain(
+      'Denied, but your browser couldn’t tell cere: press Ctrl-C in the terminal.',
+    );
   });
 
   it('shows the grant for pasting when the CLI has no browser (no port)', async () => {

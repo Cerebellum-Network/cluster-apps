@@ -1,11 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Alert, Box, Button, LoadingButton, MenuItem, Stack, TextField, Typography } from '@cluster-apps/ui';
 import { useSearchParams } from 'react-router-dom';
 
 import { PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
-import { DAY_MS, GRANT_DAYS, keyFingerprint, parseCliRequest, postToCli, type GrantDays } from '~/compute/cliGrant';
+import {
+  DAY_MS,
+  GRANT_DAYS,
+  keyFingerprint,
+  parseCliRequest,
+  postToCli,
+  watchHandover,
+  type GrantDays,
+} from '~/compute/cliGrant';
 import { computeConfig } from '~/compute/computeConfig';
 import { errorMessage } from '~/compute/client';
 import { fmtDateTime } from '~/compute/format';
@@ -20,9 +28,13 @@ type Step =
   | { kind: 'signing' }
   /** Handed to the CLI by a form POST: the CLI's own page replaces this one. */
   | { kind: 'sent' }
-  /** No port (`cere login --no-browser`): the grant is shown for pasting. */
-  | { kind: 'paste'; grant: string; expiresAt: number; bucket: string }
-  | { kind: 'denied' };
+  /**
+   * No port (`cere login --no-browser`), or the browser didn't hand it to the CLI (`blocked`): the grant is shown
+   * for pasting.
+   */
+  | { kind: 'paste'; grant: string; expiresAt: number; bucket: string; blocked?: boolean }
+  /** `telling`: posting the refusal to the CLI; `blocked`: the browser didn't let it through. */
+  | { kind: 'denied'; telling?: boolean; blocked?: boolean };
 
 const Code = ({ children }: { children: string }) => (
   <Box
@@ -60,6 +72,9 @@ const CliAuthorize = () => {
   const [step, setStep] = useState<Step>({ kind: 'asking' });
   const [error, setError] = useState<string | null>(null);
   const [copied, copy] = useCopy();
+  // The hand-over being watched (watchHandover), stopped when the page goes.
+  const watching = useRef<(() => void) | null>(null);
+  useEffect(() => () => watching.current?.(), []);
 
   if (!parsed.ok) {
     return (
@@ -86,6 +101,11 @@ const CliAuthorize = () => {
       const grant = await account.createCliGrant(BigInt(target), req.key, ttl);
       if (req.port) {
         setStep({ kind: 'sent' });
+        // If this page is still here after a blocked form or a few seconds, the CLI didn't get it: show the grant.
+        watching.current?.();
+        watching.current = watchHandover(() =>
+          setStep({ kind: 'paste', grant, expiresAt: Date.now() + ttl, bucket: target, blocked: true }),
+        );
         postToCli(req.port, { state: req.state, grant });
       } else {
         setStep({ kind: 'paste', grant, expiresAt: Date.now() + ttl, bucket: target });
@@ -97,16 +117,32 @@ const CliAuthorize = () => {
   };
 
   const deny = () => {
-    setStep({ kind: 'denied' });
-    if (req.port) postToCli(req.port, { state: req.state, error: 'access_denied' });
+    if (!req.port) {
+      setStep({ kind: 'denied' });
+      return;
+    }
+    setStep({ kind: 'denied', telling: true });
+    watching.current?.();
+    watching.current = watchHandover(() => setStep({ kind: 'denied', blocked: true }));
+    postToCli(req.port, { state: req.state, error: 'access_denied' });
   };
 
   if (step.kind === 'denied') {
     return (
       <Box maxWidth={720}>
         <PageHeader title="Sign in the cere CLI" />
-        <Alert severity="info" sx={{ marginTop: '16px' }}>
-          Denied. Nothing was signed{req.port ? ', and the CLI was told' : ''}. You can close this page.
+        <Alert severity={step.blocked ? 'warning' : 'info'} sx={{ marginTop: '16px' }}>
+          {step.blocked ? (
+            <>
+              Denied, but your browser couldn’t tell <Mono>cere</Mono>: press Ctrl-C in the terminal.
+            </>
+          ) : step.telling ? (
+            <>
+              Denied. Nothing was signed. Telling <Mono>cere</Mono> on this computer…
+            </>
+          ) : (
+            'Denied. Nothing was signed. You can close this page.'
+          )}
         </Alert>
       </Box>
     );
@@ -116,6 +152,13 @@ const CliAuthorize = () => {
     return (
       <Box maxWidth={760}>
         <PageHeader title="Sign in the cere CLI" subtitle="Approved. Paste this where the terminal asks for it." />
+        {step.blocked && (
+          <Alert severity="warning" sx={{ marginBottom: '16px' }}>
+            Your browser didn’t hand the sign-in to <Mono>cere</Mono> on this computer. Paste this code where{' '}
+            <Mono>cere login</Mono> is waiting (cere 0.1.12 or later reads it there), or press Ctrl-C and run{' '}
+            <Mono>cere login --no-browser</Mono>.
+          </Alert>
+        )}
         <Section title="Your sign-in code">
           <Stack spacing="12px">
             <Stack direction="row" alignItems="center" gap="12px">
