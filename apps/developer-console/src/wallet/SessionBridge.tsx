@@ -20,8 +20,17 @@ export function SessionBridge() {
       address: session.address,
       email: session.email,
       getSigner: session.getSigner,
+      walletless: session.devView,
     });
-  }, [accountStore, session.state, session.account, session.address, session.email, session.getSigner]);
+  }, [
+    accountStore,
+    session.state,
+    session.account,
+    session.address,
+    session.email,
+    session.getSigner,
+    session.devView,
+  ]);
 
   return null;
 }

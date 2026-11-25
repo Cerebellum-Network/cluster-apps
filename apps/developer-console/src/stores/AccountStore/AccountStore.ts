@@ -82,7 +82,7 @@ export class AccountStore implements Account {
 
   private async bootstrap() {
     const acc = this.session?.account;
-    if (acc) {
+    if (acc && !this.session?.walletless) {
       // Read the proxy state from the gateway, not a local flag, so a returning
       // device doesn't get a needless re-grant prompt.
       this.storage
@@ -151,6 +151,14 @@ export class AccountStore implements Account {
       runInAction(() => {
         this._buckets = undefined;
         this._bucketsError = null;
+      });
+      return;
+    }
+    if (this.session.walletless) {
+      // Listing signs a gateway request; this view has no wallet to sign with.
+      runInAction(() => {
+        this._buckets = [];
+        this._bucketsError = 'no wallet in this development view';
       });
       return;
     }

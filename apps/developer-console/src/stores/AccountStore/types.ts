@@ -28,6 +28,12 @@ export interface SessionInput {
   address: string | null;
   email: string | null;
   getSigner: () => CefSigner;
+  /**
+   * True in the development view (`?account=` on a local `npm run start`):
+   * an account without its wallet, so nothing can be signed, and reads that
+   * need a signature (the S3 gateway's bucket list) are not attempted.
+   */
+  walletless?: boolean;
 }
 
 export interface Account {
