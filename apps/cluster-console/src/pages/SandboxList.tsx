@@ -6,7 +6,7 @@ import { CouldNotRead, Loading, LoadMore, Mono, Panel, RowsTable } from '~/compo
 import { mib, num, seconds, shortTime, vcpuTime } from '~/format';
 import { usePaged } from '~/hooks/usePaged';
 
-import { billedOf, limitsOf } from './limits';
+import { billedOf, limitsOf, sayBurst } from './limits';
 import { StatusPill, useNodeNames, useOpenSandbox } from './sandboxShared';
 
 /** Request, and the limit when it is above it: "0.25 vCPU · 256 MiB, up to 4 vCPU · 1 GiB". */
@@ -63,7 +63,7 @@ export function SandboxList() {
                 render: (s) => {
                   const b = billedOf(s.usage).cpu;
                   if (!b) return s.usage ? '—' : '';
-                  return b.burst > 0 ? `${vcpuTime(b.billed)} (${vcpuTime(b.burst)} burst)` : vcpuTime(b.billed);
+                  return sayBurst(b.burst) ? `${vcpuTime(b.billed)} (${vcpuTime(b.burst)} burst)` : vcpuTime(b.billed);
                 },
               },
             ]}

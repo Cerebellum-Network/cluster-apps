@@ -9,7 +9,7 @@ import { SERIES } from '~/components/charts';
 import { color, hairline, Pill, Status, text } from '~/components/ui';
 import { gibTime, mib, num, plural, vcpuTime } from '~/format';
 
-import { laneOf, limitsOf, type ResourceUse, resourceUse } from './limits';
+import { laneOf, limitsOf, type ResourceUse, resourceUse, sayBurst } from './limits';
 
 /** A machine's whole CPU and memory, from node metrics, when known. */
 export interface MachineTotal {
@@ -126,7 +126,7 @@ function blockTitle(s: LiveSandbox): string {
   ];
   if (s.billed_cpu_s != null)
     parts.push(
-      `billed so far ${vcpuTime(s.billed_cpu_s)}${s.burst_cpu_s ? ` (${vcpuTime(s.burst_cpu_s)} of it burst)` : ''}${s.billed_ram_gib_s != null ? ` · ${gibTime(s.billed_ram_gib_s)}` : ''}`,
+      `billed so far ${vcpuTime(s.billed_cpu_s)}${sayBurst(s.burst_cpu_s) ? ` (${vcpuTime(s.burst_cpu_s)} of it burst)` : ''}${s.billed_ram_gib_s != null ? ` · ${gibTime(s.billed_ram_gib_s)}` : ''}`,
     );
   return parts.join('\n');
 }
@@ -488,7 +488,7 @@ function SandboxRow({
         {s.billed_cpu_s != null && (
           <Typography noWrap sx={{ ...text.caption }}>
             billed {vcpuTime(s.billed_cpu_s)}
-            {s.burst_cpu_s ? `, ${vcpuTime(s.burst_cpu_s)} burst` : ''}
+            {sayBurst(s.burst_cpu_s) ? `, ${vcpuTime(s.burst_cpu_s)} burst` : ''}
           </Typography>
         )}
       </Box>

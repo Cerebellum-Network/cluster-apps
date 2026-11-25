@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import type { LiveSandbox } from '~/api/types';
 
-import { amountsSplit, billedOf, billingBasisWords, exitReasonWords, laneOf, limitsOf, resourceUse } from './limits';
+import {
+  amountsSplit,
+  billedOf,
+  billingBasisWords,
+  exitReasonWords,
+  laneOf,
+  limitsOf,
+  resourceUse,
+  sayBurst,
+} from './limits';
 
 const sbx = (
   id: string,
@@ -183,5 +192,18 @@ describe('words', () => {
     expect(exitReasonWords('disk_limit (2048 MiB)')).toBe('Reached its disk limit (2048 MiB)');
     expect(exitReasonWords('something new')).toBe('something new');
     expect(exitReasonWords(null)).toBeNull();
+  });
+});
+
+describe('sayBurst', () => {
+  it('says a burst only when it shows as at least 0.1 in its unit', () => {
+    expect([sayBurst(0.04), sayBurst(0.05), sayBurst(12), sayBurst(0), sayBurst(null), sayBurst(undefined)]).toEqual([
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
   });
 });

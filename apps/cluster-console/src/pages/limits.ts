@@ -156,6 +156,12 @@ export function amountsSplit(a: UsageAmounts): { cpu: BilledSplit; memory: Bille
   };
 }
 
+/**
+ * Whether a billed burst amount (CPU- or GiB-seconds) is worth saying: it
+ * shows as at least 0.1 in its unit. Less reads as "0 vCPU-s burst".
+ */
+export const sayBurst = (seconds: number | null | undefined): seconds is number => seconds != null && seconds >= 0.05;
+
 /** How a sandbox's usage is billed, in words. */
 export function billingBasisWords(basis: string | null | undefined): string | null {
   switch (basis) {
