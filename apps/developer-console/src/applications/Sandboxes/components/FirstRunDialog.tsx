@@ -66,10 +66,15 @@ function Step({
   );
 }
 
+/** The reason a sandbox of the example gets when its dialog closes before the user kept or stopped it. */
+export const CLOSED_REASON = 'console example closed';
+
 /**
  * "Try it here": the quickstart's Python example, run for real against the
  * compute gateway, one step at a time (create, wait for it to run, exec), then
- * the user opens it or terminates it.
+ * the user opens it or terminates it. Closing the dialog any other way, at any
+ * step, terminates the example's sandbox, so it never runs on to its timeout
+ * unseen; "Open sandbox" keeps it.
  */
 const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
   const client = useComputeClient();
@@ -81,6 +86,20 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const started = useRef(false);
+  /** The example's sandbox once created; `settled` when it was kept (Open) or terminated here. */
+  const own = useRef<{ id: string | null; settled: boolean }>({ id: null, settled: false });
+
+  // Closing the dialog (X, Esc, backdrop, Done) unmounts this body.
+  useEffect(
+    () => () => {
+      const { id, settled } = own.current;
+      if (id && !settled) {
+        own.current.settled = true;
+        client.terminate(id, { reason: CLOSED_REASON }).catch(() => {});
+      }
+    },
+    [client],
+  );
 
   useEffect(() => {
     if (started.current) return undefined;
@@ -95,7 +114,13 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
           timeout_s: FIRST_RUN.timeout_s,
           labels: { app: 'console-quickstart' },
         });
-        if (!alive) return;
+        own.current.id = sb.id;
+        if (!alive) {
+          // Closed while the create was in flight: nobody will see it.
+          own.current.settled = true;
+          client.terminate(sb.id, { reason: CLOSED_REASON }).catch(() => {});
+          return;
+        }
         setSandbox(sb);
         setPhase('start');
         while (sb.status === 'starting') {
@@ -132,6 +157,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
     setBusy(true);
     try {
       setSandbox(await client.terminate(sandbox.id, { reason: 'console quickstart' }));
+      own.current.settled = true;
       setPhase('terminated');
     } catch (e) {
       setError(errorMessage(e));
@@ -197,8 +223,8 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
             </Typography>
           ) : (
             <Typography sx={text.secondary}>
-              It runs until you stop it or for {FIRST_RUN.timeout_s / 60} minutes. Open it to run commands, read files
-              and watch its usage.
+              Open it to run commands, read files and watch its usage; it then runs until you stop it or for{' '}
+              {FIRST_RUN.timeout_s / 60} minutes. Closing this dialog terminates it.
             </Typography>
           )}
         </Step>
@@ -227,6 +253,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
               variant="contained"
               disabled={!sandbox}
               onClick={() => {
+                own.current.settled = true;
                 onClose();
                 navigate(`/sandboxes/list/${sandbox!.id}`);
               }}

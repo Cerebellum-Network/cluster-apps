@@ -1,5 +1,10 @@
 /** Formatters for the Sandboxes and Agents pages. Units are the API's own; no prices. */
 
+/** "1 file", "2 files". */
+export function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? '' : 's'}`;
+}
+
 export function fmtDuration(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   if (s < 60) return `${s}s`;

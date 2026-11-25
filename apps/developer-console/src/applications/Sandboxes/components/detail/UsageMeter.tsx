@@ -95,7 +95,7 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
         value={fmtBytes(u.net_egress_bytes + u.net_ingress_bytes)}
         sub={`out ${fmtBytes(u.net_egress_bytes)} · in ${fmtBytes(u.net_ingress_bytes)}`}
       />
-      <Cell label="Disk written" value={fmtMib(u.disk_peak_mib)} sub="peak, measured (not billed)" />
+      <Cell label="Disk peak" value={fmtMib(u.disk_peak_mib)} sub="largest size of its files, measured (not billed)" />
     </Box>
   );
 };

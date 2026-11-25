@@ -225,3 +225,18 @@ export const EMPTY_USAGE: Usage = {
   net_ingress_bytes: 0,
   disk_peak_mib: 0,
 };
+
+/**
+ * An ending that is a failure: it never started (`failed`), the node killed it
+ * for memory (`oom_killed`), it was lost with its node or runtime (`lost: …`),
+ * or its main process exited with a non-zero code. A timeout or idle timeout is
+ * the limit you set, and a terminate is yours: those are Finished.
+ */
+export function endedBadly(s: Pick<Sandbox, 'status' | 'exit_reason'>): boolean {
+  if (s.status === 'failed') return true;
+  if (s.status !== 'terminated' || !s.exit_reason) return false;
+  const r = s.exit_reason;
+  if (r.startsWith('oom_killed') || r.startsWith('lost') || r.startsWith('failed')) return true;
+  const code = /^exited with code (-?\d+)/.exec(r);
+  return !!code && code[1] !== '0';
+}

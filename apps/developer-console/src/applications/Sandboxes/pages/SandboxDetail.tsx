@@ -4,8 +4,8 @@ import { NavLink, useParams, useSearchParams } from 'react-router-dom';
 
 import { Pill, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
-import { useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
-import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, fmtQty, sumRecords } from '~/compute/format';
+import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
+import { fmtAgo, fmtCpu, fmtDateTime, fmtMib, fmtQty, plural, sumRecords } from '~/compute/format';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
@@ -172,7 +172,17 @@ const SandboxDetail = () => {
   const [terminated, setTerminated] = useState<Sandbox | null>(null);
   const sb = terminated && polled && terminated.id === polled.id && isLive(polled.status) ? terminated : polled;
   const egress = useEgressLog({ sandbox_id: id });
-  const records = useUsageRecords({ sandbox_id: id });
+  // Once the sandbox has ended, its final record follows within seconds: read
+  // every few seconds until it is in, then at the usual pace.
+  const [awaitFinal, setAwaitFinal] = useState(false);
+  const records = useUsageRecords({ sandbox_id: id }, undefined, awaitFinal ? POLL.detail : POLL.records);
+  const ended = !!sb && !isLive(sb.status);
+  const hasFinal = (records.data?.items ?? []).some((r) => r.final);
+  const reloadRecords = records.reload;
+  useEffect(() => {
+    setAwaitFinal(ended && !hasFinal);
+    if (ended && !hasFinal) reloadRecords();
+  }, [ended, hasFinal, reloadRecords]);
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab') as Tab | null;
   const tab: Tab = tabParam && TABS.includes(tabParam) ? tabParam : 'logs';
@@ -313,9 +323,10 @@ const SandboxDetail = () => {
           {tab === 'usage' && (
             <Box>
               <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-                {recs.length} records: {fmtQty(totals.cpu_s)} CPU-seconds and {fmtQty(totals.ram_gib_s)} GiB-seconds so
-                far. The node signs one per minute and a final one when the sandbox ends, and pushes each to its DAC
-                agent.
+                {plural(recs.length, 'record')}: {fmtQty(totals.cpu_s)} CPU-seconds and {fmtQty(totals.ram_gib_s)}{' '}
+                GiB-seconds{live ? ' so far' : hasFinal ? ' in all, the final one included' : ''}.{' '}
+                {!live && !hasFinal && 'The final record is on its way: the node writes it as the sandbox ends. '}
+                The node signs one per minute and a final one when the sandbox ends, and pushes each to its DAC agent.
               </Typography>
               {records.error && !records.data ? (
                 <ReadError what="usage records" error={records.error} />

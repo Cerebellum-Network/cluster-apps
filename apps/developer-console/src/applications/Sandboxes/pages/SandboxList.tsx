@@ -18,18 +18,28 @@ import { PageHeader, Pill, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useNow, useSandboxes } from '~/compute/hooks';
 import { fmtCpu, fmtDuration, fmtMib, fmtQty, shortImage, shortNode } from '~/compute/format';
-import { isLive, type Sandbox, type SandboxStatus } from '~/compute/types';
+import { endedBadly, isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { NewSandboxDialog } from '../components/NewSandboxDialog';
 import { BucketChip, Meter, Mono, ReadError, SandboxStatusLabel, sbColor } from '../components/ui';
 
 type Filter = 'all' | 'live' | 'finished' | 'failed';
 
-const FILTERS: { id: Filter; label: string; match: (s: SandboxStatus) => boolean }[] = [
+const FILTERS: { id: Filter; label: string; title?: string; match: (s: Sandbox) => boolean }[] = [
   { id: 'all', label: 'All', match: () => true },
-  { id: 'live', label: 'Running', match: (s) => isLive(s) },
-  { id: 'finished', label: 'Finished', match: (s) => s === 'terminated' },
-  { id: 'failed', label: 'Failed', match: (s) => s === 'failed' },
+  { id: 'live', label: 'Running', match: (s) => isLive(s.status) },
+  {
+    id: 'finished',
+    label: 'Finished',
+    title: 'Ended by a terminate, its time limit or idle limit, or a clean exit',
+    match: (s) => s.status === 'terminated' && !endedBadly(s),
+  },
+  {
+    id: 'failed',
+    label: 'Failed',
+    title: 'Never started, killed for memory, lost with its node, or exited with a non-zero code',
+    match: (s) => endedBadly(s),
+  },
 ];
 
 /** Running time: now minus start, or end minus start. */
@@ -39,10 +49,21 @@ export function runSeconds(s: Sandbox, now: number): number {
   return Math.max(0, (end - Date.parse(s.started_at)) / 1000);
 }
 
-export const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) => (
+export const Chip = ({
+  active,
+  onClick,
+  title,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title?: string;
+  children: ReactNode;
+}) => (
   <Box
     component="button"
     onClick={onClick}
+    title={title}
     aria-pressed={active}
     sx={{
       appearance: 'none',
@@ -76,8 +97,8 @@ const SandboxList = () => {
   const newOpen = params.get('new') === '1';
 
   const all = useMemo(() => data?.items ?? [], [data]);
-  const rows = all.filter((s) => FILTERS.find((f) => f.id === filter)!.match(s.status));
-  const count = (f: Filter) => all.filter((s) => FILTERS.find((x) => x.id === f)!.match(s.status)).length;
+  const rows = all.filter((s) => FILTERS.find((f) => f.id === filter)!.match(s));
+  const count = (f: Filter) => all.filter((s) => FILTERS.find((x) => x.id === f)!.match(s)).length;
 
   return (
     <Box>
@@ -97,7 +118,7 @@ const SandboxList = () => {
 
       <Stack direction="row" spacing={1} marginBottom="14px" alignItems="center">
         {FILTERS.map((f) => (
-          <Chip key={f.id} active={filter === f.id} onClick={() => setFilter(f.id)}>
+          <Chip key={f.id} active={filter === f.id} onClick={() => setFilter(f.id)} title={f.title}>
             {f.label}
             <Box component="span" sx={{ fontWeight: 500, color: color.textTertiary }}>
               {count(f.id)}
@@ -149,7 +170,7 @@ const SandboxList = () => {
                       sx={{ cursor: 'pointer' }}
                     >
                       <TableCell>
-                        <SandboxStatusLabel status={s.status} />
+                        <SandboxStatusLabel status={s.status} reason={endedBadly(s) ? s.exit_reason : undefined} />
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontFamily: mono, fontSize: 13, fontWeight: 600 }}>{s.id}</Typography>

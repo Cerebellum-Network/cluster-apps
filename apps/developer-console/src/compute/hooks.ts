@@ -143,15 +143,17 @@ export function useEgressLog(
   );
 }
 
+/** `intervalMs`: how often to read again (a sandbox that just ended polls faster until its final record is in). */
 export function useUsageRecords(
   q: Omit<UsageRecordsQuery, 'cursor' | 'limit'> = {},
   max = 2000,
+  intervalMs: number = POLL.records,
 ): Polled<{ items: UsageRecord[]; truncated: boolean }> {
   const key = `records:${q.sandbox_id ?? ''}:${q.since ?? ''}`;
   return usePolled(
     (c, signal) => collect((cursor) => c.usageRecords({ ...q, limit: 500, cursor }, signal), max),
     key,
-    POLL.records,
+    intervalMs,
   );
 }
 

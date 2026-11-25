@@ -4,7 +4,7 @@ import { Alert, Box, Button, Stack, TextField, Typography } from '@cluster-apps/
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { ComputeError, errorMessage } from '~/compute/client';
 import type { Sandbox } from '~/compute/types';
-import { fmtAgo, fmtBytes } from '~/compute/format';
+import { fmtAgo, fmtBytes, plural } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { Terminal, sbColor } from '../ui';
 
@@ -198,10 +198,10 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
                   <Box component="span" sx={{ fontFamily: mono }}>
                     {dir}
                   </Box>{' '}
-                  · {files?.length ?? 0} files
+                  · {plural(files?.length ?? 0, 'file')}
                 </>
               ) : (
-                `Kept after it ended · ${sb.retained.length} files`
+                `Kept after it ended · ${plural(sb.retained.length, 'file')}`
               )}
             </Typography>
             {live && (
