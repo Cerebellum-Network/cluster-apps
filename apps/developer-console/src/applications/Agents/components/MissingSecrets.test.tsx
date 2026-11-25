@@ -35,12 +35,14 @@ describe('MissingSecrets', () => {
     expect(html).toContain('create a key under Inference › API keys');
     expect(html).toContain('its SSCP wallet is separate from this one');
     expect(html).toContain('have a bucket with balance there');
-    expect(html).toContain('href="/sandboxes/secrets?add=ddc-inference"');
+    expect(html).toContain(
+      'href="/sandboxes/secrets?add=ddc-inference&amp;hosts=inference-gateway.compute.test.ddcdragon.com"',
+    );
     // A rule's credential: the hosts it is sent to, and for GitHub where a read-only token comes from.
     expect(html).toContain('api.github.com');
     expect(html).toContain('GitHub fine-grained personal access token with read-only access');
     expect(html).toContain('href="https://github.com/settings/personal-access-tokens/new"');
-    expect(html).toContain('href="/sandboxes/secrets?add=github-readonly"');
+    expect(html).toContain('href="/sandboxes/secrets?add=github-readonly&amp;hosts=api.github.com"');
   });
 
   it('offers this console’s token when the model is on this console’s own inference gateway', () => {

@@ -8,8 +8,10 @@ import { Mono } from '../../Sandboxes/components/ui';
 import TokenSecretButton from '../../Sandboxes/components/TokenSecretButton';
 import { secretPurpose } from './definition';
 
-/** Where Secrets opens its add dialog for `name`, ready to save. */
-export const addSecretPath = (name: string) => `/sandboxes/secrets?add=${encodeURIComponent(name)}`;
+/** Where Secrets opens its add dialog for `name`, bound to `hosts`, ready to save. */
+export const addSecretPath = (name: string, hosts: string[] = []) =>
+  `/sandboxes/secrets?add=${encodeURIComponent(name)}` +
+  (hosts.length ? `&hosts=${encodeURIComponent(hosts.join(','))}` : '');
 
 /** What one missing secret is for, and where its value comes from. */
 const Purpose = ({ def, name }: { def: AgentDefinition; name: string }) => {
@@ -93,7 +95,7 @@ const MissingSecrets = ({
               variant="outlined"
               color={p.kind === 'model' && p.sameConsole ? 'secondary' : 'primary'}
               component={NavLink}
-              to={addSecretPath(name)}
+              to={addSecretPath(name, p.kind === 'rule' ? p.hosts : [p.host])}
               sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
             >
               {p.kind === 'model' && p.sameConsole ? 'Add another key' : `Add ${name}`}

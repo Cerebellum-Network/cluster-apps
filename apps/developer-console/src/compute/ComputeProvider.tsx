@@ -5,6 +5,7 @@
  */
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 
+import { inferenceConfig } from '~/inference/inferenceConfig';
 import { useOwnerBuckets } from '~/inference/useInference';
 import { createComputeClient, type ComputeClient } from './client';
 import { computeConfig, isComputeConfigured } from './computeConfig';
@@ -66,7 +67,13 @@ export function ComputeProvider({ children }: { children: ReactNode }) {
   const storeToken = useCallback(
     (name: string) =>
       client && key
-        ? client.putSecret(name, { type: 'header', header: 'Authorization', value: `Bearer ${key}` })
+        ? client.putSecret(name, {
+            type: 'header',
+            header: 'Authorization',
+            value: `Bearer ${key}`,
+            // The token is a key only for this network's inference gateway: bind it there and nowhere else.
+            hosts: [new URL(inferenceConfig.gatewayUrl).hostname],
+          })
         : Promise.reject(new Error('the compute client is not ready')),
     [client, key],
   );

@@ -31,7 +31,7 @@ import { useCompute, useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { useNow, useSandboxes, useSecrets } from '~/compute/hooks';
 import { fmtAgo } from '~/compute/format';
-import { isLive, SECRET_NAME_RE } from '~/compute/types';
+import { isLive, parseHosts, SECRET_HOST_RE, SECRET_NAME_RE } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { inferenceConfig } from '~/inference/inferenceConfig';
 import { EXAMPLE_MODEL_URL, onConsoleGateway } from '../../Agents/components/definition';
@@ -42,20 +42,29 @@ const VALUE_MAX = 8 * 1024;
 
 /**
  * Add (or, with `name`, replace) a secret. `suggested` fills the name of a new
- * one: the link an agent shows for a secret its run needs.
+ * one: the link an agent shows for a secret its run needs. `hosts` fills the
+ * hosts it is bound to (the secret's own when replacing, the run's when an
+ * agent links here).
  */
 const SecretDialog = ({
   name: initial,
   suggested,
+  hosts: initialHosts,
+  header: initialHeader,
   onClose,
 }: {
   name?: string;
   suggested?: string;
+  hosts?: string[];
+  header?: string;
   onClose: (saved?: string) => void;
 }) => {
   const client = useComputeClient();
   const [name, setName] = useState(initial ?? suggested ?? '');
-  const [header, setHeader] = useState('Authorization');
+  const [header, setHeader] = useState(initialHeader ?? 'Authorization');
+  const [hostsText, setHostsText] = useState((initialHosts ?? []).join(', '));
+  const hosts = parseHosts(hostsText);
+  const badHost = hosts.find((h) => !SECRET_HOST_RE.test(h));
   const [bearer, setBearer] = useState(true);
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
@@ -63,13 +72,19 @@ const SecretDialog = ({
   const replacing = !!initial;
   const sent = bearer && header.toLowerCase() === 'authorization' ? `Bearer ${value}` : value;
   const tooLong = new TextEncoder().encode(sent).length > VALUE_MAX;
-  const valid = SECRET_NAME_RE.test(name) && /^[A-Za-z0-9-]+$/.test(header.trim()) && value.length > 0 && !tooLong;
+  const valid =
+    SECRET_NAME_RE.test(name) &&
+    /^[A-Za-z0-9-]+$/.test(header.trim()) &&
+    value.length > 0 &&
+    !tooLong &&
+    hosts.length > 0 &&
+    !badHost;
 
   const save = async () => {
     setBusy(true);
     setError(null);
     try {
-      await client.putSecret(name, { type: 'header', header: header.trim(), value: sent });
+      await client.putSecret(name, { type: 'header', header: header.trim(), value: sent, hosts });
       setValue('');
       onClose(name);
     } catch (e) {
@@ -105,6 +120,20 @@ const SecretDialog = ({
             onChange={(e) => setHeader(e.target.value)}
             size="small"
             helperText="The egress proxy sets this header on requests the rule allows."
+          />
+          <TextField
+            label="Sent only to"
+            value={hostsText}
+            onChange={(e) => setHostsText(e.target.value)}
+            size="small"
+            placeholder="api.github.com"
+            error={!!badHost}
+            helperText={
+              badHost
+                ? `“${badHost}” is not a host name. Use names like api.github.com, not URLs.`
+                : 'The hosts the proxy may send this value to, separated by commas: exact names, or *.example.com for one more label. A sandbox rule that names this secret for any other host is refused.'
+            }
+            inputProps={{ style: { fontFamily: mono } }}
           />
           <TextField
             label="Value"
@@ -197,15 +226,17 @@ const Secrets = () => {
   const sandboxes = useSandboxes({ status: 'running' });
   const now = useNow(10_000);
   const [params, setParams] = useSearchParams();
-  // ?add=<name>: an agent's "Add <name>" link opens the dialog with that name.
+  // ?add=<name>&hosts=<a,b>: an agent's "Add <name>" link opens the dialog with that name and the run's hosts.
   const suggested = params.get('add') ?? '';
-  const [dialog, setDialog] = useState<{ name?: string; suggested?: string } | null>(() =>
-    SECRET_NAME_RE.test(suggested) ? { suggested } : null,
+  const suggestedHosts = parseHosts(params.get('hosts') ?? '').filter((h) => SECRET_HOST_RE.test(h));
+  const [dialog, setDialog] = useState<{ name?: string; suggested?: string; hosts?: string[]; header?: string } | null>(
+    () => (SECRET_NAME_RE.test(suggested) ? { suggested, hosts: suggestedHosts } : null),
   );
   const closeDialog = () => {
     setDialog(null);
-    if (params.has('add')) {
+    if (params.has('add') || params.has('hosts')) {
       params.delete('add');
+      params.delete('hosts');
       setParams(params, { replace: true });
     }
   };
@@ -258,6 +289,7 @@ const Secrets = () => {
                 <TableRow>
                   <TableCell>Name</TableCell>
                   <TableCell>Added as</TableCell>
+                  <TableCell>Sent only to</TableCell>
                   <TableCell>Value</TableCell>
                   <TableCell>Used by</TableCell>
                   <TableCell>Updated</TableCell>
@@ -287,6 +319,20 @@ const Secrets = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
+                      {s.hosts && s.hosts.length > 0 ? (
+                        <Box component="span" sx={{ fontFamily: mono, fontSize: 12.5, color: color.textSecondary }}>
+                          {s.hosts.join(', ')}
+                        </Box>
+                      ) : (
+                        <Typography
+                          sx={{ ...text.caption, color: color.warning }}
+                          title="A secret stored before secrets were bound to hosts is sent nowhere. Replace it and name its hosts."
+                        >
+                          nowhere: replace it and name its hosts
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <Typography sx={text.caption}>write-only</Typography>
                     </TableCell>
                     <TableCell sx={{ fontSize: 13.5 }}>
@@ -307,9 +353,9 @@ const Secrets = () => {
                           size="small"
                           variant="outlined"
                           color="secondary"
-                          onClick={() => setDialog({ name: s.name })}
+                          onClick={() => setDialog({ name: s.name, hosts: s.hosts, header: s.header })}
                         >
-                          Replace value
+                          Replace
                         </Button>
                         <Button size="small" variant="text" color="error" onClick={() => setDeleting(s.name)}>
                           Delete
@@ -320,7 +366,7 @@ const Secrets = () => {
                 ))}
                 {!loading && (data ?? []).length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} sx={{ textAlign: 'center', padding: '32px' }}>
+                    <TableCell colSpan={7} sx={{ textAlign: 'center', padding: '32px' }}>
                       <Typography sx={text.secondary}>
                         No secrets yet. Add one, then name it in a sandbox’s egress rule.
                       </Typography>
@@ -336,13 +382,13 @@ const Secrets = () => {
       <Typography sx={{ ...text.caption, marginTop: '12px' }}>
         From a terminal:{' '}
         <Box component="span" sx={{ fontFamily: mono }}>
-          cere secret set &lt;name&gt; --header Authorization --bearer-stdin
+          cere secret set &lt;name&gt; --header Authorization --host &lt;host&gt; --bearer-stdin
         </Box>{' '}
-        reads the value from a pipe, so it never appears in your shell history;{' '}
+        reads the value from a pipe, so it never appears in your shell history, and sends it only to that host;{' '}
         <Box component="span" sx={{ fontFamily: mono }}>
           cere secret set {MODEL_KEY_SECRET} --from-login
         </Box>{' '}
-        stores the token the CLI logged in with.
+        stores the token the CLI logged in with, for this network’s inference gateway.
       </Typography>
 
       {examplesOnConsoleGateway && (
@@ -364,6 +410,8 @@ const Secrets = () => {
         <SecretDialog
           name={dialog.name}
           suggested={dialog.suggested}
+          hosts={dialog.hosts}
+          header={dialog.header}
           onClose={(name) => {
             closeDialog();
             if (name) {

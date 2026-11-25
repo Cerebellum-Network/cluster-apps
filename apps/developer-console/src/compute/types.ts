@@ -146,15 +146,35 @@ export interface SecretSummary {
   name: string;
   type: 'header';
   header: string;
+  /** The only hosts the egress proxy sends the value to; empty: nowhere. Absent from older gateways. */
+  hosts?: string[];
   created_at: string;
   updated_at: string;
 }
 
-/** `PUT /v1/secrets/{name}` body. Write-only: the value is never returned or logged. */
+/**
+ * `PUT /v1/secrets/{name}` body. Write-only: the value is never returned or logged. `hosts` binds the value to the
+ * hosts it may be sent to (exact names, or `*.example.com` for one more label); a sandbox whose rule names the secret
+ * for another host is refused at create (400 `credential_not_bound`). Storing again replaces value and hosts.
+ */
 export interface SecretInput {
   type: 'header';
   header: string;
   value: string;
+  hosts: string[];
+}
+
+/** A host a secret may be bound to: a lower-case DNS name, optionally `*.` and at least two labels. */
+export const SECRET_HOST_RE = /^(\*\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+
+/** Splits what a person typed into hosts: commas or spaces, lower-cased, without repeats. */
+export function parseHosts(input: string): string[] {
+  const out: string[] = [];
+  for (const h of input.split(/[\s,]+/)) {
+    const v = h.trim().toLowerCase().replace(/\.$/, '');
+    if (v && !out.includes(v)) out.push(v);
+  }
+  return out;
 }
 
 /** `^[a-z0-9][a-z0-9-]{0,62}$` */

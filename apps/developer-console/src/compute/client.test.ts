@@ -147,8 +147,9 @@ describe('createComputeClient', () => {
         : json(200, { items: [{ name: 'gh', type: 'header', header: 'Authorization' }] }),
     );
     const c = createComputeClient('tok', BASE, fetchImpl);
-    await c.putSecret('gh', { type: 'header', header: 'Authorization', value: 'Bearer x' });
+    await c.putSecret('gh', { type: 'header', header: 'Authorization', value: 'Bearer x', hosts: ['api.github.com'] });
     expect(calls[0].url).toBe(`${BASE}/v1/secrets/gh`);
+    expect(JSON.parse(String(calls[0].body)).hosts).toEqual(['api.github.com']);
     expect(await c.listSecrets()).toEqual([{ name: 'gh', type: 'header', header: 'Authorization' }]);
   });
 });
