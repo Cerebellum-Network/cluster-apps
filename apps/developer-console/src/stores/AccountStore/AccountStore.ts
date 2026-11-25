@@ -10,6 +10,7 @@ import { gatewayPubKeyToSs58, registerGatewayCredential } from '~/storage/ddc/ga
 import type { GatewayCredentials } from '~/storage/ddc/gatewayClient';
 import { generateBucketName } from '~/storage/gatewayBuckets';
 import { buildInferenceApiKey } from '~/inference/inferenceKey';
+import { buildCliGrant } from '~/compute/cliGrant';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
@@ -308,6 +309,16 @@ export class AccountStore implements Account {
     this.requireAccount();
     const signer = createDdcSigner(() => this.requireSigner());
     return buildInferenceApiKey(signer, { bucketId, expiresInMs: ttlMs });
+  }
+
+  /**
+   * Sign the `cere` CLI's grant (browser sign-in): a COMPUTE token for `bucketId` whose subject is the CLI's own
+   * ed25519 key, so the CLI must sign a token under it to use it. Signs, so call from a user gesture.
+   */
+  async createCliGrant(bucketId: bigint, cliKey: string, ttlMs: number): Promise<string> {
+    this.requireAccount();
+    const signer = createDdcSigner(() => this.requireSigner());
+    return buildCliGrant(signer, { bucketId, cliKey, expiresInMs: ttlMs });
   }
 
   /**

@@ -4,13 +4,14 @@ import { observer } from 'mobx-react-lite';
 
 import { PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
-import { useCompute } from '~/compute/ComputeProvider';
+import { computeConfig } from '~/compute/computeConfig';
 import { errorMessage } from '~/compute/client';
 import { NO_WALLET_HERE, useCanSign } from '~/compute/walletSigning';
+import { useOwnerBuckets } from '~/inference/useInference';
 import { storageConfig } from '~/storage/storageConfig';
 import { color, mono, text } from '~/theme/tokens';
-import { CodeBlock, StepTitle, useCopy } from '../components/bits';
-import { BucketChip } from '../components/ui';
+import { CodeBlock, useCopy } from '../Sandboxes/components/bits';
+import { BucketChip, Mono } from '../Sandboxes/components/ui';
 
 const TTL_DAYS = [1, 7, 30];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -178,15 +179,19 @@ const BucketAccess = observer(() => {
 });
 
 /**
- * CLI access: a COMPUTE token for the `cere` CLI and the Python SDK, signed by
- * the wallet for this bucket and shown once. It is the same kind of token the
- * console itself uses, with the lifetime picked here. Stateless: it cannot be
- * revoked, only expire.
+ * Access tokens: what a machine without a browser uses. On your own computer
+ * `cere login` signs the CLI in through this console (a grant bound to the
+ * CLI's key, approved at /cli/authorize). For CI, a COMPUTE token for the
+ * bucket, signed by the wallet and shown once, read with `--token-stdin`; it
+ * cannot be revoked, only expire. And an S3 credential for the CLI's agent
+ * definitions in a storage bucket.
  */
-const CliAccess = () => {
+const AccessTokens = () => {
   const account = useAccount();
   const canSign = useCanSign();
-  const { bucketId, ensureBucket, gatewayUrl } = useCompute();
+  const owner = useOwnerBuckets();
+  const bucketId = owner.buckets[0] ? String(owner.buckets[0].id) : null;
+  const gatewayUrl = computeConfig.gatewayUrl;
   const [ttlDays, setTtlDays] = useState(7);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +203,7 @@ const CliAccess = () => {
     setError(null);
     setShown(null);
     try {
-      const bucket = bucketId ?? (await ensureBucket());
+      const bucket = bucketId ?? (await owner.ensureBucket());
       const ttlMs = ttlDays * DAY_MS;
       const token = await account.createInferenceApiKey(BigInt(bucket), ttlMs);
       setShown({ token, expiresAt: Date.now() + ttlMs, bucket });
@@ -213,14 +218,24 @@ const CliAccess = () => {
     <Box>
       <Box marginBottom="20px">
         <PageHeader
-          title="CLI access"
-          subtitle="A token for the cere CLI and the Python SDK. They call the same compute gateway as this console, as your bucket."
+          title="Access tokens"
+          subtitle="For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI, and for agent definitions in your storage buckets."
           actions={<BucketChip bucketId={bucketId} />}
         />
       </Box>
 
       <Stack spacing="16px" maxWidth={860}>
-        <Section title="Create a token">
+        <Section title="On your own computer">
+          <CodeBlock code="cere login" />
+          <Typography sx={{ ...text.secondary, marginTop: '8px' }}>
+            Opens this console in your browser and asks you to approve the CLI for a bucket. Your wallet signs a grant
+            bound to a key the CLI made, so what reaches the CLI works only with that key. On a machine without a
+            browser, <Mono>cere login --no-browser</Mono> prints the link to open elsewhere and asks for the code the
+            page shows.
+          </Typography>
+        </Section>
+
+        <Section title="A token for CI">
           <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" useFlexGap>
             <TextField
               select
@@ -236,7 +251,7 @@ const CliAccess = () => {
                 </MenuItem>
               ))}
             </TextField>
-            <LoadingButton variant="contained" loading={busy} onClick={create} disabled={!canSign}>
+            <LoadingButton variant="contained" loading={busy} onClick={create} disabled={!canSign || owner.loading}>
               Create token
             </LoadingButton>
             <Typography sx={text.secondary}>
@@ -278,46 +293,17 @@ const CliAccess = () => {
               <Typography sx={{ ...text.secondary, marginTop: '10px' }}>
                 <strong style={{ color: color.text }}>Shown once.</strong> It{' '}
                 <strong style={{ color: color.text }}>can’t be revoked</strong>: anyone who has it can run sandboxes
-                billed to bucket {shown.bucket} until {fmtDate(shown.expiresAt)}. Keep it in the CLI’s config, not in
-                code.
+                billed to bucket {shown.bucket} until {fmtDate(shown.expiresAt)}. Keep it in your CI’s secret store.
               </Typography>
             </Box>
           )}
-        </Section>
-
-        <Section title="Use it">
-          <Stack spacing="18px">
-            <Box>
-              <StepTitle no={1} title="Sign the CLI in" />
-              <CodeBlock code="cere login" />
-              <Typography sx={{ ...text.secondary, marginTop: '8px' }}>
-                Paste the token when it asks. It is saved in{' '}
-                <Box component="span" sx={{ fontFamily: mono }}>
-                  ~/.config/cere/config.json
-                </Box>{' '}
-                (mode 0600);{' '}
-                <Box component="span" sx={{ fontFamily: mono }}>
-                  cere whoami
-                </Box>{' '}
-                shows the bucket and the expiry. The CLI calls{' '}
-                <Box component="span" sx={{ fontFamily: mono }}>
-                  {gatewayUrl}
-                </Box>
-                ; add{' '}
-                <Box component="span" sx={{ fontFamily: mono }}>
-                  --api-url
-                </Box>{' '}
-                if yours is elsewhere.
-              </Typography>
-            </Box>
-            <Box>
-              <StepTitle no={2} title="Or use it from the environment" />
-              <CodeBlock code={`export CERE_TOKEN=<the token>\nexport CERE_API_URL=${gatewayUrl}`} />
-              <Typography sx={{ ...text.secondary, marginTop: '8px' }}>
-                The CLI and the Python SDK both read these, ahead of the config file.
-              </Typography>
-            </Box>
-          </Stack>
+          <Box marginTop="16px">
+            <CodeBlock code={`printenv CERE_TOKEN | cere login --token-stdin --api-url ${gatewayUrl}`} />
+            <Typography sx={{ ...text.secondary, marginTop: '8px' }}>
+              Or leave the CLI unconfigured: the CLI and the Python SDK both read <Mono>CERE_TOKEN</Mono> and{' '}
+              <Mono>CERE_API_URL</Mono> from the environment, ahead of the config file.
+            </Typography>
+          </Box>
         </Section>
 
         <BucketAccess />
@@ -326,4 +312,4 @@ const CliAccess = () => {
   );
 };
 
-export default observer(CliAccess);
+export default observer(AccessTokens);

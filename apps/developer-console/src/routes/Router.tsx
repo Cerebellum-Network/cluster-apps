@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, RouteObject, RouterProvider } from 'reac
 import applications, { Application } from '~/applications';
 
 import { App } from './App';
+import { CliAuthorize } from './CliAuthorize';
 import { Home } from './Home';
 import { Login } from './Login';
 import { TopUp } from './TopUp';
@@ -38,6 +39,11 @@ const router = createBrowserRouter([
           {
             path: 'top-up',
             Component: TopUp,
+          },
+          {
+            // Where `cere login` sends the browser; not in the navigation.
+            path: 'cli/authorize',
+            Component: CliAuthorize,
           },
           ...applications.map(mapAppToRoute),
         ],

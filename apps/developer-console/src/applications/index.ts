@@ -6,10 +6,19 @@ import contentStorage from './ContentStorage';
 import inference from './Inference';
 import sandboxes from './Sandboxes';
 import agents from './Agents';
+import accessTokens from './AccessTokens';
 
 // Inference is the landing page (mockup: "Inference, where everyone lands");
 // the Router uses applications[0] as the index route.
-const applications: Application[] = [inference, sandboxes, agents, contentStorage, contentDelivery, billing];
+const applications: Application[] = [
+  inference,
+  sandboxes,
+  agents,
+  contentStorage,
+  contentDelivery,
+  billing,
+  accessTokens,
+];
 
 export * from './types';
 
