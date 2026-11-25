@@ -10,20 +10,19 @@ import { KeyGlyph, sbColor } from '../ui';
 import { useCredentialDialogs } from './CredentialDialogs';
 
 /** A credential a rule can pick: a bucket secret, or one resolved with its scope (credentials.ts). */
-export type Pickable = Pick<SecretSummary, 'name' | 'hosts'> & Partial<Pick<Credential, 'scope' | 'agent' | 'overrides'>>;
+export type Pickable = Pick<SecretSummary, 'name' | 'hosts'> &
+  Partial<Pick<Credential, 'scope' | 'agent' | 'overrides'>>;
 
 /** Where a secret's value may go, as the secrets API lists it. */
 export const boundTo = (s: Pick<SecretSummary, 'hosts'>): string =>
-  !s.hosts
-    ? 'hosts not listed by this gateway'
-    : s.hosts.length
-      ? `sent only to ${s.hosts.join(', ')}`
-      : 'sent nowhere';
+  !s.hosts ? 'hosts not listed by this API' : s.hosts.length ? `sent only to ${s.hosts.join(', ')}` : 'sent nowhere';
 
 /** "sent only to api.github.com", with where it comes from when that is not the bucket. */
 const caption = (s: Pickable): string => {
   const from = s.scope && s.scope !== 'bucket' ? `${scopeLabel(s as Credential)}’s, ` : '';
-  const wins = s.overrides?.length ? ` (wins over ${s.overrides.map((o) => (o === 'bucket' ? 'the bucket’s' : 'the agent’s')).join(' and ')})` : '';
+  const wins = s.overrides?.length
+    ? ` (wins over ${s.overrides.map((o) => (o === 'bucket' ? 'the bucket’s' : 'the agent’s')).join(' and ')})`
+    : '';
   return `${from}${boundTo(s)}${wins}`;
 };
 
@@ -212,7 +211,7 @@ export const CoverageNote = ({ coverage, host }: { coverage: Coverage; host: str
   if (coverage.state === 'unlisted')
     return (
       <Typography sx={text.caption}>
-        The gateway doesn’t list the hosts {coverage.name} is bound to, so the console can’t check it.
+        The API doesn’t list the hosts {coverage.name} is bound to, so the console can’t check it.
       </Typography>
     );
   const problem = coverageProblem(coverage);

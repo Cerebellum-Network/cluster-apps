@@ -216,9 +216,7 @@ describe('floor and burst', () => {
     expect(partsLine(recordParts(burstMinute).ram)).toBe('15.0 request, no burst');
     expect(partsLine(recordParts(measuredMinute).cpu)).toBe('9.4 as measured');
     expect(partsLine({ floor: 0, burst: 0, asMeasured: 0, billed: 0 })).toBe('');
-    expect(partsLine(sumRecords([burstMinute, measuredMinute]).cpu)).toBe(
-      '15.0 request + 3.2 burst + 9.4 as measured',
-    );
+    expect(partsLine(sumRecords([burstMinute, measuredMinute]).cpu)).toBe('15.0 request + 3.2 burst + 9.4 as measured');
   });
 
   it('puts the burst in the sums line only when there was some', () => {

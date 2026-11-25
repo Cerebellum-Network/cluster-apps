@@ -283,7 +283,7 @@ export const FirstRunDialog = ({ open, onClose }: { open: boolean; onClose: () =
           The quickstart, run here
         </Typography>
         <Typography component="span" display="block" sx={{ ...text.secondary, fontWeight: 400 }}>
-          The Python example, through the compute gateway.
+          The Python example, through the same API.
         </Typography>
       </Box>
       <IconButton aria-label="Close" onClick={onClose} size="small">

@@ -32,7 +32,7 @@ const Subhead = ({ children }: { children: string }) => (
 const FACTS: { name: string; body: ReactNode }[] = [
   {
     name: 'Isolated',
-    body: 'Any public image runs in gVisor on a DDC node, with the CPU and memory you request (guaranteed), room to burst up to its limits, and a time limit. Exec commands, read and write files, and stream its logs while it runs.',
+    body: 'Any public image runs in gVisor on a node of the cluster, with the CPU and memory you request (guaranteed), room to burst up to its limits, and a time limit. Exec commands, read and write files, and stream its logs while it runs.',
   },
   {
     name: 'Closed network',
@@ -139,7 +139,7 @@ const Overview = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Sandboxes"
-          subtitle="Isolated containers on DDC nodes, created through an API: any public image, any command, a default-deny network."
+          subtitle="Isolated containers on the cluster’s nodes, created through an API: any public image, any command, a default-deny network."
           actions={
             <>
               <BucketChip bucketId={compute.bucketId} />

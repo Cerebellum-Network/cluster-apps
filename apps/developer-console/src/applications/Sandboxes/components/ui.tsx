@@ -377,8 +377,8 @@ export const NoBalance = ({ what, error }: { what: string; error: string }) => (
   >
     <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Top up to see {what}.</Typography>
     <Typography sx={{ fontSize: 13 }}>
-      The compute gateway answered “{error}”: it serves a bucket only while the bucket’s owner has a balance (the DDC
-      deposit on chain). Add funds in Billing; this page reads again by itself.
+      The API answered “{error}”: it serves a bucket only while the bucket’s owner has a balance (the deposit on chain).
+      Add funds in Billing; this page reads again by itself.
     </Typography>
   </Alert>
 );

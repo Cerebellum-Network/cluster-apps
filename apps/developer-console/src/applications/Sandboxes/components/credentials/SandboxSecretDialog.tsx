@@ -1,6 +1,14 @@
 import { useState } from 'react';
 import { Alert, Box, Button, LoadingButton, Stack, TextField, Typography } from '@cluster-apps/ui';
-import { Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton } from '@mui/material';
+import {
+  Checkbox,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControlLabel,
+  IconButton,
+} from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 
 import { useComputeClient } from '~/compute/ComputeProvider';
@@ -72,10 +80,12 @@ const SandboxSecretDialog = ({
             A new value for this sandbox’s own credential, used from its next request. It is still sent as{' '}
             <Box component="span" sx={{ fontFamily: mono }}>
               {secret.header}
-            </Box>, and only to{' '}
+            </Box>
+            , and only to{' '}
             <Box component="span" sx={{ fontFamily: mono }}>
               {secret.hosts.join(', ') || 'no host'}
-            </Box>.
+            </Box>
+            .
           </Typography>
           <TextField
             label="New value"

@@ -19,7 +19,7 @@ const application: Application = {
   title: 'Sandboxes',
   navLabel: 'Sandboxes',
   description:
-    'Isolated gVisor containers on DDC nodes: any image, any command, a default-deny network, billed by measured use',
+    'Isolated gVisor containers on the cluster’s nodes: any image, any command, a default-deny network, billed for what they request and use',
   icon: <SandboxesAppIcon />,
   group: 'services',
   subNav: [

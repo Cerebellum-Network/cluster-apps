@@ -31,7 +31,7 @@ const unsupported = (e: unknown) => e instanceof ComputeError && (e.status === 4
 
 /** What a refused rule change means, in words. */
 export function egressChangeError(e: unknown): string {
-  if (unsupported(e)) return 'This compute gateway can’t change a running sandbox’s rules yet.';
+  if (unsupported(e)) return 'This cluster’s API can’t change a running sandbox’s rules yet.';
   if (e instanceof ComputeError && e.code === 'not_running')
     return 'The sandbox has ended, so its rules no longer apply.';
   return errorMessage(e);

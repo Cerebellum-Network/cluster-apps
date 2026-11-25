@@ -49,7 +49,7 @@ export interface Compute {
 
 const TOKEN_MESSAGES = {
   mintFailed: 'Couldn’t get access to your sandboxes. Try again to approve it in your SSCP wallet.',
-  rejected: 'The compute gateway refused your access. Try again.',
+  rejected: 'The API refused your access. Try again.',
 };
 
 /** Exported for render tests, which provide a fixed value. */
@@ -84,9 +84,9 @@ export function ComputeProvider({ children }: { children: ReactNode }) {
     if (!configured) {
       status = 'not-configured';
       error = {
-        message: `This console has no compute gateway for ${computeConfig.network}. Sandboxes and agents run on devnet.`,
+        message: `This console has no sandbox API for ${computeConfig.network}. Sandboxes run on devnet.`,
         detail:
-          'Set compute.gatewayUrl in /config.js (VITE_COMPUTE_GATEWAY_URL for a local run) to the compute gateway of the network the console bills, or run the console against devnet (apps/developer-console/README.md).',
+          'Set compute.gatewayUrl in /config.js (VITE_COMPUTE_GATEWAY_URL for a local run) to the sandbox API of the network the console bills, or run the console against devnet (apps/developer-console/README.md).',
       };
     } else if (bucketsError) {
       status = 'buckets-error';

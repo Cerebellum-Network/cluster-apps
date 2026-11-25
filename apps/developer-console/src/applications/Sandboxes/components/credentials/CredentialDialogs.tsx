@@ -64,9 +64,7 @@ export function CredentialDialogProvider({ children }: { children: ReactNode }) 
   return (
     <Ctx.Provider value={value}>
       {children}
-      {managing && (
-        <ManageCredentialsDialog agent={managing.agent} onClose={() => setManaging(null)} onStore={store} />
-      )}
+      {managing && <ManageCredentialsDialog agent={managing.agent} onClose={() => setManaging(null)} onStore={store} />}
       {form && (
         <SecretDialog
           {...form}

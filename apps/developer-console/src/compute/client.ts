@@ -246,7 +246,7 @@ export function createComputeClient(
       signal: init.signal,
       headers: { Accept: 'text/event-stream' },
     });
-    if (!res.body) throw new ComputeError(502, 'The gateway sent no stream.');
+    if (!res.body) throw new ComputeError(502, 'The API sent no stream.');
     await readSse(res.body, (m) => on(m.event, parseData(m.data)), init.signal);
   }
 
@@ -352,8 +352,14 @@ export function createComputeClient(
 
     egressLog: async (q, signal) =>
       page<EgressEntry>(await json('GET', `/v1/egress/log${queryString({ ...q })}`, { signal })),
-    usageRecords: async (q, signal) =>
-      page<UsageRecord>(await json('GET', `/v1/usage/records${queryString({ ...q })}`, { signal })),
+    usageRecords: async (q, signal) => {
+      const p = page<UsageRecord>(await json('GET', `/v1/usage/records${queryString({ ...q })}`, { signal }));
+      // `memory_limit` is the API's name; records before 26 Nov say `memory_limit_mib`.
+      return {
+        ...p,
+        items: p.items.map((r) => (r.memory_limit !== undefined ? { ...r, memory_limit_mib: r.memory_limit } : r)),
+      };
+    },
   };
 }
 

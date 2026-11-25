@@ -23,7 +23,9 @@ const AgentCredentials = ({ agent, runs }: { agent: string; runs: Sandbox[] }) =
   const mine = agentSecrets(secrets.data, agent) ?? [];
   const store = (s?: SecretSummary) =>
     void dialogs.store(
-      s ? { name: s.name, hosts: s.hosts, header: s.header, agent } : { agent, purpose: `Only ${agent}’s runs use it.` },
+      s
+        ? { name: s.name, hosts: s.hosts, header: s.header, agent }
+        : { agent, purpose: `Only ${agent}’s runs use it.` },
     );
 
   return (

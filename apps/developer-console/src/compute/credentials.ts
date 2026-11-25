@@ -69,7 +69,14 @@ export function credentialsFor(
   if (ctx.agent)
     for (const s of all)
       if (s.agent === ctx.agent)
-        add({ name: s.name, header: s.header, hosts: s.hosts, scope: 'agent', agent: s.agent, updated_at: s.updated_at });
+        add({
+          name: s.name,
+          header: s.header,
+          hosts: s.hosts,
+          scope: 'agent',
+          agent: s.agent,
+          updated_at: s.updated_at,
+        });
   for (const s of all)
     if (!s.agent) add({ name: s.name, header: s.header, hosts: s.hosts, scope: 'bucket', updated_at: s.updated_at });
   return [...out.values()];

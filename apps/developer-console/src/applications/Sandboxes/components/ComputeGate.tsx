@@ -50,7 +50,7 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
             ? 'Set up billing'
             : c.status === 'not-configured'
               ? 'Sandboxes are not available here'
-              : 'Connecting to the compute gateway'
+              : 'Connecting to the sandbox API'
         }
       >
         {c.status === 'buckets-loading' && <Waiting>Reading your buckets…</Waiting>}
@@ -62,8 +62,7 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
         {c.status === 'no-bucket' && (
           <Stack spacing="12px" alignItems="flex-start">
             <Typography sx={text.body}>
-              Sandboxes bill to a bucket you own on {c.network}, and you have none yet. The console makes
-              one for you.
+              Sandboxes bill to a bucket you own on {c.network}, and you have none yet. The console makes one for you.
             </Typography>
             <LoadingButton variant="contained" loading={busy} onClick={setUp}>
               Set up billing

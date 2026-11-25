@@ -208,10 +208,7 @@ const AgentEgress = ({
           </Stack>
           {model.credential && (
             <Box marginTop="6px">
-              <CoverageNote
-                coverage={credentialCoverage(model.credential, model.host, creds)}
-                host={model.host}
-              />
+              <CoverageNote coverage={credentialCoverage(model.credential, model.host, creds)} host={model.host} />
             </Box>
           )}
         </Box>

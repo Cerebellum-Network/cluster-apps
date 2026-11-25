@@ -18,12 +18,7 @@ import { useCompute, useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { useSecrets } from '~/compute/hooks';
 import { LABEL } from '~/compute/agentRun';
-import {
-  credentialsFor,
-  ownSecretsFromForms,
-  RESOLUTION_NOTE,
-  type OwnSecretForm,
-} from '~/compute/credentials';
+import { credentialsFor, ownSecretsFromForms, RESOLUTION_NOTE, type OwnSecretForm } from '~/compute/credentials';
 import { rulesBlocked } from '~/compute/egressCoverage';
 import { fmtDateTime } from '~/compute/format';
 import { rulesFromForms, type RuleForm } from '~/compute/egressRules';

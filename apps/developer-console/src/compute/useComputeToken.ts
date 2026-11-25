@@ -101,7 +101,7 @@ export function useComputeToken(
       setState({
         kind: 'error',
         message: messagesRef.current.rejected,
-        detail: 'The gateway rejected a freshly minted token.',
+        detail: 'The API rejected a freshly minted token.',
       });
       return;
     }

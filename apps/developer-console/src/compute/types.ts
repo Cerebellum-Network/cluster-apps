@@ -326,7 +326,9 @@ export interface UsageRecord {
   billed_ram_gib_s?: number;
   /** The sandbox's limits: vCPU and MiB. Absent before limits (then the request was the limit). */
   cpu_limit?: number;
+  /** The memory limit under its name before 26 Nov; the client fills it from `memory_limit` when only that is sent. */
   memory_limit_mib?: number;
+  memory_limit?: number;
   /** Billed above the request. Absent before limits: then `max(0, billed − reserved)`. */
   burst_cpu_s?: number;
   burst_ram_gib_s?: number;
