@@ -25,10 +25,7 @@ const application: Application = {
   subNav: [
     { path: '', label: 'Overview' },
     { path: 'list', label: 'Sandboxes', prefix: true },
-    { path: 'secrets', label: 'Secrets' },
-    { path: 'egress', label: 'Egress' },
     { path: 'usage', label: 'Usage' },
-    { path: 'cli', label: 'CLI access' },
   ],
 };
 

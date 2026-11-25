@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Box, Stack, Typography, styled } from '@cluster-apps/ui';
+import { Alert, Box, Button, Stack, Typography, styled } from '@cluster-apps/ui';
 import { keyframes } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 
@@ -100,6 +100,7 @@ const DECISION = {
   allowed: { label: 'Allowed', fg: color.success, bg: color.successTint },
   denied: { label: 'Denied', fg: sbColor.deniedText, bg: sbColor.deniedTint },
   error: { label: 'Upstream error', fg: color.warning, bg: color.warningTint },
+  policy: { label: 'Rules changed', fg: color.primaryDark, bg: color.primaryTint },
 } as const;
 
 export const DecisionPill = ({ decision }: { decision: EgressDecision }) => {
@@ -236,15 +237,35 @@ export const BucketChip = ({ bucketId }: { bucketId: string | null }) =>
 /** The gateway's 403 when the bucket's owner has no balance (it checks on every call). */
 export const isNoBalance = (error: string) => /insufficient balance/i.test(error);
 
-/** A failed read, in words, with the raw message as a tooltip; a refusal for balance says where to top up. */
-export const ReadError = ({ what, error }: { what: string; error: string }) => (
-  <Typography color="error" variant="body2" title={error}>
-    Couldn’t read {what}: {error}
-    {isNoBalance(error) && (
-      <>
-        . The compute gateway serves a bucket only while its owner has a balance:{' '}
-        <NavLink to="/billing">top up in Billing</NavLink>.
-      </>
-    )}
-  </Typography>
+/**
+ * The gateway refused for balance: say what to do (top up, in Billing) with a
+ * button, and keep its own words visible. The page keeps reading, so it fills
+ * in by itself once the balance is there.
+ */
+export const NoBalance = ({ what, error }: { what: string; error: string }) => (
+  <Alert
+    severity="warning"
+    action={
+      <Button component={NavLink} to="/billing" variant="contained" size="small" sx={{ whiteSpace: 'nowrap' }}>
+        Top up in Billing
+      </Button>
+    }
+    sx={{ alignItems: 'center' }}
+  >
+    <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Top up to see {what}.</Typography>
+    <Typography sx={{ fontSize: 13 }}>
+      The compute gateway answered “{error}”: it serves a bucket only while the bucket’s owner has a balance (the DDC
+      deposit on chain). Add funds in Billing; this page reads again by itself.
+    </Typography>
+  </Alert>
 );
+
+/** A failed read, in words, with the raw message as a tooltip; a refusal for balance says to top up. */
+export const ReadError = ({ what, error }: { what: string; error: string }) =>
+  isNoBalance(error) ? (
+    <NoBalance what={what} error={error} />
+  ) : (
+    <Typography color="error" variant="body2" title={error}>
+      Couldn’t read {what}: {error}
+    </Typography>
+  );

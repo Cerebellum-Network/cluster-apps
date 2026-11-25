@@ -18,7 +18,7 @@ import { mono, text } from '~/theme/tokens';
 import { CredentialChip, Mono } from '../../Sandboxes/components/ui';
 import { Chip } from '../../Sandboxes/pages/SandboxList';
 import { AGENT_EXAMPLES, EXAMPLES_RELEASE } from '../examples';
-import { CoverageNote } from './CredentialPicker';
+import { CoverageNote } from '../../Sandboxes/components/credentials/CredentialPicker';
 import { missingSecrets, NEW_AGENT_PATH } from './definition';
 import MissingSecrets from './MissingSecrets';
 import { useStorageBucket } from './StorageBucketField';

@@ -20,6 +20,9 @@ cere secret set ${MODEL_KEY_SECRET} --from-login
 cere agent run -f ${research.file} "${research.input}"
 cere agent runs`;
 
+export const AGENTS_QUICKSTART_PYTHON_SETUP = `# The example definitions: assets of the CLI's release
+gh release download ${EXAMPLES_RELEASE} -R Cerebellum-Network/ddc-node -p '*.json'`;
+
 export const AGENTS_QUICKSTART_PYTHON = `import cere
 
 cere.Secret.set_from_login("${MODEL_KEY_SECRET}")  # the examples' model key

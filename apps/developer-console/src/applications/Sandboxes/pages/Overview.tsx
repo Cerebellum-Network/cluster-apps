@@ -11,7 +11,9 @@ import { color, text } from '~/theme/tokens';
 import { CodeBlock } from '../components/bits';
 import ComputeGate from '../components/ComputeGate';
 import { FirstRunDialog } from '../components/FirstRunDialog';
-import { QUICKSTART_PYTHON, QUICKSTART_SHELL } from '../components/quickstart';
+import RecentDenials from '../components/egress/RecentDenials';
+import QuickstartTabs from '../components/QuickstartTabs';
+import { QUICKSTART_CLI, QUICKSTART_PYTHON, QUICKSTART_PYTHON_SETUP } from '../components/quickstart';
 import { BucketChip, Mono, ReadError, StatusDot } from '../components/ui';
 
 const Subhead = ({ children }: { children: string }) => (
@@ -38,8 +40,8 @@ const PARTS: { name: string; body: ReactNode }[] = [
     name: 'Egress proxy',
     body: (
       <>
-        The only way out. It allows the hosts and methods you list, adds your secrets, and logs each request: see{' '}
-        <NavLink to="/sandboxes/egress">Egress</NavLink>.
+        The only way out. It allows the hosts and methods each sandbox lists, adds the credentials its rules name, and
+        logs each request. A sandbox’s rules can change while it runs: open it, then Egress.
       </>
     ),
   },
@@ -162,20 +164,22 @@ const Overview = () => {
       >
         <Section title="Quickstart">
           <Stack spacing="20px">
-            <Box>
-              <Subhead>From a terminal</Subhead>
-              <CodeBlock code={QUICKSTART_SHELL} />
-              <Typography sx={{ ...text.caption, marginTop: '8px' }}>
-                Step 1 needs membership of the Cerebellum-Network GitHub organization: the CLI and the SDK are released
-                privately for now, so <Mono>gh</Mono> must be signed in with a member’s account (an anonymous download
-                answers 404), and there is no public download yet. Step 2 needs this console’s sign-in: creating an SSCP
-                wallet asks for your email address and a one-time code sent to it, then a passkey on this device.
-              </Typography>
-            </Box>
-            <Box>
-              <Subhead>From Python</Subhead>
-              <CodeBlock code={QUICKSTART_PYTHON} />
-            </Box>
+            <QuickstartTabs
+              cli={<CodeBlock code={QUICKSTART_CLI} />}
+              python={
+                <Stack spacing="12px">
+                  <CodeBlock code={QUICKSTART_PYTHON_SETUP} />
+                  <CodeBlock code={QUICKSTART_PYTHON} />
+                </Stack>
+              }
+            />
+            <Typography sx={{ ...text.caption, marginTop: '8px' }}>
+              Step 1 needs membership of the Cerebellum-Network GitHub organization: the CLI and the SDK are released
+              privately for now, so <Mono>gh</Mono> must be signed in with a member’s account (an anonymous download
+              answers 404), and there is no public download yet. <Mono>cere login</Mono> opens this console, which asks
+              you to approve the CLI for a bucket; your SSCP wallet signs it. In CI, use a token from{' '}
+              <NavLink to="/access-tokens">Access tokens</NavLink> with <Mono>cere login --token-stdin</Mono>.
+            </Typography>
             <Box>
               <Subhead>Try it here</Subhead>
               <Stack direction="row" alignItems="center" gap="16px" flexWrap="wrap">
@@ -189,7 +193,14 @@ const Overview = () => {
             </Box>
           </Stack>
         </Section>
-        {compute.status === 'ready' ? <RightNow /> : <ComputeGate>{null}</ComputeGate>}
+        {compute.status === 'ready' ? (
+          <Stack gap="16px">
+            <RightNow />
+            <RecentDenials />
+          </Stack>
+        ) : (
+          <ComputeGate>{null}</ComputeGate>
+        )}
       </Box>
 
       <Section title="How a sandbox runs">

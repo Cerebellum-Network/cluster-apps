@@ -180,7 +180,8 @@ export function parseHosts(input: string): string[] {
 /** `^[a-z0-9][a-z0-9-]{0,62}$` */
 export const SECRET_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
 
-export type EgressDecision = 'allowed' | 'denied' | 'error';
+/** `policy`: a change to a running sandbox's rules (one entry per rule added or removed), not a request. */
+export type EgressDecision = 'allowed' | 'denied' | 'error' | 'policy';
 
 export interface EgressEntry {
   id: number;

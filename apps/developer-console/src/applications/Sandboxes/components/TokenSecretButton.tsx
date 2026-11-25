@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, LoadingButton, Stack, Typography } from '@cluster-apps/ui';
 
 import { useCompute } from '~/compute/ComputeProvider';
+import { notifySecretsChanged } from '~/compute/hooks';
 import { errorMessage } from '~/compute/client';
 import { fmtDateTime, fmtUtc } from '~/compute/format';
 import type { SecretSummary } from '~/compute/types';
@@ -42,6 +43,7 @@ const TokenSecretButton = ({
     setStoredUntil(null);
     try {
       await storeTokenAsSecret(name);
+      notifySecretsChanged();
       setStoredUntil(until);
       onStored?.();
     } catch (e) {

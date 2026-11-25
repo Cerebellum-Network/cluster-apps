@@ -14,6 +14,7 @@ import type {
   CreateSandboxRequest,
   EgressDecision,
   EgressEntry,
+  EgressPolicy,
   ExecEvent,
   ExecExit,
   ExecRequest,
@@ -88,6 +89,12 @@ export interface ComputeClient {
   getSandbox(id: string, signal?: AbortSignal): Promise<Sandbox>;
   createSandbox(req: CreateSandboxRequest, signal?: AbortSignal): Promise<Sandbox>;
   terminate(id: string, opts?: TerminateOptions, signal?: AbortSignal): Promise<Sandbox>;
+  /**
+   * `PUT /v1/sandboxes/{id}/egress`: replace a running sandbox's allow-list. The egress proxy applies it from the next
+   * request; the gateway checks the rules as at create (`invalid_egress`, `unknown_credential`,
+   * `credential_not_bound`) and refuses an ended sandbox (409 `not_running`). Resolves with the sandbox as it is now.
+   */
+  setEgress(id: string, egress: EgressPolicy, signal?: AbortSignal): Promise<Sandbox>;
   exec(id: string, req: ExecRequest, signal?: AbortSignal): Promise<ExecResult>;
   /** Streams the command's output to `onEvent`; resolves with its exit once the stream says so. */
   execStream(id: string, req: ExecRequest, onEvent: (e: ExecEvent) => void, signal?: AbortSignal): Promise<ExecExit>;
@@ -226,6 +233,8 @@ export function createComputeClient(
           { signal },
         ),
       ),
+    setEgress: async (id, egress, signal) =>
+      normSandbox(await json<Sandbox>('PUT', `${sb(id)}/egress`, { json: { allow: egress.allow }, signal })),
     exec: (id, req, signal) => json<ExecResult>('POST', `${sb(id)}/exec`, { json: req, signal }),
 
     async execStream(id, req, onEvent, signal) {

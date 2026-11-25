@@ -1,8 +1,8 @@
 import { ReactNode, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Alert, Box, Button, CircularProgress, LoadingButton, Stack, TextField, Typography } from '@cluster-apps/ui';
-import { Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
-import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Dialog, DialogActions, DialogContent, DialogTitle, Link } from '@mui/material';
+import { NavLink, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
@@ -16,10 +16,11 @@ import { useComputeClient } from '~/compute/ComputeProvider';
 import { useSandboxes, useSecrets } from '~/compute/hooks';
 import { fmtMib } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
-import { CodeBlock, Tabs } from '../../Sandboxes/components/bits';
+import { CodeBlock, Count, Tabs } from '../../Sandboxes/components/bits';
 import { CredentialChip, Field, Mono, ReadError } from '../../Sandboxes/components/ui';
 import AddDefinitionDialog from '../components/AddDefinitionDialog';
-import { agentPath, DEFINITIONS_PATH, missingSecrets } from '../components/definition';
+import AgentEgress from '../components/AgentEgress';
+import { agentPath, AGENTS_PATH, missingSecrets } from '../components/definition';
 import MissingSecrets from '../components/MissingSecrets';
 import { Label } from '../components/RunItems';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
@@ -52,7 +53,7 @@ const Rule = ({
   </Stack>
 );
 
-const Definition = ({ def }: { def: AgentDefinition }) => {
+const Definition = ({ def, onEgress }: { def: AgentDefinition; onEgress?: () => void }) => {
   const m = modelRule(def);
   return (
     <Stack spacing="20px">
@@ -128,12 +129,26 @@ const Definition = ({ def }: { def: AgentDefinition }) => {
           />
         </Box>
         <Typography sx={{ ...text.caption, marginTop: '6px' }}>
-          Everything else is refused by the egress proxy and shows in the run’s egress log.
+          Everything else is refused by the egress proxy and shows in the run’s egress log.{' '}
+          {onEgress && (
+            <Link
+              component="button"
+              type="button"
+              variant="caption"
+              onClick={onEgress}
+              sx={{ verticalAlign: 'baseline' }}
+            >
+              Change rules and credentials
+            </Link>
+          )}
         </Typography>
       </Box>
     </Stack>
   );
 };
+
+type Tab = 'definition' | 'runs' | 'egress' | 'json';
+const TABS: Tab[] = ['definition', 'runs', 'egress', 'json'];
 
 const AgentDetail = () => {
   const { bucket = '', name = '' } = useParams<{ bucket: string; name: string }>();
@@ -143,7 +158,13 @@ const AgentDetail = () => {
   const defs = useAgentDefinitions([bucket]);
   const secrets = useSecrets();
   const runs = useSandboxes({ label: [`${LABEL.kind}:${AGENT_RUN_KIND}`, `${LABEL.agent}:${name}`] });
-  const [tab, setTab] = useState<'definition' | 'json'>('definition');
+  const [params, setParams] = useSearchParams();
+  const tabParam = params.get('tab') as Tab | null;
+  const tab: Tab = tabParam && TABS.includes(tabParam) ? tabParam : 'definition';
+  const setTab = (t: Tab) => {
+    params.set('tab', t);
+    setParams(params, { replace: true });
+  };
   const [input, setInput] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -188,7 +209,7 @@ const AgentDetail = () => {
     setError(null);
     try {
       await deleteAgent(account.storage, bucket, name);
-      navigate(DEFINITIONS_PATH);
+      navigate(AGENTS_PATH);
     } catch (e) {
       setError(errorMessage(e));
       setDeleting(false);
@@ -201,10 +222,10 @@ const AgentDetail = () => {
       <Box sx={{ marginBottom: '6px' }}>
         <Box
           component={NavLink}
-          to={DEFINITIONS_PATH}
+          to={AGENTS_PATH}
           sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
         >
-          Definitions
+          Agents
         </Box>
       </Box>
       <Stack
@@ -264,14 +285,36 @@ const AgentDetail = () => {
               onChange={setTab}
               tabs={[
                 { id: 'definition', label: 'Definition' },
+                {
+                  id: 'runs',
+                  label: (
+                    <>
+                      Runs <Count n={rows.length} />
+                    </>
+                  ),
+                },
+                { id: 'egress', label: 'Egress and credentials' },
                 { id: 'json', label: 'JSON' },
               ]}
             />
           </Box>
           {tab === 'json' ? (
             <CodeBlock code={def ? JSON.stringify(def, null, 2) : stored.errors.join('\n')} />
+          ) : tab === 'runs' ? (
+            <Box sx={{ margin: '0 -22px -18px' }}>
+              <RunsTable rows={rows} showAgent={false} empty={runs.data ? 'Not run yet.' : 'Reading…'} />
+            </Box>
+          ) : tab === 'egress' && def ? (
+            <AgentEgress
+              bucket={bucket}
+              def={def}
+              runs={runs.data?.items ?? []}
+              onSaved={() => {
+                defs.reload();
+              }}
+            />
           ) : def ? (
-            <Definition def={def} />
+            <Definition def={def} onEgress={() => setTab('egress')} />
           ) : (
             <Alert severity="warning">
               This definition can’t run:
@@ -315,12 +358,6 @@ const AgentDetail = () => {
             </Button>
           </Section>
         </Stack>
-      </Box>
-
-      <Box marginTop="16px">
-        <Section title="Runs of this agent" flush>
-          <RunsTable rows={rows} showAgent={false} empty={runs.data ? 'Not run yet.' : 'Reading…'} />
-        </Section>
       </Box>
 
       {editingJson && (

@@ -14,15 +14,15 @@ import { shortImage } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
 import { BucketChip, CredentialChip, ReadError } from '../../Sandboxes/components/ui';
 import AddDefinitionDialog from '../components/AddDefinitionDialog';
-import { addSecretPath } from '../components/MissingSecrets';
 import { agentPath, missingSecrets, NEW_AGENT_PATH } from '../components/definition';
 
 /**
- * The definitions in every storage bucket of the wallet (`cere/agents/*.json`
- * on the DDC S3 gateway): create one with the form, import a JSON file, or
- * open one to run, edit or delete it.
+ * Agents: the definitions in every storage bucket of the wallet
+ * (`cere/agents/*.json` on the DDC S3 gateway): create one with the form,
+ * import a JSON file, or open one to run it, see its runs, edit it, or change
+ * its network rules and credentials.
  */
-const Definitions = () => {
+const AgentList = () => {
   const account = useAccount();
   const { bucketId } = useCompute();
   const canSign = useCanSign();
@@ -42,7 +42,7 @@ const Definitions = () => {
     <Box>
       <Box marginBottom="20px">
         <PageHeader
-          title="Definitions"
+          title="Agents"
           subtitle="Each agent is a cere.agent/v1 document in one of your storage buckets, at cere/agents/<name>.json: its harness and image, model, tools and network rules. The CLI and the SDK read the same files."
           actions={
             <>
@@ -177,7 +177,7 @@ const Definitions = () => {
                         {missing.map((n, i) => (
                           <span key={n}>
                             {i > 0 && ', '}
-                            <NavLink to={addSecretPath(n)}>{n}</NavLink>
+                            <NavLink to={`${agentPath(a.bucket, a.name)}?tab=egress`}>{n}</NavLink>
                             {n === a.def!.model.credential && ' (the model’s key)'}
                           </span>
                         ))}
@@ -232,4 +232,4 @@ const Definitions = () => {
   );
 };
 
-export default observer(Definitions);
+export default observer(AgentList);

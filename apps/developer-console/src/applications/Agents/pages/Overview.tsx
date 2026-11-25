@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Box, Button, Stack, Typography } from '@cluster-apps/ui';
+import { Link } from '@mui/material';
 import { NavLink, useSearchParams } from 'react-router-dom';
 
 import { PageHeader, Section } from '~/components';
@@ -21,10 +22,15 @@ import TokenSecretButton, { MODEL_KEY_SECRET } from '../../Sandboxes/components/
 import { BucketChip, Mono, ReadError } from '../../Sandboxes/components/ui';
 import { EXAMPLES_RELEASE } from '../examples';
 import ExampleRunDialog from '../components/ExampleRunDialog';
-import { addSecretPath } from '../components/MissingSecrets';
-import { AGENTS_QUICKSTART_PYTHON, AGENTS_QUICKSTART_SHELL } from '../components/quickstart';
+import {
+  AGENTS_QUICKSTART_PYTHON,
+  AGENTS_QUICKSTART_PYTHON_SETUP,
+  AGENTS_QUICKSTART_SHELL,
+} from '../components/quickstart';
+import { useCredentialDialogs } from '../../Sandboxes/components/credentials/CredentialDialogs';
+import QuickstartTabs from '../../Sandboxes/components/QuickstartTabs';
 import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
-import { DEFINITIONS_PATH, EXAMPLE_MODEL_URL, NEW_AGENT_PATH, onConsoleGateway } from '../components/definition';
+import { AGENTS_PATH, EXAMPLE_MODEL_URL, NEW_AGENT_PATH, onConsoleGateway } from '../components/definition';
 
 const Subhead = ({ children }: { children: string }) => (
   <Typography component="h3" sx={{ fontSize: 15, fontWeight: 700, marginBottom: '10px' }}>
@@ -59,6 +65,7 @@ const Count = ({ value, label, to }: { value: ReactNode; label: ReactNode; to?: 
 /** Live numbers, each read from its source: the bucket listing for definitions, the gateway for runs and secrets. */
 const RightNow = observer(() => {
   const account = useAccount();
+  const dialogs = useCredentialDialogs();
   const canSign = useCanSign();
   const list = bucketList(account.buckets, account.bucketsError);
   const defs = useAgentDefinitions(canSign ? bucketNames(list) : []);
@@ -84,7 +91,7 @@ const RightNow = observer(() => {
     <Count
       value={defs.agents.length}
       label={`definition${defs.agents.length === 1 ? '' : 's'} in ${buckets} storage bucket${buckets === 1 ? '' : 's'}`}
-      to={DEFINITIONS_PATH}
+      to={AGENTS_PATH}
     />
   );
 
@@ -155,8 +162,16 @@ const RightNow = observer(() => {
         ) : (
           <Typography sx={text.caption}>
             This console’s inference gateway (<Mono>{inferenceConfig.gatewayUrl}</Mono>) is not the examples’ one, so
-            its token is not their key: add a key of their gateway under{' '}
-            <NavLink to={addSecretPath(MODEL_KEY_SECRET)}>Secrets</NavLink>.
+            its token is not their key:{' '}
+            <Link
+              component="button"
+              type="button"
+              variant="caption"
+              onClick={() => void dialogs.store({ suggested: MODEL_KEY_SECRET })}
+            >
+              add a key of their gateway
+            </Link>
+            .
           </Typography>
         )}
       </Stack>
@@ -185,8 +200,8 @@ const PARTS: { name: string; body: ReactNode }[] = [
     body: (
       <>
         The run can reach only the definition’s hosts and the model’s. The proxy adds the model key and the tools’
-        credentials from <NavLink to="/sandboxes/secrets">Secrets</NavLink> to those requests and logs each one in{' '}
-        <NavLink to="/sandboxes/egress">Egress</NavLink>; the agent never holds them.
+        credentials to those requests and logs each one; the agent never holds them. When a run is refused a host, its
+        page offers to allow it, for that run or for the agent’s next runs.
       </>
     ),
   },
@@ -198,6 +213,7 @@ const PARTS: { name: string; body: ReactNode }[] = [
 
 const Overview = () => {
   const compute = useCompute();
+  const dialogs = useCredentialDialogs();
   const [params, setParams] = useSearchParams();
   const exampleOpen = params.get('example') === '1' && compute.status === 'ready';
   const setExample = (open: boolean) => {
@@ -211,7 +227,7 @@ const Overview = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Agents"
-          subtitle="An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay in Secrets: the egress proxy adds them to the run’s requests, so the agent never holds them."
+          subtitle="An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay with the bucket: the egress proxy adds them to the run’s requests, so the agent never holds them."
           actions={
             <>
               <BucketChip bucketId={compute.bucketId} />
@@ -234,20 +250,31 @@ const Overview = () => {
         <Section title="Quickstart">
           <Stack spacing="20px">
             <Box>
-              <Subhead>From a terminal</Subhead>
-              <CodeBlock code={AGENTS_QUICKSTART_SHELL} />
+              <QuickstartTabs
+                cli={<CodeBlock code={AGENTS_QUICKSTART_SHELL} />}
+                python={
+                  <Stack spacing="12px">
+                    <CodeBlock code={AGENTS_QUICKSTART_PYTHON_SETUP} />
+                    <CodeBlock code={AGENTS_QUICKSTART_PYTHON} />
+                  </Stack>
+                }
+              />
               <Typography sx={{ ...text.caption, marginTop: '8px' }}>
-                Install the <Mono>cere</Mono> CLI and the Python SDK and sign in first:{' '}
+                Install the <Mono>cere</Mono> CLI (and, for Python, the SDK) and sign in first:{' '}
                 <NavLink to="/sandboxes">Sandboxes › Overview</NavLink>, steps 1 and 2 ({EXAMPLES_RELEASE}). The model
-                key is the token you signed in with; it stops working when that token expires, so run the{' '}
-                <Mono>secret set</Mono> again after the next <Mono>cere login</Mono>. <Mono>sre.json</Mono> also needs{' '}
-                <NavLink to={addSecretPath('github-readonly', ['api.github.com'])}>github-readonly</NavLink>, a
-                read-only GitHub token bound to <Mono>api.github.com</Mono>.
+                key is the token you signed in with; it stops working when that sign-in expires, so store it again after
+                the next <Mono>cere login</Mono>. <Mono>sre.json</Mono> also needs{' '}
+                <Link
+                  component="button"
+                  type="button"
+                  variant="caption"
+                  sx={{ verticalAlign: 'baseline' }}
+                  onClick={() => void dialogs.store({ suggested: 'github-readonly', hosts: ['api.github.com'] })}
+                >
+                  github-readonly
+                </Link>
+                , a read-only GitHub token bound to <Mono>api.github.com</Mono>.
               </Typography>
-            </Box>
-            <Box>
-              <Subhead>From Python</Subhead>
-              <CodeBlock code={AGENTS_QUICKSTART_PYTHON} />
             </Box>
             <Box>
               <Subhead>Try it here</Subhead>

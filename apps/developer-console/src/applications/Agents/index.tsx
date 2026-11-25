@@ -24,7 +24,7 @@ const application: Application = {
   group: 'services',
   subNav: [
     { path: '', label: 'Overview' },
-    { path: 'definitions', label: 'Definitions', prefix: true },
+    { path: 'list', label: 'Agents', prefix: true },
     { path: 'runs', label: 'Runs', prefix: true },
   ],
 };

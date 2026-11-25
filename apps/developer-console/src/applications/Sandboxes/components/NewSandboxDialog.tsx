@@ -17,9 +17,12 @@ import { useNavigate } from 'react-router-dom';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import { useSecrets } from '~/compute/hooks';
-import type { CreateSandboxRequest, EgressRule, HttpMethod } from '~/compute/types';
+import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
+import { rulesFromForms, type RuleForm } from '~/compute/egressRules';
+import type { CreateSandboxRequest } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { parseKeyValues, splitCommand } from './commandLine';
+import RulesEditor from './egress/RulesEditor';
 
 const IMAGES = ['python:3.12-slim', 'node:22-slim', 'debian:bookworm-slim', 'alpine:3.20'];
 const CPUS = [0.25, 0.5, 1, 2, 4];
@@ -35,20 +38,10 @@ const IDLE = [
   { s: 300, label: 'After 5 idle minutes' },
   { s: 1800, label: 'After 30 idle minutes' },
 ];
-const METHOD_SETS: { value: string; label: string }[] = [
-  { value: 'GET', label: 'GET' },
-  { value: 'GET,HEAD', label: 'GET, HEAD' },
-  { value: 'POST', label: 'POST' },
-  { value: 'GET,POST', label: 'GET, POST' },
-  { value: 'GET,HEAD,POST,PUT,PATCH,DELETE', label: 'Any' },
-];
-
-type Rule = { host: string; methods: string; path: string; credential: string };
-
 /**
  * New sandbox: the create request as a form: image, command, resources,
- * timeouts, environment, labels and the egress allow list, with a credential
- * per rule chosen by its secret's name.
+ * timeouts, environment, labels and the egress allow list, each rule with a
+ * credential picked from the bucket or stored here, bound to the rule's host.
  */
 const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const client = useComputeClient();
@@ -62,14 +55,25 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const [idle, setIdle] = useState(0);
   const [env, setEnv] = useState('');
   const [labels, setLabels] = useState('');
-  const [rules, setRules] = useState<Rule[]>([]);
+  const [rules, setRules] = useState<RuleForm[]>([]);
+  const [attempted, setAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const cmd = splitCommand(command);
   const envKv = parseKeyValues(env);
   const labelKv = parseKeyValues(labels);
-  const formError = cmd.error ?? envKv.error ?? labelKv.error ?? (image.trim() ? null : 'An image is required.');
+  const egress = rulesFromForms(rules.filter((r) => r.host.trim() || r.credential));
+  const credentialProblem = egress.allow.some((r) =>
+    coverageBlocks(credentialCoverage(r.credential, r.host, secrets.data)),
+  );
+  const formError =
+    cmd.error ??
+    envKv.error ??
+    labelKv.error ??
+    (image.trim() ? null : 'An image is required.') ??
+    (egress.ok ? null : 'Fix the network rules first.') ??
+    (credentialProblem ? 'A rule’s credential can’t be sent to its host: store it again with that host.' : null);
 
   const request = (): CreateSandboxRequest => ({
     image: image.trim(),
@@ -80,21 +84,12 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     idle_timeout_s: idle,
     ...(Object.keys(envKv.values).length ? { env: envKv.values } : {}),
     ...(Object.keys(labelKv.values).length ? { labels: labelKv.values } : {}),
-    egress: {
-      allow: rules
-        .filter((r) => r.host.trim())
-        .map(
-          (r): EgressRule => ({
-            host: r.host.trim(),
-            methods: r.methods.split(',') as HttpMethod[],
-            ...(r.path.trim() ? { path_prefix: r.path.trim() } : {}),
-            ...(r.credential ? { credential: r.credential } : {}),
-          }),
-        ),
-    },
+    egress: { allow: egress.allow },
   });
 
   const create = async () => {
+    setAttempted(true);
+    if (formError) return;
     setBusy(true);
     setError(null);
     try {
@@ -107,9 +102,6 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
       setBusy(false);
     }
   };
-
-  const setRule = (i: number, patch: Partial<Rule>) =>
-    setRules((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
 
   return (
     <>
@@ -232,78 +224,11 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
           <Box>
             <Typography sx={{ fontSize: 14, fontWeight: 700 }}>Network access</Typography>
             <Typography sx={{ ...text.secondary, marginBottom: '10px' }}>
-              None by default. The egress proxy allows only the hosts and methods listed here and refuses the rest. Pick
-              a secret to have the proxy add it to matching requests; the sandbox never sees its value.
+              None by default. The egress proxy allows only the hosts and methods listed here and refuses the rest; you
+              can change them while the sandbox runs. Pick or add a credential to have the proxy add it to a rule’s
+              requests: it is kept for the bucket, bound to its hosts, and the sandbox never sees its value.
             </Typography>
-            <Stack spacing={1}>
-              {rules.map((r, i) => (
-                <Stack key={i} direction="row" spacing={1} alignItems="center">
-                  <TextField
-                    placeholder="api.example.com"
-                    value={r.host}
-                    onChange={(e) => setRule(i, { host: e.target.value })}
-                    size="small"
-                    sx={{ flex: 1.4 }}
-                    inputProps={{ 'aria-label': 'Host', style: { fontFamily: mono, fontSize: 13 } }}
-                  />
-                  <TextField
-                    select
-                    value={r.methods}
-                    onChange={(e) => setRule(i, { methods: e.target.value })}
-                    size="small"
-                    sx={{ width: 120 }}
-                    inputProps={{ 'aria-label': 'Methods' }}
-                  >
-                    {METHOD_SETS.map((m) => (
-                      <MenuItem key={m.value} value={m.value}>
-                        {m.label}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <TextField
-                    placeholder="/path prefix"
-                    value={r.path}
-                    onChange={(e) => setRule(i, { path: e.target.value })}
-                    size="small"
-                    sx={{ flex: 1 }}
-                    inputProps={{ 'aria-label': 'Path prefix', style: { fontFamily: mono, fontSize: 13 } }}
-                  />
-                  <TextField
-                    select
-                    value={r.credential}
-                    onChange={(e) => setRule(i, { credential: e.target.value })}
-                    size="small"
-                    sx={{ flex: 1 }}
-                    SelectProps={{ displayEmpty: true }}
-                    inputProps={{ 'aria-label': 'Credential' }}
-                  >
-                    <MenuItem value="">No credential</MenuItem>
-                    {(secrets.data ?? []).map((s) => (
-                      <MenuItem key={s.name} value={s.name}>
-                        <Box component="span" sx={{ fontFamily: mono, fontSize: 13 }}>
-                          {s.name}
-                        </Box>
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <IconButton
-                    aria-label="Remove host"
-                    size="small"
-                    onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}
-                  >
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                </Stack>
-              ))}
-            </Stack>
-            <Button
-              size="small"
-              variant="text"
-              sx={{ marginTop: '6px' }}
-              onClick={() => setRules((rs) => [...rs, { host: '', methods: 'GET', path: '', credential: '' }])}
-            >
-              Allow a host
-            </Button>
+            <RulesEditor rules={rules} onChange={setRules} secrets={secrets.data} showErrors={attempted} empty={null} />
           </Box>
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
@@ -314,11 +239,12 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             POST /v1/sandboxes
           </Box>
         </Typography>
-        <Stack direction="row" spacing={1.5}>
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          {attempted && formError && <Typography sx={{ ...text.caption, color: color.danger }}>{formError}</Typography>}
           <Button variant="outlined" color="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <LoadingButton variant="contained" loading={busy} disabled={!!formError} onClick={create}>
+          <LoadingButton variant="contained" loading={busy} disabled={!!formError && attempted} onClick={create}>
             Create sandbox
           </LoadingButton>
         </Stack>

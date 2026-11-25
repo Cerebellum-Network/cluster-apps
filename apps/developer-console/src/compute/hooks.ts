@@ -123,8 +123,22 @@ export function useSandbox(id: string | undefined): Polled<Sandbox> {
   return polled;
 }
 
+const SECRETS_CHANGED = 'compute:secrets-changed';
+
+/** Say that the bucket's secrets changed (stored, replaced, deleted): every `useSecrets` on screen reads them again. */
+export const notifySecretsChanged = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SECRETS_CHANGED));
+};
+
+/** The bucket's secrets, read once and again whenever this console stores or deletes one. */
 export function useSecrets(): Polled<SecretSummary[]> {
-  return usePolled((c, signal) => c.listSecrets(signal), 'secrets', null);
+  const polled = usePolled((c, signal) => c.listSecrets(signal), 'secrets', null);
+  const { reload } = polled;
+  useEffect(() => {
+    window.addEventListener(SECRETS_CHANGED, reload);
+    return () => window.removeEventListener(SECRETS_CHANGED, reload);
+  }, [reload]);
+  return polled;
 }
 
 /** `enabled: false` reads nothing (e.g. a run whose sandbox doesn't exist yet), rather than the whole bucket's log. */

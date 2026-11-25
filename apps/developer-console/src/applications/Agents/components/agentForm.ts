@@ -16,7 +16,8 @@ import {
 } from '~/compute/agentDefinition';
 import { DEFAULT_AGENT_TIMEOUT_S } from '~/compute/agentRun';
 import { credentialCoverage, type Coverage } from '~/compute/egressCoverage';
-import type { EgressRule, HttpMethod, SecretSummary } from '~/compute/types';
+import { RULE_METHODS, type RuleForm } from '~/compute/egressRules';
+import type { EgressRule, SecretSummary } from '~/compute/types';
 import { quoteArg, splitCommand } from '../../Sandboxes/components/commandLine';
 
 /** The agent runner image the claude-code harness runs in (the release's examples use it). */
@@ -25,14 +26,7 @@ export const RUNNER_IMAGE = 'cerebellumnetwork/ddc-agent-runner:0.1.1';
 export const CLAUDE_CODE_TOOLS = ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch', 'Bash', 'Write', 'Edit'];
 /** The runner's defaults when a definition leaves them out. */
 export const DEFAULTS = { maxTurns: 30, cpu: 1, memoryMib: 2048, timeoutS: DEFAULT_AGENT_TIMEOUT_S } as const;
-export const RULE_METHODS: HttpMethod[] = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-
-export interface RuleForm {
-  host: string;
-  methods: HttpMethod[];
-  path: string;
-  credential: string;
-}
+export { RULE_METHODS, emptyRule, type RuleForm } from '~/compute/egressRules';
 
 export interface AgentForm {
   name: string;
@@ -72,8 +66,6 @@ export type FormErrors = Partial<
   /** What the contract check found that no field shows. */
   other?: string[];
 };
-
-export const emptyRule = (): RuleForm => ({ host: '', methods: ['GET'], path: '', credential: '' });
 
 /** A new agent: the runner, the given model, the runner's defaults. */
 export function emptyForm(model: { baseUrl: string; model: string; credential: string }): AgentForm {

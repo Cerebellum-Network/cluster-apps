@@ -13,11 +13,12 @@ export function missingSecrets(def: AgentDefinition, have: SecretSummary[] | und
   return neededSecrets(def).filter((n) => !have.some((s) => s.name === n));
 }
 
-export const DEFINITIONS_PATH = '/agents/definitions';
-export const NEW_AGENT_PATH = `${DEFINITIONS_PATH}/new`;
-/** A definition's page; `/edit` after it is its form. */
+/** The Agents tab: every agent (definition) in the wallet's storage buckets. */
+export const AGENTS_PATH = '/agents/list';
+export const NEW_AGENT_PATH = `${AGENTS_PATH}/new`;
+/** An agent's page; `/edit` after it is its form, `?tab=egress` its network rules and credentials. */
 export const agentPath = (bucket: string, name: string) =>
-  `${DEFINITIONS_PATH}/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;
+  `${AGENTS_PATH}/${encodeURIComponent(bucket)}/${encodeURIComponent(name)}`;
 
 /**
  * The Developer Console of the network a DDC inference gateway serves, or null

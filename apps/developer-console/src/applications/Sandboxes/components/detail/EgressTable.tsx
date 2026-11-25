@@ -1,4 +1,4 @@
-import { Box, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@cluster-apps/ui';
+import { Box, Button, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from '@cluster-apps/ui';
 import { NavLink } from 'react-router-dom';
 
 import type { EgressEntry } from '~/compute/types';
@@ -9,16 +9,23 @@ import { CredentialChip, DecisionPill, sbColor } from '../ui';
 /**
  * Requests as the egress proxy logged them (`GET /v1/egress/log`): allowed,
  * refused or failed upstream, and which secret the proxy added. A host not on
- * the list is refused at CONNECT, before any request, so it has no path.
+ * the list is refused at CONNECT, before any request, so it has no path. A
+ * `policy` entry is a change to a running sandbox's rules: the rule added or
+ * removed, by host, methods and path prefix. With `onAllow`, a denied request
+ * offers "Allow <host>" (`canAllow` says for which).
  */
 const EgressTable = ({
   entries,
   showSandbox,
   empty,
+  onAllow,
+  canAllow,
 }: {
   entries: EgressEntry[];
   showSandbox?: boolean;
   empty?: string;
+  onAllow?: (e: EgressEntry) => void;
+  canAllow?: (e: EgressEntry) => boolean;
 }) => {
   const head = { backgroundColor: color.inset };
   return (
@@ -103,10 +110,28 @@ const EgressTable = ({
                   </Stack>
                   {e.reason && (
                     <Typography
-                      sx={{ fontSize: 12, color: refused ? sbColor.deniedText : color.warning, marginTop: '2px' }}
+                      sx={{
+                        fontSize: 12,
+                        color: refused
+                          ? sbColor.deniedText
+                          : e.decision === 'policy'
+                            ? color.textSecondary
+                            : color.warning,
+                        marginTop: '2px',
+                      }}
                     >
                       {e.reason}
                     </Typography>
+                  )}
+                  {refused && onAllow && (canAllow?.(e) ?? true) && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => onAllow(e)}
+                      sx={{ marginTop: '6px', height: 26, fontSize: 12.5, backgroundColor: color.surface }}
+                    >
+                      Allow {e.host} for this sandbox
+                    </Button>
                   )}
                 </TableCell>
                 <TableCell sx={{ fontVariantNumeric: 'tabular-nums', fontSize: 13, whiteSpace: 'nowrap' }}>

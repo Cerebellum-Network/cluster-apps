@@ -70,6 +70,30 @@ describe('createComputeClient', () => {
     );
   });
 
+  it("replaces a running sandbox's allow-list with PUT /egress and returns the sandbox", async () => {
+    const { calls, fetchImpl } = stubFetch(() =>
+      json(200, { id: 'sb-1', status: 'running', egress: { allow: [{ host: 'example.com', methods: ['GET'] }] } }),
+    );
+    const c = createComputeClient('tok', BASE, fetchImpl);
+    const sb = await c.setEgress('sb-1', { allow: [{ host: 'example.com', methods: ['GET'] }] });
+    expect(calls[0].method).toBe('PUT');
+    expect(calls[0].url).toBe(`${BASE}/v1/sandboxes/sb-1/egress`);
+    expect(JSON.parse(String(calls[0].body))).toEqual({ allow: [{ host: 'example.com', methods: ['GET'] }] });
+    expect(sb.egress.allow).toHaveLength(1);
+    expect(sb.labels).toEqual({});
+  });
+
+  it('surfaces a refused rule change with its code', async () => {
+    const { fetchImpl } = stubFetch(() =>
+      json(400, { error: 'secret github-readonly is not bound to example.com', code: 'credential_not_bound' }),
+    );
+    const c = createComputeClient('tok', BASE, fetchImpl);
+    const err = await c.setEgress('sb-1', { allow: [] }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ComputeError);
+    expect((err as ComputeError).code).toBe('credential_not_bound');
+    expect((err as ComputeError).status).toBe(400);
+  });
+
   it('creates with a JSON body and terminates with retain and reason', async () => {
     const { calls, fetchImpl } = stubFetch((c) =>
       json(c.method === 'POST' ? 201 : 200, { id: 'sb-1', status: 'starting' }),

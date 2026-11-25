@@ -48,8 +48,8 @@ import {
   type FormErrors,
   type RuleForm,
 } from '../components/agentForm';
-import { CoverageNote, CredentialSelect } from '../components/CredentialPicker';
-import { agentPath, DEFINITIONS_PATH } from '../components/definition';
+import { CoverageNote, CredentialSelect } from '../../Sandboxes/components/credentials/CredentialPicker';
+import { agentPath, AGENTS_PATH } from '../components/definition';
 import StorageBucketField, { useStorageBucket } from '../components/StorageBucketField';
 
 const MONO_INPUT = { sx: { fontFamily: mono, fontSize: 13 } };
@@ -104,6 +104,7 @@ const RuleRow = ({
             value={rule.credential}
             onChange={(credential) => onChange({ credential })}
             secrets={secrets}
+            host={rule.host.trim().toLowerCase()}
             ariaLabel="Credential"
           />
         </Box>
@@ -239,16 +240,16 @@ const AgentEditor = () => {
       <Box sx={{ marginBottom: '6px' }}>
         <Box
           component={NavLink}
-          to={editing ? agentPath(editing.bucket, editing.name) : DEFINITIONS_PATH}
+          to={editing ? agentPath(editing.bucket, editing.name) : AGENTS_PATH}
           sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
         >
-          {editing ? editing.name : 'Definitions'}
+          {editing ? editing.name : 'Agents'}
         </Box>
       </Box>
       <Box marginBottom="20px">
         <PageHeader
           title={editing ? `Edit ${editing.name}` : 'Create agent'}
-          subtitle="Every run of the agent is a new sandbox from this definition: the image and harness, the model, the tools and limits, and the hosts it may reach. Credentials stay in Secrets; the egress proxy adds them on the way out."
+          subtitle="Every run of the agent is a new sandbox from this definition: the image and harness, the model, the tools and limits, and the hosts it may reach. Credentials stay with the bucket; the egress proxy adds them on the way out."
         />
       </Box>
 
@@ -425,11 +426,12 @@ const AgentEditor = () => {
                   value={form.modelCredential}
                   onChange={(modelCredential) => set({ modelCredential })}
                   secrets={secrets.data}
+                  host={modelHost(form.baseUrl)}
                   noneLabel="No key"
                 />
                 <Typography sx={{ ...text.caption, marginTop: '6px' }}>
-                  The secret the egress proxy adds to the run’s calls to {modelHost(form.baseUrl) || 'the model host'}.
-                  The sandbox gets a placeholder key and never sees it.
+                  The credential the egress proxy adds to the run’s calls to{' '}
+                  {modelHost(form.baseUrl) || 'the model host'}. The sandbox gets a placeholder key and never sees it.
                 </Typography>
                 {form.modelCredential && (
                   <Box marginTop="6px">
@@ -582,8 +584,8 @@ const AgentEditor = () => {
           <Section title="Network access">
             <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
               Nothing is allowed by default. Each run’s sandbox reaches only these hosts, with these methods and paths,
-              plus the model’s host. A rule can name a secret: the egress proxy adds it to the requests the rule allows,
-              but only on hosts the secret is bound to.
+              plus the model’s host. A rule can name a credential, picked from the bucket or added here: the egress
+              proxy adds it to the requests the rule allows, but only on hosts it is bound to.
             </Typography>
             <Stack spacing="10px">
               {form.rules.map((r, i) => (
@@ -651,7 +653,7 @@ const AgentEditor = () => {
                 {blocking > 0 && (
                   <Alert severity="warning">
                     {blocking === 1 ? 'One credential' : `${blocking} credentials`} would stop a run (see the warnings).
-                    You can save now and fix them in Secrets before you run it.
+                    You can save now and add or store them again from the rules above before you run it.
                   </Alert>
                 )}
                 {attempted && !def && (
@@ -674,7 +676,7 @@ const AgentEditor = () => {
                   variant="text"
                   color="secondary"
                   component={NavLink}
-                  to={editing ? agentPath(editing.bucket, editing.name) : DEFINITIONS_PATH}
+                  to={editing ? agentPath(editing.bucket, editing.name) : AGENTS_PATH}
                 >
                   Cancel
                 </Button>

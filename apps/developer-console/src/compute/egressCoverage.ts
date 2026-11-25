@@ -80,9 +80,9 @@ export const coverageBlocks = (c: Coverage): boolean =>
 export function coverageProblem(c: Coverage): string | null {
   switch (c.state) {
     case 'missing':
-      return `This bucket has no secret “${c.name}”. A run would be refused (unknown_credential): add it under Secrets first.`;
+      return `This bucket has no secret “${c.name}”. A run would be refused (unknown_credential): add it first.`;
     case 'unbound':
-      return `“${c.name}” is bound to no host, so the proxy sends it nowhere. Store it again under Secrets and name its hosts.`;
+      return `“${c.name}” is bound to no host, so the proxy sends it nowhere. Store it again and name its hosts.`;
     case 'not-covered':
       return `“${c.name}” is sent only to ${c.hosts.join(', ')}, not to ${c.host}. A run would be refused (credential_not_bound): store it again with hosts ${[...c.hosts, c.host].join(', ')}.`;
     default:

@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { AgentDefinition } from '~/compute/agentDefinition';
 import { ComputeContext, type Compute } from '../../../compute/ComputeProvider';
 import { fmtDateTime } from '../../../compute/format';
+import { CredentialDialogProvider } from '../../Sandboxes/components/credentials/CredentialDialogs';
 import MissingSecrets from './MissingSecrets';
 
 const def = {
@@ -24,7 +25,9 @@ describe('MissingSecrets', () => {
   it('says what each missing secret is for, where its value comes from, and links to add it', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
-        <MissingSecrets def={def} missing={['ddc-inference', 'github-readonly']} />
+        <CredentialDialogProvider>
+          <MissingSecrets def={def} missing={['ddc-inference', 'github-readonly']} />
+        </CredentialDialogProvider>
       </MemoryRouter>,
     );
     expect(html).toContain('The run needs secrets this bucket doesn’t hold:');
@@ -35,14 +38,14 @@ describe('MissingSecrets', () => {
     expect(html).toContain('create a key under Inference › API keys');
     expect(html).toContain('its SSCP wallet is separate from this one');
     expect(html).toContain('have a bucket with balance there');
-    expect(html).toContain(
-      'href="/sandboxes/secrets?add=ddc-inference&amp;hosts=inference-gateway.compute.test.ddcdragon.com"',
-    );
+    // Added right here, in the credential form (no separate Secrets page).
+    expect(html).toContain('>Add ddc-inference</button>');
     // A rule's credential: the hosts it is sent to, and for GitHub where a read-only token comes from.
     expect(html).toContain('api.github.com');
     expect(html).toContain('GitHub fine-grained personal access token with read-only access');
     expect(html).toContain('href="https://github.com/settings/personal-access-tokens/new"');
-    expect(html).toContain('href="/sandboxes/secrets?add=github-readonly&amp;hosts=api.github.com"');
+    expect(html).toContain('>Add github-readonly</button>');
+    expect(html).not.toContain('/sandboxes/secrets');
   });
 
   it('offers this console’s token when the model is on this console’s own inference gateway', () => {
@@ -60,7 +63,9 @@ describe('MissingSecrets', () => {
     const html = renderToStaticMarkup(
       <ComputeContext.Provider value={compute}>
         <MemoryRouter>
-          <MissingSecrets def={devnet} missing={['ddc-inference']} />
+          <CredentialDialogProvider>
+            <MissingSecrets def={devnet} missing={['ddc-inference']} />
+          </CredentialDialogProvider>
         </MemoryRouter>
       </ComputeContext.Provider>,
     );

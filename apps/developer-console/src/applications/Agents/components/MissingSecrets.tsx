@@ -6,12 +6,8 @@ import { inferenceConfig } from '~/inference/inferenceConfig';
 import { color, text } from '~/theme/tokens';
 import { Mono } from '../../Sandboxes/components/ui';
 import TokenSecretButton from '../../Sandboxes/components/TokenSecretButton';
+import { useCredentialDialogs } from '../../Sandboxes/components/credentials/CredentialDialogs';
 import { secretPurpose } from './definition';
-
-/** Where Secrets opens its add dialog for `name`, bound to `hosts`, ready to save. */
-export const addSecretPath = (name: string, hosts: string[] = []) =>
-  `/sandboxes/secrets?add=${encodeURIComponent(name)}` +
-  (hosts.length ? `&hosts=${encodeURIComponent(hosts.join(','))}` : '');
 
 /** What one missing secret is for, and where its value comes from. */
 const Purpose = ({ def, name }: { def: AgentDefinition; name: string }) => {
@@ -74,38 +70,49 @@ const MissingSecrets = ({
   def: AgentDefinition;
   missing: string[];
   onStored?: () => void;
-}) => (
-  <Stack gap="10px">
-    <Typography sx={{ ...text.body, fontWeight: 600 }}>
-      The run needs {missing.length > 1 ? 'secrets' : 'a secret'} this bucket doesn’t hold:
-    </Typography>
-    {missing.map((name) => {
-      const p = secretPurpose(def, name, inferenceConfig.gatewayUrl);
-      return (
-        <Stack key={name} gap="8px">
-          <Stack direction="row" gap="12px" alignItems="flex-start" justifyContent="space-between">
-            <Typography sx={{ ...text.secondary, color: color.text }}>
-              <Box component="span" sx={{ fontWeight: 600 }}>
-                <Mono>{name}</Mono>
-              </Box>
-              : <Purpose def={def} name={name} />
-            </Typography>
-            <Button
-              size="small"
-              variant="outlined"
-              color={p.kind === 'model' && p.sameConsole ? 'secondary' : 'primary'}
-              component={NavLink}
-              to={addSecretPath(name, p.kind === 'rule' ? p.hosts : [p.host])}
-              sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-            >
-              {p.kind === 'model' && p.sameConsole ? 'Add another key' : `Add ${name}`}
-            </Button>
+}) => {
+  const dialogs = useCredentialDialogs();
+  return (
+    <Stack gap="10px">
+      <Typography sx={{ ...text.body, fontWeight: 600 }}>
+        The run needs {missing.length > 1 ? 'secrets' : 'a secret'} this bucket doesn’t hold:
+      </Typography>
+      {missing.map((name) => {
+        const p = secretPurpose(def, name, inferenceConfig.gatewayUrl);
+        return (
+          <Stack key={name} gap="8px">
+            <Stack direction="row" gap="12px" alignItems="flex-start" justifyContent="space-between">
+              <Typography sx={{ ...text.secondary, color: color.text }}>
+                <Box component="span" sx={{ fontWeight: 600 }}>
+                  <Mono>{name}</Mono>
+                </Box>
+                : <Purpose def={def} name={name} />
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                color={p.kind === 'model' && p.sameConsole ? 'secondary' : 'primary'}
+                onClick={() =>
+                  void dialogs.store({
+                    suggested: name,
+                    hosts: p.kind === 'rule' ? p.hosts : [p.host],
+                    purpose:
+                      p.kind === 'rule'
+                        ? `For ${def.name}’s requests to ${p.hosts.join(', ')}.`
+                        : `${def.name}’s key for the model ${p.model} at ${p.host}.`,
+                  })
+                }
+                sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                {p.kind === 'model' && p.sameConsole ? 'Add another key' : `Add ${name}`}
+              </Button>
+            </Stack>
+            {p.kind === 'model' && p.sameConsole && <TokenSecretButton name={name} onStored={onStored} />}
           </Stack>
-          {p.kind === 'model' && p.sameConsole && <TokenSecretButton name={name} onStored={onStored} />}
-        </Stack>
-      );
-    })}
-  </Stack>
-);
+        );
+      })}
+    </Stack>
+  );
+};
 
 export default MissingSecrets;

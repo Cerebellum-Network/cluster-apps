@@ -18,6 +18,9 @@ import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Markdown, Tabs } from '../../Sandboxes/components/bits';
 import EgressTable from '../../Sandboxes/components/detail/EgressTable';
+import SandboxEgress from '../../Sandboxes/components/egress/SandboxEgress';
+import { denials } from '~/compute/egressRules';
+import { AGENTS_PATH, agentPath } from '../components/definition';
 import { Mono, ReadError, SandboxStatusLabel } from '../../Sandboxes/components/ui';
 import { RunOutcomePill } from '../components/RunOutcome';
 import { Label, RunItems } from '../components/RunItems';
@@ -183,8 +186,12 @@ const RunDetail = () => {
   const started = live?.startedAt ?? (sb ? Date.parse(sb.created_at) : now);
   const end = live?.endedAt ?? (sb?.ended_at ? Date.parse(sb.ended_at) : now);
   const stepIndex = live ? STEPS.findIndex((s) => s.id === live.step) : -1;
-  const entries = egress.data?.items ?? [];
+  const entries = (egress.data?.items ?? []).filter((e) => e.decision !== 'policy');
   const denied = entries.filter((e) => e.decision === 'denied').length;
+  // Hosts still refused under the sandbox's current rules: what the agent couldn't reach.
+  const refusedHosts = [...new Set(denials(entries, () => sb?.egress.allow ?? []).map((d) => d.host))];
+  const sbLive = !!sb && isLive(sb.status);
+  const defPage = live?.bucket && agent !== '—' ? `${agentPath(live.bucket, agent)}?tab=egress` : AGENTS_PATH;
   // The run's result: this tab's own while it drives the run, else what its
   // sandbox records (agentOutcome.ts), read the same way by the CLI and the SDK.
   let outcome: RunOutcome | null = null;
@@ -367,6 +374,30 @@ const RunDetail = () => {
         </Stack>
 
         <Section>
+          {refusedHosts.length > 0 && (
+            <Alert
+              severity={sbLive ? 'warning' : 'info'}
+              sx={{ marginBottom: '14px' }}
+              action={
+                sbLive ? (
+                  <Button size="small" color="inherit" onClick={() => setTab('egress')}>
+                    Review and allow
+                  </Button>
+                ) : (
+                  <Button size="small" color="inherit" component={NavLink} to={defPage}>
+                    Allow for next runs
+                  </Button>
+                )
+              }
+            >
+              The egress proxy refused {refusedHosts.length === 1 ? 'a host' : `${refusedHosts.length} hosts`}:{' '}
+              <Mono>{refusedHosts.slice(0, 4).join(', ')}</Mono>
+              {refusedHosts.length > 4 ? ` and ${refusedHosts.length - 4} more` : ''}.{' '}
+              {sbLive
+                ? 'Allow it for this run’s sandbox: the next request goes through.'
+                : 'This run has ended; allow it in the agent’s rules for its next runs.'}
+            </Alert>
+          )}
           <Box marginTop="-8px" marginBottom="14px">
             <Tabs
               value={tab}
@@ -391,8 +422,10 @@ const RunDetail = () => {
               {transcript.error && !live && <ReadError what="transcript.jsonl" error={transcript.error} />}
               <RunItems items={items} working={driving || (!live && !!sb && isLive(sb.status))} />
             </Box>
+          ) : sb ? (
+            <SandboxEgress sb={sb} log={egress} onUpdated={() => listed.reload()} />
           ) : (
-            <EgressTable entries={entries} empty={sb ? 'No requests yet.' : 'The sandbox isn’t created yet.'} />
+            <EgressTable entries={entries} empty="The sandbox isn’t created yet." />
           )}
         </Section>
       </Box>
