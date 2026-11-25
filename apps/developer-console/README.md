@@ -48,6 +48,17 @@ and the slices under `src/storage`, `src/inference`, `src/billing` and `src/comp
 Sandboxes and Agents run only on devnet: with another network (`.env.stage` is testnet, `.env.prod` mainnet) those
 pages say there is no compute gateway for it, rather than mixing one network's buckets with another's gateway.
 
+### Experimental: Agents
+
+Agents are experimental and **off by default**: no Agents entry in the nav, no `/agents` routes, and the other pages
+don't point at them (`src/features.ts`). Switch them on with any of:
+
+| Where | How |
+| --- | --- |
+| A deployment | `features: { agents: true }` in `/config.js` (`window.__RUNTIME_CONFIG__`) |
+| A local run | `VITE_FEATURE_AGENTS=true` |
+| One browser | open any page with `?experimental=agents`; it stays on in that browser until a page is opened with `?experimental=off` |
+
 ### Signing in
 
 The SSCP wallet signs in with a passkey, which a browser offers only on https, and the devnet wallet accepts a

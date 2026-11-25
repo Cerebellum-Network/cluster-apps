@@ -12,6 +12,7 @@ import { storageConfig } from '~/storage/storageConfig';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, useCopy } from '../Sandboxes/components/bits';
 import { BucketChip, Mono } from '../Sandboxes/components/ui';
+import { features } from '~/features';
 
 const TTL_DAYS = [1, 7, 30];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -219,7 +220,11 @@ const AccessTokens = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Access tokens"
-          subtitle="For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI, and for agent definitions in your storage buckets."
+          subtitle={
+            features.agents
+              ? 'For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI, and for agent definitions in your storage buckets.'
+              : 'For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI.'
+          }
           actions={<BucketChip bucketId={bucketId} />}
         />
       </Box>
@@ -306,7 +311,7 @@ const AccessTokens = () => {
           </Box>
         </Section>
 
-        <BucketAccess />
+        {features.agents && <BucketAccess />}
       </Stack>
     </Box>
   );

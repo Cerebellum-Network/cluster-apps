@@ -62,7 +62,7 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
         {c.status === 'no-bucket' && (
           <Stack spacing="12px" alignItems="flex-start">
             <Typography sx={text.body}>
-              Sandboxes and agent runs bill to a bucket you own on {c.network}, and you have none yet. The console makes
+              Sandboxes bill to a bucket you own on {c.network}, and you have none yet. The console makes
               one for you.
             </Typography>
             <LoadingButton variant="contained" loading={busy} onClick={setUp}>

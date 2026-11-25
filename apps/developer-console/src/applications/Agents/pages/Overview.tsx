@@ -228,7 +228,7 @@ const Overview = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Agents"
-          subtitle="An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay with the bucket: the egress proxy adds them to the run’s requests, so the agent never holds them."
+          subtitle="Experimental. An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay with the bucket or the agent: the egress proxy adds them to the run’s requests, so the agent never holds them."
           actions={
             <>
               <BucketChip bucketId={compute.bucketId} />

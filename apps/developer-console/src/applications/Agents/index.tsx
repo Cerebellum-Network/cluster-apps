@@ -19,7 +19,7 @@ const application: Application = {
   title: 'Agents',
   navLabel: 'Agents',
   description:
-    'AI agents that run in sandboxes: a definition in your bucket, each run a sandbox, keys added by the egress proxy',
+    'Experimental. AI agents that run in sandboxes: a definition in your bucket, each run a sandbox, keys added by the egress proxy',
   icon: <AgentsAppIcon />,
   group: 'services',
   subNav: [

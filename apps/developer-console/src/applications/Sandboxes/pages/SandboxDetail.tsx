@@ -24,6 +24,7 @@ import UsageMeter from '../components/detail/UsageMeter';
 import CredentialList from '../components/credentials/CredentialList';
 import SandboxSecretDialog from '../components/credentials/SandboxSecretDialog';
 import { ExitReason, Field, Mono, ReadError, RuleCredentials, SandboxStatusLabel } from '../components/ui';
+import { features } from '~/features';
 
 type Tab = 'logs' | 'exec' | 'files' | 'egress' | 'usage';
 const TABS: Tab[] = ['logs', 'exec', 'files', 'egress', 'usage'];
@@ -242,7 +243,7 @@ const AgentBanner = ({ sb }: { sb: Sandbox }) => {
           Its network rules, logs and usage are this sandbox’s.
         </Box>
       </Typography>
-      {run && (
+      {run && features.agents && (
         <Button component={NavLink} to={`/agents/runs/${run}`} size="small" variant="contained">
           Open the run
         </Button>

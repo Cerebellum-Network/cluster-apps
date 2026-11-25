@@ -7,13 +7,15 @@ import inference from './Inference';
 import sandboxes from './Sandboxes';
 import agents from './Agents';
 import accessTokens from './AccessTokens';
+import { features } from '~/features';
 
 // Inference is the landing page (mockup: "Inference, where everyone lands");
-// the Router uses applications[0] as the index route.
+// the Router uses applications[0] as the index route. Agents are experimental:
+// in the nav, with their routes, only when switched on (src/features.ts).
 const applications: Application[] = [
   inference,
   sandboxes,
-  agents,
+  ...(features.agents ? [agents] : []),
   contentStorage,
   contentDelivery,
   billing,
