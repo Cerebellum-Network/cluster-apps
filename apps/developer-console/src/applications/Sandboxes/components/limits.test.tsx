@@ -199,6 +199,30 @@ describe('a sandbox’s usage', () => {
   });
 });
 
+describe('memory billed below what was measured', () => {
+  it('says the gap is file cache, not a negative burst', () => {
+    const sb = sandbox({
+      resources: { cpu: 0.25, memory_mib: 256, cpu_limit: 4, memory_limit_mib: 1024 },
+      usage: {
+        wall_s: 60,
+        cpu_s: 3,
+        ram_gib_s: 30,
+        memory_peak_mib: 600,
+        billing_basis: 'request_or_usage',
+        reserved_cpu_s: 15,
+        reserved_ram_gib_s: 15,
+        billed_cpu_s: 15,
+        billed_ram_gib_s: 20,
+        burst_cpu_s: 0,
+        burst_ram_gib_s: 5,
+      },
+    });
+    act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
+    expect(host.textContent).toContain('Memory billed20.0 GiB-s15.0 guaranteed + 5.00 burst');
+    expect(host.textContent).toContain('Measured 30.0 GiB-s, file cache included, which is not billed.');
+  });
+});
+
 describe('memory endings', () => {
   it('reads out of memory as the limit, memory reclaimed as the request', () => {
     const sb = { resources: { memory_mib: 256, memory_limit_mib: 1024 }, usage: { memory_peak_mib: 700 } };

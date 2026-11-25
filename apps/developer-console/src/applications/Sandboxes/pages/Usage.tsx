@@ -17,7 +17,7 @@ import { PageHeader, Section } from '~/components';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes, useUsageRecords } from '~/compute/hooks';
 import { fmtBytes, fmtClock, fmtQty, localZone, shortId, sumRecords } from '~/compute/format';
-import { countingState, recordParts, type BilledParts } from '~/compute/billing';
+import { CACHE_NOTE, countingState, measuredIncludesCache, recordParts, type BilledParts } from '~/compute/billing';
 import { isLive, type UsageRecord } from '~/compute/types';
 import { chartPalette, color, mono, text } from '~/theme/tokens';
 import { BilledCell, CountedLabel } from '../components/detail/RecordsTable';
@@ -169,6 +169,9 @@ const ChartTip = ({
       {PARTS.filter((x) => x.key !== 'asMeasured' || q.asMeasured > 0).map((x) => line(x.color, x.name, q[x.key]))}
       <Box sx={{ borderTop: `1px solid ${color.grid}`, marginTop: '4px', paddingTop: '4px' }}>
         {line(USED_COLOR, 'Used', q.used)}
+        {quantity === 'ram' && measuredIncludesCache(q.used, billed) && (
+          <Box sx={{ color: color.textSecondary, maxWidth: 220 }}>Used counts file cache, which is not billed.</Box>
+        )}
       </Box>
     </Box>
   );
@@ -350,7 +353,9 @@ const Usage = () => {
               label="Billed GiB-seconds of memory"
               value={fmtQty(total.billed_ram_gib_s)}
               parts={total.ram}
-              sub={`used ${fmtQty(total.ram_gib_s)}`}
+              sub={`used ${fmtQty(total.ram_gib_s)}${
+                measuredIncludesCache(total.ram_gib_s, total.billed_ram_gib_s) ? `, ${CACHE_NOTE}` : ''
+              }`}
             />
             <Tile
               label="Network"

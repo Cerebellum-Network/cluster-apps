@@ -9,6 +9,7 @@ import {
   billedParts,
   billedShort,
   billingLine,
+  measuredIncludesCache,
   partsLine,
   recordParts,
   recordSumsLine,
@@ -263,6 +264,14 @@ describe('a sandbox’s live usage on request_or_usage', () => {
     const noField = usage({ ...live, burst_cpu_s: undefined, burst_ram_gib_s: undefined });
     expect(usageParts(noField)?.cpu.burst).toBeCloseTo(3.2);
     expect(billedShort(noField)?.cpu).toBe('18.2 CPU-s, 3.2 burst (measured 6.9)');
+  });
+
+  it('takes the memory burst from the field, never from what was measured', () => {
+    // Working set billed (page cache is not): billed memory below measured, with a burst above the request.
+    const cache = usage({ ...live, ram_gib_s: 30, billed_ram_gib_s: 20, burst_ram_gib_s: 5 });
+    expect(usageParts(cache)?.ram).toEqual({ floor: 15, burst: 5, asMeasured: 0, billed: 20 });
+    expect(measuredIncludesCache(30, 20)).toBe(true);
+    expect(measuredIncludesCache(15.02, 15)).toBe(false);
   });
 
   it('has no parts before the node reports billing', () => {

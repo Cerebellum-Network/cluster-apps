@@ -3,7 +3,7 @@ import { Box, Typography } from '@cluster-apps/ui';
 
 import type { Sandbox } from '~/compute/types';
 import { isLive } from '~/compute/types';
-import { billedCPU, billedMemory, partsLine, usageParts } from '~/compute/billing';
+import { billedCPU, billedMemory, CACHE_NOTE, measuredIncludesCache, partsLine, usageParts } from '~/compute/billing';
 import { fmtBytes, fmtDuration, fmtMib, fmtQty } from '~/compute/format';
 import { cpuCeiling, cpuLine, memoryCeiling, memoryLine } from '~/compute/resources';
 import { color, text } from '~/theme/tokens';
@@ -111,7 +111,11 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
   const cpuUse =
     `uses ${fmtCores(avg)} vCPU on average${peak > 0 ? `, peak ${fmtCores(peak)}` : ''}` +
     (r.cpu_limit ? `; ${cpuLine(r)}` : ` of ${cpuLine(r)}`);
-  const memoryUse = `peak ${fmtMib(u.memory_peak_mib)}${r.memory_limit_mib ? '; ' : ' of '}${memoryLine(r)}`;
+  const memoryUse =
+    `peak ${fmtMib(u.memory_peak_mib)}${r.memory_limit_mib ? '; ' : ' of '}${memoryLine(r)}` +
+    (parts && measuredIncludesCache(u.ram_gib_s, parts.ram.billed)
+      ? `. Measured ${fmtQty(u.ram_gib_s)} GiB-s, ${CACHE_NOTE}.`
+      : '');
   return (
     <Box
       sx={{

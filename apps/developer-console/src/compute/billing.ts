@@ -76,6 +76,18 @@ export function billedParts(
   return { floor: billed - b, burst: b, asMeasured: 0, billed };
 }
 
+/**
+ * Memory is billed on its working set (what it uses, less file cache the
+ * kernel can drop), while the measured GiB-seconds and peak are all of it,
+ * cache included: so memory billed can be below what was measured. Never
+ * read that gap as burst. True when what was measured is above the bill by
+ * more than rounding.
+ */
+export const measuredIncludesCache = (measured: number, billed: number): boolean => measured > billed + 0.05;
+
+/** The caption for that gap, or ''. */
+export const CACHE_NOTE = 'file cache included, which is not billed';
+
 export const addParts = (a: BilledParts, b: BilledParts): BilledParts => ({
   floor: a.floor + b.floor,
   burst: a.burst + b.burst,
