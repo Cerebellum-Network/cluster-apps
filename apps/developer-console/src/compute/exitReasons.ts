@@ -59,3 +59,12 @@ export function exitReasonInfo(
 /** True for the endings that more memory fixes. */
 export const memoryEnding = (reason: string | null | undefined): boolean =>
   !!reason && (reason.startsWith(EXIT_OOM_KILLED) || reason.startsWith(EXIT_MEMORY_RECLAIMED));
+
+/**
+ * An exit reason as a sentence for an error line: "Memory reclaimed: it used more memory than its request … Raise the
+ * memory request …", or the reason as the node wrote it when there is nothing to add.
+ */
+export function exitReasonSentence(reason: string, sb?: Parameters<typeof exitReasonInfo>[1]): string {
+  const i = exitReasonInfo(reason, sb);
+  return i.detail ? `${i.label}: ${[i.detail, i.action].filter(Boolean).join(' ')}` : reason;
+}

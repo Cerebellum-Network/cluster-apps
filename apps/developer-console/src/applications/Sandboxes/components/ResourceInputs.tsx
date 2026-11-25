@@ -1,6 +1,6 @@
 import { ReactNode, useId, useState } from 'react';
 import { Box, Button, Stack, TextField, Typography } from '@cluster-apps/ui';
-import { Collapse, InputAdornment } from '@mui/material';
+import { Collapse } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import {
@@ -9,18 +9,11 @@ import {
   parseResources,
   plannedCpu,
   plannedMemory,
+  type ResourceDefaults,
   type ResourceErrors,
   type ResourceFields,
 } from '~/compute/resources';
 import { color, text } from '~/theme/tokens';
-
-const unit = (u: string) => ({
-  endAdornment: (
-    <InputAdornment position="end">
-      <Typography sx={{ ...text.caption, color: color.textTertiary }}>{u}</Typography>
-    </InputAdornment>
-  ),
-});
 
 /**
  * CPU and memory for a sandbox or an agent's runs: the request (guaranteed,
@@ -38,7 +31,7 @@ const ResourceInputs = ({
 }: {
   value: ResourceFields;
   onChange: (patch: Partial<ResourceFields>) => void;
-  defaults: { cpu: number; memoryMib: number };
+  defaults: ResourceDefaults;
   /** Shown under their fields; pass only the ones to show now. */
   errors: ResourceErrors;
   extra?: ReactNode;
@@ -62,7 +55,7 @@ const ResourceInputs = ({
     <Stack spacing="12px">
       <Stack direction={{ xs: 'column', md: 'row' }} gap="16px">
         <TextField
-          label="CPU request"
+          label="CPU request (vCPU)"
           value={value.cpu}
           onChange={(e) => onChange({ cpu: e.target.value })}
           placeholder={String(defaults.cpu)}
@@ -71,11 +64,10 @@ const ResourceInputs = ({
           error={!!errors.cpu}
           helperText={errors.cpu ?? 'Guaranteed to it; billed for as long as it runs.'}
           InputLabelProps={shrink}
-          InputProps={unit('vCPU')}
           inputProps={{ inputMode: 'decimal' }}
         />
         <TextField
-          label="Memory request"
+          label="Memory request (MiB)"
           value={value.memoryMib}
           onChange={(e) => onChange({ memoryMib: e.target.value })}
           placeholder={String(defaults.memoryMib)}
@@ -84,7 +76,6 @@ const ResourceInputs = ({
           error={!!errors.memoryMib}
           helperText={errors.memoryMib ?? 'Guaranteed: never taken back while it runs.'}
           InputLabelProps={shrink}
-          InputProps={unit('MiB')}
           inputProps={{ inputMode: 'numeric' }}
         />
         {extra}
@@ -107,7 +98,7 @@ const ResourceInputs = ({
               {plannedMemory(effective)}
             </Typography>
             <Typography sx={{ ...text.caption, marginTop: '4px' }}>
-              You pay for what is guaranteed for as long as it runs, and for use above it as it happens.
+              You pay for the request for as long as it runs, and for use above it (a burst) as it happens.
             </Typography>
           </Box>
           <Button
@@ -134,29 +125,35 @@ const ResourceInputs = ({
         <Collapse in={open} id={limitsId}>
           <Stack direction={{ xs: 'column', md: 'row' }} gap="16px" sx={{ paddingTop: '14px' }}>
             <TextField
-              label="CPU limit"
+              label="CPU limit (vCPU)"
               value={value.cpuLimit}
               onChange={(e) => onChange({ cpuLimit: e.target.value })}
-              placeholder={`node’s quota, max ${MAX_CPU_LIMIT}`}
+              placeholder={
+                defaults.cpuLimit
+                  ? String(Math.max(defaults.cpuLimit, effective.cpu))
+                  : `node’s quota, max ${MAX_CPU_LIMIT}`
+              }
               size="small"
               fullWidth
               error={!!errors.cpuLimit}
               helperText={errors.cpuLimit ?? 'The most it can use; at least the request.'}
               InputLabelProps={shrink}
-              InputProps={unit('vCPU')}
               inputProps={{ inputMode: 'decimal' }}
             />
             <TextField
-              label="Memory limit"
+              label="Memory limit (MiB)"
               value={value.memoryLimitMib}
               onChange={(e) => onChange({ memoryLimitMib: e.target.value })}
-              placeholder={String(defaultMemoryLimit(effective.memoryMib))}
+              placeholder={String(
+                defaults.memoryLimitMib
+                  ? Math.max(defaults.memoryLimitMib, effective.memoryMib)
+                  : defaultMemoryLimit(effective.memoryMib),
+              )}
               size="small"
               fullWidth
               error={!!errors.memoryLimitMib}
               helperText={errors.memoryLimitMib ?? 'Above it, it stops (out of memory).'}
               InputLabelProps={shrink}
-              InputProps={unit('MiB')}
               inputProps={{ inputMode: 'numeric' }}
             />
           </Stack>

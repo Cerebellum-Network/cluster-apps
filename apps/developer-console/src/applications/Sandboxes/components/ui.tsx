@@ -4,7 +4,7 @@ import { keyframes } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 
 import { exitReasonInfo } from '~/compute/exitReasons';
-import type { EgressDecision, SandboxStatus } from '~/compute/types';
+import { endedBadly, type EgressDecision, type SandboxStatus } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 
 /** Sandbox-specific colours, on top of the console tokens. */
@@ -73,26 +73,33 @@ export const ExitReason = ({ reason, sb }: { reason: string; sb?: Parameters<typ
   );
 };
 
-/** Dot + word, for tables and headers. */
-export const SandboxStatusLabel = ({ status, reason }: { status: SandboxStatus; reason?: string | null }) => (
-  <Stack direction="row" alignItems="center" gap="8px" component="span">
-    <StatusDot status={status} />
-    <Typography
-      component="span"
-      title={
-        status === 'unknown' ? 'The node has not reported for a while. The sandbox may still be running.' : undefined
-      }
-      sx={{ fontSize: 14, fontWeight: 600, color: status === 'terminated' ? color.textSecondary : sbColor[status] }}
-    >
-      {STATUS_LABEL[status] ?? status}
-    </Typography>
-    {reason && (
-      <Typography component="span" sx={text.caption}>
-        <ExitReason reason={reason} />
+/**
+ * Dot + word, for tables and headers. A sandbox that ended badly (out of
+ * memory, memory reclaimed, lost, a non-zero exit) reads Failed, as the list's
+ * Failed filter counts it, whatever status the API gives it.
+ */
+export const SandboxStatusLabel = ({ status: given, reason }: { status: SandboxStatus; reason?: string | null }) => {
+  const status: SandboxStatus = endedBadly({ status: given, exit_reason: reason ?? null }) ? 'failed' : given;
+  return (
+    <Stack direction="row" alignItems="center" gap="8px" component="span">
+      <StatusDot status={status} />
+      <Typography
+        component="span"
+        title={
+          status === 'unknown' ? 'The node has not reported for a while. The sandbox may still be running.' : undefined
+        }
+        sx={{ fontSize: 14, fontWeight: 600, color: status === 'terminated' ? color.textSecondary : sbColor[status] }}
+      >
+        {STATUS_LABEL[status] ?? status}
       </Typography>
-    )}
-  </Stack>
-);
+      {reason && (
+        <Typography component="span" sx={text.caption}>
+          <ExitReason reason={reason} />
+        </Typography>
+      )}
+    </Stack>
+  );
+};
 
 /** Inline code-ish value: ids, hosts, paths, images. */
 export const Mono = styled('span')({

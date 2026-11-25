@@ -21,6 +21,7 @@ import type {
   ExecResult,
   LogEvent,
   Page,
+  Resources,
   Sandbox,
   SandboxStatus,
   SecretInput,
@@ -153,6 +154,30 @@ async function failure(res: Response): Promise<ComputeError> {
 }
 
 /**
+ * A create body's resources under the API's names: `cpu` and `cpu_limit` in vCPU, `memory` and `memory_limit` in MiB
+ * (the older `memory_mib` and `memory_limit_mib` are not sent, so the two names never disagree).
+ */
+export function toWireResources(r: Partial<Resources>): Record<string, unknown> {
+  const { memory_mib, memory_limit_mib, memory, memory_limit, ...rest } = r;
+  const out: Record<string, unknown> = { ...rest };
+  const m = memory ?? memory_mib;
+  const ml = memory_limit ?? memory_limit_mib;
+  if (m !== undefined) out.memory = m;
+  if (ml !== undefined) out.memory_limit = ml;
+  return out;
+}
+
+/** A sandbox's resources as the console reads them: the memory fields under one name, whichever the gateway sent. */
+export function fromWireResources(r: Partial<Resources> | undefined): Resources {
+  const out = { ...(r ?? {}) } as Resources;
+  const m = r?.memory ?? r?.memory_mib;
+  const ml = r?.memory_limit ?? r?.memory_limit_mib;
+  if (m !== undefined) out.memory_mib = m;
+  if (ml !== undefined) out.memory_limit_mib = ml;
+  return out;
+}
+
+/**
  * Lists the Go services send as `null` when empty (labels, env_keys, retained,
  * egress.allow, command) become empty values, and usage gets every field, so
  * pages never meet a null where the contract has a list.
@@ -167,7 +192,7 @@ export function normSandbox(sandbox: Sandbox): Sandbox {
     retained: s.retained ?? [],
     egress: { allow: s.egress?.allow ?? [] },
     ...(secrets ? { secrets: secrets.map((x) => ({ ...x, hosts: x.hosts ?? [] })) } : {}),
-    resources: { ...s.resources },
+    resources: fromWireResources(s.resources),
     usage: { ...EMPTY_USAGE, ...(s.usage ?? {}) },
   };
 }
@@ -240,7 +265,12 @@ export function createComputeClient(
     },
     getSandbox: async (id, signal) => normSandbox(await json<Sandbox>('GET', sb(id), { signal })),
     createSandbox: async (req, signal) =>
-      normSandbox(await json<Sandbox>('POST', '/v1/sandboxes', { json: req, signal })),
+      normSandbox(
+        await json<Sandbox>('POST', '/v1/sandboxes', {
+          json: req.resources ? { ...req, resources: toWireResources(req.resources) } : req,
+          signal,
+        }),
+      ),
     terminate: async (id, opts, signal) =>
       normSandbox(
         await json<Sandbox>(

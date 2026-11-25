@@ -67,6 +67,8 @@ function fakeClient(opts: {
   output?: string | null;
   exitCode?: number;
   startStatus?: Sandbox['status'];
+  /** The node ended the sandbox under the run with this reason: terminate answers it as it is (idempotent). */
+  endedWith?: string;
 }) {
   const log: {
     created?: CreateSandboxRequest;
@@ -109,7 +111,11 @@ function fakeClient(opts: {
     },
     terminate: async (_id: string, t?: { retain?: string[]; reason?: string }) => {
       log.terminated = t;
-      return sandbox({ status: 'terminated', exit_reason: 'terminated by API: agent run finished' });
+      return sandbox({
+        status: 'terminated',
+        exit_reason: opts.endedWith ?? 'terminated by API: agent run finished',
+        resources: { cpu: 0.5, memory_mib: 512, memory_limit_mib: 2048 },
+      });
     },
   } as unknown as ComputeClient;
   return { client, log };
@@ -143,17 +149,30 @@ describe('buildCreateRequest', () => {
     });
   });
 
-  it('asks for the definition’s request, and its limits only when it sets them', () => {
-    expect(buildCreateRequest(SRE, 'r').resources).toEqual({ cpu: 1, memory_mib: 2048 });
-    const limited = { ...SRE, resources: { cpu: 0.5, memory_mib: 512, cpu_limit: 2, memory_limit_mib: 1024 } };
-    expect(buildCreateRequest(limited, 'r').resources).toEqual({
+  it('asks for the definition’s request and limits, else the agent layer’s (0.5 vCPU, 512 MiB, up to 2 and 2048)', () => {
+    expect(buildCreateRequest({ ...SRE, resources: undefined }, 'r').resources).toEqual({
       cpu: 0.5,
       memory_mib: 512,
       cpu_limit: 2,
+      memory_limit_mib: 2048,
+    });
+    // A request above the default limit raises the limit with it.
+    expect(buildCreateRequest({ ...SRE, resources: { cpu: 3, memory: 4096 } }, 'r').resources).toEqual({
+      cpu: 3,
+      memory_mib: 4096,
+      cpu_limit: 3,
+      memory_limit_mib: 4096,
+    });
+    const limited = { ...SRE, resources: { cpu: 0.5, memory: 512, cpu_limit: 4, memory_limit: 1024 } };
+    expect(buildCreateRequest(limited, 'r').resources).toEqual({
+      cpu: 0.5,
+      memory_mib: 512,
+      cpu_limit: 4,
       memory_limit_mib: 1024,
     });
-    // The runner's request when the definition names none.
-    expect(buildCreateRequest({ ...SRE, resources: undefined }, 'r').resources).toEqual({ cpu: 1, memory_mib: 2048 });
+    // Definitions written before the API's names were settled are read the same way.
+    const old = { ...SRE, resources: { cpu: 0.5, memory_mib: 768, memory_limit_mib: 1536 } };
+    expect(buildCreateRequest(old, 'r').resources).toMatchObject({ memory_mib: 768, memory_limit_mib: 1536 });
   });
 
   it('leaves path_prefix out for a base URL at the host root', () => {
@@ -280,6 +299,18 @@ describe('runAgent', () => {
     const res = await runAgent({ client, def: SRE, input: 'q', sleep: async () => undefined, signal: ctl.signal });
     expect(res.error).toBe('Stopped.');
     expect(log.terminated?.reason).toBe('agent run stopped');
+  });
+
+  it('fails a run whose sandbox the node ended for memory, and says what to raise', async () => {
+    const reclaimed = fakeClient({ stdout: [], output: null, exitCode: 137, endedWith: 'memory_reclaimed' });
+    const r = await runAgent({ client: reclaimed.client, def: SRE, input: 'q', sleep: async () => undefined });
+    expect(r.error).toMatch(/^The sandbox ended: Memory reclaimed: It used more memory than its request of 512 MiB/);
+    expect(r.error).toContain('Raise the memory request');
+    expect(r.sandbox?.exit_reason).toBe('memory_reclaimed');
+
+    const oom = fakeClient({ stdout: [], output: null, exitCode: 137, endedWith: 'oom_killed' });
+    const o = await runAgent({ client: oom.client, def: SRE, input: 'q', sleep: async () => undefined });
+    expect(o.error).toMatch(/^The sandbox ended: Out of memory: It reached its memory limit of 2 GiB/);
   });
 
   it('reports a sandbox that failed to start, and still deletes it', async () => {

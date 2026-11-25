@@ -24,9 +24,17 @@ export type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 
  */
 export interface Resources {
   cpu: number;
+  /**
+   * The memory request in MiB. The API's name is `memory` (the gateway still takes and sends `memory_mib` too); the
+   * client sends `memory` and reads either into this field, so the console's code reads one name.
+   */
   memory_mib: number;
   cpu_limit?: number;
+  /** The memory limit in MiB; the API's name is `memory_limit`, read and sent as `memory_mib` is. */
   memory_limit_mib?: number;
+  /** The API's names for the two memory fields, as a gateway with them sends them. */
+  memory?: number;
+  memory_limit?: number;
   pids?: number;
   /** Accepted, not enforced. */
   disk_mib?: number;

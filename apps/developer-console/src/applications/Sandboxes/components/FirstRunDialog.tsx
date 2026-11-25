@@ -4,6 +4,7 @@ import { Dialog, DialogActions, DialogContent, DialogTitle, IconButton } from '@
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 
+import { exitReasonSentence } from '~/compute/exitReasons';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
 import type { ExecExit, Sandbox } from '~/compute/types';
@@ -133,7 +134,9 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
         }
         if (sb.status !== 'running') {
           throw new Error(
-            `The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before it ran: ${sb.exit_reason ?? sb.status}.`,
+            `The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before it ran: ${
+              sb.exit_reason ? exitReasonSentence(sb.exit_reason, sb) : sb.status
+            }`.replace(/([^.])$/, '$1.'),
           );
         }
         setPhase('exec');

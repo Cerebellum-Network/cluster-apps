@@ -40,7 +40,7 @@ const FACTS: { name: string; body: ReactNode }[] = [
   },
   {
     name: 'Billed while it runs',
-    body: 'Your compute bucket pays for the CPU and memory the sandbox is guaranteed, from start to stop, and for any use above that as it happens. There is no price list yet.',
+    body: 'Your compute bucket pays for the CPU and memory the sandbox requests (guaranteed to it), from start to stop, and for any use above that, a burst, as it happens. There is no price list yet.',
   },
 ];
 

@@ -52,7 +52,7 @@ describe('definitionFromForm', () => {
       policy: 'read-only',
       deny: [],
       max_turns: 30,
-      resources: { cpu: 1, memory_mib: 2048 },
+      resources: { cpu: 0.5, memory: 512 },
       timeout_s: 900,
       egress: {
         allow: [{ host: 'api.github.com', methods: ['GET'], path_prefix: '/repos/', credential: 'github-readonly' }],
@@ -225,8 +225,8 @@ describe('formCoverage', () => {
 describe('requests and limits in the agent form', () => {
   it('starts at the runner’s request with no limits, and writes none', () => {
     const f = base();
-    expect([f.cpu, f.memoryMib, f.cpuLimit, f.memoryLimitMib]).toEqual(['1', '2048', '', '']);
-    expect(definitionFromForm(f).def?.resources).toEqual({ cpu: 1, memory_mib: 2048 });
+    expect([f.cpu, f.memoryMib, f.cpuLimit, f.memoryLimitMib]).toEqual(['0.5', '512', '', '']);
+    expect(definitionFromForm(f).def?.resources).toEqual({ cpu: 0.5, memory: 512 });
   });
 
   it('writes the limits when set, and reads them back', () => {
@@ -238,17 +238,38 @@ describe('requests and limits in the agent form', () => {
       memoryLimitMib: '1024',
     });
     expect(errors).toEqual({});
-    expect(def?.resources).toEqual({ cpu: 0.5, memory_mib: 512, cpu_limit: 4, memory_limit_mib: 1024 });
+    expect(def?.resources).toEqual({ cpu: 0.5, memory: 512, cpu_limit: 4, memory_limit: 1024 });
     const back = formFromDefinition(def!);
     expect([back.cpu, back.memoryMib, back.cpuLimit, back.memoryLimitMib]).toEqual(['0.5', '512', '4', '1024']);
     expect(parseAgentDefinition(JSON.stringify(def)).errors).toEqual([]);
   });
 
   it('refuses a limit below the request', () => {
-    const { def, errors } = definitionFromForm({ ...base(), cpu: '2', cpuLimit: '1', memoryLimitMib: '1024' });
+    const { def, errors } = definitionFromForm({
+      ...base(),
+      cpu: '2',
+      cpuLimit: '1',
+      memoryMib: '2048',
+      memoryLimitMib: '1024',
+    });
     expect(def).toBeNull();
     expect(errors.cpuLimit).toBe('At least the request, 2 vCPU.');
     expect(errors.memoryLimitMib).toBe('At least the request, 2 GiB.');
+  });
+
+  it('keeps the older memory names of a definition it edits, and refuses the two names disagreeing', () => {
+    const old = { ...definitionFromForm(base()).def!, resources: { cpu: 1, memory_mib: 1024 } };
+    const f = formFromDefinition(old);
+    expect(f.memoryMib).toBe('1024');
+    expect(definitionFromForm({ ...f, memoryLimitMib: '2048' }).def?.resources).toEqual({
+      cpu: 1,
+      memory_mib: 1024,
+      memory_limit_mib: 2048,
+    });
+    const both = { ...old, resources: { cpu: 1, memory: 512, memory_mib: 1024 } };
+    expect(parseAgentDefinition(JSON.stringify(both)).errors).toEqual([
+      '"resources.memory" and "resources.memory_mib" say different things: keep "memory".',
+    ]);
   });
 
   it('refuses a stored definition whose limit is below its request', () => {

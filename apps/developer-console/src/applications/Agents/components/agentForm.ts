@@ -17,7 +17,7 @@ import {
 } from '~/compute/agentDefinition';
 import { DEFAULT_AGENT_TIMEOUT_S } from '~/compute/agentRun';
 import { credentialCoverage, ruleCoverage, type Coverage } from '~/compute/egressCoverage';
-import { parseResources } from '~/compute/resources';
+import { parseResources, storedMemory, storedMemoryLimit } from '~/compute/resources';
 import { formFromRule, MAX_PLACEHOLDERS, ruleFromForm, type RuleForm } from '~/compute/egressRules';
 import type { EgressRule } from '~/compute/types';
 import { quoteArg, splitCommand } from '../../Sandboxes/components/commandLine';
@@ -55,9 +55,14 @@ export interface AgentForm {
   /** The request: guaranteed, and the least a run is billed. */
   cpu: string;
   memoryMib: string;
-  /** The limits: '' = the cluster's defaults (the node's quota; the larger of the memory request and 1 GiB). */
+  /** The limits: '' = the agent layer's defaults (2 vCPU, 2048 MiB, or the request where that is more). */
   cpuLimit: string;
   memoryLimitMib: string;
+  /**
+   * The definition says `memory_mib` / `memory_limit_mib` (written before the API's names were settled): saved the
+   * same way, so editing it changes only what was edited. New definitions say `memory` / `memory_limit`.
+   */
+  oldMemoryNames?: boolean;
   timeoutS: string;
   rules: RuleForm[];
   /** Not edited by the form; kept as they were. */
@@ -154,9 +159,15 @@ export function formFromDefinition(def: AgentDefinition): AgentForm {
     deny: (def.deny ?? []).join('\n'),
     maxTurns: String(def.max_turns ?? DEFAULTS.maxTurns),
     cpu: String(def.resources?.cpu ?? DEFAULTS.cpu),
-    memoryMib: String(def.resources?.memory_mib ?? DEFAULTS.memoryMib),
+    memoryMib: String(storedMemory(def.resources) ?? DEFAULTS.memoryMib),
     cpuLimit: def.resources?.cpu_limit ? String(def.resources.cpu_limit) : '',
-    memoryLimitMib: def.resources?.memory_limit_mib ? String(def.resources.memory_limit_mib) : '',
+    memoryLimitMib: storedMemoryLimit(def.resources) ? String(storedMemoryLimit(def.resources)) : '',
+    ...(def.resources &&
+    def.resources.memory === undefined &&
+    def.resources.memory_limit === undefined &&
+    (def.resources.memory_mib !== undefined || def.resources.memory_limit_mib !== undefined)
+      ? { oldMemoryNames: true }
+      : {}),
     timeoutS: String(def.timeout_s ?? DEFAULTS.timeoutS),
     rules: (def.egress?.allow ?? []).map(formFromRule),
     files: { ...(def.files ?? {}) },
@@ -228,7 +239,11 @@ export function definitionFromForm(form: AgentForm): {
   // The limits, checked against the request as typed (or the runner's default where that is not usable).
   const limits = parseResources(
     { cpu: '', memoryMib: '', cpuLimit: form.cpuLimit, memoryLimitMib: form.memoryLimitMib },
-    { cpu: cpu && cpu > 0 ? cpu : DEFAULTS.cpu, memoryMib: memory && memory >= 128 ? memory : DEFAULTS.memoryMib },
+    {
+      ...AGENT_DEFAULT_RESOURCES,
+      cpu: cpu && cpu > 0 ? cpu : DEFAULTS.cpu,
+      memoryMib: memory && memory >= 128 ? memory : DEFAULTS.memoryMib,
+    },
   );
   if (limits.errors.cpuLimit) errors.cpuLimit = limits.errors.cpuLimit;
   if (limits.errors.memoryLimitMib) errors.memoryLimitMib = limits.errors.memoryLimitMib;
@@ -287,9 +302,11 @@ export function definitionFromForm(form: AgentForm): {
     max_turns: maxTurns ?? DEFAULTS.maxTurns,
     resources: {
       cpu: cpu ?? DEFAULTS.cpu,
-      memory_mib: memory ?? DEFAULTS.memoryMib,
+      [form.oldMemoryNames ? 'memory_mib' : 'memory']: memory ?? DEFAULTS.memoryMib,
       ...(limits.resources.cpu_limit ? { cpu_limit: limits.resources.cpu_limit } : {}),
-      ...(limits.resources.memory_limit_mib ? { memory_limit_mib: limits.resources.memory_limit_mib } : {}),
+      ...(limits.resources.memory_limit_mib
+        ? { [form.oldMemoryNames ? 'memory_limit_mib' : 'memory_limit']: limits.resources.memory_limit_mib }
+        : {}),
     },
     timeout_s: timeout ?? DEFAULTS.timeoutS,
     egress: { allow },

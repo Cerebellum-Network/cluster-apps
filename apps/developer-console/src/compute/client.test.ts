@@ -176,6 +176,49 @@ describe('createComputeClient', () => {
     expect(JSON.parse(String(calls[0].body)).hosts).toEqual(['api.github.com']);
     expect(await c.listSecrets()).toEqual([{ name: 'gh', type: 'header', header: 'Authorization' }]);
   });
+
+  it('stores and deletes an agent’s secret, and replaces a running sandbox’s own', async () => {
+    const { calls, fetchImpl } = stubFetch(() => new Response(null, { status: 204 }));
+    const c = createComputeClient('tok', BASE, fetchImpl);
+    await c.putSecret(
+      'gh',
+      { type: 'header', header: 'Authorization', value: 'Bearer x', hosts: ['a.b'] },
+      { agent: 'sre' },
+    );
+    await c.deleteSecret('gh', { agent: 'sre' });
+    await c.deleteSecret('gh');
+    await c.setSandboxSecret('sb-1', 'slack-a', 'Bearer new');
+    expect(calls.map((x) => `${x.method} ${x.url.slice(BASE.length)}`)).toEqual([
+      'PUT /v1/secrets/gh?agent=sre',
+      'DELETE /v1/secrets/gh?agent=sre',
+      'DELETE /v1/secrets/gh',
+      'PUT /v1/sandboxes/sb-1/secrets/slack-a',
+    ]);
+    expect(JSON.parse(String(calls[3].body))).toEqual({ value: 'Bearer new' });
+  });
+
+  it('sends memory under the API’s names and reads either', async () => {
+    const { calls, fetchImpl } = stubFetch(() =>
+      json(201, {
+        id: 'sb-1',
+        status: 'starting',
+        resources: { cpu: 0.25, memory: 128, memory_mib: 128, cpu_limit: 4, memory_limit: 1024 },
+        secrets: [{ name: 'gh', type: 'header', header: 'Authorization', hosts: null }],
+      }),
+    );
+    const c = createComputeClient('tok', BASE, fetchImpl);
+    const sb = await c.createSandbox({
+      image: 'python:3.12-slim',
+      resources: { cpu: 0.25, memory_mib: 128, memory_limit_mib: 1024 },
+      secrets: [{ name: 'gh', type: 'header', header: 'Authorization', value: 'Bearer x', hosts: ['api.github.com'] }],
+    });
+    const body = JSON.parse(String(calls[0].body));
+    expect(body.resources).toEqual({ cpu: 0.25, memory: 128, memory_limit: 1024 });
+    expect(body.secrets[0].hosts).toEqual(['api.github.com']);
+    expect(sb.resources.memory_mib).toBe(128);
+    expect(sb.resources.memory_limit_mib).toBe(1024);
+    expect(sb.secrets).toEqual([{ name: 'gh', type: 'header', header: 'Authorization', hosts: [] }]);
+  });
 });
 
 describe('queryString', () => {

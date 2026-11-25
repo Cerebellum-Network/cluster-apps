@@ -20,7 +20,9 @@
 import { AGENT_DEFAULT_RESOURCES, type AgentDefinition } from './agentDefinition';
 import { terminateReason, withoutFiles } from './agentOutcome';
 import { ComputeError, errorMessage, type ComputeClient } from './client';
-import type { CreateSandboxRequest, EgressRule, ExecExit, Sandbox } from './types';
+import { exitReasonSentence, memoryEnding } from './exitReasons';
+import { effectiveOf } from './resources';
+import type { CreateSandboxRequest, EgressRule, ExecExit, Resources, Sandbox } from './types';
 import { ulid } from './ulid';
 
 export const RUNNER_COMMAND = ['ddc-agent-run', '/workspace/agent.json', '/workspace/input.txt'];
@@ -131,6 +133,23 @@ export function agentTimeout(def: AgentDefinition): number {
   return Math.max(1, Math.round(def.timeout_s ?? DEFAULT_AGENT_TIMEOUT_S));
 }
 
+/**
+ * The run's CPU and memory: what the definition sets, else the agent layer's defaults (0.5 vCPU, 512 MiB, up to
+ * 2 vCPU and 2048 MiB), always with both limits, so a run never depends on the sandbox API's defaults. The client
+ * sends them under the API's names (`memory`, `memory_limit`).
+ */
+export function runResources(
+  def: AgentDefinition,
+): Required<Pick<Resources, 'cpu' | 'memory_mib' | 'cpu_limit' | 'memory_limit_mib'>> {
+  const e = effectiveOf(def.resources, AGENT_DEFAULT_RESOURCES);
+  return {
+    cpu: e.cpu,
+    memory_mib: e.memoryMib,
+    cpu_limit: e.cpuLimit ?? AGENT_DEFAULT_RESOURCES.cpuLimit,
+    memory_limit_mib: e.memoryLimitMib,
+  };
+}
+
 /** Step 1's request, from the definition alone. */
 export function buildCreateRequest(def: AgentDefinition, runId: string): CreateSandboxRequest {
   return {
@@ -138,13 +157,7 @@ export function buildCreateRequest(def: AgentDefinition, runId: string): CreateS
     command: ['sleep', 'infinity'],
     runtime: 'gvisor',
     workdir: '/workspace',
-    resources: {
-      cpu: def.resources?.cpu ?? AGENT_DEFAULT_RESOURCES.cpu,
-      memory_mib: def.resources?.memory_mib ?? AGENT_DEFAULT_RESOURCES.memoryMib,
-      // The limits only when the definition sets them: else the cluster's defaults.
-      ...(def.resources?.cpu_limit ? { cpu_limit: def.resources.cpu_limit } : {}),
-      ...(def.resources?.memory_limit_mib ? { memory_limit_mib: def.resources.memory_limit_mib } : {}),
-    },
+    resources: runResources(def),
     timeout_s: agentTimeout(def) + SANDBOX_HEADROOM_S,
     idle_timeout_s: 0,
     env: {
@@ -252,7 +265,9 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     }
     if (sb.status !== 'running') {
       throw new Error(
-        `The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before the run: ${sb.exit_reason ?? sb.status}.`,
+        `The sandbox ${sb.status === 'failed' ? 'failed' : 'stopped'} before the run: ${
+          sb.exit_reason ? exitReasonSentence(sb.exit_reason, sb) : sb.status
+        }`.replace(/([^.])$/, '$1.'),
       );
     }
 
@@ -333,6 +348,10 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     const final = await terminateRetaining(client, created.id, terminateReason({ stopped, error: result.error }));
     if (final) setSandbox(final);
     else if (!result.error) result.error = 'Couldn’t terminate the sandbox; it stops at its timeout.';
+    // The node ended the sandbox under the run (out of memory, memory reclaimed): that is the run's failure, whatever
+    // the exec or the output said after it, and it says what to raise.
+    if (final && !stopped && memoryEnding(final.exit_reason))
+      result.error = `The sandbox ended: ${exitReasonSentence(final.exit_reason ?? '', final)}`;
   }
   step('done');
   return result;

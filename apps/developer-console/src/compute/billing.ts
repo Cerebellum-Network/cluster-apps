@@ -86,7 +86,7 @@ export function billedParts(
 export const measuredIncludesCache = (measured: number, billed: number): boolean => measured > billed + 0.05;
 
 /** The caption for that gap, or ''. */
-export const CACHE_NOTE = 'file cache included, which is not billed';
+export const CACHE_NOTE = 'file cache is measured, not billed';
 
 export const addParts = (a: BilledParts, b: BilledParts): BilledParts => ({
   floor: a.floor + b.floor,
@@ -96,12 +96,12 @@ export const addParts = (a: BilledParts, b: BilledParts): BilledParts => ({
 });
 
 /**
- * The parts in words, for a caption under a total: "15.0 guaranteed + 3.2
- * burst", "15.0 guaranteed, no burst", "9.40 as measured".
+ * The parts in words, for a caption under a total: "15.0 request + 3.2
+ * burst", "15.0 request, no burst", "9.40 as measured".
  */
 export function partsLine(p: BilledParts, fmt: (v: number) => string = f1): string {
   const parts: string[] = [];
-  if (p.floor > 0 || p.burst > 0) parts.push(`${fmt(p.floor)} guaranteed`);
+  if (p.floor > 0 || p.burst > 0) parts.push(`${fmt(p.floor)} request`);
   if (p.burst > 0) parts.push(`${fmt(p.burst)} burst`);
   if (p.asMeasured > 0) parts.push(`${fmt(p.asMeasured)} as measured`);
   if (!parts.length) return '';
@@ -123,13 +123,16 @@ export function billedPart(
   billed: number,
   measured: number,
   burst?: number,
+  /** Say that file cache explains measured above billed (memory). */
+  cache = false,
 ): string {
   const over = `${reservation} × ${f1(wall)} s = ${f1(reserved)}`;
   if (basis === 'measured') return `${f1(billed)} ${unit} as measured (reserved ${over})`;
   if (basis === 'request_or_usage') {
     const p = billedParts(basis, reserved, billed, burst);
-    if (p.burst < 0.05) return `${over} ${unit} guaranteed, no burst (measured ${f1(measured)})`;
-    return `${over} ${unit} guaranteed + ${f1(p.burst)} burst = ${f1(billed)} ${unit} (measured ${f1(measured)})`;
+    const about = `measured ${f1(measured)}${cache && measuredIncludesCache(measured, billed) ? `; ${CACHE_NOTE}` : ''}`;
+    if (p.burst < 0.05) return `${over} ${unit} request, no burst (${about})`;
+    return `${over} ${unit} request + ${f1(p.burst)} ${unit} burst = ${f1(billed)} ${unit} (${about})`;
   }
   // A run billed less than its reservation had part of it billed as measured (its node changed basis while it ran).
   if (billed < reserved - 0.05)
@@ -215,7 +218,7 @@ export function billedMemory(u: Usage, memoryMiB: number): string {
   const { wall, ram: a } = amounts(u);
   let gib = (memoryMiB || 0) / 1024;
   if (!(gib > 0) && wall > 0) gib = a.reserved / wall;
-  return billedPart(basis, `${cores(gib)} GiB`, 'GiB-s', wall, a.reserved, a.billed, a.measured, a.burst);
+  return billedPart(basis, `${cores(gib)} GiB`, 'GiB-s', wall, a.reserved, a.billed, a.measured, a.burst, true);
 }
 
 /**

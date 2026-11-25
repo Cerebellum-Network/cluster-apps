@@ -18,7 +18,7 @@ import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
-import { agentKey, type AgentDefinition } from '~/compute/agentDefinition';
+import { AGENT_DEFAULT_RESOURCES, agentKey, type AgentDefinition } from '~/compute/agentDefinition';
 import { useAgentDefinitions } from '~/compute/agentHooks';
 import { bucketNames, saveAgent } from '~/compute/agentStore';
 import { errorMessage } from '~/compute/client';
@@ -38,7 +38,6 @@ import { CredentialChip, Mono, ReadError } from '../../Sandboxes/components/ui';
 import { Chip } from '../../Sandboxes/pages/SandboxList';
 import {
   CLAUDE_CODE_TOOLS,
-  DEFAULTS,
   definitionFromForm,
   emptyForm,
   emptyRule,
@@ -570,7 +569,7 @@ const AgentEditor = () => {
               <ResourceInputs
                 value={form}
                 onChange={set}
-                defaults={{ cpu: DEFAULTS.cpu, memoryMib: DEFAULTS.memoryMib }}
+                defaults={AGENT_DEFAULT_RESOURCES}
                 errors={{
                   cpu: show('cpu'),
                   memoryMib: show('memoryMib'),

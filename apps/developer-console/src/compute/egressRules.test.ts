@@ -189,3 +189,35 @@ describe('rule forms', () => {
     ).toBe(false);
   });
 });
+
+describe('placeholder rules', () => {
+  const slack: EgressRule = { host: 'mcp.slack.com', methods: ['*' as never], placeholders: ['slack-a', 'slack-b'] };
+
+  it('keep their placeholders through the form, so editing other rules never drops them', () => {
+    const f = formFromRule(slack);
+    expect(f.placeholders).toEqual(['slack-a', 'slack-b']);
+    expect(ruleFromForm(f)).toEqual(slack);
+    expect(sameRules([slack], [ruleFromForm(formFromRule(slack))])).toBe(true);
+    expect(rulesFromForms([formFromRule(slack), emptyRule('pypi.org')]).allow).toEqual([
+      slack,
+      { host: 'pypi.org', methods: ['GET'] },
+    ]);
+  });
+
+  it('need at least one name, and never a credential as well', () => {
+    expect(rulesFromForms([{ ...emptyRule('mcp.slack.com'), placeholders: [] }]).ok).toBe(false);
+    expect(ruleProblem({ ...slack, credential: 'x' })).toMatch(/not both/);
+    // Header mode drops the list.
+    expect(ruleFromForm({ ...formFromRule(slack), placeholders: null, credential: 'slack-a' })).toEqual({
+      host: 'mcp.slack.com',
+      methods: ['*'],
+      credential: 'slack-a',
+    });
+  });
+
+  it('allowing a host does not merge into a placeholder rule', () => {
+    const out = allowRule([slack], { host: 'mcp.slack.com', methods: ['GET'] });
+    expect(out).toHaveLength(2);
+    expect(out[1]).toEqual(slack);
+  });
+});

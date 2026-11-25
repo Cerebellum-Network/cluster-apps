@@ -34,12 +34,12 @@ const TICK = { fontSize: 12, fill: color.textTertiary };
 
 /**
  * The parts of a bill, in a fixed order with fixed colours (validated for
- * colour-blind separation): the guaranteed floor first, the burst above it,
+ * colour-blind separation): the request first, the burst above it,
  * then what was billed as measured (older records), which shows only when
  * there is some. What was used is a line in ink, not a part of the bill.
  */
 const PARTS = [
-  { key: 'floor', name: 'Guaranteed', color: chartPalette[0] },
+  { key: 'floor', name: 'Request', color: chartPalette[0] },
   { key: 'burst', name: 'Burst', color: chartPalette[1] },
   { key: 'asMeasured', name: 'Billed as measured', color: chartPalette[2] },
 ] as const;
@@ -53,7 +53,7 @@ const Swatch = ({ tone }: { tone: string }) => (
   />
 );
 
-/** A bill's parts with their colours, as the chart below draws them: "■ 15.0 guaranteed ■ 3.20 burst". */
+/** A bill's parts with their colours, as the chart below draws them: "■ 15.0 request ■ 3.20 burst". */
 const PartsKey = ({ p }: { p: BilledParts }) => (
   <Stack direction="row" gap="4px 14px" flexWrap="wrap" sx={{ marginTop: '6px' }}>
     {PARTS.filter((x) => x.key !== 'asMeasured' || p.asMeasured > 0).map((x) => (
@@ -170,7 +170,7 @@ const ChartTip = ({
       <Box sx={{ borderTop: `1px solid ${color.grid}`, marginTop: '4px', paddingTop: '4px' }}>
         {line(USED_COLOR, 'Used', q.used)}
         {quantity === 'ram' && measuredIncludesCache(q.used, billed) && (
-          <Box sx={{ color: color.textSecondary, maxWidth: 220 }}>Used counts file cache, which is not billed.</Box>
+          <Box sx={{ color: color.textSecondary, maxWidth: 220 }}>File cache is measured, not billed.</Box>
         )}
       </Box>
     </Box>

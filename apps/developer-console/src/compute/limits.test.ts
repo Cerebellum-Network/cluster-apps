@@ -37,9 +37,9 @@ describe('the resources form', () => {
     const p = parseResources(EMPTY_RESOURCE_FIELDS);
     expect(p.resources).toEqual({});
     expect(p.errors).toEqual({});
-    expect(p.effective).toEqual({ cpu: 0.25, memoryMib: 256, cpuLimit: null, memoryLimitMib: 1024 });
-    expect(plannedCpu(p.effective)).toBe('0.25 vCPU guaranteed, bursts up to the node’s quota (max 8)');
-    expect(plannedMemory(p.effective)).toBe('256 MiB guaranteed, up to 1 GiB');
+    expect(p.effective).toEqual({ cpu: 0.25, memoryMib: 128, cpuLimit: null, memoryLimitMib: 1024 });
+    expect(plannedCpu(p.effective)).toBe('0.25 vCPU guaranteed, up to the node’s CPU for sandboxes (at most 8 vCPU)');
+    expect(plannedMemory(p.effective)).toBe('128 MiB guaranteed, up to 1 GiB');
   });
 
   it('sends only the fields typed; the limits only when set', () => {
@@ -47,7 +47,7 @@ describe('the resources form', () => {
     expect(parseResources(fields({ memoryMib: ' 512 ' })).resources).toEqual({ memory_mib: 512 });
     const p = parseResources(fields({ cpu: '1', memoryMib: '512', cpuLimit: '4', memoryLimitMib: '2048' }));
     expect(p.resources).toEqual({ cpu: 1, memory_mib: 512, cpu_limit: 4, memory_limit_mib: 2048 });
-    expect(plannedCpu(p.effective)).toBe('1 vCPU guaranteed, bursts up to 4 vCPU');
+    expect(plannedCpu(p.effective)).toBe('1 vCPU guaranteed, up to 4 vCPU');
     expect(plannedMemory(p.effective)).toBe('512 MiB guaranteed, up to 2 GiB');
   });
 
@@ -69,7 +69,7 @@ describe('the resources form', () => {
     expect(parseResources(fields({ memoryMib: '1024', memoryLimitMib: '512' })).errors).toEqual({
       memoryLimitMib: 'At least the request, 1 GiB.',
     });
-    expect(parseResources(fields({ memoryLimitMib: '200' })).errors).toEqual({
+    expect(parseResources(fields({ memoryLimitMib: '200', memoryMib: '256' })).errors).toEqual({
       memoryLimitMib: 'At least the request, 256 MiB.',
     });
     // Equal is allowed: no burst.
@@ -212,12 +212,12 @@ describe('floor and burst', () => {
   });
 
   it('says the parts in words', () => {
-    expect(partsLine(recordParts(burstMinute).cpu)).toBe('15.0 guaranteed + 3.2 burst');
-    expect(partsLine(recordParts(burstMinute).ram)).toBe('15.0 guaranteed, no burst');
+    expect(partsLine(recordParts(burstMinute).cpu)).toBe('15.0 request + 3.2 burst');
+    expect(partsLine(recordParts(burstMinute).ram)).toBe('15.0 request, no burst');
     expect(partsLine(recordParts(measuredMinute).cpu)).toBe('9.4 as measured');
     expect(partsLine({ floor: 0, burst: 0, asMeasured: 0, billed: 0 })).toBe('');
     expect(partsLine(sumRecords([burstMinute, measuredMinute]).cpu)).toBe(
-      '15.0 guaranteed + 3.2 burst + 9.4 as measured',
+      '15.0 request + 3.2 burst + 9.4 as measured',
     );
   });
 
@@ -250,8 +250,8 @@ describe('a sandbox’s live usage on request_or_usage', () => {
 
   it('bills the floor plus the burst, as one line', () => {
     expect(billingLine(live, 0.25, 256)).toBe(
-      '0.25 vCPU × 60.0 s = 15.0 CPU-s guaranteed + 3.2 burst = 18.2 CPU-s (measured 6.9), ' +
-        '0.25 GiB × 60.0 s = 15.0 GiB-s guaranteed, no burst (measured 14.0)',
+      '0.25 vCPU × 60.0 s = 15.0 CPU-s request + 3.2 CPU-s burst = 18.2 CPU-s (measured 6.9), ' +
+        '0.25 GiB × 60.0 s = 15.0 GiB-s request, no burst (measured 14.0)',
     );
     expect(billedShort(live)).toEqual({
       cpu: '18.2 CPU-s, 3.2 burst (measured 6.9)',

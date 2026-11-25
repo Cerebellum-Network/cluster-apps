@@ -32,8 +32,18 @@ export interface AgentDefinition {
   policy?: string;
   deny?: string[];
   max_turns?: number;
-  /** The sandbox's request (`cpu`, `memory_mib`) and, optionally, its limits. */
-  resources?: { cpu?: number; memory_mib?: number; cpu_limit?: number; memory_limit_mib?: number };
+  /**
+   * The run's request (`cpu` in vCPU, `memory` in MiB) and, optionally, its limits (`cpu_limit`, `memory_limit`).
+   * Definitions written before the API's names were settled say `memory_mib` and `memory_limit_mib`; both are read.
+   */
+  resources?: {
+    cpu?: number;
+    memory?: number;
+    cpu_limit?: number;
+    memory_limit?: number;
+    memory_mib?: number;
+    memory_limit_mib?: number;
+  };
   timeout_s?: number;
   egress?: { allow: EgressRule[] };
   /** Extra files put into the sandbox before the run: path (relative = under /workspace) → content. */
@@ -41,10 +51,11 @@ export interface AgentDefinition {
 }
 
 /**
- * The request a run's sandbox gets when its definition names none: the agent runner's (the CLI's
- * `agent.DefaultCPU`, `agent.DefaultMemoryMiB`), not the platform's smaller sandbox default.
+ * What a run's sandbox gets for what its definition leaves out: the agent layer's own defaults (the CLI's
+ * `agent run` and the SDK's `agent.run` use the same), 0.5 vCPU and 512 MiB guaranteed, up to 2 vCPU and 2048 MiB.
+ * They are set by the agent layer, never by the sandbox API's defaults.
  */
-export const AGENT_DEFAULT_RESOURCES = { cpu: 1, memoryMib: 2048 } as const;
+export const AGENT_DEFAULT_RESOURCES = { cpu: 0.5, memoryMib: 512, cpuLimit: 2, memoryLimitMib: 2048 } as const;
 
 /** Usable as a file name in the bucket and as a label value; the same rule as the CLI. */
 export const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -97,16 +108,28 @@ export function validateAgentDefinition(doc: unknown): string[] {
   if (doc.resources !== undefined) {
     if (!isObj(doc.resources)) errs.push('"resources" must be an object.');
     else {
-      const { cpu, memory_mib, cpu_limit, memory_limit_mib } = doc.resources;
+      const r = doc.resources;
+      const { cpu, cpu_limit } = r;
+      // `memory` and `memory_limit` (MiB), or the older `memory_mib` and `memory_limit_mib`.
+      const memKey = r.memory !== undefined ? 'memory' : 'memory_mib';
+      const limKey = r.memory_limit !== undefined ? 'memory_limit' : 'memory_limit_mib';
+      const memory = r[memKey];
+      const memoryLimit = r[limKey];
       if (cpu !== undefined && !(typeof cpu === 'number' && cpu > 0)) errs.push('"resources.cpu" must be positive.');
-      if (memory_mib !== undefined && !(typeof memory_mib === 'number' && memory_mib >= 128))
-        errs.push('"resources.memory_mib" must be at least 128.');
+      if (memory !== undefined && !(typeof memory === 'number' && memory >= 128))
+        errs.push(`"resources.${memKey}" must be at least 128 (MiB).`);
       const reqCpu = typeof cpu === 'number' ? cpu : AGENT_DEFAULT_RESOURCES.cpu;
-      const reqMemory = typeof memory_mib === 'number' ? memory_mib : AGENT_DEFAULT_RESOURCES.memoryMib;
+      const reqMemory = typeof memory === 'number' ? memory : AGENT_DEFAULT_RESOURCES.memoryMib;
       if (cpu_limit !== undefined && !(typeof cpu_limit === 'number' && cpu_limit >= reqCpu))
         errs.push('"resources.cpu_limit" must be at least the CPU request.');
-      if (memory_limit_mib !== undefined && !(typeof memory_limit_mib === 'number' && memory_limit_mib >= reqMemory))
-        errs.push('"resources.memory_limit_mib" must be at least the memory request.');
+      if (memoryLimit !== undefined && !(typeof memoryLimit === 'number' && memoryLimit >= reqMemory))
+        errs.push(`"resources.${limKey}" must be at least the memory request.`);
+      for (const [now, old] of [
+        ['memory', 'memory_mib'],
+        ['memory_limit', 'memory_limit_mib'],
+      ])
+        if (r[now] !== undefined && r[old] !== undefined && r[now] !== r[old])
+          errs.push(`"resources.${now}" and "resources.${old}" say different things: keep "${now}".`);
     }
   }
   if (doc.egress !== undefined) {

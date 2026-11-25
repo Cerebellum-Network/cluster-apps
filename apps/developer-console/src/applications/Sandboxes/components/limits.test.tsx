@@ -68,10 +68,13 @@ describe('the resources form', () => {
   it('shows the defaults plainly and sends none of them', () => {
     act(() => root.render(<Form />));
     expect(input('CPU request').placeholder).toBe('0.25');
-    expect(input('Memory request').placeholder).toBe('256');
-    expect(host.textContent).toContain('0.25 vCPU guaranteed, bursts up to the node’s quota (max 8)');
-    expect(host.textContent).toContain('256 MiB guaranteed, up to 1 GiB');
-    expect(host.textContent).toContain('You pay for what is guaranteed for as long as it runs');
+    expect(input('Memory request').placeholder).toBe('128');
+    expect(host.textContent).toContain('0.25 vCPU guaranteed, up to the node’s CPU for sandboxes (at most 8 vCPU)');
+    expect(host.textContent).toContain('128 MiB guaranteed, up to 1 GiB');
+    expect(host.textContent).toContain('You pay for the request for as long as it runs');
+    // Units in the labels, never field names.
+    expect(host.textContent).toContain('Memory request (MiB)');
+    expect(host.textContent).not.toContain('memory_mib');
     expect(sent).toEqual({});
   });
 
@@ -89,13 +92,13 @@ describe('the resources form', () => {
     act(() => root.render(<Form />));
     act(() => type(input('CPU request'), '1'));
     act(() => type(input('Memory request'), '2048'));
-    expect(host.textContent).toContain('1 vCPU guaranteed, bursts up to the node’s quota (max 8)');
+    expect(host.textContent).toContain('1 vCPU guaranteed, up to the node’s CPU for sandboxes (at most 8 vCPU)');
     expect(host.textContent).toContain('2 GiB guaranteed, and no more');
     act(() => [...host.querySelectorAll('button')].find((b) => b.textContent === 'Limits')!.click());
     expect(input('Memory limit').placeholder).toBe('2048');
     act(() => type(input('CPU limit'), '4'));
     act(() => type(input('Memory limit'), '4096'));
-    expect(host.textContent).toContain('1 vCPU guaranteed, bursts up to 4 vCPU');
+    expect(host.textContent).toContain('1 vCPU guaranteed, up to 4 vCPU');
     expect(host.textContent).toContain('2 GiB guaranteed, up to 4 GiB');
     expect(sent).toEqual({ cpu: 1, memory_mib: 2048, cpu_limit: 4, memory_limit_mib: 4096 });
   });
@@ -106,7 +109,7 @@ describe('the resources form', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(host.textContent).toContain('At least the request, 2 vCPU.');
     // The sentence keeps to what will apply: the default limit until the typed one is usable.
-    expect(host.textContent).toContain('2 vCPU guaranteed, bursts up to the node’s quota (max 8)');
+    expect(host.textContent).toContain('2 vCPU guaranteed, up to the node’s CPU for sandboxes (at most 8 vCPU)');
     expect(sent).toEqual({ cpu: 2 });
   });
 });
@@ -162,8 +165,8 @@ describe('a sandbox’s usage', () => {
       },
     });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
-    expect(host.textContent).toContain('CPU billed75.0 CPU-s60.0 guaranteed + 15.0 burst');
-    expect(host.textContent).toContain('Memory billed60.0 GiB-s60.0 guaranteed, no burst');
+    expect(host.textContent).toContain('CPU billed75.0 CPU-s60.0 request + 15.0 burst');
+    expect(host.textContent).toContain('Memory billed60.0 GiB-s60.0 request, no burst');
   });
 
   it('with limits and burst billing: floor + burst, use against the request and the limit', () => {
@@ -185,12 +188,12 @@ describe('a sandbox’s usage', () => {
       },
     });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[0.1, 1, 0.2]} />));
-    expect(host.textContent).toContain('CPU billed18.2 CPU-s15.0 guaranteed + 3.20 burst');
+    expect(host.textContent).toContain('CPU billed18.2 CPU-s15.0 request + 3.20 burst');
     expect(host.textContent).toContain('uses 0.12 vCPU on average, peak 1; 0.25 vCPU guaranteed, up to 4 vCPU');
     expect(host.textContent).toContain('peak 700 MiB; 256 MiB guaranteed, up to 1 GiB');
     const cpuCell = [...host.querySelectorAll('[title]')].find((e) => e.textContent?.startsWith('CPU billed'));
     expect(cpuCell?.getAttribute('title')).toBe(
-      'billed 0.25 vCPU × 60.0 s = 15.0 CPU-s guaranteed + 3.2 burst = 18.2 CPU-s (measured 6.9)',
+      'billed 0.25 vCPU × 60.0 s = 15.0 CPU-s request + 3.2 CPU-s burst = 18.2 CPU-s (measured 6.9)',
     );
     // The memory bar runs to the limit, with the request marked.
     const meter = host.querySelector('[role="meter"]');
@@ -218,8 +221,8 @@ describe('memory billed below what was measured', () => {
       },
     });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
-    expect(host.textContent).toContain('Memory billed20.0 GiB-s15.0 guaranteed + 5.00 burst');
-    expect(host.textContent).toContain('Measured 30.0 GiB-s, file cache included, which is not billed.');
+    expect(host.textContent).toContain('Memory billed20.0 GiB-s15.0 request + 5.00 burst');
+    expect(host.textContent).toContain('Measured 30.0 GiB-s, file cache is measured, not billed.');
   });
 });
 
