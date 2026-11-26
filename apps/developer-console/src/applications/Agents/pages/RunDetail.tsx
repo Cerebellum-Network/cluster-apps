@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@cluster-apps/ui';
 import { NavLink, useParams } from 'react-router-dom';
 
-import { Pill, Section } from '~/components';
+import { ExperimentalPill, Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { legacyOutcome, outcomeOf, type RunOutcome } from '~/compute/agentOutcome';
 import { LABEL, parseRunOutput, type RunOutput, type RunStep } from '~/compute/agentRun';
@@ -147,6 +147,25 @@ const Output = ({
   );
 };
 
+/** Back to the runs list, above the title. */
+const BackToRuns = () => (
+  <Box sx={{ marginBottom: '6px' }}>
+    <Box
+      component={NavLink}
+      to="/agents/runs"
+      sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
+    >
+      Runs
+    </Box>
+  </Box>
+);
+
+const RunTitle = ({ runId }: { runId: string }) => (
+  <Typography component="h1" sx={{ ...text.pageTitle, fontFamily: mono, fontSize: 20 }}>
+    {runId}
+  </Typography>
+);
+
 const RunDetail = () => {
   const { runId = '' } = useParams<{ runId: string }>();
   const live = agentRuns.get(runId);
@@ -169,12 +188,21 @@ const RunDetail = () => {
   const inputFile = useRunFile(live ? null : sb, 'input.txt', null, version);
 
   if (!sb && !live) {
-    return listed.loading ? (
-      <Box padding="40px" display="flex" justifyContent="center">
-        <CircularProgress size={24} />
+    return (
+      <Box>
+        <BackToRuns />
+        <Stack direction="row" alignItems="center" gap="12px" marginBottom="16px" flexWrap="wrap">
+          <RunTitle runId={runId} />
+          <ExperimentalPill />
+        </Stack>
+        {listed.loading ? (
+          <Box padding="40px" display="flex" justifyContent="center">
+            <CircularProgress size={24} />
+          </Box>
+        ) : (
+          <ReadError what={`run ${runId}`} error={listed.error ?? 'no sandbox carries this run id'} />
+        )}
       </Box>
-    ) : (
-      <ReadError what={`run ${runId}`} error={listed.error ?? 'no sandbox carries this run id'} />
     );
   }
 
@@ -221,15 +249,7 @@ const RunDetail = () => {
 
   return (
     <Box>
-      <Box sx={{ marginBottom: '6px' }}>
-        <Box
-          component={NavLink}
-          to="/agents/runs"
-          sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
-        >
-          Runs
-        </Box>
-      </Box>
+      <BackToRuns />
       <Stack
         direction="row"
         alignItems="center"
@@ -239,9 +259,8 @@ const RunDetail = () => {
         flexWrap="wrap"
       >
         <Stack direction="row" alignItems="center" gap="12px" flexWrap="wrap">
-          <Typography component="h1" sx={{ ...text.pageTitle, fontFamily: mono, fontSize: 20 }}>
-            {runId}
-          </Typography>
+          <RunTitle runId={runId} />
+          <ExperimentalPill />
           {outcome ? <RunOutcomePill outcome={outcome} /> : <Pill tone="primary">Running elsewhere</Pill>}
           <Typography sx={text.secondary}>
             {agent} · {harness} · {fmtDuration((end - started) / 1000)}

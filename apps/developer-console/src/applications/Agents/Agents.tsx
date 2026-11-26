@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 
+import { ExperimentalPill } from '~/components';
 import { ComputeProvider } from '~/compute/ComputeProvider';
 import { DevViewBanner } from '~/compute/walletSigning';
 import ComputeGate from '../Sandboxes/components/ComputeGate';
@@ -37,7 +38,7 @@ const Agents = () => (
         <Route
           path="*"
           element={
-            <ComputeGate title="Agents">
+            <ComputeGate title="Agents" badge={<ExperimentalPill />}>
               <Routes>
                 <Route path="list" element={<AgentList />} />
                 <Route path="list/new" element={<AgentEditor />} />

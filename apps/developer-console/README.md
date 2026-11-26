@@ -50,14 +50,11 @@ pages say there is no compute gateway for it, rather than mixing one network's b
 
 ### Experimental: Agents
 
-Agents are experimental and **off by default**: no Agents entry in the nav, no `/agents` routes, and the other pages
-don't point at them (`src/features.ts`). Switch them on with any of:
-
-| Where | How |
-| --- | --- |
-| A deployment | `features: { agents: true }` in `/config.js` (`window.__RUNTIME_CONFIG__`) |
-| A local run | `VITE_FEATURE_AGENTS=true` |
-| One browser | open any page with `?experimental=agents`; it stays on in that browser until a page is opened with `?experimental=off` |
+Agents are experimental and always on: the nav shows **Agents** with an "Exp" label (read as "Experimental" by screen
+readers and on hover), and every Agents page shows "Experimental" beside its title (`experimental: true` on the app,
+`src/components/Experimental`). The Access tokens section that mints the S3 credential for `cere agent push` carries
+the same label. There is no switch any more: `features.agents` in `/config.js`, `VITE_FEATURE_AGENTS` and
+`?experimental=agents` are ignored, so old links with the parameter still open their page.
 
 ### Signing in
 

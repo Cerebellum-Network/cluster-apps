@@ -4,7 +4,7 @@ import { Box, Button, Stack, Typography } from '@cluster-apps/ui';
 import { Link } from '@mui/material';
 import { NavLink, useSearchParams } from 'react-router-dom';
 
-import { PageHeader, Section } from '~/components';
+import { ExperimentalPill, PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useAgentDefinitions } from '~/compute/agentHooks';
 import { bucketList, bucketNames } from '~/compute/agentStore';
@@ -228,7 +228,8 @@ const Overview = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Agents"
-          subtitle="Experimental. An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay with the bucket or the agent: the egress proxy adds them to the run’s requests, so the agent never holds them."
+          badge={<ExperimentalPill />}
+          subtitle="An agent is a definition in your bucket, run in a sandbox. Its model key and tool credentials stay with the bucket or the agent: the egress proxy adds them to the run’s requests, so the agent never holds them."
           actions={
             <>
               <BucketChip bucketId={compute.bucketId} />

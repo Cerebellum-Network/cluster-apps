@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@cluster-apps/ui';
 import { NavLink, useSearchParams } from 'react-router-dom';
 
-import { PageHeader, Pill, Section } from '~/components';
+import { ExperimentalPill, PageHeader, Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useAgentDefinitions } from '~/compute/agentHooks';
 import { bucketList, bucketNames } from '~/compute/agentStore';
@@ -43,6 +43,7 @@ const AgentList = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Agents"
+          badge={<ExperimentalPill />}
           subtitle="Each agent is a cere.agent/v1 document in one of your storage buckets, at cere/agents/<name>.json: its harness and image, model, tools and network rules. The CLI and the SDK read the same files."
           actions={
             <>

@@ -1,7 +1,7 @@
 import { observer } from 'mobx-react-lite';
 import { Box, Typography } from '@cluster-apps/ui';
 
-import { PageHeader, Section } from '~/components';
+import { ExperimentalPill, PageHeader, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { useCompute } from '~/compute/ComputeProvider';
 import { useSandboxes } from '~/compute/hooks';
@@ -19,6 +19,7 @@ const Runs = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Runs"
+          badge={<ExperimentalPill />}
           subtitle="Each run is one sandbox. Runs started from a terminal show here as well."
           actions={<BucketChip bucketId={bucketId} />}
         />

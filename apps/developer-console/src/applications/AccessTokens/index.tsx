@@ -2,7 +2,6 @@ import { SvgIcon } from '@cluster-apps/ui';
 
 import { Application } from '../types';
 import AccessTokens from './AccessTokens';
-import { features } from '~/features';
 
 /** A key: credentials for machines. */
 const AccessTokensIcon = () => (
@@ -16,9 +15,7 @@ const application: Application = {
   rootPath: 'access-tokens',
   title: 'Access tokens',
   navLabel: 'Access tokens',
-  description: features.agents
-    ? 'Tokens for the cere CLI in CI, and S3 credentials for agent definitions'
-    : 'Tokens for the cere CLI in CI',
+  description: 'Tokens for the cere CLI in CI, and S3 credentials for agent definitions',
   icon: <AccessTokensIcon />,
   group: 'account',
 };

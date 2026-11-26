@@ -16,7 +16,7 @@ import { Autocomplete } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { PageHeader, Section } from '~/components';
+import { ExperimentalPill, PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { AGENT_DEFAULT_RESOURCES, agentKey, type AgentDefinition } from '~/compute/agentDefinition';
 import { useAgentDefinitions } from '~/compute/agentHooks';
@@ -197,26 +197,29 @@ const AgentEditor = () => {
   const [error, setError] = useState<string | null>(null);
 
   if (editing && !form) {
-    if (defs.loading)
-      return (
-        <Box padding="40px" display="flex" justifyContent="center">
-          <CircularProgress size={24} />
-        </Box>
-      );
-    if (!canSign)
-      return <Alert severity="info">Editing a definition reads it from your storage bucket. {NO_WALLET_HERE}</Alert>;
-    if (stored && !stored.def)
-      return (
-        <Alert severity="warning">
-          {editing.name} can’t be opened in the form: {stored.errors.join(' ')} Fix it as JSON from{' '}
-          <NavLink to={agentPath(editing.bucket, editing.name)}>its page</NavLink>.
-        </Alert>
-      );
     return (
-      <ReadError
-        what={`agent ${editing.name}`}
-        error={defs.error ?? `there is no ${agentKey(editing.name)} in bucket ${editing.bucket}`}
-      />
+      <Box>
+        <Box marginBottom="20px">
+          <PageHeader title={`Edit ${editing.name}`} badge={<ExperimentalPill />} />
+        </Box>
+        {defs.loading ? (
+          <Box padding="40px" display="flex" justifyContent="center">
+            <CircularProgress size={24} />
+          </Box>
+        ) : !canSign ? (
+          <Alert severity="info">Editing a definition reads it from your storage bucket. {NO_WALLET_HERE}</Alert>
+        ) : stored && !stored.def ? (
+          <Alert severity="warning">
+            {editing.name} can’t be opened in the form: {stored.errors.join(' ')} Fix it as JSON from{' '}
+            <NavLink to={agentPath(editing.bucket, editing.name)}>its page</NavLink>.
+          </Alert>
+        ) : (
+          <ReadError
+            what={`agent ${editing.name}`}
+            error={defs.error ?? `there is no ${agentKey(editing.name)} in bucket ${editing.bucket}`}
+          />
+        )}
+      </Box>
     );
   }
   if (!form) return null;
@@ -266,6 +269,7 @@ const AgentEditor = () => {
       <Box marginBottom="20px">
         <PageHeader
           title={editing ? `Edit ${editing.name}` : 'Create agent'}
+          badge={<ExperimentalPill />}
           subtitle="Every run of the agent is a new sandbox from this definition: the image and harness, the model, the tools and limits, and the hosts it may reach. Credentials stay with the bucket; the egress proxy adds them on the way out."
         />
       </Box>

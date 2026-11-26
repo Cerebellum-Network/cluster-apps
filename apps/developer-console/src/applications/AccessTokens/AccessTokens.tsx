@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Alert, Box, Button, LoadingButton, MenuItem, Stack, TextField, Typography } from '@cluster-apps/ui';
 import { observer } from 'mobx-react-lite';
 
-import { PageHeader, Section } from '~/components';
+import { ExperimentalPill, PageHeader, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { computeConfig } from '~/compute/computeConfig';
 import { errorMessage } from '~/compute/client';
@@ -12,7 +12,6 @@ import { storageConfig } from '~/storage/storageConfig';
 import { color, mono, text } from '~/theme/tokens';
 import { CodeBlock, useCopy } from '../Sandboxes/components/bits';
 import { BucketChip, Mono } from '../Sandboxes/components/ui';
-import { features } from '~/features';
 
 const TTL_DAYS = [1, 7, 30];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -67,7 +66,7 @@ const BucketAccess = observer(() => {
   };
 
   return (
-    <Section title="Agent definitions in your bucket">
+    <Section title="Agent definitions in your bucket" badge={<ExperimentalPill />}>
       <Typography sx={{ ...text.secondary, marginTop: '-6px', marginBottom: '12px' }}>
         <Box component="span" sx={{ fontFamily: mono }}>
           cere agent push
@@ -220,11 +219,7 @@ const AccessTokens = () => {
       <Box marginBottom="20px">
         <PageHeader
           title="Access tokens"
-          subtitle={
-            features.agents
-              ? 'For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI, and for agent definitions in your storage buckets.'
-              : 'For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI.'
-          }
+          subtitle="For the cere CLI and the Python SDK where nobody can sign in through a browser, such as CI, and for agent definitions in your storage buckets."
           actions={<BucketChip bucketId={bucketId} />}
         />
       </Box>
@@ -311,7 +306,7 @@ const AccessTokens = () => {
           </Box>
         </Section>
 
-        {features.agents && <BucketAccess />}
+        <BucketAccess />
       </Stack>
     </Box>
   );

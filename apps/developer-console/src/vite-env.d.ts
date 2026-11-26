@@ -23,8 +23,6 @@ interface ImportMetaEnv {
   readonly VITE_MODELS_CDN_URL?: string;
   // Compute slice: sandboxes and agents (src/compute/computeConfig.ts)
   readonly VITE_COMPUTE_GATEWAY_URL?: string;
-  // Experimental features (src/features.ts): 'true' turns Agents on
-  readonly VITE_FEATURE_AGENTS?: string;
 }
 
 interface ImportMeta {
@@ -57,10 +55,6 @@ interface RuntimeConfig {
   /** Compute slice: sandboxes and agents (src/compute/computeConfig.ts). */
   compute?: {
     gatewayUrl?: string;
-  };
-  /** Experimental features, off unless set (src/features.ts). */
-  features?: {
-    agents?: boolean;
   };
 }
 

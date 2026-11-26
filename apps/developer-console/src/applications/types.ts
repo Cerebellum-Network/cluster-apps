@@ -24,5 +24,7 @@ export type Application = {
   group: AppGroup;
   /** Sub-navigation shown when the item is active. */
   subNav?: SubNavItem[];
+  /** Still experimental: an "Exp" label beside it in the sidebar, and "Experimental" beside each page's title. */
+  experimental?: boolean;
   widget?: ReactNode;
 };

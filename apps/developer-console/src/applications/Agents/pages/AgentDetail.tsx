@@ -4,7 +4,7 @@ import { Alert, Box, Button, CircularProgress, LoadingButton, Stack, TextField, 
 import { Dialog, DialogActions, DialogContent, DialogTitle, Link } from '@mui/material';
 import { NavLink, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
-import { Pill, Section } from '~/components';
+import { ExperimentalPill, Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { useAgentDefinitions } from '~/compute/agentHooks';
 import { AGENT_RUN_KIND, agentTimeout, LABEL, modelRule } from '~/compute/agentRun';
@@ -156,6 +156,19 @@ const Definition = ({ def, onEgress }: { def: AgentDefinition; onEgress?: () => 
   );
 };
 
+/** Back to the agents list, above the title. */
+const BackToAgents = () => (
+  <Box sx={{ marginBottom: '6px' }}>
+    <Box
+      component={NavLink}
+      to={AGENTS_PATH}
+      sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
+    >
+      Agents
+    </Box>
+  </Box>
+);
+
 type Tab = 'definition' | 'runs' | 'egress' | 'json';
 const TABS: Tab[] = ['definition', 'runs', 'egress', 'json'];
 
@@ -183,15 +196,26 @@ const AgentDetail = () => {
 
   const stored = defs.agents.find((a) => a.name === name);
   if (!stored) {
-    return defs.loading ? (
-      <Box padding="40px" display="flex" justifyContent="center">
-        <CircularProgress size={24} />
+    return (
+      <Box>
+        <BackToAgents />
+        <Stack direction="row" alignItems="center" gap="12px" marginBottom="16px" flexWrap="wrap">
+          <Typography component="h1" sx={text.pageTitle}>
+            {name}
+          </Typography>
+          <ExperimentalPill />
+        </Stack>
+        {defs.loading ? (
+          <Box padding="40px" display="flex" justifyContent="center">
+            <CircularProgress size={24} />
+          </Box>
+        ) : (
+          <ReadError
+            what={`agent ${name}`}
+            error={defs.error ?? `there is no cere/agents/${name}.json in bucket ${bucket}`}
+          />
+        )}
       </Box>
-    ) : (
-      <ReadError
-        what={`agent ${name}`}
-        error={defs.error ?? `there is no cere/agents/${name}.json in bucket ${bucket}`}
-      />
     );
   }
   const def = stored.def;
@@ -228,15 +252,7 @@ const AgentDetail = () => {
 
   return (
     <Box>
-      <Box sx={{ marginBottom: '6px' }}>
-        <Box
-          component={NavLink}
-          to={AGENTS_PATH}
-          sx={{ ...text.secondary, textDecoration: 'none', '&:hover': { color: color.primary } }}
-        >
-          Agents
-        </Box>
-      </Box>
+      <BackToAgents />
       <Stack
         direction="row"
         alignItems="center"
@@ -249,6 +265,7 @@ const AgentDetail = () => {
           <Typography component="h1" sx={text.pageTitle}>
             {name}
           </Typography>
+          <ExperimentalPill />
           <Typography sx={{ fontFamily: mono, fontSize: 13, color: color.textTertiary }}>
             {bucket}/{stored.key}
           </Typography>

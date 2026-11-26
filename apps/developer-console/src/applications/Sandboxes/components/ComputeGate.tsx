@@ -18,7 +18,7 @@ const Waiting = ({ children }: { children: ReactNode }) => (
  * bill and a COMPUTE token for it. Until then, says what it is waiting for and
  * offers the one action that unblocks it.
  */
-const ComputeGate = ({ children, title }: { children: ReactNode; title?: string }) => {
+const ComputeGate = ({ children, title, badge }: { children: ReactNode; title?: string; badge?: ReactNode }) => {
   const c = useCompute();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -41,7 +41,7 @@ const ComputeGate = ({ children, title }: { children: ReactNode; title?: string 
     <Box maxWidth={720}>
       {title && (
         <Box marginBottom="20px">
-          <PageHeader title={title} />
+          <PageHeader title={title} badge={badge} />
         </Box>
       )}
       <Section
