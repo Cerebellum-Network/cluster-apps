@@ -9,11 +9,11 @@ import {
 } from './egressCoverage';
 import type { SecretSummary } from './types';
 
-const secret = (name: string, hosts?: string[]): SecretSummary => ({
+const secret = (name: string, hosts: string[]): SecretSummary => ({
   name,
   type: 'header',
   header: 'Authorization',
-  ...(hosts ? { hosts } : {}),
+  hosts,
   created_at: '2026-11-25T00:00:00Z',
   updated_at: '2026-11-25T00:00:00Z',
 });
@@ -48,13 +48,12 @@ describe('secretCoversRule', () => {
 });
 
 describe('credentialCoverage', () => {
-  const have = [secret('gh', ['api.github.com']), secret('old', []), secret('legacy')];
+  const have = [secret('gh', ['api.github.com']), secret('old', [])];
 
   it('tells each case apart', () => {
     expect(credentialCoverage('', 'x.org', have)).toEqual({ state: 'none' });
     expect(credentialCoverage('gh', 'api.github.com', undefined)).toEqual({ state: 'unknown' });
     expect(credentialCoverage('nope', 'x.org', have)).toEqual({ state: 'missing', name: 'nope' });
-    expect(credentialCoverage('legacy', 'x.org', have)).toEqual({ state: 'unlisted', name: 'legacy' });
     expect(credentialCoverage('old', 'x.org', have)).toEqual({ state: 'unbound', name: 'old' });
     expect(credentialCoverage('gh', 'API.GitHub.com', have)).toEqual({
       state: 'covered',
@@ -74,12 +73,11 @@ describe('credentialCoverage', () => {
       credentialCoverage('', 'x.org', have),
       credentialCoverage('gh', 'x.org', undefined),
       credentialCoverage('nope', 'x.org', have),
-      credentialCoverage('legacy', 'x.org', have),
       credentialCoverage('old', 'x.org', have),
       credentialCoverage('gh', 'api.github.com', have),
       credentialCoverage('gh', 'github.com', have),
     ];
-    expect(states.map(coverageBlocks)).toEqual([false, false, true, false, true, false, true]);
+    expect(states.map(coverageBlocks)).toEqual([false, false, true, true, false, true]);
   });
 
   it('says which hosts to store the secret with', () => {

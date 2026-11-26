@@ -58,8 +58,6 @@ export type Coverage =
   | { state: 'unknown' }
   /** No secret of that name resolves: the create is refused with `unknown_credential`. */
   | { state: 'missing'; name: string }
-  /** An older gateway lists no hosts, so the binding can't be told. */
-  | ({ state: 'unlisted'; name: string } & From)
   /** The secret is bound to no host (stored before secrets had hosts): it is sent nowhere. */
   | ({ state: 'unbound'; name: string } & From)
   /** The secret is not bound to the rule's host: the create is refused with `credential_not_bound`. */
@@ -78,7 +76,6 @@ export function credentialCoverage(
   const s = secrets.find((x) => x.name === name);
   if (!s) return { state: 'missing', name };
   const from: From = { ...(s.scope ? { scope: s.scope } : {}), ...(s.agent ? { agent: s.agent } : {}) };
-  if (!s.hosts) return { state: 'unlisted', name, ...from };
   if (s.hosts.length === 0) return { state: 'unbound', name, ...from };
   if (!norm(host) || secretCoversRule(s.hosts, host)) return { state: 'covered', name, hosts: s.hosts, ...from };
   return { state: 'not-covered', name, hosts: s.hosts, host: norm(host), ...from };

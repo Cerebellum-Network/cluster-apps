@@ -17,9 +17,9 @@ import {
 } from '~/compute/agentDefinition';
 import { DEFAULT_AGENT_TIMEOUT_S } from '~/compute/agentRun';
 import { credentialCoverage, ruleCoverage, type Coverage } from '~/compute/egressCoverage';
-import { parseResources, storedMemory, storedMemoryLimit } from '~/compute/resources';
+import { parseResources } from '~/compute/resources';
 import { formFromRule, MAX_PLACEHOLDERS, ruleFromForm, type RuleForm } from '~/compute/egressRules';
-import type { EgressRule } from '~/compute/types';
+import type { EgressRule, Resources } from '~/compute/types';
 import { quoteArg, splitCommand } from '../../Sandboxes/components/commandLine';
 
 /** The agent runner image the claude-code harness runs in (the release's examples use it). */
@@ -58,11 +58,8 @@ export interface AgentForm {
   /** The limits: '' = the agent layer's defaults (2 vCPU, 2048 MiB, or the request where that is more). */
   cpuLimit: string;
   memoryLimitMib: string;
-  /**
-   * The definition says `memory_mib` / `memory_limit_mib` (written before the API's names were settled): saved the
-   * same way, so editing it changes only what was edited. New definitions say `memory` / `memory_limit`.
-   */
-  oldMemoryNames?: boolean;
+  /** Resources the form doesn't edit (`disk`, `pids`): kept as they were. */
+  keptResources: Pick<Resources, 'disk' | 'pids'>;
   timeoutS: string;
   rules: RuleForm[];
   /** Not edited by the form; kept as they were. */
@@ -114,6 +111,7 @@ export function emptyForm(model: { baseUrl: string; model: string; credential: s
     memoryMib: String(DEFAULTS.memoryMib),
     cpuLimit: '',
     memoryLimitMib: '',
+    keptResources: {},
     timeoutS: String(DEFAULTS.timeoutS),
     rules: [],
     files: {},
@@ -159,15 +157,13 @@ export function formFromDefinition(def: AgentDefinition): AgentForm {
     deny: (def.deny ?? []).join('\n'),
     maxTurns: String(def.max_turns ?? DEFAULTS.maxTurns),
     cpu: String(def.resources?.cpu ?? DEFAULTS.cpu),
-    memoryMib: String(storedMemory(def.resources) ?? DEFAULTS.memoryMib),
+    memoryMib: String(def.resources?.memory ?? DEFAULTS.memoryMib),
     cpuLimit: def.resources?.cpu_limit ? String(def.resources.cpu_limit) : '',
-    memoryLimitMib: storedMemoryLimit(def.resources) ? String(storedMemoryLimit(def.resources)) : '',
-    ...(def.resources &&
-    def.resources.memory === undefined &&
-    def.resources.memory_limit === undefined &&
-    (def.resources.memory_mib !== undefined || def.resources.memory_limit_mib !== undefined)
-      ? { oldMemoryNames: true }
-      : {}),
+    memoryLimitMib: def.resources?.memory_limit ? String(def.resources.memory_limit) : '',
+    keptResources: {
+      ...(def.resources?.disk !== undefined ? { disk: def.resources.disk } : {}),
+      ...(def.resources?.pids !== undefined ? { pids: def.resources.pids } : {}),
+    },
     timeoutS: String(def.timeout_s ?? DEFAULTS.timeoutS),
     rules: (def.egress?.allow ?? []).map(formFromRule),
     files: { ...(def.files ?? {}) },
@@ -302,11 +298,10 @@ export function definitionFromForm(form: AgentForm): {
     max_turns: maxTurns ?? DEFAULTS.maxTurns,
     resources: {
       cpu: cpu ?? DEFAULTS.cpu,
-      [form.oldMemoryNames ? 'memory_mib' : 'memory']: memory ?? DEFAULTS.memoryMib,
+      memory: memory ?? DEFAULTS.memoryMib,
       ...(limits.resources.cpu_limit ? { cpu_limit: limits.resources.cpu_limit } : {}),
-      ...(limits.resources.memory_limit_mib
-        ? { [form.oldMemoryNames ? 'memory_limit_mib' : 'memory_limit']: limits.resources.memory_limit_mib }
-        : {}),
+      ...(limits.resources.memory_limit ? { memory_limit: limits.resources.memory_limit } : {}),
+      ...form.keptResources,
     },
     timeout_s: timeout ?? DEFAULTS.timeoutS,
     egress: { allow },

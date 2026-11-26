@@ -50,7 +50,7 @@ const RightNow = () => {
   const list = useMemo(() => data?.items ?? [], [data]);
   const live = list.filter((s) => isLive(s.status));
   const cpu = live.reduce((a, s) => a + s.resources.cpu, 0);
-  const mem = live.reduce((a, s) => a + s.resources.memory_mib, 0);
+  const mem = live.reduce((a, s) => a + s.resources.memory, 0);
 
   return (
     <Section

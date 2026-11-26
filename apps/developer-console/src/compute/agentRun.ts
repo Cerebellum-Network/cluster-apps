@@ -134,19 +134,21 @@ export function agentTimeout(def: AgentDefinition): number {
 }
 
 /**
- * The run's CPU and memory: what the definition sets, else the agent layer's defaults (0.5 vCPU, 512 MiB, up to
- * 2 vCPU and 2048 MiB), always with both limits, so a run never depends on the sandbox API's defaults. The client
- * sends them under the API's names (`memory`, `memory_limit`).
+ * The run's resources: CPU and memory as the definition sets them, else the agent layer's defaults (0.5 vCPU,
+ * 512 MiB, up to 2 vCPU and 2048 MiB), always with both limits, so a run never depends on the sandbox API's defaults;
+ * `disk` and `pids` only when the definition sets them (else the sandbox API's).
  */
 export function runResources(
   def: AgentDefinition,
-): Required<Pick<Resources, 'cpu' | 'memory_mib' | 'cpu_limit' | 'memory_limit_mib'>> {
+): Required<Pick<Resources, 'cpu' | 'memory' | 'cpu_limit' | 'memory_limit'>> & Pick<Resources, 'disk' | 'pids'> {
   const e = effectiveOf(def.resources, AGENT_DEFAULT_RESOURCES);
   return {
     cpu: e.cpu,
-    memory_mib: e.memoryMib,
+    memory: e.memoryMib,
     cpu_limit: e.cpuLimit ?? AGENT_DEFAULT_RESOURCES.cpuLimit,
-    memory_limit_mib: e.memoryLimitMib,
+    memory_limit: e.memoryLimitMib,
+    ...(def.resources?.disk ? { disk: def.resources.disk } : {}),
+    ...(def.resources?.pids ? { pids: def.resources.pids } : {}),
   };
 }
 

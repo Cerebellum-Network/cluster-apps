@@ -99,7 +99,7 @@ describe('createComputeClient', () => {
       json(c.method === 'POST' ? 201 : 200, { id: 'sb-1', status: 'starting' }),
     );
     const c = createComputeClient('tok', BASE, fetchImpl);
-    await c.createSandbox({ image: 'python:3.12-slim', resources: { cpu: 1, memory_mib: 1024 } });
+    await c.createSandbox({ image: 'python:3.12-slim', resources: { cpu: 1, memory: 1024 } });
     expect(calls[0].method).toBe('POST');
     expect(calls[0].headers['Content-Type']).toBe('application/json');
     expect(JSON.parse(String(calls[0].body))).toMatchObject({ image: 'python:3.12-slim' });
@@ -174,7 +174,8 @@ describe('createComputeClient', () => {
     await c.putSecret('gh', { type: 'header', header: 'Authorization', value: 'Bearer x', hosts: ['api.github.com'] });
     expect(calls[0].url).toBe(`${BASE}/v1/secrets/gh`);
     expect(JSON.parse(String(calls[0].body)).hosts).toEqual(['api.github.com']);
-    expect(await c.listSecrets()).toEqual([{ name: 'gh', type: 'header', header: 'Authorization' }]);
+    // A secret bound to no host comes back with an empty list (Go sends null or leaves it out).
+    expect(await c.listSecrets()).toEqual([{ name: 'gh', type: 'header', header: 'Authorization', hosts: [] }]);
   });
 
   it('stores and deletes an agent’s secret, and replaces a running sandbox’s own', async () => {
@@ -197,26 +198,25 @@ describe('createComputeClient', () => {
     expect(JSON.parse(String(calls[3].body))).toEqual({ value: 'Bearer new' });
   });
 
-  it('sends memory under the API’s names and reads either', async () => {
+  it('sends and reads resources under the API’s names, as they are', async () => {
     const { calls, fetchImpl } = stubFetch(() =>
       json(201, {
         id: 'sb-1',
         status: 'starting',
-        resources: { cpu: 0.25, memory: 128, memory_mib: 128, cpu_limit: 4, memory_limit: 1024 },
+        resources: { cpu: 0.25, memory: 128, cpu_limit: 4, memory_limit: 1024, disk: 2048 },
         secrets: [{ name: 'gh', type: 'header', header: 'Authorization', hosts: null }],
       }),
     );
     const c = createComputeClient('tok', BASE, fetchImpl);
     const sb = await c.createSandbox({
       image: 'python:3.12-slim',
-      resources: { cpu: 0.25, memory_mib: 128, memory_limit_mib: 1024 },
+      resources: { cpu: 0.25, memory: 128, memory_limit: 1024, disk: 2048 },
       secrets: [{ name: 'gh', type: 'header', header: 'Authorization', value: 'Bearer x', hosts: ['api.github.com'] }],
     });
     const body = JSON.parse(String(calls[0].body));
-    expect(body.resources).toEqual({ cpu: 0.25, memory: 128, memory_limit: 1024 });
+    expect(body.resources).toEqual({ cpu: 0.25, memory: 128, memory_limit: 1024, disk: 2048 });
     expect(body.secrets[0].hosts).toEqual(['api.github.com']);
-    expect(sb.resources.memory_mib).toBe(128);
-    expect(sb.resources.memory_limit_mib).toBe(1024);
+    expect(sb.resources).toEqual({ cpu: 0.25, memory: 128, cpu_limit: 4, memory_limit: 1024, disk: 2048 });
     expect(sb.secrets).toEqual([{ name: 'gh', type: 'header', header: 'Authorization', hosts: [] }]);
   });
 });

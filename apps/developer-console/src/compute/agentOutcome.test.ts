@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  fitBytes,
-  legacyOutcome,
-  MAX_REASON_BYTES,
-  outcomeOf,
-  terminateReason,
-  withoutFiles,
-  type RunOutcome,
-} from './agentOutcome';
+import { fitBytes, MAX_REASON_BYTES, outcomeOf, terminateReason, withoutFiles, type RunOutcome } from './agentOutcome';
 import type { SandboxStatus } from './types';
 
 const bytes = (s: string) => new TextEncoder().encode(s).length;
@@ -69,35 +61,10 @@ describe('outcomeOf', () => {
     ],
     [sb('terminated', 'lost: host restarted'), { state: 'failed', detail: 'The sandbox ended: lost: host restarted' }],
     [sb('terminated', 'timeout (1020s)'), { state: 'ended', detail: 'timeout (1020s)' }],
-    [sb('terminated', 'token_expiry'), { state: 'ended', detail: 'token_expiry' }],
     [
       sb('terminated', 'terminated by API: console terminate'),
       { state: 'ended', detail: 'terminated by API: console terminate' },
     ],
-    [
-      sb('terminated', 'terminated by API: agent run finished'),
-      { state: 'unknown', detail: 'Its client recorded no result.', legacy: true },
-    ],
   ];
   it.each(cases)('%o', (s, want) => expect(outcomeOf(s)).toEqual(want));
-});
-
-describe('legacyOutcome (runs from before results were recorded)', () => {
-  const kept = { retained: ['/workspace/output.json'], exit_reason: 'terminated by API: agent run finished' };
-  it('reads the error from the kept output.json', () => {
-    expect(legacyOutcome(kept, '{"output":"","error":"success: There\'s an issue with the selected model"}')).toEqual({
-      state: 'failed',
-      detail: "success: There's an issue with the selected model",
-    });
-    expect(legacyOutcome(kept, '{"output":"a brief","error":null}')).toEqual({ state: 'succeeded' });
-  });
-  it('fails a run that kept no output.json: the agent wrote none', () => {
-    expect(legacyOutcome({ retained: [], exit_reason: 'terminated by API: agent run finished' }, null)).toEqual({
-      state: 'failed',
-      detail: 'The agent wrote no /workspace/output.json.',
-    });
-  });
-  it('says so when the file is no longer kept', () => {
-    expect(legacyOutcome(kept, null).state).toBe('unknown');
-  });
 });

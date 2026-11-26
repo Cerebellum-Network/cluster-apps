@@ -4,7 +4,7 @@
  * agents. A definition is a JSON document in the customer's bucket at
  * `cere/agents/<name>.json`; a run is a sandbox labelled `cere.*`.
  */
-import type { EgressRule, HttpMethod } from './types';
+import type { EgressRule, HttpMethod, Resources } from './types';
 
 export const AGENT_SCHEMA = 'cere.agent/v1';
 
@@ -33,17 +33,10 @@ export interface AgentDefinition {
   deny?: string[];
   max_turns?: number;
   /**
-   * The run's request (`cpu` in vCPU, `memory` in MiB) and, optionally, its limits (`cpu_limit`, `memory_limit`).
-   * Definitions written before the API's names were settled say `memory_mib` and `memory_limit_mib`; both are read.
+   * The run's sandbox resources under the sandbox API's names: the request (`cpu` in vCPU, `memory` in MiB) and,
+   * optionally, its limits (`cpu_limit`, `memory_limit`), its disk (`disk`, MiB) and `pids`.
    */
-  resources?: {
-    cpu?: number;
-    memory?: number;
-    cpu_limit?: number;
-    memory_limit?: number;
-    memory_mib?: number;
-    memory_limit_mib?: number;
-  };
+  resources?: Partial<Omit<Resources, 'gpu'>>;
   timeout_s?: number;
   egress?: { allow: EgressRule[] };
   /** Extra files put into the sandbox before the run: path (relative = under /workspace) → content. */
@@ -65,7 +58,17 @@ export const AGENT_POLICIES = ['read-only', 'read-write'];
 
 const METHODS: HttpMethod[] = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
+/** The keys a definition's `resources` may have: the sandbox API's, which the run's create sends as they are. */
+export const AGENT_RESOURCE_KEYS = ['cpu', 'memory', 'cpu_limit', 'memory_limit', 'disk', 'pids'] as const;
+/** Names the API does not take, with the one it does. */
+const RESOURCE_RENAMED: Record<string, string> = {
+  memory_mib: 'memory',
+  memory_limit_mib: 'memory_limit',
+  disk_mib: 'disk',
+};
+
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+const isPositiveInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 1;
 const isStrArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
 
 /**
@@ -109,27 +112,26 @@ export function validateAgentDefinition(doc: unknown): string[] {
     if (!isObj(doc.resources)) errs.push('"resources" must be an object.');
     else {
       const r = doc.resources;
-      const { cpu, cpu_limit } = r;
-      // `memory` and `memory_limit` (MiB), or the older `memory_mib` and `memory_limit_mib`.
-      const memKey = r.memory !== undefined ? 'memory' : 'memory_mib';
-      const limKey = r.memory_limit !== undefined ? 'memory_limit' : 'memory_limit_mib';
-      const memory = r[memKey];
-      const memoryLimit = r[limKey];
+      for (const k of Object.keys(r))
+        if (!(AGENT_RESOURCE_KEYS as readonly string[]).includes(k))
+          errs.push(
+            RESOURCE_RENAMED[k]
+              ? `"resources.${k}" is not a field: the name is "${RESOURCE_RENAMED[k]}" (MiB).`
+              : `"resources.${k}" is not a field: use ${AGENT_RESOURCE_KEYS.map((x) => `"${x}"`).join(', ')}.`,
+          );
+      const { cpu, memory, cpu_limit, memory_limit, disk, pids } = r;
       if (cpu !== undefined && !(typeof cpu === 'number' && cpu > 0)) errs.push('"resources.cpu" must be positive.');
       if (memory !== undefined && !(typeof memory === 'number' && memory >= 128))
-        errs.push(`"resources.${memKey}" must be at least 128 (MiB).`);
+        errs.push('"resources.memory" must be at least 128 (MiB).');
       const reqCpu = typeof cpu === 'number' ? cpu : AGENT_DEFAULT_RESOURCES.cpu;
       const reqMemory = typeof memory === 'number' ? memory : AGENT_DEFAULT_RESOURCES.memoryMib;
       if (cpu_limit !== undefined && !(typeof cpu_limit === 'number' && cpu_limit >= reqCpu))
         errs.push('"resources.cpu_limit" must be at least the CPU request.');
-      if (memoryLimit !== undefined && !(typeof memoryLimit === 'number' && memoryLimit >= reqMemory))
-        errs.push(`"resources.${limKey}" must be at least the memory request.`);
-      for (const [now, old] of [
-        ['memory', 'memory_mib'],
-        ['memory_limit', 'memory_limit_mib'],
-      ])
-        if (r[now] !== undefined && r[old] !== undefined && r[now] !== r[old])
-          errs.push(`"resources.${now}" and "resources.${old}" say different things: keep "${now}".`);
+      if (memory_limit !== undefined && !(typeof memory_limit === 'number' && memory_limit >= reqMemory))
+        errs.push('"resources.memory_limit" must be at least the memory request.');
+      if (disk !== undefined && !isPositiveInt(disk))
+        errs.push('"resources.disk" must be a whole number of MiB, 1 or more.');
+      if (pids !== undefined && !isPositiveInt(pids)) errs.push('"resources.pids" must be a whole number, 1 or more.');
     }
   }
   if (doc.egress !== undefined) {

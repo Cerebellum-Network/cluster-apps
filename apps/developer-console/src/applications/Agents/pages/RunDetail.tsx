@@ -5,7 +5,7 @@ import { NavLink, useParams } from 'react-router-dom';
 
 import { ExperimentalPill, Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
-import { legacyOutcome, outcomeOf, type RunOutcome } from '~/compute/agentOutcome';
+import { outcomeOf, type RunOutcome } from '~/compute/agentOutcome';
 import { LABEL, parseRunOutput, type RunOutput, type RunStep } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { readRunFile } from '~/compute/agentStore';
@@ -225,14 +225,8 @@ const RunDetail = () => {
   // sandbox records (agentOutcome.ts), read the same way by the CLI and the SDK.
   let outcome: RunOutcome | null = null;
   if (driving) outcome = { state: 'running' };
-  else if (sb && !isLive(sb.status)) {
-    outcome = outcomeOf(sb);
-    if (outcome.legacy)
-      outcome =
-        outputFile.loading && sb.retained.includes('/workspace/output.json')
-          ? { state: 'unknown', detail: 'Reading its output…' }
-          : legacyOutcome(sb, outputFile.from === 'sandbox' ? outputFile.text : null);
-  } else if (live?.endedAt) {
+  else if (sb && !isLive(sb.status)) outcome = outcomeOf(sb);
+  else if (live?.endedAt) {
     const error = live.result?.error;
     outcome =
       error === 'Stopped.'

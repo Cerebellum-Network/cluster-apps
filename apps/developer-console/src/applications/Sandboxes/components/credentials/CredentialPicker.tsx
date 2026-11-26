@@ -15,7 +15,7 @@ export type Pickable = Pick<SecretSummary, 'name' | 'hosts'> &
 
 /** Where a secret's value may go, as the secrets API lists it. */
 export const boundTo = (s: Pick<SecretSummary, 'hosts'>): string =>
-  !s.hosts ? 'hosts not listed by this API' : s.hosts.length ? `sent only to ${s.hosts.join(', ')}` : 'sent nowhere';
+  s.hosts.length ? `sent only to ${s.hosts.join(', ')}` : 'sent nowhere';
 
 /** "sent only to api.github.com", with where it comes from when that is not the bucket. */
 const caption = (s: Pickable): string => {
@@ -206,12 +206,6 @@ export const CoverageNote = ({ coverage, host }: { coverage: Coverage; host: str
       <Typography sx={{ ...text.caption, color: color.success }}>
         {coverage.name}
         {from} is sent only to {coverage.hosts.join(', ')}: this host is covered.
-      </Typography>
-    );
-  if (coverage.state === 'unlisted')
-    return (
-      <Typography sx={text.caption}>
-        The API doesn’t list the hosts {coverage.name} is bound to, so the console can’t check it.
       </Typography>
     );
   const problem = coverageProblem(coverage);

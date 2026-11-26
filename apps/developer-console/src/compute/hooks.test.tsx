@@ -187,7 +187,7 @@ describe('agentRuns', () => {
       image: 'i',
       command: [],
       workdir: '/workspace',
-      resources: { cpu: 1, memory_mib: 2048 },
+      resources: { cpu: 1, memory: 2048 },
       timeout_s: 1,
       idle_timeout_s: 0,
       env_keys: [],

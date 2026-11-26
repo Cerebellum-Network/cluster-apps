@@ -1,7 +1,7 @@
 /**
  * Requests, limits and burst billing (contract of 25 Nov): the form's defaults
- * and checks, the floor/burst arithmetic on new and older records, and the
- * words a developer reads.
+ * and checks, the floor/burst arithmetic on records, and the words a developer
+ * reads.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -46,9 +46,9 @@ describe('the resources form', () => {
 
   it('sends only the fields typed; the limits only when set', () => {
     expect(parseResources(fields({ cpu: '0.5' })).resources).toEqual({ cpu: 0.5 });
-    expect(parseResources(fields({ memoryMib: ' 512 ' })).resources).toEqual({ memory_mib: 512 });
+    expect(parseResources(fields({ memoryMib: ' 512 ' })).resources).toEqual({ memory: 512 });
     const p = parseResources(fields({ cpu: '1', memoryMib: '512', cpuLimit: '4', memoryLimitMib: '2048' }));
-    expect(p.resources).toEqual({ cpu: 1, memory_mib: 512, cpu_limit: 4, memory_limit_mib: 2048 });
+    expect(p.resources).toEqual({ cpu: 1, memory: 512, cpu_limit: 4, memory_limit: 2048 });
     expect(plannedCpu(p.effective)).toBe('1 vCPU guaranteed, up to 4 vCPU');
     expect(plannedMemory(p.effective)).toBe('512 MiB guaranteed, up to 2 GiB');
   });
@@ -101,15 +101,15 @@ describe('the resources form', () => {
 describe('a sandbox’s request and limit', () => {
   it('reads "guaranteed, up to" when the sandbox reports a limit', () => {
     expect(cpuLine({ cpu: 0.25, cpu_limit: 4 })).toBe('0.25 vCPU guaranteed, up to 4 vCPU');
-    expect(memoryLine({ memory_mib: 256, memory_limit_mib: 1024 })).toBe('256 MiB guaranteed, up to 1 GiB');
+    expect(memoryLine({ memory: 256, memory_limit: 1024 })).toBe('256 MiB guaranteed, up to 1 GiB');
     expect(cpuLine({ cpu: 1, cpu_limit: 1 })).toBe('1 vCPU guaranteed, and no more');
   });
 
-  it('shows the request alone from a gateway before limits', () => {
+  it('shows the request alone without a limit', () => {
     expect(cpuLine({ cpu: 1 })).toBe('1 vCPU');
-    expect(memoryLine({ memory_mib: 1024 })).toBe('1 GiB');
+    expect(memoryLine({ memory: 1024 })).toBe('1 GiB');
     expect(cpuCeiling({ cpu: 1 })).toBe(1);
-    expect(memoryCeiling({ memory_mib: 1024, memory_limit_mib: 4096 })).toBe(4096);
+    expect(memoryCeiling({ memory: 1024, memory_limit: 4096 })).toBe(4096);
   });
 });
 
@@ -133,6 +133,19 @@ const record = (r: Partial<UsageRecord>): RecordBillingFields & UsageRecord => (
   tca_id: 0,
   dac_status: 'pushed',
   dac_updated_at: null,
+  billing_basis: 'request_or_usage',
+  wall_s: 0,
+  reserved_cpu: 0,
+  reserved_memory_mib: 0,
+  reserved_cpu_s: 0,
+  reserved_ram_gib_s: 0,
+  billed_cpu_s: 0,
+  billed_ram_gib_s: 0,
+  cpu_limit: 0,
+  memory_limit: 0,
+  burst_cpu_s: 0,
+  burst_ram_gib_s: 0,
+  cpu_peak: 0,
   ...r,
 });
 
@@ -151,21 +164,8 @@ const burstMinute = record({
   burst_cpu_s: 3.2,
   burst_ram_gib_s: 0,
   cpu_limit: 4,
-  memory_limit_mib: 1024,
+  memory_limit: 1024,
   cpu_peak: 1,
-});
-// Before limits (no burst fields): billed max(reserved, measured) per minute.
-const olderMinute = record({
-  billing_basis: 'reserved',
-  wall_s: 60,
-  cpu_s: 75,
-  ram_gib_s: 30,
-  reserved_cpu: 1,
-  reserved_memory_mib: 1024,
-  reserved_cpu_s: 60,
-  reserved_ram_gib_s: 60,
-  billed_cpu_s: 75,
-  billed_ram_gib_s: 60,
 });
 const measuredMinute = record({
   billing_basis: 'measured',
@@ -177,8 +177,6 @@ const measuredMinute = record({
   billed_cpu_s: 9.4,
   billed_ram_gib_s: 15,
 });
-// From a gateway before the billing fields: the units, as measured.
-const unitsOnly = record({ cpu_s: 2, ram_gib_s: 1, cpu_units: '200000000000', ram_units: '100000000000' });
 
 describe('floor and burst', () => {
   it('takes the floor and the burst from the record’s own fields', () => {
@@ -188,28 +186,24 @@ describe('floor and burst', () => {
     });
   });
 
-  it('works out an older record’s burst: what was billed above the floor', () => {
-    expect(recordParts(olderMinute)).toEqual({
-      cpu: { floor: 60, burst: 15, asMeasured: 0, billed: 75 },
-      ram: { floor: 60, burst: 0, asMeasured: 0, billed: 60 },
-    });
+  it('never shows a burst above the bill: the floor is what is left of it', () => {
     // Billed less than its floor (its node changed basis mid-run): no burst, the floor is what was billed.
-    expect(billedParts('reserved', 60, 40)).toEqual({ floor: 40, burst: 0, asMeasured: 0, billed: 40 });
+    expect(billedParts('request_or_usage', 40, 0)).toEqual({ floor: 40, burst: 0, asMeasured: 0, billed: 40 });
+    expect(billedParts('request_or_usage', 2, 5)).toEqual({ floor: 0, burst: 2, asMeasured: 0, billed: 2 });
   });
 
-  it('has no floor or burst under the measured basis, or before the billing fields', () => {
+  it('has no floor or burst under the measured basis', () => {
     expect(recordParts(measuredMinute).cpu).toEqual({ floor: 0, burst: 0, asMeasured: 9.4, billed: 9.4 });
-    expect(recordParts(unitsOnly).cpu).toEqual({ floor: 0, burst: 0, asMeasured: 2, billed: 2 });
   });
 
   it('sums the parts so they add up to the bill', () => {
-    const t = sumRecords([burstMinute, olderMinute, measuredMinute, unitsOnly]);
-    expect(t.cpu.floor).toBeCloseTo(75);
-    expect(t.cpu.burst).toBeCloseTo(18.2);
-    expect(t.cpu.asMeasured).toBeCloseTo(11.4);
-    expect(t.billed_cpu_s).toBeCloseTo(104.6);
+    const t = sumRecords([burstMinute, measuredMinute]);
+    expect(t.cpu.floor).toBeCloseTo(15);
+    expect(t.cpu.burst).toBeCloseTo(3.2);
+    expect(t.cpu.asMeasured).toBeCloseTo(9.4);
+    expect(t.billed_cpu_s).toBeCloseTo(27.6);
     expect(t.cpu.floor + t.cpu.burst + t.cpu.asMeasured).toBeCloseTo(t.billed_cpu_s);
-    expect(t.burst_cpu_s).toBeCloseTo(18.2);
+    expect(t.burst_cpu_s).toBeCloseTo(3.2);
     expect(t.ram.burst).toBe(0);
   });
 
@@ -270,12 +264,6 @@ describe('a sandbox’s live usage on request_or_usage', () => {
     expect(usageParts(live)?.cpu).toEqual({ floor: 15, burst: 3.2, asMeasured: 0, billed: 18.2 });
   });
 
-  it('works out the burst from a gateway that sends no burst field', () => {
-    const noField = usage({ ...live, burst_cpu_s: undefined, burst_ram_gib_s: undefined });
-    expect(usageParts(noField)?.cpu.burst).toBeCloseTo(3.2);
-    expect(billedShort(noField)?.cpu).toBe('18.2 CPU-s, 3.2 burst (measured 6.9)');
-  });
-
   it('takes the memory burst from the field, never from what was measured', () => {
     // Working set billed (page cache is not): billed memory below measured, with a burst above the request.
     const cache = usage({ ...live, ram_gib_s: 30, billed_ram_gib_s: 20, burst_ram_gib_s: 5 });
@@ -291,7 +279,7 @@ describe('a sandbox’s live usage on request_or_usage', () => {
 
 describe('memory endings in plain words', () => {
   it('says out of memory is the limit: raise the limit', () => {
-    const i = exitReasonInfo('oom_killed', { resources: { memory_mib: 256, memory_limit_mib: 1024 } });
+    const i = exitReasonInfo('oom_killed', { resources: { memory: 256, memory_limit: 1024 } });
     expect(i).toEqual({
       label: 'Out of memory',
       detail: 'It reached its memory limit of 1 GiB and was stopped.',
@@ -301,7 +289,7 @@ describe('memory endings in plain words', () => {
 
   it('says memory reclaimed is the request: raise the request', () => {
     const i = exitReasonInfo('memory_reclaimed', {
-      resources: { memory_mib: 256, memory_limit_mib: 1024 },
+      resources: { memory: 256, memory_limit: 1024 },
       usage: { memory_peak_mib: 700 },
     });
     expect(i.label).toBe('Memory reclaimed');
@@ -313,7 +301,6 @@ describe('memory endings in plain words', () => {
 
   it('keeps other reasons as the node wrote them', () => {
     expect(exitReasonInfo('timeout (600s)')).toEqual({ label: 'timeout (600s)' });
-    expect(exitReasonInfo('token_expiry').label).toBe('Token expired');
     expect(memoryEnding('oom_killed')).toBe(true);
     expect(memoryEnding('memory_reclaimed')).toBe(true);
     expect(memoryEnding('exited with code 137')).toBe(false);

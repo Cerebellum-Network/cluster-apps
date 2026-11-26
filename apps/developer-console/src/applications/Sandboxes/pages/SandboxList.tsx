@@ -230,13 +230,13 @@ const SandboxList = () => {
                           {fmtMib(s.usage.memory_peak_mib)}
                           <Box component="span" sx={{ color: color.textTertiary }}>
                             {' '}
-                            peak of {fmtMib(s.resources.memory_mib)}
-                            {memMax > s.resources.memory_mib ? `, up to ${fmtMib(memMax)}` : ''}
+                            peak of {fmtMib(s.resources.memory)}
+                            {memMax > s.resources.memory ? `, up to ${fmtMib(memMax)}` : ''}
                           </Box>
                         </Typography>
                         <RangeMeter
                           value={s.usage.memory_peak_mib}
-                          request={s.resources.memory_mib}
+                          request={s.resources.memory}
                           limit={memMax}
                           tone={live ? sbColor.running : color.border}
                           height={4}

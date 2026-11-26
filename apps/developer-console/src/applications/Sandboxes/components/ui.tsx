@@ -56,8 +56,8 @@ export const StatusDot = styled('span', { shouldForwardProp: (p) => p !== 'statu
 );
 
 /**
- * An exit reason in plain words ("Out of memory", "Memory reclaimed", "Token
- * expired"), with what happened and what to do in its tooltip; any other
+ * An exit reason in plain words ("Out of memory", "Memory reclaimed"), with
+ * what happened and what to do in its tooltip; any other
  * reason as the node wrote it. `sb` adds the numbers (its limit, request,
  * peak) when the sandbox is at hand.
  */
@@ -261,8 +261,8 @@ export const Meter = ({
 /**
  * Use against a request and a limit: the track runs to the limit, the part up
  * to the request is shaded (guaranteed), a tick marks the request, and the
- * fill is the use. With no limit above the request (a gateway before limits)
- * it is a plain meter of the request.
+ * fill is the use. With no limit above the request it is a plain meter of
+ * the request.
  */
 export const RangeMeter = ({
   value,

@@ -119,10 +119,9 @@ export function shortImage(image: string): string {
 }
 
 /**
- * Sum usage records: billed CPU-seconds and GiB-seconds (a record from a gateway
- * that predates the billing fields bills its DAC units / 1e11, as `cere usage`
- * does), in parts (the guaranteed floor, the burst above it, what was billed as
- * measured), the reserved amounts, and what was measured.
+ * Sum usage records: billed CPU-seconds and GiB-seconds, in parts (the
+ * guaranteed floor, the burst above it, what was billed as measured), the
+ * reserved amounts, and what was measured.
  */
 export function sumRecords(
   rs: (Pick<UsageRecord, 'cpu_s' | 'ram_gib_s' | 'net_egress_bytes' | 'net_ingress_bytes'> & RecordBillingFields)[],
@@ -152,8 +151,8 @@ export function sumRecords(
       billed_ram_gib_s: ram.billed,
       burst_cpu_s: cpu.burst,
       burst_ram_gib_s: ram.burst,
-      reserved_cpu_s: a.reserved_cpu_s + (r.reserved_cpu_s ?? 0),
-      reserved_ram_gib_s: a.reserved_ram_gib_s + (r.reserved_ram_gib_s ?? 0),
+      reserved_cpu_s: a.reserved_cpu_s + r.reserved_cpu_s,
+      reserved_ram_gib_s: a.reserved_ram_gib_s + r.reserved_ram_gib_s,
       net_egress_bytes: a.net_egress_bytes + r.net_egress_bytes,
       net_ingress_bytes: a.net_ingress_bytes + r.net_ingress_bytes,
       cpu,

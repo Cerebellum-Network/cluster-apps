@@ -101,10 +101,9 @@ const Cell = ({
  * guaranteed floor (the request for as long as it runs) and the burst above
  * it, with the CLI's whole line in the tooltip; under it, the use against the
  * request and the limit (CPU over time with the request as a dashed line, the
- * memory peak on a bar that runs to the limit with the request marked). A
- * gateway without the billing fields shows the measured amounts alone, and
- * one without limits the request alone. `cpuHistory` is cores used between
- * successive readings.
+ * memory peak on a bar that runs to the limit with the request marked).
+ * Until the node reports billing, the measured amounts alone. `cpuHistory` is
+ * cores used between successive readings.
  */
 const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: number[] }) => {
   const u = sandbox.usage;
@@ -114,12 +113,12 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
   const peak = u.cpu_peak ?? 0;
   // Room above the request for a burst to show, up to the limit; no room when the request is the limit.
   const sparkMax = Math.min(cpuCeiling(r), Math.max(r.cpu * 1.25, peak, ...cpuHistory, 0.01));
-  // Against the request and limit; a gateway before limits reports the request alone ("of 1 vCPU").
+  // Against the request and limit; without a limit, the request alone ("of 1 vCPU").
   const cpuUse =
     `uses ${fmtCores(avg)} vCPU on average${peak > 0 ? `, peak ${fmtCores(peak)}` : ''}` +
     (r.cpu_limit ? `; ${cpuLine(r)}` : ` of ${cpuLine(r)}`);
   const memoryUse =
-    `peak ${fmtMib(u.memory_peak_mib)}${r.memory_limit_mib ? '; ' : ' of '}${memoryLine(r)}` +
+    `peak ${fmtMib(u.memory_peak_mib)}${r.memory_limit ? '; ' : ' of '}${memoryLine(r)}` +
     (parts && measuredIncludesCache(u.ram_gib_s, parts.ram.billed)
       ? `. Measured ${fmtQty(u.ram_gib_s)} GiB-s, ${CACHE_NOTE}.`
       : '');
@@ -152,12 +151,12 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
         label={parts ? 'Memory billed' : 'Memory'}
         value={`${fmtQty(parts ? parts.ram.billed : u.ram_gib_s)} GiB-s`}
         sub={parts ? shownPartsLine(parts.ram) : 'measured'}
-        title={billedMemory(u, r.memory_mib) ? `billed ${billedMemory(u, r.memory_mib)}` : undefined}
+        title={billedMemory(u, r.memory) ? `billed ${billedMemory(u, r.memory)}` : undefined}
         note={memoryUse}
       >
         <RangeMeter
           value={u.memory_peak_mib}
-          request={r.memory_mib}
+          request={r.memory}
           limit={memoryCeiling(r)}
           tone={sbColor.running}
           label="Memory peak"

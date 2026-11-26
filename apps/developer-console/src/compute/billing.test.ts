@@ -10,49 +10,50 @@ import {
   fmtFixed,
   recordBilling,
   recordSumsLine,
-  unitsToFloat,
 } from './billing';
 import { sumRecords } from './format';
 import { EMPTY_USAGE, type Usage, type UsageRecord } from './types';
 
 const usage = (u: Partial<Usage>): Usage => ({ ...EMPTY_USAGE, ...u });
 
-// The cases of the cere CLI's TestBillingLine and TestQuickstart (ddc-node packages/cli/main_test.go, cli/v0.1.5).
+// The cases of the cere CLI's TestBillingLine and TestQuickstart (ddc-node packages/cli/main_test.go).
 describe('billingLine', () => {
-  const reserved = usage({
+  const steady = usage({
     wall_s: 54,
     cpu_s: 9.4,
     ram_gib_s: 15,
-    billing_basis: 'reserved',
+    billing_basis: 'request_or_usage',
     reserved_cpu_s: 54,
     reserved_ram_gib_s: 54,
     billed_cpu_s: 54,
     billed_ram_gib_s: 54,
   });
 
-  it('says the reservation over the wall time, with what was measured', () => {
-    expect(billingLine(reserved, 1, 1024)).toBe(
-      '1.0 vCPU × 54.0 s = 54.0 CPU-s (measured 9.4), 1.0 GiB × 54.0 s = 54.0 GiB-s (measured 15.0)',
+  it('says the request over the wall time, with what was measured', () => {
+    expect(billingLine(steady, 1, 1024)).toBe(
+      '1.0 vCPU × 54.0 s = 54.0 CPU-s request, no burst (measured 9.4), ' +
+        '1.0 GiB × 54.0 s = 54.0 GiB-s request, no burst (measured 15.0)',
     );
   });
 
-  it('reads the reservation from the usage when it is not known', () => {
-    expect(billingLine(reserved, 0, 0)).toBe(billingLine(reserved, 1, 1024));
+  it('reads the request from the usage when it is not known', () => {
+    expect(billingLine(steady, 0, 0)).toBe(billingLine(steady, 1, 1024));
   });
 
-  it('gives a fractional reservation the decimals it has', () => {
+  it('gives a fractional request the decimals it has', () => {
     const small = usage({
       wall_s: 10,
       cpu_s: 0.2,
       ram_gib_s: 1,
-      billing_basis: 'reserved',
+      billing_basis: 'request_or_usage',
       reserved_cpu_s: 2.5,
       reserved_ram_gib_s: 2.5,
       billed_cpu_s: 2.5,
       billed_ram_gib_s: 2.5,
     });
     expect(billingLine(small, 0.25, 256)).toBe(
-      '0.25 vCPU × 10.0 s = 2.5 CPU-s (measured 0.2), 0.25 GiB × 10.0 s = 2.5 GiB-s (measured 1.0)',
+      '0.25 vCPU × 10.0 s = 2.5 CPU-s request, no burst (measured 0.2), ' +
+        '0.25 GiB × 10.0 s = 2.5 GiB-s request, no burst (measured 1.0)',
     );
   });
 
@@ -61,32 +62,34 @@ describe('billingLine', () => {
       wall_s: 12.5,
       cpu_s: 1.25,
       ram_gib_s: 2.375,
-      billing_basis: 'reserved',
+      billing_basis: 'request_or_usage',
       reserved_cpu_s: 12.5,
       reserved_ram_gib_s: 12.5,
       billed_cpu_s: 12.5,
       billed_ram_gib_s: 12.5,
     });
     expect(billingLine(quickstart, 1, 1024)).toBe(
-      '1.0 vCPU × 12.5 s = 12.5 CPU-s (measured 1.2), 1.0 GiB × 12.5 s = 12.5 GiB-s (measured 2.4)',
+      '1.0 vCPU × 12.5 s = 12.5 CPU-s request, no burst (measured 1.2), ' +
+        '1.0 GiB × 12.5 s = 12.5 GiB-s request, no burst (measured 2.4)',
     );
   });
 
-  it('bills what was measured where it is more than the reservation', () => {
+  it('bills the use above the request as a burst', () => {
     const busy = usage({
       wall_s: 10,
       cpu_s: 20,
       ram_gib_s: 1,
-      billing_basis: 'reserved',
+      billing_basis: 'request_or_usage',
       reserved_cpu_s: 5,
       reserved_ram_gib_s: 2.5,
       billed_cpu_s: 20,
       billed_ram_gib_s: 2.5,
+      burst_cpu_s: 15,
     });
     expect(billedCPU(busy, 0.5)).toBe(
-      '20.0 CPU-s, the larger of reserved and measured per minute (measured 20.0; reserved 0.5 vCPU × 10.0 s = 5.0)',
+      '0.5 vCPU × 10.0 s = 5.0 CPU-s request + 15.0 CPU-s burst = 20.0 CPU-s (measured 20.0)',
     );
-    expect(billedMemory(busy, 256)).toBe('0.25 GiB × 10.0 s = 2.5 GiB-s (measured 1.0)');
+    expect(billedMemory(busy, 256)).toBe('0.25 GiB × 10.0 s = 2.5 GiB-s request, no burst (measured 1.0)');
   });
 
   it('says what was measured under the measured basis', () => {
@@ -105,14 +108,20 @@ describe('billingLine', () => {
     );
   });
 
-  it('says nothing for a gateway without the billing fields, or before the node has reported', () => {
+  it('says nothing before the node has reported', () => {
     expect(billingLine(usage({ wall_s: 54, cpu_s: 9.4 }), 1, 1024)).toBe('');
     expect(billingLine(usage({ wall_s: 54, cpu_s: 9.4, billing_basis: '' }), 1, 1024)).toBe('');
     expect(billedShort(usage({ wall_s: 54, cpu_s: 9.4 }))).toBeNull();
   });
 
-  it('says a run billed less than its reservation was billed partly as measured (cli b2b367cc1)', () => {
-    const mixed = usage({ billing_basis: 'reserved', wall_s: 10, cpu_s: 1, reserved_cpu_s: 10, billed_cpu_s: 4 });
+  it('says a run billed less than its request was billed partly as measured (cli b2b367cc1)', () => {
+    const mixed = usage({
+      billing_basis: 'request_or_usage',
+      wall_s: 10,
+      cpu_s: 1,
+      reserved_cpu_s: 10,
+      billed_cpu_s: 4,
+    });
     expect(billedCPU(mixed, 1)).toBe(
       '4.0 CPU-s, part of the run as measured (measured 1.0; reserved 1.0 vCPU × 10.0 s = 10.0)',
     );
@@ -120,11 +129,19 @@ describe('billingLine', () => {
   });
 
   it('has a short form for table cells, without the arithmetic', () => {
-    expect(billedShort(reserved)).toEqual({ cpu: '54.0 CPU-s (measured 9.4)', memory: '54.0 GiB-s (measured 15.0)' });
+    expect(billedShort(steady)).toEqual({ cpu: '54.0 CPU-s (measured 9.4)', memory: '54.0 GiB-s (measured 15.0)' });
     expect(
-      billedShort(usage({ billing_basis: 'reserved', cpu_s: 20, reserved_cpu_s: 5, billed_cpu_s: 20, ram_gib_s: 1 }))
-        ?.cpu,
-    ).toBe('20.0 CPU-s (measured 20.0)');
+      billedShort(
+        usage({
+          billing_basis: 'request_or_usage',
+          cpu_s: 20,
+          reserved_cpu_s: 5,
+          billed_cpu_s: 20,
+          burst_cpu_s: 15,
+          ram_gib_s: 1,
+        }),
+      )?.cpu,
+    ).toBe('20.0 CPU-s, 15.0 burst (measured 20.0)');
     expect(billedShort(usage({ billing_basis: 'measured', cpu_s: 9.4, billed_cpu_s: 9.4 }))?.cpu).toBe(
       '9.4 CPU-s as measured',
     );
@@ -153,14 +170,6 @@ describe('numbers as the CLI prints them', () => {
     expect(fmtFixed(60, 3)).toBe('60.000');
     expect(fmtFixed(-0.25, 1)).toBe('-0.2');
   });
-
-  it('unitsToFloat: DAC units / 1e11, 0 for anything else', () => {
-    expect(unitsToFloat('150000000000')).toBe(1.5);
-    expect(unitsToFloat('')).toBe(0);
-    expect(unitsToFloat('x')).toBe(0);
-    expect(unitsToFloat(undefined)).toBe(0);
-    expect(unitsToFloat('18446744073709551616')).toBe(0); // above uint64
-  });
 });
 
 const record = (r: Partial<UsageRecord>): UsageRecord => ({
@@ -183,17 +192,29 @@ const record = (r: Partial<UsageRecord>): UsageRecord => ({
   tca_id: 1,
   dac_status: 'pushed',
   dac_updated_at: null,
+  billing_basis: 'request_or_usage',
+  wall_s: 0,
+  reserved_cpu: 0,
+  reserved_memory_mib: 0,
+  reserved_cpu_s: 0,
+  reserved_ram_gib_s: 0,
+  billed_cpu_s: 0,
+  billed_ram_gib_s: 0,
+  cpu_limit: 0,
+  memory_limit: 0,
+  burst_cpu_s: 0,
+  burst_ram_gib_s: 0,
+  cpu_peak: 0,
   ...r,
 });
 
 // The cases of the cere CLI's TestEgressAndUsage (`cere usage`).
 describe('usage records', () => {
-  const reserved = record({
+  const minute = record({
     cpu_s: 9.4,
     ram_gib_s: 15,
     cpu_units: '6000000000000',
     ram_units: '6000000000000',
-    billing_basis: 'reserved',
     wall_s: 60,
     reserved_cpu: 1,
     reserved_memory_mib: 1024,
@@ -201,38 +222,43 @@ describe('usage records', () => {
     reserved_ram_gib_s: 60,
     billed_cpu_s: 60,
     billed_ram_gib_s: 60,
+    cpu_limit: 2,
+    memory_limit: 2048,
   });
-  const older = [
-    record({ cpu_s: 0.5, ram_gib_s: 1.5, cpu_units: '50000000000', ram_units: '150000000000' }),
-    record({ cpu_s: 1.5, ram_gib_s: 1.5, cpu_units: '150000000000', ram_units: '150000000000' }),
-  ];
+  const measured = record({
+    billing_basis: 'measured',
+    cpu_s: 2,
+    ram_gib_s: 3,
+    wall_s: 60,
+    reserved_cpu: 0.25,
+    reserved_memory_mib: 512,
+    reserved_cpu_s: 15,
+    reserved_ram_gib_s: 30,
+    billed_cpu_s: 2,
+    billed_ram_gib_s: 3,
+  });
 
-  it('give a record’s basis, reservation and billed amounts', () => {
-    expect(recordBilling(reserved)).toEqual({ basis: 'reserved', reserved: '1.0 vCPU, 1.0 GiB', cpu: 60, ram: 60 });
-    expect(recordBilling(record({ billing_basis: 'reserved', reserved_cpu: 0.25, reserved_memory_mib: 512 }))).toEqual({
-      basis: 'reserved',
-      reserved: '0.25 vCPU, 0.5 GiB',
-      cpu: 0,
-      ram: 0,
+  it('give a record’s basis, request and billed amounts', () => {
+    expect(recordBilling(minute)).toEqual({
+      basis: 'request_or_usage',
+      reserved: '1.0 vCPU, 1.0 GiB',
+      cpu: 60,
+      ram: 60,
     });
-  });
-
-  it('bill their units where the gateway predates the billing fields', () => {
-    expect(recordBilling(older[0])).toEqual({ basis: '—', reserved: '—', cpu: 0.5, ram: 1.5 });
+    expect(recordBilling(measured)).toEqual({ basis: 'measured', reserved: '0.25 vCPU, 0.5 GiB', cpu: 2, ram: 3 });
   });
 
   it('sum billed and measured, in words', () => {
-    expect(recordSumsLine(sumRecords([reserved]))).toBe(
+    expect(recordSumsLine(sumRecords([minute]))).toBe(
       'billed 60.0 CPU-s and 60.0 GiB-s; measured 9.40 CPU-s and 15.0 GiB-s',
     );
-    expect(recordSumsLine(sumRecords(older))).toBe(
+    expect(recordSumsLine(sumRecords([measured]))).toBe(
       'billed 2.00 CPU-s and 3.00 GiB-s; measured 2.00 CPU-s and 3.00 GiB-s',
     );
-    const all = sumRecords([reserved, ...older]);
+    const all = sumRecords([minute, measured]);
     expect(all.billed_cpu_s).toBe(62);
-    expect(all.reserved_cpu_s).toBe(60);
+    expect(all.reserved_cpu_s).toBe(75);
     expect(all.cpu_s).toBeCloseTo(11.4);
-    expect(Number.isNaN(all.reserved_ram_gib_s)).toBe(false);
   });
 });
 

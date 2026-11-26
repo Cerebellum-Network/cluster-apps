@@ -36,7 +36,7 @@ const sandbox = (over: Partial<Sandbox> = {}): Sandbox => ({
   image: 'python:3.12-slim',
   command: [],
   workdir: '/workspace',
-  resources: { cpu: 1, memory_mib: 1024 },
+  resources: { cpu: 1, memory: 1024 },
   timeout_s: 600,
   idle_timeout_s: 0,
   env_keys: [],

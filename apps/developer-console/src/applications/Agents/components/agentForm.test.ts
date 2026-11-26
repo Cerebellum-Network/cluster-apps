@@ -258,29 +258,42 @@ describe('requests and limits in the agent form', () => {
     expect(errors.memoryLimitMib).toBe('At least the request, 2 GiB.');
   });
 
-  it('keeps the older memory names of a definition it edits, and refuses the two names disagreeing', () => {
-    const old = { ...definitionFromForm(base()).def!, resources: { cpu: 1, memory_mib: 1024 } };
-    const f = formFromDefinition(old);
-    expect(f.memoryMib).toBe('1024');
+  it('keeps the disk and pids of a definition it edits', () => {
+    const withDisk = { ...definitionFromForm(base()).def!, resources: { cpu: 1, memory: 1024, disk: 4096, pids: 128 } };
+    const f = formFromDefinition(withDisk);
     expect(definitionFromForm({ ...f, memoryLimitMib: '2048' }).def?.resources).toEqual({
       cpu: 1,
-      memory_mib: 1024,
-      memory_limit_mib: 2048,
+      memory: 1024,
+      memory_limit: 2048,
+      disk: 4096,
+      pids: 128,
     });
-    const both = { ...old, resources: { cpu: 1, memory: 512, memory_mib: 1024 } };
-    expect(parseAgentDefinition(JSON.stringify(both)).errors).toEqual([
-      '"resources.memory" and "resources.memory_mib" say different things: keep "memory".',
+  });
+
+  it('refuses a resources key the API does not take, naming the one it does', () => {
+    const doc = {
+      ...definitionFromForm(base()).draft,
+      resources: { cpu: 1, memory_mib: 1024, disk_mib: 2048, ram: 1 },
+    };
+    expect(parseAgentDefinition(JSON.stringify(doc)).errors).toEqual([
+      '"resources.memory_mib" is not a field: the name is "memory" (MiB).',
+      '"resources.disk_mib" is not a field: the name is "disk" (MiB).',
+      '"resources.ram" is not a field: use "cpu", "memory", "cpu_limit", "memory_limit", "disk", "pids".',
+    ]);
+    const badDisk = { ...definitionFromForm(base()).draft, resources: { disk: 0.5 } };
+    expect(parseAgentDefinition(JSON.stringify(badDisk)).errors).toEqual([
+      '"resources.disk" must be a whole number of MiB, 1 or more.',
     ]);
   });
 
   it('refuses a stored definition whose limit is below its request', () => {
     const doc = {
       ...definitionFromForm(base()).draft,
-      resources: { cpu: 2, memory_mib: 512, cpu_limit: 1, memory_limit_mib: 256 },
+      resources: { cpu: 2, memory: 512, cpu_limit: 1, memory_limit: 256 },
     };
     expect(parseAgentDefinition(JSON.stringify(doc)).errors).toEqual([
       '"resources.cpu_limit" must be at least the CPU request.',
-      '"resources.memory_limit_mib" must be at least the memory request.',
+      '"resources.memory_limit" must be at least the memory request.',
     ]);
   });
 });

@@ -23,53 +23,48 @@ afterEach(() => {
 
 const sandbox = (u: Partial<Usage>): Pick<Sandbox, 'usage' | 'resources'> => ({
   usage: { ...EMPTY_USAGE, ...u },
-  resources: { cpu: 1, memory_mib: 1024 },
+  resources: { cpu: 1, memory: 1024 },
 });
 const billed = sandbox({
   wall_s: 54,
   cpu_s: 9.4,
   ram_gib_s: 15,
-  billing_basis: 'reserved',
+  billing_basis: 'request_or_usage',
   reserved_cpu_s: 54,
   reserved_ram_gib_s: 54,
   billed_cpu_s: 54,
   billed_ram_gib_s: 54,
 });
-const older = sandbox({ wall_s: 54, cpu_s: 9.4, ram_gib_s: 15 });
+const unreported = sandbox({ wall_s: 54, cpu_s: 9.4, ram_gib_s: 15 });
 
 describe('BilledUsage', () => {
   it('shows what is billed with what was measured, and the CLI’s line in its tooltip', () => {
     act(() => root.render(<BilledUsage sandbox={billed} />));
     expect(host.textContent).toBe('54.0 CPU-s (measured 9.4)54.0 GiB-s (measured 15.0)');
     expect(host.querySelector('[title]')?.getAttribute('title')).toBe(
-      'billed 1.0 vCPU × 54.0 s = 54.0 CPU-s (measured 9.4), 1.0 GiB × 54.0 s = 54.0 GiB-s (measured 15.0)',
+      'billed 1.0 vCPU × 54.0 s = 54.0 CPU-s request, no burst (measured 9.4), ' +
+        '1.0 GiB × 54.0 s = 54.0 GiB-s request, no burst (measured 15.0)',
     );
   });
 
-  it('shows what was measured from a gateway without the billing fields', () => {
-    act(() => root.render(<BilledUsage sandbox={older} />));
+  it('shows what was measured until the node reports billing', () => {
+    act(() => root.render(<BilledUsage sandbox={unreported} />));
     expect(host.textContent).toBe('9.40 CPU-s15.0 GiB-s');
     expect(host.querySelector('[title]')).toBeNull();
-    expect(billedText(older)).toBe('9.40 CPU-s · 15.0 GiB-s');
-    expect(billedText(billed)).toMatch(/^billed 1\.0 vCPU × 54\.0 s = 54\.0 CPU-s \(measured 9\.4\), /);
+    expect(billedText(unreported)).toBe('9.40 CPU-s · 15.0 GiB-s');
+    expect(billedText(billed)).toMatch(
+      /^billed 1\.0 vCPU × 54\.0 s = 54\.0 CPU-s request, no burst \(measured 9\.4\), /,
+    );
   });
 
   it('heads the column "Billed" once any sandbox says what it is billed', () => {
-    expect(billedHeader([older, billed])).toBe('Billed');
-    expect(billedHeader([older])).toBe('Measured');
+    expect(billedHeader([unreported, billed])).toBe('Billed');
+    expect(billedHeader([unreported])).toBe('Measured');
     expect(billedHeader([])).toBe('Measured');
   });
 });
 
 describe('ExitReason', () => {
-  it('says a token expiry in words, and what to do about it', () => {
-    act(() => root.render(<ExitReason reason="token_expiry" />));
-    expect(host.textContent).toBe('Token expired');
-    const title = host.querySelector('[title]')?.getAttribute('title') ?? '';
-    expect(title).toContain('60 s before the access token it was created with expired');
-    expect(title).toContain('create a new token (Access tokens), or sign in again with cere login');
-  });
-
   it('shows any other reason as the node wrote it', () => {
     act(() => root.render(<ExitReason reason="timeout (600s)" />));
     expect(host.textContent).toBe('timeout (600s)');

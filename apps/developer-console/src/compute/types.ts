@@ -17,27 +17,26 @@ export const isLive = (s: SandboxStatus): boolean => LIVE_STATUSES.includes(s);
 export type HttpMethod = 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
 
 /**
- * A sandbox's CPU and memory. `cpu` and `memory_mib` are the request: guaranteed to it under contention, kept from
- * reclaim, and the least it is billed. `cpu_limit` and `memory_limit_mib` are the most it can use (above the memory
- * limit it is stopped, `oom_killed`). A create may leave the limits out (the cluster's defaults apply); the sandbox
- * reports the limits it got. Gateways before limits send none: then the request is also the limit.
+ * A sandbox's CPU, memory and disk. `cpu` and `memory` are the request: guaranteed to it under contention, kept from
+ * reclaim, and the least it is billed. `cpu_limit` and `memory_limit` are the most it can use (above the memory limit
+ * it is stopped, `oom_killed`). A create may leave any of them out (the cluster's defaults apply); the sandbox reports
+ * what it got. The API takes and sends exactly these keys; any other is a 400.
  */
 export interface Resources {
+  /** vCPU. */
   cpu: number;
-  /**
-   * The memory request in MiB. The API's name is `memory` (the gateway still takes and sends `memory_mib` too); the
-   * client sends `memory` and reads either into this field, so the console's code reads one name.
-   */
-  memory_mib: number;
+  /** MiB, at least 128. */
+  memory: number;
+  /** vCPU. */
   cpu_limit?: number;
-  /** The memory limit in MiB; the API's name is `memory_limit`, read and sent as `memory_mib` is. */
-  memory_limit_mib?: number;
-  /** The API's names for the two memory fields, as a gateway with them sends them. */
-  memory?: number;
+  /** MiB. */
   memory_limit?: number;
   pids?: number;
-  /** Accepted, not enforced. */
-  disk_mib?: number;
+  /**
+   * MiB of writable disk (everything but `/tmp`, which counts against memory). A write past it fails inside the
+   * sandbox with "No space left on device" and the sandbox keeps running. Default 512; no fixed maximum.
+   */
+  disk?: number;
   /** Must be null in v1. */
   gpu?: null;
 }
@@ -70,9 +69,9 @@ export interface CreateSandboxRequest {
   command?: string[];
   runtime?: 'gvisor';
   workdir?: string;
-  /** Any field left out gets the cluster's default (request 0.25 vCPU, 256 MiB; limits as `Resources` says). */
+  /** Any field left out gets the cluster's default (request 0.25 vCPU, 128 MiB; 512 MiB of disk). */
   resources?: Partial<Resources>;
-  /** Default 600. */
+  /** Seconds. Absent: 300 (5 minutes); 0: no timeout. No maximum. */
   timeout_s?: number;
   /** 0 = off. Idle = no exec and no file call in flight. */
   idle_timeout_s?: number;
@@ -119,30 +118,25 @@ export interface Usage {
   disk_peak_mib: number;
   /**
    * What the sandbox is billed on: `request_or_usage` (each second, the larger of its request and what it used),
-   * `reserved` (older: its `resources` × `wall_s`, or the measured amount where that is more, per minute),
-   * `measured`, or `''` until the node has reported usage. The billing fields are absent from gateways that predate
-   * them.
+   * `measured`, or `''` until the node has reported usage.
    */
-  billing_basis?: BillingBasis | '';
+  billing_basis: BillingBasis | '';
   /** `resources.cpu` × `wall_s`: the guaranteed floor. */
-  reserved_cpu_s?: number;
-  /** `resources.memory_mib` / 1024 × `wall_s`: the guaranteed floor. */
-  reserved_ram_gib_s?: number;
+  reserved_cpu_s: number;
+  /** `resources.memory` / 1024 × `wall_s`: the guaranteed floor. */
+  reserved_ram_gib_s: number;
   /** What is billed; includes the open period while the sandbox runs. */
-  billed_cpu_s?: number;
-  billed_ram_gib_s?: number;
-  /** Billed above the request (`billed − reserved`, 0 under `measured`). Absent before limits. */
-  burst_cpu_s?: number;
-  burst_ram_gib_s?: number;
-  /** The highest per-second CPU use, in cores. Absent before limits. */
-  cpu_peak?: number;
+  billed_cpu_s: number;
+  billed_ram_gib_s: number;
+  /** Billed above the request (`billed − reserved`, 0 under `measured`). */
+  burst_cpu_s: number;
+  burst_ram_gib_s: number;
+  /** The highest per-second CPU use, in cores. */
+  cpu_peak: number;
 }
 
-/**
- * The node's billing basis, as each usage and record says it: `request_or_usage` (now), `reserved` (records and
- * runtimes before limits), `measured`.
- */
-export type BillingBasis = 'request_or_usage' | 'reserved' | 'measured';
+/** The node's billing basis, as each usage and record says it. */
+export type BillingBasis = 'request_or_usage' | 'measured';
 
 export interface Sandbox {
   id: string;
@@ -160,7 +154,7 @@ export interface Sandbox {
   env_keys: string[];
   egress: EgressPolicy;
   labels: Record<string, string>;
-  /** Its own credentials, without values; absent when it was created without any (and from older gateways). */
+  /** Its own credentials, without values; absent when it was created without any. */
   secrets?: SandboxSecret[];
   created_at: string;
   started_at: string | null;
@@ -169,9 +163,9 @@ export interface Sandbox {
   /**
    * `terminated by API[: reason]`, `timeout (Ns)`, `idle_timeout (Ns)`,
    * `oom_killed` (reached its memory limit), `memory_reclaimed` (used more
-   * than its memory request while the node was short), `exited with code N`, `failed: <stage> <detail>`,
-   * `lost: runtime restarted`, `lost: host restarted`, `token_expiry`
-   * (60 s before the token it was created with expired).
+   * than its memory request while the node was short), `insufficient_balance`
+   * (the bucket's owner ran out of balance), `exited with code N`, `failed: <stage> <detail>`,
+   * `disk_limit (…)`, `lost: runtime restarted`, `lost: host restarted`.
    */
   exit_reason: string | null;
   exit_code: number | null;
@@ -222,8 +216,8 @@ export interface SecretSummary {
   name: string;
   type: 'header';
   header: string;
-  /** The only hosts the egress proxy sends the value to; empty: nowhere. Absent from older gateways. */
-  hosts?: string[];
+  /** The only hosts the egress proxy sends the value to; empty: nowhere. */
+  hosts: string[];
   /** Set on an agent's secret, which only that agent's runs (sandboxes labelled `cere.agent=<agent>`) use. */
   agent?: string;
   created_at: string;
@@ -311,34 +305,30 @@ export interface UsageRecord {
   /** Why the DAC agent refused the record, when it did. */
   dac_error?: string | null;
   dac_updated_at: string | null;
-  /** The basis this record billed on. The billing fields are absent from gateways that predate them. */
-  billing_basis?: BillingBasis;
+  /** The basis this record billed on. */
+  billing_basis: BillingBasis;
   /** Seconds the sandbox ran in this period. */
-  wall_s?: number;
+  wall_s: number;
   /** The sandbox's request ("reserved"): vCPU and MiB. */
-  reserved_cpu?: number;
-  reserved_memory_mib?: number;
+  reserved_cpu: number;
+  reserved_memory_mib: number;
   /** The request × `wall_s`: the guaranteed floor. */
-  reserved_cpu_s?: number;
-  reserved_ram_gib_s?: number;
+  reserved_cpu_s: number;
+  reserved_ram_gib_s: number;
   /** What the record bills: `cpu_units`/`ram_units` / 1e11. */
-  billed_cpu_s?: number;
-  billed_ram_gib_s?: number;
-  /** The sandbox's limits: vCPU and MiB. Absent before limits (then the request was the limit). */
-  cpu_limit?: number;
-  /** The memory limit under its name before 26 Nov; the client fills it from `memory_limit` when only that is sent. */
-  memory_limit_mib?: number;
-  memory_limit?: number;
-  /** Billed above the request. Absent before limits: then `max(0, billed − reserved)`. */
-  burst_cpu_s?: number;
-  burst_ram_gib_s?: number;
+  billed_cpu_s: number;
+  billed_ram_gib_s: number;
+  /** The sandbox's limits: vCPU and MiB. */
+  cpu_limit: number;
+  memory_limit: number;
+  /** Billed above the request. */
+  burst_cpu_s: number;
+  burst_ram_gib_s: number;
   /** The highest per-second CPU use in the period, in cores. */
-  cpu_peak?: number;
+  cpu_peak: number;
 }
 
-/** The exit reason of a sandbox the node ended 60 s before the token it was created with expired. */
-export const EXIT_TOKEN_EXPIRY = 'token_expiry';
-/** The sandbox reached its own memory limit (`memory_limit_mib`). */
+/** The sandbox reached its own memory limit (`memory_limit`). */
 export const EXIT_OOM_KILLED = 'oom_killed';
 /** The sandbox used more than its memory request while its node was short of memory, and was stopped to free it. */
 export const EXIT_MEMORY_RECLAIMED = 'memory_reclaimed';
@@ -353,6 +343,14 @@ export const EMPTY_USAGE: Usage = {
   net_egress_bytes: 0,
   net_ingress_bytes: 0,
   disk_peak_mib: 0,
+  billing_basis: '',
+  reserved_cpu_s: 0,
+  reserved_ram_gib_s: 0,
+  billed_cpu_s: 0,
+  billed_ram_gib_s: 0,
+  burst_cpu_s: 0,
+  burst_ram_gib_s: 0,
+  cpu_peak: 0,
 };
 
 /**

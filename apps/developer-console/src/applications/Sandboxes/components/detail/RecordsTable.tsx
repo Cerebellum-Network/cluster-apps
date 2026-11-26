@@ -41,10 +41,7 @@ export const BilledCell = ({ p }: { p: BilledParts }) => (
 
 /** A record's request and limits for its tooltip: "request 0.25 vCPU, 256 MiB; limits 4 vCPU, 1 GiB". */
 function requestText(r: UsageRecord): string {
-  if (r.reserved_cpu === undefined || r.reserved_memory_mib === undefined) return '';
-  const request = `request ${fmtCpu(r.reserved_cpu)}, ${fmtMib(r.reserved_memory_mib)}`;
-  if (!r.cpu_limit && !r.memory_limit_mib) return request;
-  return `${request}; limits ${fmtCpu(r.cpu_limit ?? r.reserved_cpu)}, ${fmtMib(r.memory_limit_mib ?? r.reserved_memory_mib)}`;
+  return `request ${fmtCpu(r.reserved_cpu)}, ${fmtMib(r.reserved_memory_mib)}; limits ${fmtCpu(r.cpu_limit)}, ${fmtMib(r.memory_limit)}`;
 }
 
 /**
@@ -81,11 +78,10 @@ const RecordsTable = ({ records, empty }: { records: UsageRecord[]; empty?: stri
           {records.map((r) => {
             const billed = recordBilling(r);
             const parts = recordParts(r);
-            const req = requestText(r);
             return (
               <TableRow
                 key={r.record_id}
-                title={`Record ${r.record_id}, ${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} UTC, ${billed.basis} basis${req ? `, ${req}` : ''}`}
+                title={`Record ${r.record_id}, ${fmtUtc(r.period_start)} – ${fmtUtc(r.period_end)} UTC, ${billed.basis} basis, ${requestText(r)}`}
               >
                 <TableCell sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>
                   {fmtClock(r.period_start)}–{fmtClock(r.period_end)}

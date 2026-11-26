@@ -7,7 +7,7 @@
  * within the request is never reclaimed).
  */
 import { fmtMib } from './format';
-import { EXIT_MEMORY_RECLAIMED, EXIT_OOM_KILLED, EXIT_TOKEN_EXPIRY, type Resources, type Usage } from './types';
+import { EXIT_MEMORY_RECLAIMED, EXIT_OOM_KILLED, type Resources, type Usage } from './types';
 
 export interface ExitReasonInfo {
   /** A few words for a status line: "Out of memory". */
@@ -25,19 +25,13 @@ export interface ExitReasonInfo {
 export function exitReasonInfo(
   reason: string,
   sb?: {
-    resources?: Partial<Pick<Resources, 'memory_mib' | 'memory_limit_mib'>>;
+    resources?: Partial<Pick<Resources, 'memory' | 'memory_limit'>>;
     usage?: Pick<Usage, 'memory_peak_mib'>;
   },
 ): ExitReasonInfo {
-  const request = sb?.resources?.memory_mib;
-  const limit = sb?.resources?.memory_limit_mib || request;
+  const request = sb?.resources?.memory;
+  const limit = sb?.resources?.memory_limit || request;
   const peak = sb?.usage?.memory_peak_mib;
-  if (reason === EXIT_TOKEN_EXPIRY)
-    return {
-      label: 'Token expired',
-      detail: 'Ended 60 s before the access token it was created with expired.',
-      action: 'For longer runs, create a new token (Access tokens), or sign in again with cere login.',
-    };
   if (reason.startsWith(EXIT_OOM_KILLED))
     return {
       label: 'Out of memory',

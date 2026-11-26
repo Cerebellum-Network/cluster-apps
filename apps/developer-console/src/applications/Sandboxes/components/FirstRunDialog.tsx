@@ -113,7 +113,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
         let sb = await client.createSandbox({
           image: FIRST_RUN.image,
           runtime: 'gvisor',
-          resources: { cpu: 1, memory_mib: 1024 },
+          resources: { cpu: 1, memory: 1024 },
           timeout_s: FIRST_RUN.timeout_s,
           labels: { app: 'console-quickstart' },
         });
@@ -172,7 +172,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
   };
 
   const stepState = (p: Phase): 'wait' | 'busy' | 'done' => (phase === p ? 'busy' : after(phase, p) ? 'done' : 'wait');
-  const billed = sandbox ? billingLine(sandbox.usage, sandbox.resources.cpu, sandbox.resources.memory_mib) : '';
+  const billed = sandbox ? billingLine(sandbox.usage, sandbox.resources.cpu, sandbox.resources.memory) : '';
 
   return (
     <>

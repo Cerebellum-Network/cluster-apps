@@ -3,12 +3,11 @@ import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
 import { NavLink, useNavigate } from 'react-router-dom';
 
 import { Pill } from '~/components';
-import type { RunOutcome } from '~/compute/agentOutcome';
+import { outcomeOf, type RunOutcome } from '~/compute/agentOutcome';
 import { LABEL } from '~/compute/agentRun';
 import { agentRuns, type LiveRun } from '~/compute/agentRuns';
 import { useNow } from '~/compute/hooks';
 import { fmtAgo, fmtDuration, shortId } from '~/compute/format';
-import { useRunOutcomes } from '~/compute/runOutcomes';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import BilledUsage, { billedHeader } from '../../Sandboxes/components/BilledUsage';
@@ -64,10 +63,9 @@ export function runRows(sandboxes: Sandbox[], live: LiveRun[]): RunRow[] {
 }
 
 /** A row's result: the live run's while this tab drives it, else what its sandbox records. */
-export function rowOutcome(r: RunRow, outcomes: Map<string, RunOutcome>): RunOutcome {
+export function rowOutcome(r: RunRow): RunOutcome {
   if (r.live && !r.live.endedAt) return { state: 'running' };
-  const recorded = r.sandbox ? outcomes.get(r.sandbox.id) : undefined;
-  if (recorded) return recorded;
+  if (r.sandbox) return outcomeOf(r.sandbox);
   if (r.live?.result?.error) return { state: 'failed', detail: r.live.result.error };
   return { state: 'running', detail: 'creating…' };
 }
@@ -75,7 +73,6 @@ export function rowOutcome(r: RunRow, outcomes: Map<string, RunOutcome>): RunOut
 const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgent?: boolean; empty?: string }) => {
   const now = useNow(1000);
   const navigate = useNavigate();
-  const outcomes = useRunOutcomes(rows.flatMap((r) => (r.sandbox ? [r.sandbox] : [])));
   return (
     <TableContainer sx={{ '& td': { whiteSpace: 'nowrap' } }}>
       <Table>
@@ -117,7 +114,7 @@ const RunsTable = ({ rows, showAgent = true, empty }: { rows: RunRow[]; showAgen
                   </TableCell>
                 )}
                 <TableCell sx={{ whiteSpace: 'normal !important' }}>
-                  <RunOutcomeLabel outcome={rowOutcome(r, outcomes)} />
+                  <RunOutcomeLabel outcome={rowOutcome(r)} />
                 </TableCell>
                 <TableCell sx={{ color: color.textSecondary }}>
                   {fmtAgo(new Date(r.startedAt).toISOString(), now)}

@@ -74,7 +74,7 @@ describe('the resources form', () => {
     expect(host.textContent).toContain('You pay for the request for as long as it runs');
     // Units in the labels, never field names.
     expect(host.textContent).toContain('Memory request (MiB)');
-    expect(host.textContent).not.toContain('memory_mib');
+    expect(host.textContent).not.toContain('memory_limit');
     expect(sent).toEqual({});
   });
 
@@ -100,7 +100,7 @@ describe('the resources form', () => {
     act(() => type(input('Memory limit'), '4096'));
     expect(host.textContent).toContain('1 vCPU guaranteed, up to 4 vCPU');
     expect(host.textContent).toContain('2 GiB guaranteed, up to 4 GiB');
-    expect(sent).toEqual({ cpu: 1, memory_mib: 2048, cpu_limit: 4, memory_limit_mib: 4096 });
+    expect(sent).toEqual({ cpu: 1, memory: 2048, cpu_limit: 4, memory_limit: 4096 });
   });
 
   it('refuses a limit below the request, and opens on limits already set', () => {
@@ -123,7 +123,7 @@ const sandbox = (over: { usage?: Partial<Usage>; resources?: Sandbox['resources'
   image: 'python:3.12-slim',
   command: ['sleep', 'infinity'],
   workdir: '/workspace',
-  resources: over.resources ?? { cpu: 1, memory_mib: 1024 },
+  resources: over.resources ?? { cpu: 1, memory: 1024, cpu_limit: 4, memory_limit: 2048 },
   timeout_s: 600,
   idle_timeout_s: 0,
   env_keys: [],
@@ -140,38 +140,18 @@ const sandbox = (over: { usage?: Partial<Usage>; resources?: Sandbox['resources'
 });
 
 describe('a sandbox’s usage', () => {
-  it('from a gateway before limits and billing: the request alone, as measured, no burst', () => {
+  it('before the node reports billing: what was measured, no burst', () => {
     const sb = sandbox({ usage: { wall_s: 60, cpu_s: 6, ram_gib_s: 14, memory_peak_mib: 300 } });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
     expect(host.textContent).toContain('CPU6.00 CPU-smeasured');
-    expect(host.textContent).toContain('uses 0.1 vCPU on average of 1 vCPU');
-    expect(host.textContent).toContain('peak 300 MiB of 1 GiB');
+    expect(host.textContent).toContain('uses 0.1 vCPU on average; 1 vCPU guaranteed, up to 4 vCPU');
+    expect(host.textContent).toContain('peak 300 MiB; 1 GiB guaranteed, up to 2 GiB');
     expect(host.textContent).not.toContain('burst');
-    expect(host.textContent).not.toContain('guaranteed');
-  });
-
-  it('from a gateway before limits, billing reserved: the floor, and the burst worked out', () => {
-    const sb = sandbox({
-      usage: {
-        wall_s: 60,
-        cpu_s: 75,
-        ram_gib_s: 30,
-        memory_peak_mib: 900,
-        billing_basis: 'reserved',
-        reserved_cpu_s: 60,
-        reserved_ram_gib_s: 60,
-        billed_cpu_s: 75,
-        billed_ram_gib_s: 60,
-      },
-    });
-    act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
-    expect(host.textContent).toContain('CPU billed75.0 CPU-s60.0 request + 15.0 burst');
-    expect(host.textContent).toContain('Memory billed60.0 GiB-s60.0 request, no burst');
   });
 
   it('with limits and burst billing: floor + burst, use against the request and the limit', () => {
     const sb = sandbox({
-      resources: { cpu: 0.25, memory_mib: 256, cpu_limit: 4, memory_limit_mib: 1024 },
+      resources: { cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024 },
       usage: {
         wall_s: 60,
         cpu_s: 6.9,
@@ -205,7 +185,7 @@ describe('a sandbox’s usage', () => {
 describe('memory billed below what was measured', () => {
   it('says the gap is file cache, not a negative burst', () => {
     const sb = sandbox({
-      resources: { cpu: 0.25, memory_mib: 256, cpu_limit: 4, memory_limit_mib: 1024 },
+      resources: { cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024 },
       usage: {
         wall_s: 60,
         cpu_s: 3,
@@ -228,7 +208,7 @@ describe('memory billed below what was measured', () => {
 
 describe('memory endings', () => {
   it('reads out of memory as the limit, memory reclaimed as the request', () => {
-    const sb = { resources: { memory_mib: 256, memory_limit_mib: 1024 }, usage: { memory_peak_mib: 700 } };
+    const sb = { resources: { memory: 256, memory_limit: 1024 }, usage: { memory_peak_mib: 700 } };
     act(() => root.render(<ExitReason reason="oom_killed" sb={sb} />));
     expect(host.textContent).toBe('Out of memory');
     expect(host.querySelector('[title]')?.getAttribute('title')).toBe(
@@ -271,7 +251,8 @@ describe('memory endings', () => {
       burst_cpu_s: 3.2,
       burst_ram_gib_s: 0,
       cpu_limit: 4,
-      memory_limit_mib: 1024,
+      memory_limit: 1024,
+      cpu_peak: 1,
     };
     act(() => root.render(<RecordsTable records={[rec]} />));
     expect(host.textContent).toContain('ended: Memory reclaimed');

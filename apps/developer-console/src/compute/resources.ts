@@ -19,7 +19,7 @@ export interface ResourceDefaults {
   memoryLimitMib?: number;
 }
 
-/** What a sandbox gets when its create names no request (Modal's defaults). */
+/** What a sandbox gets when its create names no request (the platform's public defaults). */
 export const SANDBOX_DEFAULTS: ResourceDefaults = { cpu: 0.25, memoryMib: 128 };
 /** The highest CPU limit a cluster gives by default (`MAX_CPU_LIMIT`); the node's quota when that is lower. */
 export const MAX_CPU_LIMIT = 8;
@@ -74,10 +74,10 @@ export function parseResources(f: ResourceFields, defaults: ResourceDefaults = S
   const memory = num(f.memoryMib);
   if (memory !== null) {
     if (!Number.isInteger(memory) || memory < MIN_MEMORY_MIB) errors.memoryMib = `At least ${MIN_MEMORY_MIB} MiB.`;
-    else resources.memory_mib = memory;
+    else resources.memory = memory;
   }
   const effCpu = resources.cpu ?? defaults.cpu;
-  const effMemory = resources.memory_mib ?? defaults.memoryMib;
+  const effMemory = resources.memory ?? defaults.memoryMib;
 
   const cpuLimit = num(f.cpuLimit);
   if (cpuLimit !== null) {
@@ -90,7 +90,7 @@ export function parseResources(f: ResourceFields, defaults: ResourceDefaults = S
     if (!Number.isInteger(memoryLimit) || memoryLimit < MIN_MEMORY_MIB)
       errors.memoryLimitMib = `At least ${MIN_MEMORY_MIB} MiB.`;
     else if (memoryLimit < effMemory) errors.memoryLimitMib = `At least the request, ${fmtMib(effMemory)}.`;
-    else resources.memory_limit_mib = memoryLimit;
+    else resources.memory_limit = memoryLimit;
   }
 
   return {
@@ -101,7 +101,7 @@ export function parseResources(f: ResourceFields, defaults: ResourceDefaults = S
       memoryMib: effMemory,
       cpuLimit: resources.cpu_limit ?? (defaults.cpuLimit ? Math.max(defaults.cpuLimit, effCpu) : null),
       memoryLimitMib:
-        resources.memory_limit_mib ??
+        resources.memory_limit ??
         (defaults.memoryLimitMib ? Math.max(defaults.memoryLimitMib, effMemory) : defaultMemoryLimit(effMemory)),
     },
   } satisfies ParsedResources;
@@ -123,8 +123,7 @@ export function plannedMemory(e: ParsedResources['effective']): string {
 
 /**
  * A request with its limit, as a sandbox reports them: "0.25 vCPU guaranteed,
- * up to 4 vCPU". Without a limit (a gateway before limits, where the request
- * was the limit too) the request alone: "1 vCPU".
+ * up to 4 vCPU". Without a limit, the request alone: "1 vCPU".
  */
 function requestAndLimit(request: number, limit: number | undefined, fmt: (v: number) => string): string {
   if (!limit) return fmt(request);
@@ -134,34 +133,27 @@ function requestAndLimit(request: number, limit: number | undefined, fmt: (v: nu
 
 export const cpuLine = (r: Pick<Resources, 'cpu' | 'cpu_limit'>): string => requestAndLimit(r.cpu, r.cpu_limit, fmtCpu);
 
-export const memoryLine = (r: Pick<Resources, 'memory_mib' | 'memory_limit_mib'>): string =>
-  requestAndLimit(r.memory_mib, r.memory_limit_mib, fmtMib);
+export const memoryLine = (r: Pick<Resources, 'memory' | 'memory_limit'>): string =>
+  requestAndLimit(r.memory, r.memory_limit, fmtMib);
 
 /** The most a sandbox can use: its limit, or its request where no limit is reported. */
 export const cpuCeiling = (r: Pick<Resources, 'cpu' | 'cpu_limit'>): number => Math.max(r.cpu, r.cpu_limit ?? 0);
-export const memoryCeiling = (r: Pick<Resources, 'memory_mib' | 'memory_limit_mib'>): number =>
-  Math.max(r.memory_mib, r.memory_limit_mib ?? 0);
+export const memoryCeiling = (r: Pick<Resources, 'memory' | 'memory_limit'>): number =>
+  Math.max(r.memory, r.memory_limit ?? 0);
 
-/** Stored resources (an agent definition's): the names the API takes now, or the older `memory_mib` ones. */
-export type StoredResources = Partial<
-  Pick<Resources, 'cpu' | 'memory' | 'memory_mib' | 'cpu_limit' | 'memory_limit' | 'memory_limit_mib'>
->;
-
-/** The memory request and limit, in MiB, under either name. */
-export const storedMemory = (r: StoredResources | undefined): number | undefined => r?.memory ?? r?.memory_mib;
-export const storedMemoryLimit = (r: StoredResources | undefined): number | undefined =>
-  r?.memory_limit ?? r?.memory_limit_mib;
+/** Stored resources (an agent definition's `resources`): any of the API's keys, each optional. */
+export type StoredResources = Partial<Resources>;
 
 /** What a stored request (an agent definition's `resources`) gives, with `defaults` for what it leaves out. */
 export function effectiveOf(r: StoredResources | undefined, defaults: ResourceDefaults): ParsedResources['effective'] {
   const cpu = r?.cpu || defaults.cpu;
-  const memoryMib = storedMemory(r) || defaults.memoryMib;
+  const memoryMib = r?.memory || defaults.memoryMib;
   return {
     cpu,
     memoryMib,
     cpuLimit: r?.cpu_limit || (defaults.cpuLimit ? Math.max(defaults.cpuLimit, cpu) : null),
     memoryLimitMib:
-      storedMemoryLimit(r) ||
+      r?.memory_limit ||
       (defaults.memoryLimitMib ? Math.max(defaults.memoryLimitMib, memoryMib) : defaultMemoryLimit(memoryMib)),
   };
 }

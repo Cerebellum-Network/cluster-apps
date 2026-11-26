@@ -12,8 +12,6 @@ import type { Sandbox } from './types';
 export const REASON_SUCCEEDED = 'agent run succeeded';
 export const REASON_FAILED = 'agent run failed';
 export const REASON_STOPPED = 'agent run stopped';
-/** What clients wrote for every run before results were recorded; the run's output.json holds its result. */
-const REASON_LEGACY = 'agent run finished';
 export const NOT_RETAINED = ' (files not retained)';
 /** The gateway's limit on a terminate reason, in bytes. */
 export const MAX_REASON_BYTES = 120;
@@ -25,8 +23,6 @@ export interface RunOutcome {
   state: OutcomeState;
   /** The error of a failed run, or why the result is what it is. */
   detail?: string;
-  /** The client recorded no result: the run's kept output.json decides (`legacyOutcome`). */
-  legacy?: boolean;
 }
 
 const utf8 = new TextEncoder();
@@ -84,32 +80,7 @@ export function outcomeOf(sb: Pick<Sandbox, 'status' | 'exit_reason'>): RunOutco
   if (recorded === REASON_STOPPED) return { state: 'stopped', detail: 'Stopped by its client.' };
   if (recorded.startsWith(`${REASON_FAILED}: `))
     return { state: 'failed', detail: recorded.slice(REASON_FAILED.length + 2) };
-  if (recorded.startsWith(REASON_LEGACY))
-    return { state: 'unknown', detail: 'Its client recorded no result.', legacy: true };
   return { state: 'ended', detail: reason };
-}
-
-export const OUTPUT_PATH = '/workspace/output.json';
-
-/**
- * The result of a run whose client recorded none, from what its sandbox kept:
- * no output.json kept means the agent wrote none; else output.json's `error`.
- * `output` is the kept file's text (null when it could not be read).
- */
-export function legacyOutcome(sb: Pick<Sandbox, 'retained' | 'exit_reason'>, output: string | null): RunOutcome {
-  if (!sb.retained.includes(OUTPUT_PATH)) {
-    if ((sb.exit_reason ?? '').includes('files not retained'))
-      return { state: 'unknown', detail: 'Its client recorded no result, and its files were not kept.' };
-    return { state: 'failed', detail: `The agent wrote no ${OUTPUT_PATH}.` };
-  }
-  if (output === null) return { state: 'unknown', detail: 'Its output.json is no longer kept.' };
-  try {
-    const o = JSON.parse(output) as { error?: unknown };
-    if (o && typeof o === 'object' && o.error) return { state: 'failed', detail: String(o.error) };
-    return { state: 'succeeded' };
-  } catch (e) {
-    return { state: 'failed', detail: `output.json is not valid JSON: ${(e as Error).message}` };
-  }
 }
 
 /** How each state reads in a list or a pill. */

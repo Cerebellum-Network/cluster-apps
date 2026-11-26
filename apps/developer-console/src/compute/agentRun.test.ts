@@ -29,7 +29,7 @@ const SRE: AgentDefinition = {
     credential: 'ddc-inference',
   },
   tools: ['Bash'],
-  resources: { cpu: 1, memory_mib: 2048 },
+  resources: { cpu: 1, memory: 2048 },
   timeout_s: 900,
   egress: { allow: [{ host: 'api.github.com', methods: ['GET'], credential: 'github-readonly' }] },
   files: { 'notes/a.md': 'hello', '/etc/x': 'y' },
@@ -44,7 +44,7 @@ const sandbox = (over: Partial<Sandbox>): Sandbox => ({
   image: SRE.image,
   command: ['sleep', 'infinity'],
   workdir: '/workspace',
-  resources: { cpu: 1, memory_mib: 2048 },
+  resources: { cpu: 1, memory: 2048 },
   timeout_s: 1020,
   idle_timeout_s: 0,
   env_keys: [],
@@ -113,8 +113,8 @@ function fakeClient(opts: {
       log.terminated = t;
       return sandbox({
         status: 'terminated',
-        exit_reason: opts.endedWith ?? 'terminated by API: agent run finished',
-        resources: { cpu: 0.5, memory_mib: 512, memory_limit_mib: 2048 },
+        exit_reason: opts.endedWith ?? 'terminated by API: agent run succeeded',
+        resources: { cpu: 0.5, memory: 512, memory_limit: 2048 },
       });
     },
   } as unknown as ComputeClient;
@@ -152,27 +152,34 @@ describe('buildCreateRequest', () => {
   it('asks for the definition’s request and limits, else the agent layer’s (0.5 vCPU, 512 MiB, up to 2 and 2048)', () => {
     expect(buildCreateRequest({ ...SRE, resources: undefined }, 'r').resources).toEqual({
       cpu: 0.5,
-      memory_mib: 512,
+      memory: 512,
       cpu_limit: 2,
-      memory_limit_mib: 2048,
+      memory_limit: 2048,
     });
     // A request above the default limit raises the limit with it.
     expect(buildCreateRequest({ ...SRE, resources: { cpu: 3, memory: 4096 } }, 'r').resources).toEqual({
       cpu: 3,
-      memory_mib: 4096,
+      memory: 4096,
       cpu_limit: 3,
-      memory_limit_mib: 4096,
+      memory_limit: 4096,
     });
     const limited = { ...SRE, resources: { cpu: 0.5, memory: 512, cpu_limit: 4, memory_limit: 1024 } };
     expect(buildCreateRequest(limited, 'r').resources).toEqual({
       cpu: 0.5,
-      memory_mib: 512,
+      memory: 512,
       cpu_limit: 4,
-      memory_limit_mib: 1024,
+      memory_limit: 1024,
     });
-    // Definitions written before the API's names were settled are read the same way.
-    const old = { ...SRE, resources: { cpu: 0.5, memory_mib: 768, memory_limit_mib: 1536 } };
-    expect(buildCreateRequest(old, 'r').resources).toMatchObject({ memory_mib: 768, memory_limit_mib: 1536 });
+    // Disk and pids only when the definition sets them; else the sandbox API's defaults.
+    const disk = { ...SRE, resources: { disk: 4096, pids: 256 } };
+    expect(buildCreateRequest(disk, 'r').resources).toEqual({
+      cpu: 0.5,
+      memory: 512,
+      cpu_limit: 2,
+      memory_limit: 2048,
+      disk: 4096,
+      pids: 256,
+    });
   });
 
   it('leaves path_prefix out for a base URL at the host root', () => {

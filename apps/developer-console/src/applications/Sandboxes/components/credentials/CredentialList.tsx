@@ -16,7 +16,7 @@ const CredentialList = ({
   actions,
   empty,
 }: {
-  items: (Pick<SandboxSecret, 'name' | 'header'> & { hosts?: string[] })[];
+  items: Pick<SandboxSecret, 'name' | 'header' | 'hosts'>[];
   actions?: (name: string) => ReactNode;
   empty?: ReactNode;
 }) =>
@@ -43,7 +43,7 @@ const CredentialList = ({
                 ...text.caption,
                 fontFamily: mono,
                 overflowWrap: 'anywhere',
-                color: s.hosts && !s.hosts.length ? color.warning : undefined,
+                color: !s.hosts.length ? color.warning : undefined,
               }}
             >
               {s.header}, {boundTo(s)}

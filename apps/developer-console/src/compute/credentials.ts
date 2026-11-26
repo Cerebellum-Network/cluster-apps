@@ -26,8 +26,8 @@ export type CredentialScope = 'sandbox' | 'agent' | 'bucket';
 export interface Credential {
   name: string;
   header: string;
-  /** The hosts it is sent to; absent from gateways that predate host binding. */
-  hosts?: string[];
+  /** The hosts it is sent to. */
+  hosts: string[];
   scope: CredentialScope;
   /** The agent, for an agent's secret. */
   agent?: string;

@@ -12,24 +12,24 @@ export const billedHeader = (sandboxes: Pick<Sandbox, 'usage'>[]): string =>
 /**
  * A sandbox's usage for a line of text: the CLI's "billed 1.0 vCPU × 54.0 s =
  * 54.0 CPU-s (measured 9.4), 1.0 GiB × …", or what was measured
- * ("9.40 CPU-s · 15.0 GiB-s") from a gateway without the billing fields.
+ * ("9.40 CPU-s · 15.0 GiB-s") until the node reports billing.
  */
 export function billedText(sandbox: Pick<Sandbox, 'usage' | 'resources'>): string {
   const u = sandbox.usage;
-  const line = billingLine(u, sandbox.resources.cpu, sandbox.resources.memory_mib);
+  const line = billingLine(u, sandbox.resources.cpu, sandbox.resources.memory);
   return line ? `billed ${line}` : `${fmtQty(u.cpu_s)} CPU-s · ${fmtQty(u.ram_gib_s)} GiB-s`;
 }
 
 /**
  * A sandbox's CPU-seconds and GiB-seconds for a table cell: what it is billed,
  * with what was measured beside it ("54.0 CPU-s (measured 9.4)"), and the
- * CLI's whole line in the tooltip. A gateway without the billing fields, or a
- * sandbox whose node has not reported yet, shows what was measured.
+ * CLI's whole line in the tooltip. A sandbox whose node has not reported yet
+ * shows what was measured.
  */
 const BilledUsage = ({ sandbox }: { sandbox: Pick<Sandbox, 'usage' | 'resources'> }) => {
   const u = sandbox.usage;
   const short = billedShort(u);
-  const line = billingLine(u, sandbox.resources.cpu, sandbox.resources.memory_mib);
+  const line = billingLine(u, sandbox.resources.cpu, sandbox.resources.memory);
   return (
     <Box title={line ? `billed ${line}` : undefined}>
       <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{short ? short.cpu : `${fmtQty(u.cpu_s)} CPU-s`}</Typography>
