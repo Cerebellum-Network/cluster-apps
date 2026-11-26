@@ -5,6 +5,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 
 import { exitReasonSentence } from '~/compute/exitReasons';
+import { startedSentence } from '~/compute/lifecycle';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage, isNoBalance } from '~/compute/client';
 import type { ExecExit, Sandbox } from '~/compute/types';
@@ -196,9 +197,7 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
         </Step>
         <Step title="Start it" state={stepState('start')}>
           <Typography sx={text.secondary}>
-            {sandbox?.startup_ms != null
-              ? `The node pulled the image and started it in gVisor in ${(sandbox.startup_ms / 1000).toFixed(1)} s.`
-              : 'The node pulls the image and starts it in gVisor.'}
+            {(sandbox && startedSentence(sandbox)) ?? 'The node pulls the image and starts it in gVisor.'}
           </Typography>
         </Step>
         <Step title="Run a command in it" state={stepState('exec')}>

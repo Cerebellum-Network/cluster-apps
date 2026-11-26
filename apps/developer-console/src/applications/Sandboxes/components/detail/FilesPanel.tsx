@@ -3,8 +3,10 @@ import { Alert, Box, Button, Stack, TextField, Typography } from '@cluster-apps/
 
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { ComputeError, errorMessage, isNoBalance } from '~/compute/client';
-import type { Sandbox } from '~/compute/types';
-import { fmtAgo, fmtBytes, plural } from '~/compute/format';
+import type { NotRetained, Sandbox } from '~/compute/types';
+import { fmtAgo, fmtBytes, fmtDateTime, plural } from '~/compute/format';
+import { keptFiles, keptUntilLine } from '~/compute/lifecycle';
+import { useNow } from '~/compute/hooks';
 import { color, mono, text } from '~/theme/tokens';
 import { NoBalance, OUT_OF_BALANCE, Terminal, sbColor } from '../ui';
 
@@ -14,6 +16,36 @@ export const FILE_MAX_BYTES = 16 * 1024 * 1024;
 const PREVIEW_MAX_BYTES = 512 * 1024;
 
 export type FileEntry = { path: string; size: number; mtime: number | null };
+
+/** The paths a sandbox was asked to keep and did not, each with why. */
+const NotKept = ({ items }: { items: NotRetained[] }) => (
+  <Box marginTop="14px">
+    <Typography sx={{ ...text.secondary, marginBottom: '6px' }}>Not kept · {plural(items.length, 'path')}</Typography>
+    <Box sx={{ border: `1px dashed ${color.border}`, borderRadius: '10px', padding: '2px 12px' }}>
+      {items.map((n) => (
+        <Box
+          key={n.path}
+          sx={{ padding: '7px 0', borderBottom: `1px solid ${color.grid}`, '&:last-of-type': { borderBottom: 'none' } }}
+        >
+          <Box
+            component="div"
+            sx={{
+              fontFamily: mono,
+              fontSize: 12.5,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={n.path}
+          >
+            {n.path}
+          </Box>
+          <Typography sx={text.caption}>{n.reason}</Typography>
+        </Box>
+      ))}
+    </Box>
+  </Box>
+);
 
 /** The contract reads and writes a file by path but has no listing route, so a running sandbox lists with `find`. */
 export const listCommand = (dir: string) => [
@@ -50,11 +82,16 @@ function saveBlob(blob: Blob, path: string) {
 /**
  * Files in the sandbox. While it runs: everything under its workdir, read and
  * downloaded with `GET /files`, uploaded with `PUT /files`. After it ends: the
- * paths it was terminated with `retain=`, for as long as the node keeps them.
+ * files it kept (asked at create with `retain`, or at terminate with
+ * `retain=`), each with its size, until `retained_until`, and the paths it
+ * did not keep, with why.
  */
 const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) => {
   const client = useComputeClient();
+  const now = useNow(30_000);
   const live = sb.status === 'running';
+  const starting = sb.status === 'starting';
+  const kept = keptFiles(sb, now);
   const dir = sb.workdir || '/workspace';
   const [files, setFiles] = useState<FileEntry[] | null>(null);
   const [listError, setListError] = useState<string | null>(null);
@@ -81,6 +118,10 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
 
   useEffect(() => {
     if (!open) return undefined;
+    if (kept.expired && !live) {
+      setPreview({ path: open, note: `Gone: it was kept until ${fmtDateTime(kept.until ?? '')}.` });
+      return undefined;
+    }
     let alive = true;
     setPreview({ path: open });
     client
@@ -105,7 +146,7 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
     return () => {
       alive = false;
     };
-  }, [client, sb.id, open]);
+  }, [client, sb.id, open, kept.expired, kept.until, live]);
 
   const download = async (path: string) => {
     try {
@@ -145,14 +186,15 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
     }
   };
 
-  if (!live && sb.retained.length === 0) {
+  if (starting) {
+    return <Typography sx={text.secondary}>It is starting. Its files show here once it runs.</Typography>;
+  }
+
+  if (!live && sb.retained.length === 0 && sb.not_retained.length === 0) {
     return (
       <Typography sx={text.secondary}>
-        This sandbox has ended and kept no files. To keep files, terminate with{' '}
-        <Box component="span" sx={{ fontFamily: mono }}>
-          retain=
-        </Box>{' '}
-        paths (the Terminate button offers it).
+        This sandbox has ended and kept no files. To keep files, name them in Keep files when you create a sandbox, or
+        when you terminate one.
       </Typography>
     );
   }
@@ -211,7 +253,7 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
                   · {plural(files?.length ?? 0, 'file')}
                 </>
               ) : (
-                `Kept after it ended · ${plural(sb.retained.length, 'file')}`
+                `Kept after it ended · ${plural(kept.files.length, 'file')}${kept.bytes ? `, ${fmtBytes(kept.bytes)}` : ''}`
               )}
             </Typography>
             {live && (
@@ -220,6 +262,19 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
               </Button>
             )}
           </Stack>
+          {!live && kept.until && kept.files.length > 0 && (
+            <Typography
+              sx={{
+                ...text.caption,
+                marginTop: '-4px',
+                marginBottom: '8px',
+                color: kept.expired ? color.danger : undefined,
+              }}
+              title="Each file can be read until then; after it, the node no longer has them."
+            >
+              {keptUntilLine(kept)}
+            </Typography>
+          )}
           {listError &&
             (isNoBalance(listError) ? (
               <NoBalance title={OUT_OF_BALANCE}>Listing its files runs a command, which needs a balance.</NoBalance>
@@ -271,9 +326,12 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
               </Box>
             ))}
             {files && files.length === 0 && (
-              <Typography sx={{ ...text.secondary, padding: '12px' }}>No files yet.</Typography>
+              <Typography sx={{ ...text.secondary, padding: '12px' }}>
+                {live ? 'No files yet.' : 'None of the paths it was asked to keep were kept.'}
+              </Typography>
             )}
           </Box>
+          {!live && sb.not_retained.length > 0 && <NotKept items={sb.not_retained} />}
         </Box>
         <Box minWidth={0}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" marginBottom="8px" gap="8px">
@@ -288,7 +346,7 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
             >
               {open ?? 'Pick a file to read it.'}
             </Typography>
-            {open && (
+            {open && (live || !kept.expired) && (
               <Button size="small" variant="outlined" color="secondary" onClick={() => download(open)}>
                 Download
               </Button>

@@ -12,7 +12,8 @@ import { readRunFile } from '~/compute/agentStore';
 import { ComputeError, errorMessage } from '~/compute/client';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { useEgressLog, useNow, useSandboxes } from '~/compute/hooks';
-import { fmtDuration, plural, shortNode } from '~/compute/format';
+import { fmtDateTime, fmtDuration, plural, shortNode } from '~/compute/format';
+import { keptFiles } from '~/compute/lifecycle';
 import { foldEvents, transcriptItems } from '~/compute/runView';
 import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
@@ -35,6 +36,30 @@ const STEPS: { id: RunStep; label: string }[] = [
   { id: 'save', label: 'Copy to the bucket' },
   { id: 'terminate', label: 'Terminate, keeping the files' },
 ];
+
+const OUTPUT_PATH = '/workspace/output.json';
+
+/** Why the sandbox did not keep `path`, when it says. */
+const notKeptWhy = (sb: Sandbox, path: string): string | null => {
+  const n = sb.not_retained.find((x) => x.path === path);
+  return n ? `No output: ${path} was not kept (${n.reason}).` : null;
+};
+
+/** The run's kept files, how many and until when, linking to them on the sandbox's page. */
+const KeptFilesLink = ({ sb, now }: { sb: Sandbox; now: number }) => {
+  const k = keptFiles(sb, now);
+  if (!k.files.length || !k.until) return null;
+  return (
+    <Box
+      component={NavLink}
+      to={`/sandboxes/list/${sb.id}?tab=files`}
+      title="Each file can be read until then; after it, the node no longer has them."
+      sx={{ ...text.secondary, color: k.expired ? color.textTertiary : color.primary, textDecoration: 'none' }}
+    >
+      {plural(k.files.length, 'file')} {k.expired ? 'gone since' : 'kept until'} {fmtDateTime(k.until)}
+    </Box>
+  );
+};
 
 type FileState = { text: string | null; from: 'sandbox' | 'bucket' | null; error: string | null; loading: boolean };
 
@@ -303,6 +328,7 @@ const RunDetail = () => {
           <Typography sx={text.secondary}>
             node <Mono title={sb.node}>{shortNode(sb.node)}</Mono> · {billedText(sb)}
           </Typography>
+          {!isLive(sb.status) && <KeptFilesLink sb={sb} now={now} />}
         </Stack>
       )}
 
@@ -389,8 +415,9 @@ const RunDetail = () => {
                     ? 'No output yet.'
                     : outputFile.loading
                       ? 'Reading…'
-                      : sb && !sb.retained.some((f) => f.path === '/workspace/output.json')
-                        ? 'No output: the agent wrote no /workspace/output.json before the run ended.'
+                      : sb && !sb.retained.some((f) => f.path === OUTPUT_PATH)
+                        ? (notKeptWhy(sb, OUTPUT_PATH) ??
+                          'No output: the agent wrote no /workspace/output.json before the run ended.')
                         : 'No output was kept.'
                 }
               />

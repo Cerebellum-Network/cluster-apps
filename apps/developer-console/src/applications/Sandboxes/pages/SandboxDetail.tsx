@@ -8,11 +8,12 @@ import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compu
 import { recordSumsLine } from '~/compute/billing';
 import { exitReasonInfo, memoryKind } from '~/compute/exitReasons';
 import { fmtAgo, fmtDateTime, fmtLimit, fmtMib, sumRecords } from '~/compute/format';
+import { fmtSpan, retainLine, shortDigest, startSteps, timeToReady } from '~/compute/lifecycle';
 import { cpuLine, memoryLine } from '~/compute/resources';
 import { RESOLUTION_NOTE } from '~/compute/credentials';
 import { isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
-import { Count, Tabs } from '../components/bits';
+import { Count, Tabs, useCopy } from '../components/bits';
 import { quoteArg } from '../components/commandLine';
 import ExecPanel from '../components/detail/ExecPanel';
 import FilesPanel from '../components/detail/FilesPanel';
@@ -23,7 +24,7 @@ import SandboxEgress from '../components/egress/SandboxEgress';
 import UsageMeter from '../components/detail/UsageMeter';
 import CredentialList from '../components/credentials/CredentialList';
 import SandboxSecretDialog from '../components/credentials/SandboxSecretDialog';
-import { ExitReason, Field, Mono, NoBalance, ReadError, RuleCredentials, SandboxStatusLabel } from '../components/ui';
+import { Field, Mono, NoBalance, ReadError, RuleCredentials, SandboxStatusLabel } from '../components/ui';
 
 type Tab = 'logs' | 'exec' | 'files' | 'egress' | 'usage';
 const TABS: Tab[] = ['logs', 'exec', 'files', 'egress', 'usage'];
@@ -45,6 +46,139 @@ function useCpuHistory(sb: Sandbox | undefined): number[] {
   return hist;
 }
 
+/** An image digest, short; the whole of it on hover, copied on click. */
+const Digest = ({ digest }: { digest: string }) => {
+  const [copied, copy] = useCopy();
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={() => copy(digest)}
+      title={`${digest}\nCopy`}
+      sx={{
+        appearance: 'none',
+        border: 'none',
+        background: 'none',
+        padding: 0,
+        cursor: 'pointer',
+        fontFamily: mono,
+        fontSize: 12,
+        color: color.textSecondary,
+        '&:hover': { color: color.primary },
+        '&:focus-visible': { outline: `2px solid ${color.primary}`, outlineOffset: 2, borderRadius: 2 },
+      }}
+    >
+      {copied ? 'Copied' : shortDigest(digest)}
+    </Box>
+  );
+};
+
+/** The exit reason in plain words, its kind (`exit_kind`, as the API and its events give it), and what happened. */
+const ExitField = ({ sb }: { sb: Sandbox }) => {
+  if (!sb.exit_reason && !sb.exit_kind) return null;
+  const info = exitReasonInfo(sb.exit_reason ?? '', sb);
+  // The memory and balance endings say what happened in their banner above.
+  const explained = memoryKind(sb.exit_kind) || sb.exit_kind === 'insufficient_balance';
+  const said = [info.detail, info.action].filter(Boolean).join(' ');
+  return (
+    <Field label="Exit reason">
+      <Stack direction="row" gap="6px" alignItems="center" justifyContent="flex-end" flexWrap="wrap">
+        <span>{info.label}</span>
+        {sb.exit_kind && (
+          <Pill title="exit_kind: the class of the exit reason, as the API and its events give it">
+            <Box component="span" sx={{ fontFamily: mono }}>
+              {sb.exit_kind}
+            </Box>
+          </Pill>
+        )}
+      </Stack>
+      {said && !explained && <Typography sx={{ ...text.caption, marginTop: '4px' }}>{said}</Typography>}
+      {sb.exit_reason && sb.exit_reason !== info.label && (
+        <Typography sx={{ ...text.caption, fontFamily: mono, marginTop: '2px' }}>{sb.exit_reason}</Typography>
+      )}
+    </Field>
+  );
+};
+
+/**
+ * The start broken down: created, the image pulled (its time and size) or
+ * found on the node, started (billing starts) and ready, each as the time
+ * since the create. A step not reported yet waits while it starts.
+ */
+const StartBreakdown = ({ sb }: { sb: Sandbox }) => {
+  const steps = startSteps(sb);
+  const ready = timeToReady(sb);
+  return (
+    <Section
+      title="Start"
+      actions={
+        ready ? (
+          <Typography sx={{ ...text.secondary, fontVariantNumeric: 'tabular-nums' }}>{ready} to ready</Typography>
+        ) : null
+      }
+    >
+      <Box component="ol" sx={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {steps.map((s, i) => (
+          <Stack
+            component="li"
+            key={s.id}
+            direction="row"
+            justifyContent="space-between"
+            alignItems="baseline"
+            gap={2}
+            title={s.hint}
+            sx={{ position: 'relative', padding: '6px 0 6px 20px' }}
+          >
+            {i < steps.length - 1 && (
+              <Box
+                aria-hidden
+                sx={{
+                  position: 'absolute',
+                  left: '3.5px',
+                  top: 20,
+                  bottom: -8,
+                  width: '1px',
+                  backgroundColor: steps[i + 1].state === 'done' ? color.primary : color.border,
+                }}
+              />
+            )}
+            <Box
+              aria-hidden
+              sx={{
+                position: 'absolute',
+                left: 0,
+                top: 12,
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                boxSizing: 'border-box',
+                ...(s.state === 'done'
+                  ? { backgroundColor: color.primary }
+                  : { border: `1.5px solid ${color.textTertiary}`, backgroundColor: color.surface }),
+              }}
+            />
+            <Typography sx={{ ...text.secondary, flexShrink: 0 }}>{s.label}</Typography>
+            <Typography
+              sx={{
+                fontSize: 14,
+                textAlign: 'right',
+                fontVariantNumeric: 'tabular-nums',
+                color: s.state === 'done' ? color.text : color.textTertiary,
+              }}
+            >
+              {s.value}
+            </Typography>
+          </Stack>
+        ))}
+      </Box>
+      <Typography sx={{ ...text.caption, marginTop: '8px' }}>
+        {sb.startup_ms != null ? `Its node took ${fmtSpan(sb.startup_ms)} from taking the create to running it. ` : ''}
+        Billing starts when it starts; getting the image is not billed.
+      </Typography>
+    </Section>
+  );
+};
+
 const Details = ({ sb }: { sb: Sandbox }) => {
   const now = useNow(5000);
   return (
@@ -57,7 +191,17 @@ const Details = ({ sb }: { sb: Sandbox }) => {
       </Field>
       <Field label="Image">
         <Mono>{sb.image.ref}</Mono>
+        {sb.image.digest && (
+          <Box>
+            <Digest digest={sb.image.digest} />
+          </Box>
+        )}
       </Field>
+      {sb.registry_credential && (
+        <Field label="Pulled with">
+          <Mono title="The registry credential the node pulled the image with">{sb.registry_credential}</Mono>
+        </Field>
+      )}
       <Field label="Command">
         <Mono>{sb.command.map(quoteArg).join(' ')}</Mono>
       </Field>
@@ -75,20 +219,18 @@ const Details = ({ sb }: { sb: Sandbox }) => {
             ? `${fmtLimit(sb.idle_timeout_s)} idle (no timeout)`
             : 'No timeout'}
       </Field>
-      <Field label="Created">
-        <span title={fmtDateTime(sb.created_at)}>{fmtAgo(sb.created_at, now)}</span>
-      </Field>
-      {sb.startup_ms != null && <Field label="Started in">{(sb.startup_ms / 1000).toFixed(2)} s</Field>}
+      {sb.retain && (
+        <Field label="Keeps files">
+          <Mono>{sb.retain.paths.join(', ')}</Mono>
+          <Typography sx={text.caption}>{retainLine(sb.retain)}</Typography>
+        </Field>
+      )}
       {sb.ended_at && (
         <Field label="Ended">
           <span title={fmtDateTime(sb.ended_at)}>{fmtAgo(sb.ended_at, now)}</span>
         </Field>
       )}
-      {sb.exit_reason && (
-        <Field label="Exit reason">
-          <ExitReason reason={sb.exit_reason} sb={sb} />
-        </Field>
-      )}
+      <ExitField sb={sb} />
       {sb.exit_code != null && <Field label="Exit code">{sb.exit_code}</Field>}
       {sb.env_keys.length > 0 && (
         <Field label="Environment">
@@ -378,7 +520,10 @@ const SandboxDetail = () => {
               tabs={[
                 { id: 'logs', label: 'Logs' },
                 { id: 'exec', label: 'Exec' },
-                { id: 'files', label: 'Files' },
+                {
+                  id: 'files',
+                  label: <>Files {!live && sb.retained.length > 0 && <Count n={sb.retained.length} />}</>,
+                },
                 {
                   id: 'egress',
                   label: (
@@ -436,6 +581,7 @@ const SandboxDetail = () => {
         </Section>
         <Stack gap="16px">
           <Details sb={sb} />
+          <StartBreakdown sb={sb} />
           {tab !== 'egress' && <EgressRules sb={sb} onOpen={() => setTab('egress')} />}
           <OwnCredentials sb={sb} />
         </Stack>
