@@ -18,7 +18,6 @@ import {
   QUICKSTART_PYTHON,
   QUICKSTART_PYTHON_CREDENTIAL,
   QUICKSTART_PYTHON_SETUP,
-  UNTIL_PYPI,
 } from '../components/quickstart';
 import { BucketChip, Mono, ReadError, StatusDot } from '../components/ui';
 
@@ -161,15 +160,6 @@ const Overview = () => {
       >
         <Section title="Quickstart">
           <Stack spacing="20px">
-            {UNTIL_PYPI && (
-              <Stack spacing="8px">
-                <Typography sx={text.caption}>
-                  Until <Mono>cere</Mono> is on PyPI, install it from the GitHub release instead (members of the
-                  Cerebellum-Network organization, with <Mono>gh</Mono> signed in):
-                </Typography>
-                <CodeBlock code={UNTIL_PYPI} />
-              </Stack>
-            )}
             <QuickstartTabs
               cli={<CodeBlock code={QUICKSTART_CLI} />}
               python={

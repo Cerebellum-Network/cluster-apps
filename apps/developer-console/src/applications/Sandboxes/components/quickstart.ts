@@ -6,7 +6,7 @@
  */
 export const QUICKSTART_CLI = `pip install cere
 cere login
-cere sandbox create --image python:3.12-slim --timeout 600
+cere sandbox create --image python:3.12-slim --timeout 300
 cere sandbox exec <id> -- python -c "print('hello from a DDC sandbox')"`;
 
 export const QUICKSTART_PYTHON_SETUP = `pip install cere
@@ -14,7 +14,7 @@ cere login`;
 
 export const QUICKSTART_PYTHON = `import cere
 
-sb = cere.Sandbox.create(image="python:3.12-slim", timeout=600)
+sb = cere.Sandbox.create(image="python:3.12-slim", timeout=300)
 p = sb.exec("python", "-c", "print('hello from a DDC sandbox')")
 print(p.stdout.read(), end="")
 sb.terminate()`;
@@ -34,15 +34,9 @@ p = sb.exec("python", "-c", "import urllib.request as u; print(u.urlopen('https:
 print(p.stdout.read(), end="")
 sb.terminate()`;
 
-/**
- * A note shown above the tabs when the install differs from `pip install cere`.
- * Empty since `cere` went live on PyPI (cli/v0.1.11); the note is not shown.
- */
-export const UNTIL_PYPI: string = '';
-
 /** What "Try it here" runs: the Python example's sandbox and command, through the same API. */
 export const FIRST_RUN = {
   image: 'python:3.12-slim',
-  timeout_s: 600,
+  timeout_s: 300,
   command: ['python', '-c', "print('hello from a DDC sandbox')"],
 } as const;
