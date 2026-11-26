@@ -9,7 +9,7 @@ const base: Summary = {
   nodes_healthy: 8,
   sandboxes_running: 3,
   cpu: { allocatable: 18, allocated: 3 },
-  memory_mib: { allocatable: 34816, allocated: 5120 },
+  memory: { allocatable: 34816, allocated: 5120 },
   egress_last_hour: { allowed: 120, denied: 0, error: 0 },
   records_last_hour: { pushed: 180, pending: 0, failed: 0 },
   compute_nodes: 16,
@@ -89,7 +89,7 @@ describe('attention', () => {
     expect(attention({ summary: { ...base, cpu: { allocatable: 10, allocated: 8 } } })[0].title).toBe(
       'Sandbox CPU is 80% requested',
     );
-    expect(attention({ summary: { ...base, nodes: 0, nodes_healthy: 0, cpu: null, memory_mib: null } })[0].title).toBe(
+    expect(attention({ summary: { ...base, nodes: 0, nodes_healthy: 0, cpu: null, memory: null } })[0].title).toBe(
       'No sandbox node is reporting',
     );
     const t = attention({

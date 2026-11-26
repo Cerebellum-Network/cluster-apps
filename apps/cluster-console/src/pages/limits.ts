@@ -1,13 +1,12 @@
-import type { LiveSandbox, SandboxResources, Usage, UsageAmounts } from '~/api/types';
+import type { ExitKind, LiveSandbox, SandboxResources, Usage, UsageAmounts } from '~/api/types';
 
 /**
  * Requests, limits and burst, as the console shows them.
  *
- * A sandbox's request (`cpu`, `memory_mib`) is what the node's sandbox quota
+ * A sandbox's request (`cpu`, `memory`) is what the node's sandbox quota
  * counts and what it pays for at least; its limit is the most it can use. Use
- * above the request is burst, billed as used. A backend, a resource manager
- * or a node from before limits reports none: such a sandbox is limited at its
- * request.
+ * above the request is burst, billed as used. A sandbox with no limit (a
+ * stored row from before limits) is limited at its request.
  */
 
 export interface Limits {
@@ -23,9 +22,9 @@ const limitOr = (limit: number | null | undefined, request: number) =>
 export function limitsOf(r: SandboxResources): Limits {
   return {
     cpu: r.cpu,
-    memoryMiB: r.memory_mib,
+    memoryMiB: r.memory,
     cpuLimit: limitOr(r.cpu_limit, r.cpu),
-    memoryLimitMiB: limitOr(r.memory_limit_mib, r.memory_mib),
+    memoryLimitMiB: limitOr(r.memory_limit, r.memory),
   };
 }
 
@@ -54,7 +53,7 @@ export function resourceUse(s: Pick<LiveSandbox, 'resources' | 'live'>, r: Resou
   const l = limitsOf(s.resources);
   const request = r === 'cpu' ? l.cpu : l.memoryMiB;
   const limit = r === 'cpu' ? l.cpuLimit : l.memoryLimitMiB;
-  const used = s.live ? (r === 'cpu' ? s.live.cpu : s.live.memory_mib) : null;
+  const used = s.live ? (r === 'cpu' ? s.live.cpu : s.live.memory) : null;
   const canBurst = limit > request;
   const within = used == null ? 0 : Math.min(used, request);
   const burst = used != null && canBurst ? Math.max(0, Math.min(used, limit) - request) : 0;
@@ -176,29 +175,58 @@ export function billingBasisWords(basis: string | null | undefined): string | nu
   }
 }
 
-/** Why a sandbox ended, in plain words. The runtime's reason stays behind a tooltip. */
-export function exitReasonWords(reason: string | null | undefined): string | null {
-  if (!reason) return null;
-  const r = reason.trim();
-  if (r === 'oom_killed') return 'Out of memory: it reached its memory limit';
-  if (r === 'memory_reclaimed')
-    return 'Memory reclaimed: it was using more than its memory request while the node was short of memory';
-  if (r === 'terminated by API') return 'Terminated through the API';
-  if (r === 'token_expiry') return 'Its access token was about to expire';
-  if (r === 'lost: runtime restarted') return 'Lost: the node’s sandbox runtime restarted';
-  if (r === 'lost: host restarted') return 'Lost: the node restarted';
-  let m = /^timeout \((\d+)s\)$/.exec(r);
-  if (m) return `Reached its time limit (${m[1]} s)`;
-  m = /^idle_timeout \((\d+)s\)$/.exec(r);
-  if (m) return `Idle for ${m[1]} s`;
-  m = /^exited with code (-?\d+)$/.exec(r);
-  if (m) return m[1] === '0' ? 'Finished' : `Exited with code ${m[1]}`;
-  m = /^disk_limit \((\d+) MiB\)$/.exec(r);
-  if (m) return `Reached its disk limit (${m[1]} MiB)`;
-  if (r === 'disk_limit (node disk is low)') return 'Stopped: the node was short of disk';
-  m = /^failed: image pull (.+)$/.exec(r);
-  if (m) return `Couldn’t pull its image: ${m[1]}`;
-  m = /^failed: (create|start) ?(.*)$/.exec(r);
-  if (m) return `Couldn’t ${m[1]}${m[2] ? `: ${m[2]}` : ''}`;
-  return r;
+/** How a sandbox ended, as the resource manager reports it. */
+export interface Exit {
+  exit_kind: ExitKind | null;
+  exit_reason: string | null;
+  exit_code?: number | null;
+}
+
+/**
+ * Why a sandbox ended, in plain words, from the class of its ending
+ * (`exit_kind`); the runtime's reason gives the detail (the time limit, the
+ * disk, the stage that failed) and stays behind a tooltip. A kind this console
+ * does not know shows the reason as it is.
+ */
+export function exitWords({ exit_kind: kind, exit_reason: reason, exit_code: code }: Exit): string | null {
+  const r = reason?.trim() ?? '';
+  let m: RegExpExecArray | null;
+  switch (kind) {
+    case 'main_exited': {
+      const c = code ?? Number(/code (-?\d+)/.exec(r)?.[1] ?? NaN);
+      if (Number.isNaN(c)) return 'Its command exited';
+      return c === 0 ? 'Finished' : `Exited with code ${c}`;
+    }
+    case 'timeout':
+      m = /\((\d+)s\)/.exec(r);
+      return m ? `Reached its time limit (${m[1]} s)` : 'Reached its time limit';
+    case 'idle_timeout':
+      m = /\((\d+)s\)/.exec(r);
+      return m ? `Idle for ${m[1]} s` : 'Idle for its idle limit';
+    case 'oom':
+      return 'Out of memory: it reached its memory limit';
+    case 'memory_reclaimed':
+      return 'Memory reclaimed: it was using more than its memory request while the node was short of memory';
+    case 'disk_limit':
+      if (/node disk is low/.test(r)) return 'Stopped: the node was short of disk';
+      m = /\((\d+) MiB\)/.exec(r);
+      return m ? `Reached its disk limit (${m[1]} MiB)` : 'Reached its disk limit';
+    case 'insufficient_balance':
+      return 'Stopped: the bucket’s owner ran out of balance';
+    case 'terminated':
+      m = /^terminated by API: (.+)$/.exec(r);
+      return m ? `Terminated through the API: ${m[1]}` : 'Terminated through the API';
+    case 'failed':
+      m = /^failed: image pull ?(.*)$/.exec(r);
+      if (m) return `Couldn’t pull its image${m[1] ? `: ${m[1]}` : ''}`;
+      m = /^failed: (create|start) ?(.*)$/.exec(r);
+      if (m) return `Couldn’t ${m[1]}${m[2] ? `: ${m[2]}` : ''}`;
+      return r ? `Never ran: ${r.replace(/^failed: /, '')}` : 'Never ran';
+    case 'lost':
+      if (/runtime restarted/.test(r)) return 'Lost: the node’s sandbox runtime restarted';
+      if (/host restarted/.test(r)) return 'Lost: the node restarted';
+      return 'Lost with its node';
+    default:
+      return r || null;
+  }
 }

@@ -15,17 +15,17 @@ export interface Verdict {
  * proves is said: a CPU or memory shortfall from the recorded free figures;
  * anything else is "not recorded".
  */
-export function verdict(c: PlacementCandidate, asked: { cpu: number; memory_mib: number }): Verdict {
+export function verdict(c: PlacementCandidate, asked: { cpu: number; memory: number }): Verdict {
   if (c.reason) return { fits: false, why: c.reason, recorded: true };
   const fits = c.fits ?? c.score >= 0;
   if (fits) return { fits: true, why: '', recorded: c.fits !== undefined };
   if (c.free_cpu + 1e-9 < asked.cpu) {
     return { fits: false, why: `not enough CPU: ${cpu(c.free_cpu)} free, ${cpu(asked.cpu)} asked`, recorded: false };
   }
-  if (c.free_memory_mib < asked.memory_mib) {
+  if (c.free_memory_mib < asked.memory) {
     return {
       fits: false,
-      why: `not enough memory: ${mib(c.free_memory_mib)} free, ${mib(asked.memory_mib)} asked`,
+      why: `not enough memory: ${mib(c.free_memory_mib)} free, ${mib(asked.memory)} asked`,
       recorded: false,
     };
   }
@@ -69,7 +69,7 @@ export function placementSummary(
       }
     | null
     | undefined,
-  asked: { cpu: number; memory_mib: number },
+  asked: { cpu: number; memory: number },
   fallbackNode: string | null,
   name: (id: string) => string,
 ): PlacementSummary {

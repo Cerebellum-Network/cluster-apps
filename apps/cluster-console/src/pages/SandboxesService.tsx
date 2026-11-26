@@ -66,9 +66,9 @@ export function SandboxesService() {
   const running = all.filter((s) => s.status === 'running').length;
   const starting = all.length - running + (live.data?.unplaced.length ?? 0);
   const quotaCpu = nodes?.reduce((a, n) => a + (n.allocatable?.cpu ?? 0), 0) ?? 0;
-  const quotaMem = nodes?.reduce((a, n) => a + (n.allocatable?.memory_mib ?? 0), 0) ?? 0;
+  const quotaMem = nodes?.reduce((a, n) => a + (n.allocatable?.memory ?? 0), 0) ?? 0;
   const resCpu = all.reduce((a, s) => a + s.resources.cpu, 0);
-  const resMem = all.reduce((a, s) => a + s.resources.memory_mib, 0);
+  const resMem = all.reduce((a, s) => a + s.resources.memory, 0);
   const burstCpu = nodes?.reduce((a, n) => a + laneOf(n.sandboxes, 'cpu').burst, 0) ?? 0;
   const burstMem = nodes?.reduce((a, n) => a + laneOf(n.sandboxes, 'memory').burst, 0) ?? 0;
   // A backend before limits sends no split: the charts then show billed and measured only.

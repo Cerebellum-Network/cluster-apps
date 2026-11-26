@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { verdict } from './placement';
 
-const asked = { cpu: 1, memory_mib: 1024 };
+const asked = { cpu: 1, memory: 1024 };
 const c = (
   o: Partial<{ free_cpu: number; free_memory_mib: number; score: number; fits: boolean; reason: string }>,
 ) => ({

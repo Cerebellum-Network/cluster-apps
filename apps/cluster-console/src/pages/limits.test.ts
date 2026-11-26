@@ -6,7 +6,8 @@ import {
   amountsSplit,
   billedOf,
   billingBasisWords,
-  exitReasonWords,
+  type Exit,
+  exitWords,
   laneOf,
   limitsOf,
   resourceUse,
@@ -16,7 +17,7 @@ import {
 const sbx = (
   id: string,
   resources: LiveSandbox['resources'],
-  live: { cpu: number; memory_mib: number } | null,
+  live: { cpu: number; memory: number } | null,
 ): Pick<LiveSandbox, 'id' | 'resources' | 'live'> => ({
   id,
   resources,
@@ -27,38 +28,38 @@ const sbx = (
 
 describe('limitsOf', () => {
   it('limits a sandbox from before limits at its request', () => {
-    expect(limitsOf({ cpu: 1, memory_mib: 1024 })).toEqual({
+    expect(limitsOf({ cpu: 1, memory: 1024 })).toEqual({
       cpu: 1,
       memoryMiB: 1024,
       cpuLimit: 1,
       memoryLimitMiB: 1024,
     });
-    expect(limitsOf({ cpu: 1, memory_mib: 512, cpu_limit: null, memory_limit_mib: 0 })).toMatchObject({
+    expect(limitsOf({ cpu: 1, memory: 512, cpu_limit: null, memory_limit: 0 })).toMatchObject({
       cpuLimit: 1,
       memoryLimitMiB: 512,
     });
   });
 
   it('keeps the limits a sandbox reports, never below its request', () => {
-    expect(limitsOf({ cpu: 0.25, memory_mib: 256, cpu_limit: 4, memory_limit_mib: 1024 })).toEqual({
+    expect(limitsOf({ cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024 })).toEqual({
       cpu: 0.25,
       memoryMiB: 256,
       cpuLimit: 4,
       memoryLimitMiB: 1024,
     });
-    expect(limitsOf({ cpu: 2, memory_mib: 256, cpu_limit: 1 }).cpuLimit).toBe(2);
+    expect(limitsOf({ cpu: 2, memory: 256, cpu_limit: 1 }).cpuLimit).toBe(2);
   });
 });
 
 describe('resourceUse', () => {
   it('splits use into the part within the request and the burst above it', () => {
     const u = resourceUse(
-      sbx('a', { cpu: 0.25, memory_mib: 256, cpu_limit: 4, memory_limit_mib: 1024 }, { cpu: 1, memory_mib: 300 }),
+      sbx('a', { cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024 }, { cpu: 1, memory: 300 }),
       'cpu',
     );
     expect(u).toEqual({ request: 0.25, limit: 4, used: 1, within: 0.25, burst: 0.75, canBurst: true });
     const m = resourceUse(
-      sbx('a', { cpu: 0.25, memory_mib: 256, cpu_limit: 4, memory_limit_mib: 1024 }, { cpu: 1, memory_mib: 300 }),
+      sbx('a', { cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024 }, { cpu: 1, memory: 300 }),
       'memory',
     );
     expect(m.burst).toBeCloseTo(44);
@@ -66,7 +67,7 @@ describe('resourceUse', () => {
   });
 
   it('reads a sandbox limited at its request as never bursting', () => {
-    const u = resourceUse(sbx('a', { cpu: 1, memory_mib: 1024 }, { cpu: 1.02, memory_mib: 400 }), 'cpu');
+    const u = resourceUse(sbx('a', { cpu: 1, memory: 1024 }, { cpu: 1.02, memory: 400 }), 'cpu');
     expect(u.canBurst).toBe(false);
     expect(u.burst).toBe(0);
     expect(u.within).toBe(1);
@@ -74,10 +75,10 @@ describe('resourceUse', () => {
   });
 
   it('draws no burst past the limit, and none without a reading', () => {
-    expect(
-      resourceUse(sbx('a', { cpu: 0.5, memory_mib: 256, cpu_limit: 1 }, { cpu: 1.04, memory_mib: 1 }), 'cpu').burst,
-    ).toBe(0.5);
-    expect(resourceUse(sbx('a', { cpu: 0.5, memory_mib: 256, cpu_limit: 1 }, null), 'cpu')).toMatchObject({
+    expect(resourceUse(sbx('a', { cpu: 0.5, memory: 256, cpu_limit: 1 }, { cpu: 1.04, memory: 1 }), 'cpu').burst).toBe(
+      0.5,
+    );
+    expect(resourceUse(sbx('a', { cpu: 0.5, memory: 256, cpu_limit: 1 }, null), 'cpu')).toMatchObject({
       used: null,
       within: 0,
       burst: 0,
@@ -89,9 +90,9 @@ describe('laneOf', () => {
   it('puts each sandbox’s burst right after its own block', () => {
     const lane = laneOf(
       [
-        sbx('a', { cpu: 1, memory_mib: 1024 }, { cpu: 0.5, memory_mib: 100 }),
-        sbx('b', { cpu: 0.25, memory_mib: 256, cpu_limit: 4 }, { cpu: 1, memory_mib: 200 }),
-        sbx('c', { cpu: 0.5, memory_mib: 256, cpu_limit: 2 }, null),
+        sbx('a', { cpu: 1, memory: 1024 }, { cpu: 0.5, memory: 100 }),
+        sbx('b', { cpu: 0.25, memory: 256, cpu_limit: 4 }, { cpu: 1, memory: 200 }),
+        sbx('c', { cpu: 0.5, memory: 256, cpu_limit: 2 }, null),
       ],
       'cpu',
     );
@@ -108,7 +109,7 @@ describe('laneOf', () => {
 
   it('works in another unit', () => {
     const lane = laneOf(
-      [sbx('a', { cpu: 1, memory_mib: 512, memory_limit_mib: 2048 }, { cpu: 0, memory_mib: 1024 })],
+      [sbx('a', { cpu: 1, memory: 512, memory_limit: 2048 }, { cpu: 0, memory: 1024 })],
       'memory',
       1024,
     );
@@ -178,20 +179,36 @@ describe('words', () => {
     expect(billingBasisWords('')).toBeNull();
   });
 
-  it('says why a sandbox ended in plain words', () => {
-    expect(exitReasonWords('oom_killed')).toBe('Out of memory: it reached its memory limit');
-    expect(exitReasonWords('memory_reclaimed')).toMatch(
+  it('says why a sandbox ended in plain words, by the kind of ending', () => {
+    const w = (exit_kind: Exit['exit_kind'], exit_reason: string | null, exit_code: number | null = null) =>
+      exitWords({ exit_kind, exit_reason, exit_code });
+    expect(w('oom', 'oom_killed', 137)).toBe('Out of memory: it reached its memory limit');
+    expect(w('memory_reclaimed', 'memory_reclaimed')).toMatch(
       /^Memory reclaimed: .*more than its memory request.*short of memory$/,
     );
-    expect(exitReasonWords('timeout (600s)')).toBe('Reached its time limit (600 s)');
-    expect(exitReasonWords('exited with code 0')).toBe('Finished');
-    expect(exitReasonWords('exited with code 137')).toBe('Exited with code 137');
-    expect(exitReasonWords('failed: image pull image not found or access denied')).toBe(
+    expect(w('timeout', 'timeout (600s)', 137)).toBe('Reached its time limit (600 s)');
+    expect(w('idle_timeout', 'idle_timeout (60s)')).toBe('Idle for 60 s');
+    expect(w('main_exited', 'exited with code 0', 0)).toBe('Finished');
+    expect(w('main_exited', 'exited with code 137', 137)).toBe('Exited with code 137');
+    expect(w('main_exited', 'exited with code 2')).toBe('Exited with code 2');
+    expect(w('failed', 'failed: image pull image not found or access denied')).toBe(
       'Couldn’t pull its image: image not found or access denied',
     );
-    expect(exitReasonWords('disk_limit (2048 MiB)')).toBe('Reached its disk limit (2048 MiB)');
-    expect(exitReasonWords('something new')).toBe('something new');
-    expect(exitReasonWords(null)).toBeNull();
+    expect(w('failed', 'failed: create no node has room')).toBe('Couldn’t create: no node has room');
+    expect(w('disk_limit', 'disk_limit (2048 MiB)')).toBe('Reached its disk limit (2048 MiB)');
+    expect(w('disk_limit', 'disk_limit (node disk is low)')).toBe('Stopped: the node was short of disk');
+    expect(w('insufficient_balance', 'insufficient_balance')).toBe('Stopped: the bucket’s owner ran out of balance');
+    expect(w('terminated', 'terminated by API')).toBe('Terminated through the API');
+    expect(w('terminated', 'terminated by API: task done')).toBe('Terminated through the API: task done');
+    expect(w('lost', 'lost: host restarted')).toBe('Lost: the node restarted');
+    expect(w('lost', 'lost: runtime restarted')).toBe('Lost: the node’s sandbox runtime restarted');
+  });
+
+  it('shows the reason as it is for a kind it does not know, and nothing for no ending', () => {
+    expect(exitWords({ exit_kind: 'something_new' as Exit['exit_kind'], exit_reason: 'something new' })).toBe(
+      'something new',
+    );
+    expect(exitWords({ exit_kind: null, exit_reason: null })).toBeNull();
   });
 });
 

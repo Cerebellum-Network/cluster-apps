@@ -113,11 +113,11 @@ export function attention({ summary: s, nodes, usage, signals }: AttentionInputs
       action: 'See sandboxes',
     });
   }
-  if (s?.memory_mib && s.memory_mib.allocatable > 0 && s.memory_mib.allocated / s.memory_mib.allocatable >= 0.8) {
+  if (s?.memory && s.memory.allocatable > 0 && s.memory.allocated / s.memory.allocatable >= 0.8) {
     out.push({
       tag: 'Capacity',
       tone: 'warn',
-      title: `Sandbox memory is ${Math.round((100 * s.memory_mib.allocated) / s.memory_mib.allocatable)}% requested`,
+      title: `Sandbox memory is ${Math.round((100 * s.memory.allocated) / s.memory.allocatable)}% requested`,
       detail: 'New sandboxes may not find room.',
       to: '/sandboxes',
       action: 'See sandboxes',

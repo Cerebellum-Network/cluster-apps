@@ -112,12 +112,12 @@ function blockTitle(s: LiveSandbox): string {
       ? `limit ${num(l.cpuLimit, 2)} vCPU · ${mib(l.memoryLimitMiB)}`
       : 'limited at its request';
   const parts = [
-    `${s.id} · bucket ${s.bucket} · ${s.image}`,
+    `${s.id} · bucket ${s.bucket} · ${s.image.ref}`,
     `request ${num(l.cpu, 2)} vCPU · ${mib(l.memoryMiB)}; ${limit}`,
     s.live
       ? [
           `using ${num(s.live.cpu, 2)} vCPU${cpu.burst > 0 ? ` (${num(cpu.burst, 2)} above its request)` : ''}`,
-          `${mib(s.live.memory_mib)}${mem.burst > 0 ? ` (${mib(mem.burst)} above its request)` : ''}`,
+          `${mib(s.live.memory)}${mem.burst > 0 ? ` (${mib(mem.burst)} above its request)` : ''}`,
           'last minute',
         ].join(' · ')
       : s.status === 'starting'
@@ -483,7 +483,7 @@ function SandboxRow({
           {s.status === 'starting' ? `Starting ${tail(s.id)}` : tail(s.id)}
         </Typography>
         <Typography noWrap sx={{ ...text.caption }}>
-          Bucket {s.bucket} · {s.image}
+          Bucket {s.bucket} · {s.image.ref}
         </Typography>
         {s.billed_cpu_s != null && (
           <Typography noWrap sx={{ ...text.caption }}>
@@ -530,7 +530,7 @@ function NodeRow({
   const running = here.filter((s) => s.status === 'running').length;
   const starting = here.filter((s) => s.status === 'starting').length;
   const quotaCpu = node.allocatable?.cpu ?? null;
-  const quotaMem = node.allocatable?.memory_mib ?? null;
+  const quotaMem = node.allocatable?.memory ?? null;
   const cpu = laneOf(here, 'cpu');
   const mem = laneOf(here, 'memory');
   // Sandboxes together over the node's sandbox memory quota: the one most above its request is reclaimed first.

@@ -22,7 +22,7 @@ import {
 import { bytes, gibTime, mib, num, seconds, shortKey, shortTime, timeColumn, vcpuTime } from '~/format';
 import { useView } from '~/hooks/useView';
 
-import { billedOf, billingBasisWords, type BilledSplit, exitReasonWords, limitsOf, resourceUse } from './limits';
+import { billedOf, billingBasisWords, type BilledSplit, exitWords, limitsOf, resourceUse } from './limits';
 import { BURST, Key, RequestGauge } from './LiveNodes';
 import { placementSummary, verdict } from './placement';
 
@@ -128,7 +128,7 @@ function DrawerSubtitle({ id }: { id: string }) {
     <Stack direction="row" spacing={1} alignItems="center" component="span">
       <StatusPill status={v.data.status} />
       <span>
-        Bucket {v.data.bucket} · {v.data.image}
+        Bucket {v.data.bucket} · {v.data.image.ref}
       </span>
     </Stack>
   );
@@ -155,7 +155,7 @@ function DrawerBody({ id }: { id: string }) {
       cpuNow != null && memNow != null
         ? {
             cpu: cpuNow,
-            memory_mib: memNow / 2 ** 20,
+            memory: memNow / 2 ** 20,
             memory_peak_mib: 0,
             period_start: '',
             period_end: '',
@@ -169,7 +169,7 @@ function DrawerBody({ id }: { id: string }) {
   // One unit per column, from its largest amount.
   const cpuCol = timeColumn(Math.max(billed.cpu?.billed ?? 0, u?.cpu_s ?? 0), 'vCPU');
   const ramCol = timeColumn(Math.max(billed.memory?.billed ?? 0, u?.ram_gib_s ?? 0), 'GiB');
-  const ended = exitReasonWords(s.exit_reason);
+  const ended = exitWords(s);
   return (
     <Stack spacing={3}>
       <DrawerBlock title={live ? 'Request and limit, now' : 'Request and limit'}>
@@ -424,7 +424,7 @@ function DrawerBody({ id }: { id: string }) {
         <Facts
           items={[
             ['Customer', `Bucket ${s.bucket}`],
-            ['Image', <Mono key="i">{s.image}</Mono>],
+            ['Image', <Mono key="i">{s.image.ref}</Mono>],
             ['Command', s.command?.length ? <Mono key="c">{s.command.join(' ')}</Mono> : '—'],
             ['Request', `${num(l.cpu, 2)} vCPU · ${mib(l.memoryMiB)}`],
             [

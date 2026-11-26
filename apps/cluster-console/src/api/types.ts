@@ -40,21 +40,22 @@ export interface Page<T> {
   next_cursor: string | null;
 }
 
+/** vCPU and MiB of memory. */
 export interface Capacity {
   cpu: number;
-  memory_mib: number;
+  memory: number;
 }
 
 /**
- * A sandbox's request and limit. `cpu` and `memory_mib` are the request: what
- * the node's sandbox quota counts, and the billing floor. `cpu_limit` and
- * `memory_limit_mib` are the most it can use (use above the request is burst,
- * billed as used). A backend before limits sends none: the limit is then the
- * request (`limitsOf`).
+ * A sandbox's request and limit. `cpu` (vCPU) and `memory` (MiB) are the
+ * request: what the node's sandbox quota counts, and the billing floor.
+ * `cpu_limit` and `memory_limit` are the most it can use (use above the
+ * request is burst, billed as used). A limit that is missing or below the
+ * request is the request (`limitsOf`).
  */
 export interface SandboxResources extends Capacity {
   cpu_limit?: number | null;
-  memory_limit_mib?: number | null;
+  memory_limit?: number | null;
 }
 
 export interface Alloc {
@@ -75,7 +76,8 @@ export interface Summary {
   nodes_healthy: number | null;
   sandboxes_running: number | null;
   cpu: Alloc | null;
-  memory_mib: Alloc | null;
+  /** MiB. */
+  memory: Alloc | null;
   egress_last_hour: Counts | null;
   records_last_hour: Counts | null;
   compute_nodes: number | null;
@@ -213,6 +215,8 @@ export interface Usage {
   burst_ram_gib_s?: number;
   /** Highest per-second vCPU over the sandbox's life, from runtimes with limits. */
   cpu_peak?: number;
+  /** `cpu_s` / `wall_s`: the average vCPU it used. */
+  cpu_avg?: number;
 }
 
 export interface PlacementCandidate {
@@ -243,6 +247,51 @@ export interface Placement {
 
 export type SandboxStatus = 'starting' | 'running' | 'terminated' | 'failed' | 'unknown';
 
+/**
+ * A sandbox's image: the reference as created and, once its node has it, its
+ * registry digest, its size on the node, whether it was already there
+ * (`cached`) and how long getting it took (`pull_ms`, 0 when cached).
+ */
+export interface SandboxImage {
+  ref: string;
+  digest: string | null;
+  size_bytes: number | null;
+  cached: boolean | null;
+  pull_ms: number | null;
+}
+
+/** The class of a sandbox's `exit_reason`. */
+export type ExitKind =
+  | 'main_exited'
+  | 'timeout'
+  | 'idle_timeout'
+  | 'oom'
+  | 'memory_reclaimed'
+  | 'disk_limit'
+  | 'insufficient_balance'
+  | 'terminated'
+  | 'failed'
+  | 'lost';
+
+/** Files a sandbox asked at create to keep after it ends. */
+export interface Retain {
+  paths: string[];
+  on: 'any' | 'failure';
+  ttl_s: number;
+}
+
+/** A file kept after the sandbox ended, with its size in bytes. */
+export interface RetainedFile {
+  path: string;
+  size: number;
+}
+
+/** An asked-for path (or a file under it) that was not kept, and why. */
+export interface NotRetained {
+  path: string;
+  reason: string;
+}
+
 export interface Sandbox {
   id: string;
   status: SandboxStatus | string;
@@ -251,22 +300,34 @@ export interface Sandbox {
   node_endpoint?: string;
   owner?: string;
   runtime: string;
-  image: string;
+  image: SandboxImage;
   command?: string[];
   workdir?: string;
-  resources: SandboxResources & { pids?: number; disk_mib?: number; gpu?: unknown };
+  /** `disk` in MiB. */
+  resources: SandboxResources & { pids?: number; disk?: number; gpu?: unknown };
   timeout_s: number;
   idle_timeout_s?: number;
   env_keys?: string[];
   egress?: { allow: EgressRule[] };
   labels?: Record<string, string>;
   created_at: string;
+  /** The container started; billing starts. */
   started_at: string | null;
+  /** The node had it running and announced it. */
+  ready_at: string | null;
   ended_at: string | null;
   startup_ms: number | null;
   exit_reason: string | null;
+  exit_kind: ExitKind | null;
   exit_code: number | null;
-  retained?: string[];
+  retain: Retain | null;
+  retained: RetainedFile[];
+  not_retained: NotRetained[];
+  /** Retained files are readable until then. */
+  retained_until: string | null;
+  /** The name of the registry secret its image was pulled with. */
+  registry_credential: string | null;
+  idempotency_key: string | null;
   usage?: Usage | null;
   placement?: Placement | null;
 }
@@ -321,11 +382,14 @@ export interface UsageRecord {
   billed_ram_gib_s?: number;
   /** `request_or_usage`, `reserved` (older) or `measured`: how the units were reached. */
   billing_basis?: string;
+  /** The sandbox's limits: vCPU and MiB. */
   cpu_limit?: number;
-  memory_limit_mib?: number;
+  memory_limit?: number;
   burst_cpu_s?: number;
   burst_ram_gib_s?: number;
   cpu_peak?: number;
+  /** The sandbox's labels. */
+  labels?: Record<string, string>;
 }
 
 export interface SourceRow {
@@ -453,7 +517,8 @@ export interface UsageView {
 export interface LiveUse {
   /** Average vCPU used over the record's minute. */
   cpu: number;
-  memory_mib: number;
+  /** Average memory used, MiB. */
+  memory: number;
   memory_peak_mib: number;
   /** The latest minute's highest per-second vCPU, from runtimes with limits. */
   cpu_peak?: number | null;
@@ -468,7 +533,7 @@ export interface LiveSandbox {
   status: string;
   bucket: number;
   node: string;
-  image: string;
+  image: SandboxImage;
   resources: SandboxResources;
   created_at: string;
   started_at: string | null;
