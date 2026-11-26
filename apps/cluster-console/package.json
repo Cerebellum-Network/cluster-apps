@@ -1,0 +1,20 @@
+{
+  "name": "@cluster-apps/cluster-console",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "vite --open",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "@cef-ai/wallet": "^4.1.0",
+    "@cef-ai/wallet-react": "^3.1.0",
+    "recharts": "^2.15.3"
+  }
+}

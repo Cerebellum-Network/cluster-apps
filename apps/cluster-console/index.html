@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cluster Console</title>
+    <!-- Runtime config: the Helm chart mounts /config.js, which sets
+         window.__RUNTIME_CONFIG__ before the bundle loads (see src/config.ts).
+         A 404 in local dev is harmless: the app falls back to VITE_* / defaults. -->
+    <script src="/config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>
