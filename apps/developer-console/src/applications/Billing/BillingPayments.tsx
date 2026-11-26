@@ -131,8 +131,11 @@ export function BillingPayments({
         clearIdem();
         setStatus({ kind: 'declined' });
       } else {
-        // Keep the idempotency key so a retry cannot double-charge.
-        setStatus(isUnconfirmed(e) ? { kind: 'unconfirmed' } : { kind: 'failed', message: e instanceof Error ? e.message : String(e) });
+        // Keep the idempotency key so a retry cannot double-charge. Only a
+        // saved-card charge can take money within this call; a Checkout one is
+        // paid on Stripe's page, so its failure here is a definite "no".
+        const message = e instanceof Error ? e.message : String(e);
+        setStatus(!useCheckout && isUnconfirmed(e) ? { kind: 'unconfirmed' } : { kind: 'failed', message });
       }
     }
   };

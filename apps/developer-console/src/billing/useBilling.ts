@@ -10,11 +10,14 @@ import { useAccount } from '~/hooks';
 import { useSession } from '~/wallet/session';
 import { recon, paymentApi, normalizeAccount, type Account, type Bills, type Payment, type PaymentApi } from './api';
 import { billingConfig } from './billingConfig';
+import { shouldRegister } from './register';
 
 export interface Loadable<T> {
   data: T | null;
   loading: boolean;
   error: string | null;
+  /** A load of the current account has finished and none is running: `data` is that account's. */
+  settled: boolean;
   reload: () => void;
 }
 
@@ -33,6 +36,7 @@ function useAccountResource<T>(load: (api: PaymentApi, account: string) => Promi
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const reload = useCallback(() => setTick((t) => t + 1), []);
 
@@ -54,7 +58,10 @@ function useAccountResource<T>(load: (api: PaymentApi, account: string) => Promi
         if (!cancelled) setError(e instanceof Error ? e.message : 'Something went wrong.');
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setLoadedFor(pubkey);
+        }
       });
     return () => {
       cancelled = true;
@@ -63,7 +70,7 @@ function useAccountResource<T>(load: (api: PaymentApi, account: string) => Promi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pubkey, api, tick]);
 
-  return { data, loading, error, reload };
+  return { data, loading, error, settled: !!pubkey && loadedFor === pubkey && !loading, reload };
 }
 
 const loadBills = (_: PaymentApi, a: string) => recon.bills(a);
@@ -93,11 +100,10 @@ export function useEnsureRegistered(profile: Loadable<Account | null>, onRegiste
   const { email } = useSession();
   const api = usePaymentApi();
   const registeredFor = useRef<string | null>(null);
-  const { loading, error, data, reload } = profile;
+  const { settled, error, data, reload } = profile;
   useEffect(() => {
     const terms = billingConfig.termsVersion;
-    // Only when the profile has loaded cleanly AND is null (unregistered).
-    if (!pubkey || !terms || loading || error || data !== null || registeredFor.current === pubkey) return;
+    if (!pubkey || !terms || !shouldRegister({ settled, error, data }, pubkey, terms, registeredFor.current)) return;
     registeredFor.current = pubkey;
     api.register(pubkey, terms, email).then(
       () => {
@@ -108,7 +114,7 @@ export function useEnsureRegistered(profile: Loadable<Account | null>, onRegiste
         registeredFor.current = null; // deps unchanged → no re-run now; a later reload retries
       },
     );
-  }, [pubkey, loading, error, data, reload, api, email, onRegistered]);
+  }, [pubkey, settled, error, data, reload, api, email, onRegistered]);
 }
 
 /** The account's payments and credits, newest first. */

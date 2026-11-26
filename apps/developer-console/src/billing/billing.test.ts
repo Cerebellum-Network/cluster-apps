@@ -5,6 +5,7 @@ import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding, pay
 import type { Bills, Rates, Payment } from './api';
 import { ApiError, isUnconfirmed, paymentApi, toCents, type BillingAuth, type CardSummary } from './api';
 import { cardReturnStatus, cardSignature } from './checkout';
+import { shouldRegister } from './register';
 
 /**
  * These pin the billing port's pure layer (format + model), copied byte-for-byte
@@ -339,6 +340,27 @@ describe('payment-service client', () => {
     expect(toCents(19.99)).toBe(1999);
     expect(toCents(0.1 + 0.2)).toBe(30);
     expect(toCents(1000)).toBe(100000);
+  });
+});
+
+describe('registering the account', () => {
+  const A = 'ab'.repeat(32);
+  const settled = { settled: true, error: null, data: null };
+
+  it('registers once its own profile has loaded and is not registered', () => {
+    expect(shouldRegister(settled, A, '2026-11', null)).toBe(true);
+  });
+
+  it('never before the first load ends: an unloaded profile is null too', () => {
+    expect(shouldRegister({ ...settled, settled: false }, A, '2026-11', null)).toBe(false);
+  });
+
+  it('not when registered, failed, already done, or without terms or account', () => {
+    expect(shouldRegister({ ...settled, data: { account: A } }, A, '2026-11', null)).toBe(false);
+    expect(shouldRegister({ ...settled, error: 'down' }, A, '2026-11', null)).toBe(false);
+    expect(shouldRegister(settled, A, '2026-11', A)).toBe(false);
+    expect(shouldRegister(settled, A, undefined, null)).toBe(false);
+    expect(shouldRegister(settled, null, '2026-11', null)).toBe(false);
   });
 });
 
