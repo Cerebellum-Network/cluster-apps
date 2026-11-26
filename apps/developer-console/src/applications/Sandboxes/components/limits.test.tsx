@@ -151,7 +151,7 @@ describe('a sandbox’s usage', () => {
 
   it('with limits and burst billing: floor + burst, use against the request and the limit', () => {
     const sb = sandbox({
-      resources: { cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024 },
+      resources: { cpu: 0.25, memory: 256, cpu_limit: 4, memory_limit: 1024, disk: 512 },
       usage: {
         wall_s: 60,
         cpu_s: 6.9,
@@ -171,6 +171,7 @@ describe('a sandbox’s usage', () => {
     expect(host.textContent).toContain('CPU billed18.2 CPU-s15.0 request + 3.2 burst');
     expect(host.textContent).toContain('uses 0.12 vCPU on average, peak 1; 0.25 vCPU guaranteed, up to 4 vCPU');
     expect(host.textContent).toContain('peak 700 MiB; 256 MiB guaranteed, up to 1 GiB');
+    expect(host.textContent).toContain('largest size of its files, of 512 MiB; not billed');
     const cpuCell = [...host.querySelectorAll('[title]')].find((e) => e.textContent?.startsWith('CPU billed'));
     expect(cpuCell?.getAttribute('title')).toBe(
       'billed 0.25 vCPU × 60.0 s = 15.0 CPU-s request + 3.2 CPU-s burst = 18.2 CPU-s (measured 6.9)',

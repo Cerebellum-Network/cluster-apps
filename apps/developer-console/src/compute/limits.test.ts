@@ -26,6 +26,7 @@ import {
   EMPTY_RESOURCE_FIELDS,
   memoryCeiling,
   memoryLine,
+  parseDisk,
   parseResources,
   plannedCpu,
   plannedMemory,
@@ -95,6 +96,16 @@ describe('the resources form', () => {
     const p = parseResources(fields({ cpuLimit: '0.5' }), { cpu: 1, memoryMib: 2048 });
     expect(p.errors.cpuLimit).toBe('At least the request, 1 vCPU.');
     expect(parseResources(EMPTY_RESOURCE_FIELDS, { cpu: 1, memoryMib: 2048 }).effective.memoryLimitMib).toBe(2048);
+  });
+});
+
+describe('the disk field', () => {
+  it('leaves the disk out when empty (the API gives 512 MiB), else sends whole MiB', () => {
+    expect(parseDisk('')).toEqual({});
+    expect(parseDisk(' 2048 ')).toEqual({ disk: 2048 });
+    expect(parseDisk('100000')).toEqual({ disk: 100000 });
+    for (const bad of ['0', '-1', '1.5', 'x'])
+      expect(parseDisk(bad)).toEqual({ error: 'A whole number of MiB, 1 or more.' });
   });
 });
 

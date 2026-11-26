@@ -26,6 +26,8 @@ export const MAX_CPU_LIMIT = 8;
 /** A memory limit left out is the larger of the request and this (`DEFAULT_MEMORY_LIMIT_MIB`). */
 export const DEFAULT_MEMORY_LIMIT_MIB = 1024;
 export const MIN_MEMORY_MIB = 128;
+/** The writable disk a sandbox gets when its create names none (`resources.disk`, MiB). There is no fixed maximum. */
+export const DEFAULT_DISK_MIB = 512;
 
 /** The memory limit a sandbox gets when its create names none. */
 export const defaultMemoryLimit = (requestMib: number): number => Math.max(requestMib, DEFAULT_MEMORY_LIMIT_MIB);
@@ -105,6 +107,14 @@ export function parseResources(f: ResourceFields, defaults: ResourceDefaults = S
         (defaults.memoryLimitMib ? Math.max(defaults.memoryLimitMib, effMemory) : defaultMemoryLimit(effMemory)),
     },
   } satisfies ParsedResources;
+}
+
+/** The Disk field: '' is the default (left out of the create); else a whole number of MiB, 1 or more. */
+export function parseDisk(text: string): { disk?: number; error?: string } {
+  const n = num(text);
+  if (n === null) return {};
+  if (!Number.isInteger(n) || n < 1) return { error: 'A whole number of MiB, 1 or more.' };
+  return { disk: n };
 }
 
 /** Before create: "0.25 vCPU guaranteed, up to the node’s CPU (at most 8 vCPU)", or "… up to 4 vCPU". */

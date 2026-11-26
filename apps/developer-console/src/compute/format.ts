@@ -18,6 +18,13 @@ export function fmtDuration(seconds: number): string {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
+/** A time limit in words (`timeout_s`, `idle_timeout_s`): "45 s", "5 min", "1.5 h"; 0 is none. */
+export function fmtLimit(seconds: number): string {
+  if (seconds >= 3600) return `${+(seconds / 3600).toFixed(1)} h`;
+  if (seconds >= 60) return `${+(seconds / 60).toFixed(1)} min`;
+  return `${seconds} s`;
+}
+
 /** "12s ago", "4m 03s ago", from an RFC 3339 time. */
 export function fmtAgo(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return '—';

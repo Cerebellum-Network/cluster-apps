@@ -7,7 +7,7 @@ import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
 import { recordSumsLine } from '~/compute/billing';
 import { exitReasonInfo, memoryEnding } from '~/compute/exitReasons';
-import { fmtAgo, fmtDateTime, sumRecords } from '~/compute/format';
+import { fmtAgo, fmtDateTime, fmtLimit, fmtMib, sumRecords } from '~/compute/format';
 import { cpuLine, memoryLine } from '~/compute/resources';
 import { RESOLUTION_NOTE } from '~/compute/credentials';
 import { isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
@@ -66,10 +66,14 @@ const Details = ({ sb }: { sb: Sandbox }) => {
       </Field>
       <Field label="CPU">{cpuLine(sb.resources)}</Field>
       <Field label="Memory">{memoryLine(sb.resources)}</Field>
+      {sb.resources.disk ? <Field label="Disk">{fmtMib(sb.resources.disk)}</Field> : null}
       {sb.resources.pids ? <Field label="Processes">up to {sb.resources.pids}</Field> : null}
       <Field label="Stops after">
-        {sb.timeout_s >= 3600 ? `${+(sb.timeout_s / 3600).toFixed(1)} h` : `${Math.round(sb.timeout_s / 60)} min`}
-        {sb.idle_timeout_s ? `, or ${Math.round(sb.idle_timeout_s / 60)} min idle` : ''}
+        {sb.timeout_s
+          ? `${fmtLimit(sb.timeout_s)}${sb.idle_timeout_s ? `, or ${fmtLimit(sb.idle_timeout_s)} idle` : ''}`
+          : sb.idle_timeout_s
+            ? `${fmtLimit(sb.idle_timeout_s)} idle (no timeout)`
+            : 'No timeout'}
       </Field>
       <Field label="Created">
         <span title={fmtDateTime(sb.created_at)}>{fmtAgo(sb.created_at, now)}</span>
