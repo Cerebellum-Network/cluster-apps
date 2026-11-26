@@ -25,6 +25,7 @@ import { useView } from '~/hooks/useView';
 import { billedOf, billingBasisWords, type BilledSplit, exitWords, limitsOf, resourceUse } from './limits';
 import { BURST, Key, RequestGauge } from './LiveNodes';
 import { placementSummary, verdict } from './placement';
+import { imageDetail, keptFiles, startDetail } from './sandboxFacts';
 
 export const STATUS_TONE: Record<string, Tone> = {
   running: 'success',
@@ -170,6 +171,9 @@ function DrawerBody({ id }: { id: string }) {
   const cpuCol = timeColumn(Math.max(billed.cpu?.billed ?? 0, u?.cpu_s ?? 0), 'vCPU');
   const ramCol = timeColumn(Math.max(billed.memory?.billed ?? 0, u?.ram_gib_s ?? 0), 'GiB');
   const ended = exitWords(s);
+  const image = imageDetail(s.image);
+  const started = startDetail(s);
+  const kept = keptFiles(s);
   return (
     <Stack spacing={3}>
       <DrawerBlock title={live ? 'Request and limit, now' : 'Request and limit'}>
@@ -424,7 +428,13 @@ function DrawerBody({ id }: { id: string }) {
         <Facts
           items={[
             ['Customer', `Bucket ${s.bucket}`],
-            ['Image', <Mono key="i">{s.image.ref}</Mono>],
+            [
+              'Image',
+              <span key="i">
+                <Mono>{s.image.ref}</Mono>
+                {image && <span title={s.image.digest ?? undefined}> · {image}</span>}
+              </span>,
+            ],
             ['Command', s.command?.length ? <Mono key="c">{s.command.join(' ')}</Mono> : '—'],
             ['Request', `${num(l.cpu, 2)} vCPU · ${mib(l.memoryMiB)}`],
             [
@@ -433,10 +443,7 @@ function DrawerBody({ id }: { id: string }) {
                 ? `${num(l.cpuLimit, 2)} vCPU · ${mib(l.memoryLimitMiB)}`
                 : 'the request',
             ],
-            [
-              'Started',
-              `${shortTime(s.started_at ?? s.created_at)}${s.startup_ms != null ? ` · up in ${num(s.startup_ms, 0)} ms` : ''}`,
-            ],
+            ['Started', `${shortTime(s.started_at ?? s.created_at)}${started ? ` · ${started}` : ''}`],
             ['Ran', u ? seconds(u.wall_s) : '—'],
             [
               'Ended',
@@ -450,7 +457,11 @@ function DrawerBody({ id }: { id: string }) {
                 '—'
               ),
             ],
-            ['Time limit', `${seconds(s.timeout_s)}${s.idle_timeout_s ? ` · idle ${seconds(s.idle_timeout_s)}` : ''}`],
+            [
+              'Time limit',
+              `${s.timeout_s ? seconds(s.timeout_s) : 'none'}${s.idle_timeout_s ? ` · idle ${seconds(s.idle_timeout_s)}` : ''}`,
+            ],
+            ...(kept ? ([['Files kept', kept]] as [string, string][]) : []),
             ['Peak memory', u ? mib(u.memory_peak_mib) : '—'],
             ...(u?.cpu_peak ? ([['Peak vCPU', num(u.cpu_peak, 2)]] as [string, string][]) : []),
             ['Network out · in', u ? `${bytes(u.net_egress_bytes)} · ${bytes(u.net_ingress_bytes)}` : '—'],
