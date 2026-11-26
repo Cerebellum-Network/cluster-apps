@@ -51,7 +51,15 @@ describe('createComputeClient', () => {
     const { calls, fetchImpl } = stubFetch(() =>
       json(200, {
         items: [
-          { id: 'sb-1', labels: null, retained: null, env_keys: null, egress: { allow: null }, usage: { cpu_s: 2 } },
+          {
+            id: 'sb-1',
+            labels: null,
+            retained: null,
+            not_retained: null,
+            env_keys: null,
+            egress: { allow: null },
+            usage: { cpu_s: 2 },
+          },
         ],
         next_cursor: null,
       }),
@@ -67,6 +75,7 @@ describe('createComputeClient', () => {
       id: 'sb-1',
       labels: {},
       retained: [],
+      not_retained: [],
       env_keys: [],
       egress: { allow: [] },
       command: [],
@@ -234,6 +243,35 @@ describe('createComputeClient', () => {
     expect(body.secrets[0].hosts).toEqual(['api.github.com']);
     expect(sb.resources).toEqual({ cpu: 0.25, memory: 128, cpu_limit: 4, memory_limit: 1024, disk: 2048 });
     expect(sb.secrets).toEqual([{ name: 'gh', type: 'header', header: 'Authorization', hosts: [] }]);
+  });
+
+  it('sends retain at create and reads the image and the kept files as the API sends them', async () => {
+    const image = {
+      ref: 'python:3.12-slim',
+      digest: 'sha256:ab12',
+      size_bytes: 52428800,
+      cached: false,
+      pull_ms: 4200,
+    };
+    const { calls, fetchImpl } = stubFetch(() =>
+      json(200, {
+        id: 'sb-1',
+        status: 'terminated',
+        image,
+        exit_kind: 'timeout',
+        retain: { paths: ['/workspace/out/'], on: 'any', ttl_s: 86400 },
+        retained: [{ path: '/workspace/out/a.txt', size: 2 }],
+        not_retained: [{ path: '/workspace/b.txt', reason: 'it does not exist in the sandbox' }],
+        retained_until: '2026-11-27T10:05:00Z',
+      }),
+    );
+    const c = createComputeClient('tok', BASE, fetchImpl);
+    const sb = await c.createSandbox({ image: 'python:3.12-slim', retain: { paths: ['/workspace/out/'] } });
+    expect(JSON.parse(String(calls[0].body)).retain).toEqual({ paths: ['/workspace/out/'] });
+    expect(sb.image).toEqual(image);
+    expect(sb.retained).toEqual([{ path: '/workspace/out/a.txt', size: 2 }]);
+    expect(sb.not_retained).toEqual([{ path: '/workspace/b.txt', reason: 'it does not exist in the sandbox' }]);
+    expect(sb.exit_kind).toBe('timeout');
   });
 });
 

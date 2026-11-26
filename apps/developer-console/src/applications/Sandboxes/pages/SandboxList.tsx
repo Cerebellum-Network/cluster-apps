@@ -163,7 +163,7 @@ const SandboxList = () => {
                 {rows.map((s) => {
                   const live = isLive(s.status);
                   // Cores used on average: above the request when it burst.
-                  const avg = s.usage.wall_s > 0 ? s.usage.cpu_s / s.usage.wall_s : 0;
+                  const avg = s.usage.cpu_avg;
                   const cpuMax = cpuCeiling(s.resources);
                   const memMax = memoryCeiling(s.resources);
                   const agent = s.labels['cere.agent'];
@@ -175,7 +175,7 @@ const SandboxList = () => {
                       sx={{ cursor: 'pointer' }}
                     >
                       <TableCell>
-                        <SandboxStatusLabel status={s.status} reason={endedBadly(s) ? s.exit_reason : undefined} />
+                        <SandboxStatusLabel sb={s} withReason={endedBadly(s)} />
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontFamily: mono, fontSize: 13, fontWeight: 600 }}>{s.id}</Typography>
@@ -193,7 +193,9 @@ const SandboxList = () => {
                       </TableCell>
                       <TableCell>
                         <Box sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          <Mono title={s.image}>{shortImage(s.image)}</Mono>
+                          <Mono title={s.image.digest ? `${s.image.ref}\n${s.image.digest}` : s.image.ref}>
+                            {shortImage(s.image.ref)}
+                          </Mono>
                         </Box>
                       </TableCell>
                       <TableCell>

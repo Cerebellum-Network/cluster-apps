@@ -15,7 +15,7 @@ import {
   type RunStep,
 } from './agentRun';
 import { ComputeError, type ComputeClient } from './client';
-import type { CreateSandboxRequest, ExecEvent, ExecRequest, Sandbox } from './types';
+import type { CreateSandboxRequest, ExecEvent, ExecRequest, ExitKind, Sandbox } from './types';
 import { EMPTY_USAGE } from './types';
 
 const SRE: AgentDefinition = {
@@ -43,7 +43,7 @@ const sandbox = (over: Partial<Sandbox>): Sandbox => ({
   bucket: 7,
   node: 'ab'.repeat(32),
   runtime: 'gvisor',
-  image: SRE.image,
+  image: { ref: SRE.image, digest: null, size_bytes: null, cached: null, pull_ms: null },
   command: ['sleep', 'infinity'],
   workdir: '/workspace',
   resources: { cpu: 1, memory: 2048 },
@@ -54,11 +54,18 @@ const sandbox = (over: Partial<Sandbox>): Sandbox => ({
   labels: {},
   created_at: '2026-11-25T10:00:00Z',
   started_at: null,
+  ready_at: null,
   ended_at: null,
   startup_ms: null,
   exit_reason: null,
+  exit_kind: null,
   exit_code: null,
   retained: [],
+  retain: null,
+  not_retained: [],
+  retained_until: null,
+  registry_credential: null,
+  idempotency_key: null,
   usage: EMPTY_USAGE,
   ...over,
 });
@@ -90,6 +97,7 @@ function fakeClient(opts: {
       return sandbox({
         status: polls < 2 ? 'starting' : (opts.startStatus ?? 'running'),
         exit_reason: opts.startStatus === 'failed' ? 'failed: image pull x' : null,
+        exit_kind: opts.startStatus === 'failed' ? ('failed' as const) : null,
       });
     },
     putFile: async (_id: string, path: string, body: string) => {
@@ -116,12 +124,20 @@ function fakeClient(opts: {
       return sandbox({
         status: 'terminated',
         exit_reason: opts.endedWith ?? 'terminated by API: agent run succeeded',
+        exit_kind: KIND[opts.endedWith ?? ''] ?? ('terminated' as const),
         resources: { cpu: 0.5, memory: 512, memory_limit: 2048 },
       });
     },
   } as unknown as ComputeClient;
   return { client, log };
 }
+
+/** The kinds of the reasons these runs end with. */
+const KIND: Record<string, ExitKind> = {
+  memory_reclaimed: 'memory_reclaimed',
+  oom_killed: 'oom',
+  insufficient_balance: 'insufficient_balance',
+};
 
 describe('buildCreateRequest', () => {
   it('starts sleep infinity with the definition rules then the model rule, the labels and the model environment', () => {
@@ -352,7 +368,7 @@ describe('runAgent', () => {
   it('reports a sandbox that failed to start, and still deletes it', async () => {
     const { client, log } = fakeClient({ stdout: [], startStatus: 'failed' });
     const res = await runAgent({ client, def: SRE, input: 'q', sleep: async () => undefined });
-    expect(res.error).toBe('The sandbox failed before the run: failed: image pull x.');
+    expect(res.error).toBe('The sandbox failed before the run: Failed to start: Image pull x.');
     expect(log.exec).toBeUndefined();
     expect(log.terminated).toBeDefined();
   });

@@ -14,7 +14,7 @@ import { useComputeClient } from '~/compute/ComputeProvider';
 import { useEgressLog, useNow, useSandboxes } from '~/compute/hooks';
 import { fmtDuration, plural, shortNode } from '~/compute/format';
 import { foldEvents, transcriptItems } from '~/compute/runView';
-import { EXIT_INSUFFICIENT_BALANCE, isLive, type Sandbox } from '~/compute/types';
+import { isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Markdown, Tabs } from '../../Sandboxes/components/bits';
 import EgressTable from '../../Sandboxes/components/detail/EgressTable';
@@ -50,7 +50,7 @@ function useRunFile(sb: Sandbox | null, name: string, pollMs: number | null, ver
   const bucketsKey = buckets.join(',');
   const [state, setState] = useState<FileState>({ text: null, from: null, error: null, loading: true });
   const id = sb?.id;
-  const retained = sb ? sb.retained.includes(`/workspace/${name}`) : false;
+  const retained = sb ? sb.retained.some((f) => f.path === `/workspace/${name}`) : false;
   const running = sb ? isLive(sb.status) : false;
 
   useEffect(() => {
@@ -241,7 +241,7 @@ const RunDetail = () => {
       ? (outcome.state === 'failed' && output?.error) || outcome.detail
       : null;
   // Out of balance: the node stopped its sandbox, or the API refused the run's calls. A top-up is what it needs.
-  const stoppedForBalance = sb?.exit_reason === EXIT_INSUFFICIENT_BALANCE;
+  const stoppedForBalance = sb?.exit_kind === 'insufficient_balance';
   const refusedForBalance = !stoppedForBalance && failure === REFUSED_FOR_BALANCE;
 
   return (
@@ -299,7 +299,7 @@ const RunDetail = () => {
           >
             {sb.id}
           </Box>
-          <SandboxStatusLabel status={sb.status} reason={!isLive(sb.status) ? sb.exit_reason : undefined} />
+          <SandboxStatusLabel sb={sb} withReason={!isLive(sb.status)} />
           <Typography sx={text.secondary}>
             node <Mono title={sb.node}>{shortNode(sb.node)}</Mono> · {billedText(sb)}
           </Typography>
@@ -389,7 +389,7 @@ const RunDetail = () => {
                     ? 'No output yet.'
                     : outputFile.loading
                       ? 'Reading…'
-                      : sb && !sb.retained.includes('/workspace/output.json')
+                      : sb && !sb.retained.some((f) => f.path === '/workspace/output.json')
                         ? 'No output: the agent wrote no /workspace/output.json before the run ended.'
                         : 'No output was kept.'
                 }

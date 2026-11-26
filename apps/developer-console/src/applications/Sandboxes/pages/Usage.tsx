@@ -300,7 +300,7 @@ const Usage = () => {
         const sb = known.get(id);
         return {
           id,
-          label: sb ? (sb.labels['cere.agent'] ? `agent ${sb.labels['cere.agent']}` : sb.image) : '',
+          label: sb ? (sb.labels['cere.agent'] ? `agent ${sb.labels['cere.agent']}` : sb.image.ref) : '',
           live: sb ? isLive(sb.status) : !rs.some((r) => r.final),
           counted: countingState(rs),
           ...sumRecords(rs),

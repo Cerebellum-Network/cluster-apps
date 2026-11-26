@@ -67,7 +67,7 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
 
   const load = useCallback(() => {
     if (!live) {
-      setFiles(sb.retained.map((path) => ({ path, size: -1, mtime: null })));
+      setFiles(sb.retained.map((f) => ({ path: f.path, size: f.size, mtime: null })));
       return;
     }
     setListError(null);

@@ -1,24 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
-import { endedBadly, parseHosts, SECRET_HOST_RE } from './types';
+import { endedBadly, parseHosts, SECRET_HOST_RE, type ExitKind, type SandboxStatus } from './types';
 
 describe('endedBadly', () => {
-  it('counts a failed start, an OOM kill, a lost sandbox and a non-zero exit as failures', () => {
-    expect(endedBadly({ status: 'failed', exit_reason: 'failed: image pull not found' })).toBe(true);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'oom_killed' })).toBe(true);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'memory_reclaimed' })).toBe(true);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'lost: runtime restarted' })).toBe(true);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'exited with code 2' })).toBe(true);
+  const ended = (exit_kind: ExitKind, exit_code: number | null = null, status: SandboxStatus = 'terminated') => ({
+    status,
+    exit_kind,
+    exit_code,
   });
 
-  it('counts a terminate, a time limit, an idle limit, running out of balance and a clean exit as finished', () => {
-    expect(endedBadly({ status: 'terminated', exit_reason: 'terminated by API: done' })).toBe(false);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'timeout (30s)' })).toBe(false);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'idle_timeout (20s)' })).toBe(false);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'insufficient_balance' })).toBe(false);
-    expect(endedBadly({ status: 'failed', exit_reason: 'insufficient_balance' })).toBe(false);
-    expect(endedBadly({ status: 'terminated', exit_reason: 'exited with code 0' })).toBe(false);
-    expect(endedBadly({ status: 'running', exit_reason: null })).toBe(false);
+  it('counts a failed start, an OOM kill, reclaimed memory, a lost sandbox and a non-zero exit as failures', () => {
+    expect(endedBadly(ended('failed', null, 'failed'))).toBe(true);
+    expect(endedBadly(ended('oom', 137))).toBe(true);
+    expect(endedBadly(ended('memory_reclaimed', 137))).toBe(true);
+    expect(endedBadly(ended('lost'))).toBe(true);
+    expect(endedBadly(ended('main_exited', 2))).toBe(true);
+  });
+
+  it('counts a terminate, a time limit, an idle limit, a full disk, running out of balance and a clean exit as finished', () => {
+    expect(endedBadly(ended('terminated', 137))).toBe(false);
+    expect(endedBadly(ended('timeout', 137))).toBe(false);
+    expect(endedBadly(ended('idle_timeout', 137))).toBe(false);
+    expect(endedBadly(ended('disk_limit', 137))).toBe(false);
+    expect(endedBadly(ended('insufficient_balance', 137))).toBe(false);
+    expect(endedBadly(ended('insufficient_balance', null, 'failed'))).toBe(false);
+    expect(endedBadly(ended('main_exited', 0))).toBe(false);
+    expect(endedBadly({ status: 'running', exit_kind: null, exit_code: null })).toBe(false);
   });
 });
 

@@ -161,7 +161,7 @@ async function failure(res: Response): Promise<ComputeError> {
 
 /**
  * Lists the Go services send as `null` when empty (labels, env_keys, retained,
- * egress.allow, command) become empty values, and usage gets every field, so
+ * not_retained, egress.allow, command) become empty values, and usage gets every field, so
  * pages never meet a null where the contract has a list.
  */
 export function normSandbox(sandbox: Sandbox): Sandbox {
@@ -172,6 +172,7 @@ export function normSandbox(sandbox: Sandbox): Sandbox {
     env_keys: s.env_keys ?? [],
     labels: s.labels ?? {},
     retained: s.retained ?? [],
+    not_retained: s.not_retained ?? [],
     egress: { allow: s.egress?.allow ?? [] },
     ...(secrets ? { secrets: secrets.map((x) => ({ ...x, hosts: x.hosts ?? [] })) } : {}),
     usage: { ...EMPTY_USAGE, ...(s.usage ?? {}) },

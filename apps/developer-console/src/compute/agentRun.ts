@@ -20,16 +20,9 @@
 import { AGENT_DEFAULT_RESOURCES, type AgentDefinition } from './agentDefinition';
 import { OUT_OF_BALANCE, terminateReason, withoutFiles } from './agentOutcome';
 import { ComputeError, errorMessage, isNoBalance, type ComputeClient } from './client';
-import { exitReasonSentence, memoryEnding } from './exitReasons';
+import { exitReasonSentence, memoryKind } from './exitReasons';
 import { effectiveOf } from './resources';
-import {
-  EXIT_INSUFFICIENT_BALANCE,
-  type CreateSandboxRequest,
-  type EgressRule,
-  type ExecExit,
-  type Resources,
-  type Sandbox,
-} from './types';
+import type { CreateSandboxRequest, EgressRule, ExecExit, Resources, Sandbox } from './types';
 import { ulid } from './ulid';
 
 export const RUNNER_COMMAND = ['ddc-agent-run', '/workspace/agent.json', '/workspace/input.txt'];
@@ -360,10 +353,10 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     else if (!result.error) result.error = 'Couldn’t terminate the sandbox; it stops at its timeout.';
     // The node ended the sandbox under the run (out of memory, memory reclaimed): that is the run's failure, whatever
     // the exec or the output said after it, and it says what to raise.
-    if (final && !stopped && memoryEnding(final.exit_reason))
+    if (final && !stopped && memoryKind(final.exit_kind))
       result.error = `The sandbox ended: ${exitReasonSentence(final.exit_reason ?? '', final)}`;
     // The node stopped it because the bucket ran out of balance: a top-up, not a fix, is what the run needs.
-    if (final && !stopped && final.exit_reason === EXIT_INSUFFICIENT_BALANCE) result.error = OUT_OF_BALANCE;
+    if (final && !stopped && final.exit_kind === 'insufficient_balance') result.error = OUT_OF_BALANCE;
   }
   step('done');
   return result;

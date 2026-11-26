@@ -129,6 +129,7 @@ const record = (r: Partial<UsageRecord>): RecordBillingFields & UsageRecord => (
   sandbox_id: 'sb',
   node: 'n',
   bucket: 1,
+  labels: {},
   period_start: '2026-11-25T10:00:00Z',
   period_end: '2026-11-25T10:01:00Z',
   final: false,

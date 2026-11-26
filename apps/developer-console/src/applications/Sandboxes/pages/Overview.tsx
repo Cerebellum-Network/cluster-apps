@@ -106,7 +106,7 @@ const RightNow = () => {
               </Typography>
               <Typography sx={{ ...text.caption, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {s.labels['cere.agent'] ? `agent ${s.labels['cere.agent']} · ` : ''}
-                {shortImage(s.image)}
+                {shortImage(s.image.ref)}
               </Typography>
             </Box>
             <Typography sx={{ ...text.caption, whiteSpace: 'nowrap' }}>{fmtAgo(s.created_at, now)}</Typography>

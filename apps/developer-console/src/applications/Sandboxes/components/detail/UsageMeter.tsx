@@ -109,7 +109,7 @@ const UsageMeter = ({ sandbox, cpuHistory }: { sandbox: Sandbox; cpuHistory: num
   const u = sandbox.usage;
   const r = sandbox.resources;
   const parts = usageParts(u);
-  const avg = u.wall_s > 0 ? u.cpu_s / u.wall_s : 0;
+  const avg = u.cpu_avg;
   const peak = u.cpu_peak ?? 0;
   // Room above the request for a burst to show, up to the limit; no room when the request is the limit.
   const sparkMax = Math.min(cpuCeiling(r), Math.max(r.cpu * 1.25, peak, ...cpuHistory, 0.01));

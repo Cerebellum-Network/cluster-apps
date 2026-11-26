@@ -6,11 +6,11 @@ import { Pill, Section } from '~/components';
 import { AGENT_RUN_KIND, LABEL } from '~/compute/agentRun';
 import { POLL, useEgressLog, useNow, useSandbox, useUsageRecords } from '~/compute/hooks';
 import { recordSumsLine } from '~/compute/billing';
-import { exitReasonInfo, memoryEnding } from '~/compute/exitReasons';
+import { exitReasonInfo, memoryKind } from '~/compute/exitReasons';
 import { fmtAgo, fmtDateTime, fmtLimit, fmtMib, sumRecords } from '~/compute/format';
 import { cpuLine, memoryLine } from '~/compute/resources';
 import { RESOLUTION_NOTE } from '~/compute/credentials';
-import { EXIT_INSUFFICIENT_BALANCE, isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
+import { isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
 import { quoteArg } from '../components/commandLine';
@@ -56,7 +56,7 @@ const Details = ({ sb }: { sb: Sandbox }) => {
         <Pill>{sb.runtime}</Pill>
       </Field>
       <Field label="Image">
-        <Mono>{sb.image}</Mono>
+        <Mono>{sb.image.ref}</Mono>
       </Field>
       <Field label="Command">
         <Mono>{sb.command.map(quoteArg).join(' ')}</Mono>
@@ -205,8 +205,8 @@ const OwnCredentials = ({ sb }: { sb: Sandbox }) => {
 
 /** Shown on a sandbox the node stopped for memory: which kind, and what to raise. */
 const MemoryEnding = ({ sb }: { sb: Sandbox }) => {
-  if (!sb.exit_reason || !memoryEnding(sb.exit_reason)) return null;
-  const info = exitReasonInfo(sb.exit_reason, sb);
+  if (!memoryKind(sb.exit_kind)) return null;
+  const info = exitReasonInfo(sb.exit_reason ?? '', sb);
   return (
     <Alert severity="error" sx={{ marginBottom: '16px' }}>
       <strong>{info.label}.</strong> {info.detail} {info.action}
@@ -216,7 +216,7 @@ const MemoryEnding = ({ sb }: { sb: Sandbox }) => {
 
 /** Shown on a sandbox the node stopped because the bucket ran out of balance, with the way to top up. */
 const BalanceEnding = ({ sb }: { sb: Sandbox }) =>
-  sb.exit_reason === EXIT_INSUFFICIENT_BALANCE ? (
+  sb.exit_kind === 'insufficient_balance' ? (
     <Box marginBottom="16px">
       <NoBalance title="Stopped: the bucket ran out of balance.">
         {sb.labels[LABEL.kind] === AGENT_RUN_KIND
@@ -338,10 +338,7 @@ const SandboxDetail = () => {
           >
             {sb.id}
           </Typography>
-          <SandboxStatusLabel
-            status={sb.status}
-            reason={sb.status === 'failed' || sb.status === 'terminated' ? sb.exit_reason : undefined}
-          />
+          <SandboxStatusLabel sb={sb} withReason={sb.status === 'failed' || sb.status === 'terminated'} />
         </Stack>
         <Stack direction="row" spacing={1.5} alignItems="center">
           {error && (

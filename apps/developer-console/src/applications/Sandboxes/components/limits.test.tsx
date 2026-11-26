@@ -120,7 +120,7 @@ const sandbox = (over: { usage?: Partial<Usage>; resources?: Sandbox['resources'
   bucket: 4116,
   node: 'ab'.repeat(32),
   runtime: 'gvisor',
-  image: 'python:3.12-slim',
+  image: { ref: 'python:3.12-slim', digest: null, size_bytes: null, cached: null, pull_ms: null },
   command: ['sleep', 'infinity'],
   workdir: '/workspace',
   resources: over.resources ?? { cpu: 1, memory: 1024, cpu_limit: 4, memory_limit: 2048 },
@@ -131,17 +131,24 @@ const sandbox = (over: { usage?: Partial<Usage>; resources?: Sandbox['resources'
   labels: {},
   created_at: '2026-11-25T10:00:00Z',
   started_at: '2026-11-25T10:00:01Z',
+  ready_at: '2026-11-25T10:00:01Z',
   ended_at: null,
   startup_ms: 200,
   exit_reason: null,
+  exit_kind: null,
   exit_code: null,
   retained: [],
+  retain: null,
+  not_retained: [],
+  retained_until: null,
+  registry_credential: null,
+  idempotency_key: null,
   usage: { ...EMPTY_USAGE, ...over.usage },
 });
 
 describe('a sandbox’s usage', () => {
   it('before the node reports billing: what was measured, no burst', () => {
-    const sb = sandbox({ usage: { wall_s: 60, cpu_s: 6, ram_gib_s: 14, memory_peak_mib: 300 } });
+    const sb = sandbox({ usage: { wall_s: 60, cpu_s: 6, cpu_avg: 0.1, ram_gib_s: 14, memory_peak_mib: 300 } });
     act(() => root.render(<UsageMeter sandbox={sb} cpuHistory={[]} />));
     expect(host.textContent).toContain('CPU6.00 CPU-smeasured');
     expect(host.textContent).toContain('uses 0.1 vCPU on average; 1 vCPU guaranteed, up to 4 vCPU');
@@ -155,6 +162,7 @@ describe('a sandbox’s usage', () => {
       usage: {
         wall_s: 60,
         cpu_s: 6.9,
+        cpu_avg: 0.115,
         ram_gib_s: 14,
         memory_peak_mib: 700,
         billing_basis: 'request_or_usage',
@@ -226,6 +234,7 @@ describe('memory endings', () => {
       sandbox_id: 'sb-1',
       node: 'ab'.repeat(32),
       bucket: 4116,
+      labels: {},
       period_start: '2026-11-25T10:00:00Z',
       period_end: '2026-11-25T10:00:30Z',
       final: true,

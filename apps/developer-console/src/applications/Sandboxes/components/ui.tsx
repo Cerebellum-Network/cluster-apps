@@ -3,8 +3,8 @@ import { Alert, Box, Button, Stack, Typography, styled } from '@cluster-apps/ui'
 import { keyframes } from '@mui/material';
 import { NavLink } from 'react-router-dom';
 
-import { exitReasonInfo } from '~/compute/exitReasons';
-import { endedBadly, type EgressDecision, type SandboxStatus } from '~/compute/types';
+import { exitReasonInfo, type ExitContext } from '~/compute/exitReasons';
+import { endedBadly, type EgressDecision, type Sandbox, type SandboxStatus } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 
 /** Sandbox-specific colours, on top of the console tokens. */
@@ -56,12 +56,11 @@ export const StatusDot = styled('span', { shouldForwardProp: (p) => p !== 'statu
 );
 
 /**
- * An exit reason in plain words ("Out of memory", "Memory reclaimed"), with
- * what happened and what to do in its tooltip; any other
- * reason as the node wrote it. `sb` adds the numbers (its limit, request,
- * peak) when the sandbox is at hand.
+ * An exit reason in plain words ("Timed out", "Out of memory", "Memory reclaimed"), with what happened and what to do
+ * in its tooltip. With the sandbox at hand (`sb`), its `exit_kind` says which ending it was and its numbers (its
+ * limit, request, peak) are added; a reason alone (a usage record's) stays as the node wrote it unless it needs words.
  */
-export const ExitReason = ({ reason, sb }: { reason: string; sb?: Parameters<typeof exitReasonInfo>[1] }) => {
+export const ExitReason = ({ reason, sb }: { reason: string; sb?: ExitContext }) => {
   const info = exitReasonInfo(reason, sb);
   const title = [info.detail, info.action].filter(Boolean).join(' ');
   return title ? (
@@ -74,12 +73,18 @@ export const ExitReason = ({ reason, sb }: { reason: string; sb?: Parameters<typ
 };
 
 /**
- * Dot + word, for tables and headers. A sandbox that ended badly (out of
- * memory, memory reclaimed, lost, a non-zero exit) reads Failed, as the list's
- * Failed filter counts it, whatever status the API gives it.
+ * Dot + word, for tables and headers, and the exit reason in plain words when `withReason`. A sandbox that ended
+ * badly (out of memory, memory reclaimed, lost, a non-zero exit) reads Failed, as the list's Failed filter counts it,
+ * whatever status the API gives it.
  */
-export const SandboxStatusLabel = ({ status: given, reason }: { status: SandboxStatus; reason?: string | null }) => {
-  const status: SandboxStatus = endedBadly({ status: given, exit_reason: reason ?? null }) ? 'failed' : given;
+export const SandboxStatusLabel = ({
+  sb,
+  withReason = false,
+}: {
+  sb: Pick<Sandbox, 'status' | 'exit_reason' | 'exit_kind' | 'exit_code'> & ExitContext;
+  withReason?: boolean;
+}) => {
+  const status: SandboxStatus = endedBadly(sb) ? 'failed' : sb.status;
   return (
     <Stack direction="row" alignItems="center" gap="8px" component="span">
       <StatusDot status={status} />
@@ -92,9 +97,9 @@ export const SandboxStatusLabel = ({ status: given, reason }: { status: SandboxS
       >
         {STATUS_LABEL[status] ?? status}
       </Typography>
-      {reason && (
+      {withReason && sb.exit_reason && (
         <Typography component="span" sx={text.caption}>
-          <ExitReason reason={reason} />
+          <ExitReason reason={sb.exit_reason} sb={sb} />
         </Typography>
       )}
     </Stack>

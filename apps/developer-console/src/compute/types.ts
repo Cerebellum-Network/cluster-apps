@@ -80,6 +80,10 @@ export interface CreateSandboxRequest {
   egress?: EgressPolicy;
   /** ≤ 32 pairs. The `cere.` prefix is reserved for the client-side agent layer. */
   labels?: Record<string, string>;
+  /** Files to keep after it ends, whatever ends it (`on` defaults to `any`, `ttl_s` to 86400). */
+  retain?: RetainInput;
+  /** The name of a `registry` secret to pull a private image with. */
+  registry_credential?: string;
   /**
    * The sandbox's own credentials (at most 32): held by the egress proxy for this sandbox only, deleted when it
    * ends, never returned. Rules name them like the bucket's, and they win over a bucket or agent secret of the
@@ -104,6 +108,56 @@ export interface SandboxSecret {
   header: string;
   hosts: string[];
 }
+
+/**
+ * The files a sandbox keeps after it ends. `any`: on every end; `failure`: on every end except its main process
+ * exiting with code 0 and a terminate. Kept `ttl_s` seconds (60 to 604800) after the end.
+ */
+export interface Retain {
+  paths: string[];
+  on: 'any' | 'failure';
+  ttl_s: number;
+}
+
+/** `retain` at create: only `paths` is required. */
+export type RetainInput = Pick<Retain, 'paths'> & Partial<Omit<Retain, 'paths'>>;
+
+/** A file kept after the sandbox ended, read with `GET /files?path=` until `retained_until`. Size in bytes. */
+export interface RetainedFile {
+  path: string;
+  size: number;
+}
+
+/** An asked-for path (or a file under a directory) that was not kept, and why. */
+export interface NotRetained {
+  path: string;
+  reason: string;
+}
+
+/**
+ * The image as created (`ref`) and, once the node has it, its registry `digest`, its `size_bytes` on the node,
+ * whether it was `cached` there (nothing downloaded) and `pull_ms`, the time spent getting it (0 when cached).
+ */
+export interface SandboxImage {
+  ref: string;
+  digest: string | null;
+  size_bytes: number | null;
+  cached: boolean | null;
+  pull_ms: number | null;
+}
+
+/** The class of `exit_reason`, for programs. */
+export type ExitKind =
+  | 'main_exited'
+  | 'timeout'
+  | 'idle_timeout'
+  | 'oom'
+  | 'memory_reclaimed'
+  | 'disk_limit'
+  | 'insufficient_balance'
+  | 'terminated'
+  | 'failed'
+  | 'lost';
 
 /** What the node measures for a sandbox (live while it runs, final after). */
 export interface Usage {
@@ -133,6 +187,8 @@ export interface Usage {
   burst_ram_gib_s: number;
   /** The highest per-second CPU use, in cores. */
   cpu_peak: number;
+  /** `cpu_s` / `wall_s`: the average CPU use, in cores. */
+  cpu_avg: number;
 }
 
 /** The node's billing basis, as each usage and record says it. */
@@ -145,7 +201,7 @@ export interface Sandbox {
   /** The node's ID: 64 lowercase hex characters, the Ed25519 public key of its seed. */
   node: string;
   runtime: string;
-  image: string;
+  image: SandboxImage;
   command: string[];
   workdir: string;
   resources: Resources;
@@ -157,8 +213,12 @@ export interface Sandbox {
   /** Its own credentials, without values; absent when it was created without any. */
   secrets?: SandboxSecret[];
   created_at: string;
+  /** The container started; billing starts here. */
   started_at: string | null;
+  /** The node had it running and announced it. */
+  ready_at: string | null;
   ended_at: string | null;
+  /** Measured on the node, from accepting the create to running. */
   startup_ms: number | null;
   /**
    * `terminated by API[: reason]`, `timeout (Ns)`, `idle_timeout (Ns)`,
@@ -168,9 +228,21 @@ export interface Sandbox {
    * `disk_limit (…)`, `lost: runtime restarted`, `lost: host restarted`.
    */
   exit_reason: string | null;
+  /** The class of `exit_reason`; null while it runs. */
+  exit_kind: ExitKind | null;
   exit_code: number | null;
-  /** Paths kept after termination; readable with `GET /files` until the node's retain TTL. */
-  retained: string[];
+  /** The files it was asked to keep, at create; null when none. */
+  retain: Retain | null;
+  /** Every file kept after it ended (a kept directory's files one by one), readable until `retained_until`. */
+  retained: RetainedFile[];
+  /** Each asked-for path (or file under a directory) that was not kept, and why. */
+  not_retained: NotRetained[];
+  /** When the kept files go; after it, reading one is 410 `file_gone`. */
+  retained_until: string | null;
+  /** The `registry` secret its image was pulled with, by name. */
+  registry_credential: string | null;
+  /** The `Idempotency-Key` it was created with. */
+  idempotency_key: string | null;
   usage: Usage;
 }
 
@@ -288,6 +360,8 @@ export interface UsageRecord {
   sandbox_id: string;
   node: string;
   bucket: number;
+  /** Its sandbox's labels. */
+  labels: Record<string, string>;
   period_start: string;
   period_end: string;
   final: boolean;
@@ -353,22 +427,29 @@ export const EMPTY_USAGE: Usage = {
   burst_cpu_s: 0,
   burst_ram_gib_s: 0,
   cpu_peak: 0,
+  cpu_avg: 0,
 };
 
 /**
  * An ending that is a failure: it never started (`failed`), the node stopped it
- * for memory (`oom_killed`, `memory_reclaimed`), it was lost with its node or runtime (`lost: …`),
+ * for memory (`oom`, `memory_reclaimed`), it was lost with its node or runtime (`lost`),
  * or its main process exited with a non-zero code. A timeout or idle timeout is
- * the limit you set, a terminate is yours, and running out of balance
+ * the limit you set, a terminate is yours, a full disk is the size you gave it, and running out of balance
  * (`insufficient_balance`) is fixed by a top-up: those are Finished.
  */
-export function endedBadly(s: Pick<Sandbox, 'status' | 'exit_reason'>): boolean {
-  if (s.exit_reason === EXIT_INSUFFICIENT_BALANCE) return false;
+export function endedBadly(s: Pick<Sandbox, 'status' | 'exit_kind' | 'exit_code'>): boolean {
+  if (s.exit_kind === 'insufficient_balance') return false;
   if (s.status === 'failed') return true;
-  if (s.status !== 'terminated' || !s.exit_reason) return false;
-  const r = s.exit_reason;
-  if (r.startsWith(EXIT_OOM_KILLED) || r.startsWith(EXIT_MEMORY_RECLAIMED)) return true;
-  if (r.startsWith('lost') || r.startsWith('failed')) return true;
-  const code = /^exited with code (-?\d+)/.exec(r);
-  return !!code && code[1] !== '0';
+  if (s.status !== 'terminated') return false;
+  switch (s.exit_kind) {
+    case 'oom':
+    case 'memory_reclaimed':
+    case 'lost':
+    case 'failed':
+      return true;
+    case 'main_exited':
+      return s.exit_code != null && s.exit_code !== 0;
+    default:
+      return false;
+  }
 }
