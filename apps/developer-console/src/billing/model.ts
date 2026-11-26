@@ -68,6 +68,9 @@ export type StatusTone = 'neutral' | 'success' | 'warning';
 export function paymentStatus(p: Payment): { label: string; tone: StatusTone } {
   switch (p.status) {
     case 'created':
+      // Not at Stripe yet — or never: a Checkout Stripe refused to open stays
+      // here for good, so it must not read as a payment still to come.
+      return { label: 'Not completed', tone: 'neutral' };
     case 'checkout_open':
       return { label: 'Awaiting payment', tone: 'neutral' };
     case 'processing':

@@ -204,6 +204,7 @@ describe('payment rows', () => {
     expect(paymentStatus(pay({ status: 'failed', failure: 'card_declined' })).label).toBe('Declined');
     expect(paymentStatus(pay({ status: 'failed', failure: null })).label).toBe('Failed');
     expect(paymentStatus(pay({ status: 'checkout_open' })).label).toBe('Awaiting payment');
+    expect(paymentStatus(pay({ status: 'created', funding_status: null })).label).toBe('Not completed');
   });
 
   it('CSV: one row per payment, amounts in dollars, quoted when needed', () => {
