@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { fitBytes, MAX_REASON_BYTES, outcomeOf, terminateReason, withoutFiles, type RunOutcome } from './agentOutcome';
+import {
+  fitBytes,
+  MAX_REASON_BYTES,
+  OUT_OF_BALANCE,
+  outcomeOf,
+  terminateReason,
+  withoutFiles,
+  type RunOutcome,
+} from './agentOutcome';
 import type { SandboxStatus } from './types';
 
 const bytes = (s: string) => new TextEncoder().encode(s).length;
@@ -61,6 +69,9 @@ describe('outcomeOf', () => {
     ],
     [sb('terminated', 'lost: host restarted'), { state: 'failed', detail: 'The sandbox ended: lost: host restarted' }],
     [sb('terminated', 'timeout (1020s)'), { state: 'ended', detail: 'timeout (1020s)' }],
+    // Out of balance is ended with the way to top up, as the CLI says it; never a failed run.
+    [sb('terminated', 'insufficient_balance'), { state: 'ended', detail: OUT_OF_BALANCE }],
+    [sb('failed', 'insufficient_balance'), { state: 'ended', detail: OUT_OF_BALANCE }],
     [
       sb('terminated', 'terminated by API: console terminate'),
       { state: 'ended', detail: 'terminated by API: console terminate' },

@@ -7,7 +7,7 @@
  * within the request is never reclaimed).
  */
 import { fmtMib } from './format';
-import { EXIT_MEMORY_RECLAIMED, EXIT_OOM_KILLED, type Resources, type Usage } from './types';
+import { EXIT_INSUFFICIENT_BALANCE, EXIT_MEMORY_RECLAIMED, EXIT_OOM_KILLED, type Resources, type Usage } from './types';
 
 export interface ExitReasonInfo {
   /** A few words for a status line: "Out of memory". */
@@ -32,6 +32,12 @@ export function exitReasonInfo(
   const request = sb?.resources?.memory;
   const limit = sb?.resources?.memory_limit || request;
   const peak = sb?.usage?.memory_peak_mib;
+  if (reason === EXIT_INSUFFICIENT_BALANCE)
+    return {
+      label: 'Out of balance',
+      detail: 'The bucket ran out of balance, so the node stopped it.',
+      action: 'Top up in Billing, then start it again.',
+    };
   if (reason.startsWith(EXIT_OOM_KILLED))
     return {
       label: 'Out of memory',

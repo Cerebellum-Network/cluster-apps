@@ -65,6 +65,14 @@ describe('BilledUsage', () => {
 });
 
 describe('ExitReason', () => {
+  it('says out of balance in words, and what to do about it', () => {
+    act(() => root.render(<ExitReason reason="insufficient_balance" />));
+    expect(host.textContent).toBe('Out of balance');
+    expect(host.querySelector('[title]')?.getAttribute('title')).toBe(
+      'The bucket ran out of balance, so the node stopped it. Top up in Billing, then start it again.',
+    );
+  });
+
   it('shows any other reason as the node wrote it', () => {
     act(() => root.render(<ExitReason reason="timeout (600s)" />));
     expect(host.textContent).toBe('timeout (600s)');

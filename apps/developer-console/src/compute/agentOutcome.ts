@@ -7,11 +7,13 @@
  * whichever client started it and whichever one looks at it.
  */
 import { exitReasonInfo, memoryEnding } from './exitReasons';
-import type { Sandbox } from './types';
+import { EXIT_INSUFFICIENT_BALANCE, type Sandbox } from './types';
 
 export const REASON_SUCCEEDED = 'agent run succeeded';
 export const REASON_FAILED = 'agent run failed';
 export const REASON_STOPPED = 'agent run stopped';
+/** A run whose sandbox the node stopped because the bucket ran out of balance: ended, not failed (as the CLI says). */
+export const OUT_OF_BALANCE = 'Stopped: the bucket ran out of balance. Top up in Billing, then run the agent again.';
 export const NOT_RETAINED = ' (files not retained)';
 /** The gateway's limit on a terminate reason, in bytes. */
 export const MAX_REASON_BYTES = 120;
@@ -59,11 +61,12 @@ export function outcomeOf(sb: Pick<Sandbox, 'status' | 'exit_reason'>): RunOutco
       return { state: 'running' };
     case 'unknown':
       return { state: 'unknown', detail: 'The sandbox’s node has not reported for a while.' };
-    case 'failed':
-      return { state: 'failed', detail: reason || 'The sandbox failed.' };
     default:
       break;
   }
+  // Out of balance is the bucket's, not the run's: a top-up fixes it.
+  if (reason === EXIT_INSUFFICIENT_BALANCE) return { state: 'ended', detail: OUT_OF_BALANCE };
+  if (sb.status === 'failed') return { state: 'failed', detail: reason || 'The sandbox failed.' };
   if (!reason.startsWith(BY_API)) {
     // The sandbox ended by itself under the run, or a kept sandbox ended later.
     if (memoryEnding(reason)) {

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { collect, ComputeError, createComputeClient, isTokenRejected, queryString } from './client';
+import {
+  collect,
+  ComputeError,
+  createComputeClient,
+  errorMessage,
+  isNoBalance,
+  isTokenRejected,
+  queryString,
+} from './client';
 import type { ExecEvent } from './types';
 
 type Call = { url: string; method: string; headers: Record<string, string>; body: unknown };
@@ -117,6 +125,14 @@ describe('createComputeClient', () => {
     expect(isTokenRejected(err)).toBe(false);
     expect(isTokenRejected(new ComputeError(401, 'token expired'))).toBe(true);
     expect(isTokenRejected(new ComputeError(403, 'bucket owner has insufficient balance'))).toBe(false);
+  });
+
+  it('tells a refusal for balance by its code, or by the message a page kept of it', () => {
+    const refused = new ComputeError(403, 'bucket owner has insufficient balance', 'insufficient_balance');
+    expect(isNoBalance(refused)).toBe(true);
+    expect(isNoBalance(errorMessage(refused))).toBe(true);
+    expect(isNoBalance(new ComputeError(403, 'forbidden', 'forbidden'))).toBe(false);
+    expect(isNoBalance('502 bad gateway')).toBe(false);
   });
 
   it('streams exec output and resolves with the exit', async () => {

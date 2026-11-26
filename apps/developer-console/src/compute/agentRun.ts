@@ -18,11 +18,18 @@
  * nothing here is simulated.
  */
 import { AGENT_DEFAULT_RESOURCES, type AgentDefinition } from './agentDefinition';
-import { terminateReason, withoutFiles } from './agentOutcome';
-import { ComputeError, errorMessage, type ComputeClient } from './client';
+import { OUT_OF_BALANCE, terminateReason, withoutFiles } from './agentOutcome';
+import { ComputeError, errorMessage, isNoBalance, type ComputeClient } from './client';
 import { exitReasonSentence, memoryEnding } from './exitReasons';
 import { effectiveOf } from './resources';
-import type { CreateSandboxRequest, EgressRule, ExecExit, Resources, Sandbox } from './types';
+import {
+  EXIT_INSUFFICIENT_BALANCE,
+  type CreateSandboxRequest,
+  type EgressRule,
+  type ExecExit,
+  type Resources,
+  type Sandbox,
+} from './types';
 import { ulid } from './ulid';
 
 export const RUNNER_COMMAND = ['ddc-agent-run', '/workspace/agent.json', '/workspace/input.txt'];
@@ -39,6 +46,8 @@ export const SANDBOX_HEADROOM_S = 120;
 /** The gateway's cap on one exec (`SANDBOX_EXEC_MAX_TIMEOUT`). */
 export const EXEC_MAX_TIMEOUT_S = 3600;
 export const MODEL_KEY_PLACEHOLDER = 'placeholder-egress-proxy-injects';
+/** A run the API refused (create, file upload or exec) because the bucket's owner has no balance. */
+export const REFUSED_FOR_BALANCE = 'The bucket is out of balance: top up in Billing, then run the agent again.';
 
 /** Labels the agent layer puts on a run's sandbox. */
 export const LABEL = {
@@ -339,7 +348,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     }
   } catch (e) {
     stopped = e instanceof DOMException && e.name === 'AbortError';
-    result.error = stopped ? 'Stopped.' : errorMessage(e);
+    result.error = stopped ? 'Stopped.' : isNoBalance(e) ? REFUSED_FOR_BALANCE : errorMessage(e);
   }
 
   // 5. Terminate, keeping the run's files. Always, unless asked to keep it:
@@ -354,6 +363,8 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     // the exec or the output said after it, and it says what to raise.
     if (final && !stopped && memoryEnding(final.exit_reason))
       result.error = `The sandbox ended: ${exitReasonSentence(final.exit_reason ?? '', final)}`;
+    // The node stopped it because the bucket ran out of balance: a top-up, not a fix, is what the run needs.
+    if (final && !stopped && final.exit_reason === EXIT_INSUFFICIENT_BALANCE) result.error = OUT_OF_BALANCE;
   }
   step('done');
   return result;

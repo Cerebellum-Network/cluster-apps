@@ -11,10 +11,12 @@ describe('endedBadly', () => {
     expect(endedBadly({ status: 'terminated', exit_reason: 'exited with code 2' })).toBe(true);
   });
 
-  it('counts a terminate, a time limit, an idle limit and a clean exit as finished', () => {
+  it('counts a terminate, a time limit, an idle limit, running out of balance and a clean exit as finished', () => {
     expect(endedBadly({ status: 'terminated', exit_reason: 'terminated by API: done' })).toBe(false);
     expect(endedBadly({ status: 'terminated', exit_reason: 'timeout (30s)' })).toBe(false);
     expect(endedBadly({ status: 'terminated', exit_reason: 'idle_timeout (20s)' })).toBe(false);
+    expect(endedBadly({ status: 'terminated', exit_reason: 'insufficient_balance' })).toBe(false);
+    expect(endedBadly({ status: 'failed', exit_reason: 'insufficient_balance' })).toBe(false);
     expect(endedBadly({ status: 'terminated', exit_reason: 'exited with code 0' })).toBe(false);
     expect(endedBadly({ status: 'running', exit_reason: null })).toBe(false);
   });

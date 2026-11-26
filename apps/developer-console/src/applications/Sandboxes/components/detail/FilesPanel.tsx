@@ -2,11 +2,11 @@ import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Box, Button, Stack, TextField, Typography } from '@cluster-apps/ui';
 
 import { useComputeClient } from '~/compute/ComputeProvider';
-import { ComputeError, errorMessage } from '~/compute/client';
+import { ComputeError, errorMessage, isNoBalance } from '~/compute/client';
 import type { Sandbox } from '~/compute/types';
 import { fmtAgo, fmtBytes, plural } from '~/compute/format';
 import { color, mono, text } from '~/theme/tokens';
-import { Terminal, sbColor } from '../ui';
+import { NoBalance, OUT_OF_BALANCE, Terminal, sbColor } from '../ui';
 
 /** The gateway's per-file cap (`SANDBOX_FILE_MAX_MB`, 16). */
 export const FILE_MAX_BYTES = 16 * 1024 * 1024;
@@ -62,7 +62,7 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
   const [preview, setPreview] = useState<{ path: string; text?: string; note?: string } | null>(null);
   const [uploadPath, setUploadPath] = useState(`${dir.replace(/\/$/, '')}/`);
   const [uploading, setUploading] = useState(false);
-  const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [notice, setNotice] = useState<{ kind: 'success' | 'error' | 'balance'; text: string } | null>(null);
   const picker = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
@@ -135,7 +135,11 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
       load();
       setOpen(target);
     } catch (err) {
-      setNotice({ kind: 'error', text: `Upload failed: ${errorMessage(err)}` });
+      setNotice(
+        isNoBalance(err)
+          ? { kind: 'balance', text: 'Uploading a file needs a balance: top up, then upload it again.' }
+          : { kind: 'error', text: `Upload failed: ${errorMessage(err)}` },
+      );
     } finally {
       setUploading(false);
     }
@@ -178,10 +182,16 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
           </Button>
         </Stack>
       )}
-      {notice && (
-        <Alert severity={notice.kind} onClose={() => setNotice(null)} sx={{ marginBottom: '12px' }}>
-          {notice.text}
-        </Alert>
+      {notice?.kind === 'balance' ? (
+        <Box marginBottom="12px">
+          <NoBalance title={OUT_OF_BALANCE}>{notice.text}</NoBalance>
+        </Box>
+      ) : (
+        notice && (
+          <Alert severity={notice.kind} onClose={() => setNotice(null)} sx={{ marginBottom: '12px' }}>
+            {notice.text}
+          </Alert>
+        )
       )}
       <Box
         sx={{
@@ -210,7 +220,12 @@ const FilesPanel = ({ sb, refreshKey }: { sb: Sandbox; refreshKey?: number }) =>
               </Button>
             )}
           </Stack>
-          {listError && <Typography sx={{ ...text.secondary, color: color.danger }}>{listError}</Typography>}
+          {listError &&
+            (isNoBalance(listError) ? (
+              <NoBalance title={OUT_OF_BALANCE}>Listing its files runs a command, which needs a balance.</NoBalance>
+            ) : (
+              <Typography sx={{ ...text.secondary, color: color.danger }}>{listError}</Typography>
+            ))}
           <Box sx={{ border: `1px solid ${color.border}`, borderRadius: '10px', overflow: 'hidden' }}>
             {(files ?? []).map((f) => (
               <Box

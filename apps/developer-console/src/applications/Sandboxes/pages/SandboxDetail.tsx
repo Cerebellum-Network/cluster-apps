@@ -10,7 +10,7 @@ import { exitReasonInfo, memoryEnding } from '~/compute/exitReasons';
 import { fmtAgo, fmtDateTime, fmtLimit, fmtMib, sumRecords } from '~/compute/format';
 import { cpuLine, memoryLine } from '~/compute/resources';
 import { RESOLUTION_NOTE } from '~/compute/credentials';
-import { isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
+import { EXIT_INSUFFICIENT_BALANCE, isLive, type Sandbox, type SandboxSecret } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Count, Tabs } from '../components/bits';
 import { quoteArg } from '../components/commandLine';
@@ -23,7 +23,7 @@ import SandboxEgress from '../components/egress/SandboxEgress';
 import UsageMeter from '../components/detail/UsageMeter';
 import CredentialList from '../components/credentials/CredentialList';
 import SandboxSecretDialog from '../components/credentials/SandboxSecretDialog';
-import { ExitReason, Field, Mono, ReadError, RuleCredentials, SandboxStatusLabel } from '../components/ui';
+import { ExitReason, Field, Mono, NoBalance, ReadError, RuleCredentials, SandboxStatusLabel } from '../components/ui';
 
 type Tab = 'logs' | 'exec' | 'files' | 'egress' | 'usage';
 const TABS: Tab[] = ['logs', 'exec', 'files', 'egress', 'usage'];
@@ -214,6 +214,18 @@ const MemoryEnding = ({ sb }: { sb: Sandbox }) => {
   );
 };
 
+/** Shown on a sandbox the node stopped because the bucket ran out of balance, with the way to top up. */
+const BalanceEnding = ({ sb }: { sb: Sandbox }) =>
+  sb.exit_reason === EXIT_INSUFFICIENT_BALANCE ? (
+    <Box marginBottom="16px">
+      <NoBalance title="Stopped: the bucket ran out of balance.">
+        {sb.labels[LABEL.kind] === AGENT_RUN_KIND
+          ? 'Top up, then run the agent again.'
+          : 'Top up, then create a new sandbox.'}
+      </NoBalance>
+    </Box>
+  ) : null;
+
 /** Shown on a sandbox an agent run used: which agent, which run. */
 const AgentBanner = ({ sb }: { sb: Sandbox }) => {
   if (sb.labels[LABEL.kind] !== AGENT_RUN_KIND) return null;
@@ -347,6 +359,7 @@ const SandboxDetail = () => {
 
       <AgentBanner sb={sb} />
       <MemoryEnding sb={sb} />
+      <BalanceEnding sb={sb} />
 
       <Box marginBottom="16px">
         <UsageMeter sandbox={sb} cpuHistory={cpuHistory} />

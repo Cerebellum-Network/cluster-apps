@@ -6,7 +6,7 @@ import { NavLink, useParams } from 'react-router-dom';
 import { ExperimentalPill, Pill, Section } from '~/components';
 import { useAccount } from '~/hooks';
 import { outcomeOf, type RunOutcome } from '~/compute/agentOutcome';
-import { LABEL, parseRunOutput, type RunOutput, type RunStep } from '~/compute/agentRun';
+import { LABEL, parseRunOutput, REFUSED_FOR_BALANCE, type RunOutput, type RunStep } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { readRunFile } from '~/compute/agentStore';
 import { ComputeError, errorMessage } from '~/compute/client';
@@ -14,14 +14,14 @@ import { useComputeClient } from '~/compute/ComputeProvider';
 import { useEgressLog, useNow, useSandboxes } from '~/compute/hooks';
 import { fmtDuration, plural, shortNode } from '~/compute/format';
 import { foldEvents, transcriptItems } from '~/compute/runView';
-import { isLive, type Sandbox } from '~/compute/types';
+import { EXIT_INSUFFICIENT_BALANCE, isLive, type Sandbox } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
 import { Markdown, Tabs } from '../../Sandboxes/components/bits';
 import EgressTable from '../../Sandboxes/components/detail/EgressTable';
 import SandboxEgress from '../../Sandboxes/components/egress/SandboxEgress';
 import { denials } from '~/compute/egressRules';
 import { AGENTS_PATH, agentPath } from '../components/definition';
-import { Mono, ReadError, SandboxStatusLabel } from '../../Sandboxes/components/ui';
+import { Mono, NoBalance, OUT_OF_BALANCE, ReadError, SandboxStatusLabel } from '../../Sandboxes/components/ui';
 import { billedText } from '../../Sandboxes/components/BilledUsage';
 import { RunOutcomePill } from '../components/RunOutcome';
 import { Label, RunItems } from '../components/RunItems';
@@ -240,6 +240,9 @@ const RunDetail = () => {
     outcome && outcome.state !== 'running' && outcome.state !== 'succeeded'
       ? (outcome.state === 'failed' && output?.error) || outcome.detail
       : null;
+  // Out of balance: the node stopped its sandbox, or the API refused the run's calls. A top-up is what it needs.
+  const stoppedForBalance = sb?.exit_reason === EXIT_INSUFFICIENT_BALANCE;
+  const refusedForBalance = !stoppedForBalance && failure === REFUSED_FOR_BALANCE;
 
   return (
     <Box>
@@ -303,11 +306,20 @@ const RunDetail = () => {
         </Stack>
       )}
 
-      {failure && (
-        <Alert severity={outcome?.state === 'failed' ? 'error' : 'info'} sx={{ marginBottom: '16px' }}>
-          {outcome?.state === 'stopped' ? 'Stopped before it finished.' : failure}
-        </Alert>
-      )}
+      {failure &&
+        (stoppedForBalance || refusedForBalance ? (
+          <Box marginBottom="16px">
+            <NoBalance title={stoppedForBalance ? 'Stopped: the bucket ran out of balance.' : OUT_OF_BALANCE}>
+              {stoppedForBalance
+                ? 'Top up, then run the agent again.'
+                : 'Running an agent needs a balance: top up, then run it again.'}
+            </NoBalance>
+          </Box>
+        ) : (
+          <Alert severity={outcome?.state === 'failed' ? 'error' : 'info'} sx={{ marginBottom: '16px' }}>
+            {outcome?.state === 'stopped' ? 'Stopped before it finished.' : failure}
+          </Alert>
+        ))}
       {!live && sb && isLive(sb.status) && (
         <Alert severity="info" sx={{ marginBottom: '16px' }}>
           Another client (the CLI, the SDK or another tab) is driving this run. Its transcript below is read from the

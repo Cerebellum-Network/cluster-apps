@@ -15,7 +15,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 
 import { useComputeClient } from '~/compute/ComputeProvider';
-import { errorMessage } from '~/compute/client';
+import { errorMessage, isNoBalance } from '~/compute/client';
 import { useSecrets } from '~/compute/hooks';
 import { LABEL } from '~/compute/agentRun';
 import { credentialsFor, ownSecretsFromForms, RESOLUTION_NOTE, type OwnSecretForm } from '~/compute/credentials';
@@ -35,6 +35,7 @@ import { parseKeyValues, splitCommand } from './commandLine';
 import OwnSecretsEditor from './credentials/OwnSecretsEditor';
 import RulesEditor from './egress/RulesEditor';
 import ResourceInputs from './ResourceInputs';
+import { NoBalance, OUT_OF_BALANCE } from './ui';
 
 const IMAGES = ['python:3.12-slim', 'node:22-slim', 'debian:bookworm-slim', 'alpine:3.20'];
 /** The API's default (`timeout_s` left out) is 5 minutes; 0 is no timeout. */
@@ -265,7 +266,12 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
             </Typography>
             <OwnSecretsEditor value={own} onChange={setOwn} errors={ownSecrets.errors} showErrors={attempted} />
           </Box>
-          {error && <Alert severity="error">{error}</Alert>}
+          {error &&
+            (isNoBalance(error) ? (
+              <NoBalance title={OUT_OF_BALANCE}>Creating a sandbox needs a balance: top up, then create it.</NoBalance>
+            ) : (
+              <Alert severity="error">{error}</Alert>
+            ))}
         </Stack>
       </DialogContent>
       <DialogActions sx={{ padding: '14px 24px', justifyContent: 'space-between' }}>

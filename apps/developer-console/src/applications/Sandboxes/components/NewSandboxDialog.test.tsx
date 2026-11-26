@@ -4,7 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ComputeClient } from '../../../compute/client';
+import { ComputeError, type ComputeClient } from '../../../compute/client';
 import { ComputeContext, type Compute } from '../../../compute/ComputeProvider';
 import type { CreateSandboxRequest } from '../../../compute/types';
 import { CredentialDialogProvider } from './credentials/CredentialDialogs';
@@ -41,8 +41,11 @@ const compute = (client: ComputeClient): Compute => ({
   storeTokenAsSecret: null,
 });
 
-async function render() {
-  const create = vi.fn(async (req: CreateSandboxRequest) => ({ id: 'sb-1', image: req.image }));
+async function render(refuse = false) {
+  const create = vi.fn(async (req: CreateSandboxRequest) => {
+    if (refuse) throw new ComputeError(403, 'bucket owner has insufficient balance', 'insufficient_balance');
+    return { id: 'sb-1', image: req.image };
+  });
   const client = { listSecrets: async () => [], createSandbox: create } as unknown as ComputeClient;
   await act(async () =>
     root.render(
@@ -120,5 +123,16 @@ describe('New sandbox', () => {
     const req = create.mock.calls[0][0];
     expect(req.resources).toEqual({ disk: 2048 });
     expect(req.timeout_s).toBe(300);
+  });
+
+  it('says a create refused for balance in words, with the way to top up', async () => {
+    await render(true);
+    await act(async () => button('Create sandbox').click());
+    await flush();
+    expect(document.body.textContent).toContain('The bucket is out of balance.');
+    expect(document.body.textContent).toContain('Creating a sandbox needs a balance');
+    expect(document.body.textContent).not.toContain('insufficient balance');
+    const topUp = [...document.querySelectorAll('a')].find((a) => a.textContent === 'Top up in Billing');
+    expect(topUp?.getAttribute('href')).toBe('/billing');
   });
 });

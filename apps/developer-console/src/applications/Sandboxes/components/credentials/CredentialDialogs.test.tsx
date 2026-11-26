@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ComputeClient } from '../../../../compute/client';
 import { ComputeContext, type Compute } from '../../../../compute/ComputeProvider';
-import { ReadError } from '../ui';
+import { NoBalance, ReadError } from '../ui';
 import { CredentialDialogProvider, useCredentialDialogs } from './CredentialDialogs';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -82,19 +82,23 @@ describe('CredentialDialogProvider', () => {
   });
 });
 
-describe('ReadError', () => {
-  it('turns the gateway’s balance refusal into "top up", with Billing one click away, and keeps its words', () => {
+describe('NoBalance', () => {
+  it('says the bucket is out of balance in words, with Billing one click away', () => {
     const html = renderToStaticMarkup(
       <MemoryRouter>
-        <ReadError what="your sandboxes" error="bucket owner has insufficient balance" />
+        <NoBalance title="The bucket is out of balance.">Creating a sandbox needs a balance.</NoBalance>
       </MemoryRouter>,
     );
-    expect(html).toContain('Top up to see your sandboxes.');
+    expect(html).toContain('The bucket is out of balance.');
+    expect(html).toContain('Creating a sandbox needs a balance.');
     expect(html).toContain('href="/billing"');
     expect(html).toContain('Top up in Billing');
-    expect(html).toContain('“bucket owner has insufficient balance”');
+    expect(html).not.toContain('insufficient');
   });
-  it('says any other failure as it is', () => {
+});
+
+describe('ReadError', () => {
+  it('says a failure as it is', () => {
     const html = renderToStaticMarkup(<ReadError what="your sandboxes" error="502 bad gateway" />);
     expect(html).toContain('Couldn’t read your sandboxes: 502 bad gateway');
     expect(html).not.toContain('Billing');

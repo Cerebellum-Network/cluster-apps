@@ -50,6 +50,13 @@ export const isTokenRejected = (e: unknown): boolean => e instanceof ComputeErro
 
 export const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
+/** The code of the API's 403 for a call that costs money (create, exec, file upload) when the bucket's owner has no balance. */
+export const NO_BALANCE_CODE = 'insufficient_balance';
+
+/** That refusal: the error itself, or the message a page kept of it ("bucket owner has insufficient balance"). */
+export const isNoBalance = (e: unknown): boolean =>
+  (e instanceof ComputeError && e.code === NO_BALANCE_CODE) || /insufficient balance/i.test(errorMessage(e ?? ''));
+
 type Query = Record<string, string | number | string[] | undefined | null>;
 
 export interface ListSandboxesQuery {

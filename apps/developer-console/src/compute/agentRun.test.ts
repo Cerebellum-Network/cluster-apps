@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AgentDefinition } from './agentDefinition';
+import { OUT_OF_BALANCE, outcomeOf } from './agentOutcome';
 import {
   buildCreateRequest,
   LineSplitter,
   modelRule,
   parseEventLine,
+  REFUSED_FOR_BALANCE,
   RETAINED_FILES,
   runAgent,
   runFiles,
@@ -318,6 +320,23 @@ describe('runAgent', () => {
     const oom = fakeClient({ stdout: [], output: null, exitCode: 137, endedWith: 'oom_killed' });
     const o = await runAgent({ client: oom.client, def: SRE, input: 'q', sleep: async () => undefined });
     expect(o.error).toMatch(/^The sandbox ended: Out of memory: It reached its memory limit of 2 GiB/);
+  });
+
+  it('ends, not fails, a run whose sandbox was stopped because the bucket ran out of balance', async () => {
+    const broke = fakeClient({ stdout: [], output: null, exitCode: 137, endedWith: 'insufficient_balance' });
+    const r = await runAgent({ client: broke.client, def: SRE, input: 'q', sleep: async () => undefined });
+    expect(r.error).toBe(OUT_OF_BALANCE);
+    expect(outcomeOf(r.sandbox!)).toEqual({ state: 'ended', detail: OUT_OF_BALANCE });
+  });
+
+  it('says in plain words that a run was refused for balance', async () => {
+    const { client } = fakeClient({ stdout: [] });
+    client.createSandbox = async () => {
+      throw new ComputeError(403, 'bucket owner has insufficient balance', 'insufficient_balance');
+    };
+    const res = await runAgent({ client, def: SRE, input: 'q', sleep: async () => undefined });
+    expect(res.error).toBe(REFUSED_FOR_BALANCE);
+    expect(res.sandbox).toBeNull();
   });
 
   it('reports a sandbox that failed to start, and still deletes it', async () => {

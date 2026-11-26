@@ -2,16 +2,18 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { Box, Button, Stack, Typography } from '@cluster-apps/ui';
 
 import { useComputeClient } from '~/compute/ComputeProvider';
-import { errorMessage } from '~/compute/client';
+import { errorMessage, isNoBalance } from '~/compute/client';
 import type { EgressPolicy, ExecExit, SandboxStatus } from '~/compute/types';
 import { color, mono, text } from '~/theme/tokens';
-import { Terminal, sbColor } from '../ui';
+import { NoBalance, OUT_OF_BALANCE, Terminal, sbColor } from '../ui';
 
 type Run = {
   cmd: string;
   out: { stream: 'stdout' | 'stderr'; text: string }[];
   exit?: ExecExit;
   error?: string;
+  /** Refused because the bucket is out of balance. */
+  noBalance?: boolean;
 };
 
 const EXEC_TIMEOUT_S = 60;
@@ -86,7 +88,15 @@ const ExecPanel = ({
         abort.signal,
       )
       .then((exit) => patch((r) => ({ ...r, exit })))
-      .catch((e: unknown) => patch((r) => ({ ...r, error: abort.signal.aborted ? 'Stopped.' : errorMessage(e) })))
+      .catch((e: unknown) =>
+        patch((r) =>
+          abort.signal.aborted
+            ? { ...r, error: 'Stopped.' }
+            : isNoBalance(e)
+              ? { ...r, error: 'Not run: the bucket is out of balance.', noBalance: true }
+              : { ...r, error: errorMessage(e) },
+        ),
+      )
       .finally(() => {
         setBusy(false);
         onRan?.();
@@ -128,6 +138,11 @@ const ExecPanel = ({
           </Box>
         ))}
       </Stack>
+      {runs[runs.length - 1]?.noBalance && (
+        <Box marginBottom="10px">
+          <NoBalance title={OUT_OF_BALANCE}>Running a command needs a balance: top up, then run it again.</NoBalance>
+        </Box>
+      )}
       <Terminal
         ref={box}
         sx={{ height: 340, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}

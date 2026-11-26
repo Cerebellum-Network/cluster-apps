@@ -6,14 +6,14 @@ import { useNavigate } from 'react-router-dom';
 
 import { exitReasonSentence } from '~/compute/exitReasons';
 import { useComputeClient } from '~/compute/ComputeProvider';
-import { errorMessage } from '~/compute/client';
+import { errorMessage, isNoBalance } from '~/compute/client';
 import type { ExecExit, Sandbox } from '~/compute/types';
 import { billingLine } from '~/compute/billing';
 import { fmtQty, shortNode } from '~/compute/format';
 import { cpuLine, memoryLine } from '~/compute/resources';
 import { color, text } from '~/theme/tokens';
 import { FIRST_RUN } from './quickstart';
-import { Mono, Terminal, sbColor } from './ui';
+import { Mono, NoBalance, OUT_OF_BALANCE, Terminal, sbColor } from './ui';
 
 type Phase = 'create' | 'start' | 'exec' | 'ready' | 'terminated' | 'error';
 
@@ -236,11 +236,18 @@ const FirstRunBody = ({ onClose }: { onClose: () => void }) => {
             </Typography>
           )}
         </Step>
-        {error && (
-          <Alert severity="error" sx={{ marginTop: '16px' }}>
-            {error}
-          </Alert>
-        )}
+        {error &&
+          (isNoBalance(error) ? (
+            <Box marginTop="16px">
+              <NoBalance title={OUT_OF_BALANCE}>
+                Creating a sandbox and running a command need a balance: top up, then try it again.
+              </NoBalance>
+            </Box>
+          ) : (
+            <Alert severity="error" sx={{ marginTop: '16px' }}>
+              {error}
+            </Alert>
+          ))}
       </DialogContent>
       <DialogActions sx={{ padding: '14px 24px' }}>
         {phase === 'terminated' ? (

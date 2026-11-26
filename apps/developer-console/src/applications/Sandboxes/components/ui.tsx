@@ -357,38 +357,35 @@ export const BucketChip = ({ bucketId }: { bucketId: string | null }) =>
     </Box>
   ) : null;
 
-/** The gateway's 403 when the bucket's owner has no balance (it checks on every call). */
-export const isNoBalance = (error: string) => /insufficient balance/i.test(error);
+/** Where a developer tops up: Billing, where the balance is shown and added to. */
+export const TOP_UP_PATH = '/billing';
 
 /**
- * The gateway refused for balance: say what to do (top up, in Billing) with a
- * button, and keep its own words visible. The page keeps reading, so it fills
- * in by itself once the balance is there.
+ * The bucket's owner is out of balance, in plain words, with the way to top up: the node stopped a sandbox for it
+ * (`insufficient_balance`), or the API refused a call that costs money (create, exec, file upload). Everything else
+ * (reading, terminating) still works.
  */
-export const NoBalance = ({ what, error }: { what: string; error: string }) => (
+export const NoBalance = ({ title, children }: { title: string; children?: ReactNode }) => (
   <Alert
     severity="warning"
     action={
-      <Button component={NavLink} to="/billing" variant="contained" size="small" sx={{ whiteSpace: 'nowrap' }}>
+      <Button component={NavLink} to={TOP_UP_PATH} variant="contained" size="small" sx={{ whiteSpace: 'nowrap' }}>
         Top up in Billing
       </Button>
     }
     sx={{ alignItems: 'center' }}
   >
-    <Typography sx={{ fontSize: 14, fontWeight: 600 }}>Top up to see {what}.</Typography>
-    <Typography sx={{ fontSize: 13 }}>
-      The API answered “{error}”: it serves a bucket only while the bucket’s owner has a balance (the deposit on chain).
-      Add funds in Billing; this page reads again by itself.
-    </Typography>
+    <Typography sx={{ fontSize: 14, fontWeight: 600 }}>{title}</Typography>
+    {children && <Typography sx={{ fontSize: 13 }}>{children}</Typography>}
   </Alert>
 );
 
-/** A failed read, in words, with the raw message as a tooltip; a refusal for balance says to top up. */
-export const ReadError = ({ what, error }: { what: string; error: string }) =>
-  isNoBalance(error) ? (
-    <NoBalance what={what} error={error} />
-  ) : (
-    <Typography color="error" variant="body2" title={error}>
-      Couldn’t read {what}: {error}
-    </Typography>
-  );
+/** The title of a refused call's `NoBalance`. */
+export const OUT_OF_BALANCE = 'The bucket is out of balance.';
+
+/** A failed read, in words, with the raw message as a tooltip. */
+export const ReadError = ({ what, error }: { what: string; error: string }) => (
+  <Typography color="error" variant="body2" title={error}>
+    Couldn’t read {what}: {error}
+  </Typography>
+);

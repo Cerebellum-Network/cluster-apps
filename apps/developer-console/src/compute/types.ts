@@ -332,6 +332,8 @@ export interface UsageRecord {
 export const EXIT_OOM_KILLED = 'oom_killed';
 /** The sandbox used more than its memory request while its node was short of memory, and was stopped to free it. */
 export const EXIT_MEMORY_RECLAIMED = 'memory_reclaimed';
+/** The bucket's owner ran out of balance and the node stopped the sandbox: a top-up, not a fix, is what it needs. */
+export const EXIT_INSUFFICIENT_BALANCE = 'insufficient_balance';
 
 export const EMPTY_USAGE: Usage = {
   wall_s: 0,
@@ -357,9 +359,11 @@ export const EMPTY_USAGE: Usage = {
  * An ending that is a failure: it never started (`failed`), the node stopped it
  * for memory (`oom_killed`, `memory_reclaimed`), it was lost with its node or runtime (`lost: …`),
  * or its main process exited with a non-zero code. A timeout or idle timeout is
- * the limit you set, and a terminate is yours: those are Finished.
+ * the limit you set, a terminate is yours, and running out of balance
+ * (`insufficient_balance`) is fixed by a top-up: those are Finished.
  */
 export function endedBadly(s: Pick<Sandbox, 'status' | 'exit_reason'>): boolean {
+  if (s.exit_reason === EXIT_INSUFFICIENT_BALANCE) return false;
   if (s.status === 'failed') return true;
   if (s.status !== 'terminated' || !s.exit_reason) return false;
   const r = s.exit_reason;
