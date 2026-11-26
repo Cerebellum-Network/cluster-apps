@@ -33,7 +33,7 @@ describe('validateAgentDefinition', () => {
       model: { base_url: 'nope' },
       egress: { allow: [{ host: 'a', methods: ['get'] }] },
       policy: 'anything',
-      timeout_s: 90_000,
+      timeout_s: -1,
       files: { '../etc/passwd': 'x' },
     });
     const all = errs.join('\n');
@@ -45,6 +45,13 @@ describe('validateAgentDefinition', () => {
     expect(all).toMatch(/"policy"/);
     expect(all).toMatch(/"timeout_s"/);
     expect(all).toMatch(/not a usable path/);
+  });
+  it('puts no upper cap on a run’s time limit', () => {
+    expect(validateAgentDefinition({ ...GOOD, timeout_s: 3 * 24 * 3600 })).toEqual([]);
+    expect(validateAgentDefinition({ ...GOOD, timeout_s: 0 })).toEqual([]);
+    expect(validateAgentDefinition({ ...GOOD, timeout_s: 1.5 })).toEqual([
+      '"timeout_s" must be a whole number of seconds (0 or left out: 900).',
+    ]);
   });
   it('uses the CLI’s name rule and lets the model go without a credential', () => {
     expect(validateAgentDefinition({ ...GOOD, name: 'my_agent' })).toHaveLength(1);

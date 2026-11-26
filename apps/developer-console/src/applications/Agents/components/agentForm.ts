@@ -8,7 +8,6 @@
  */
 import {
   AGENT_DEFAULT_RESOURCES,
-  AGENT_MAX_TIMEOUT_S,
   AGENT_NAME_RE,
   AGENT_SCHEMA,
   validateAgentDefinition,
@@ -244,8 +243,8 @@ export function definitionFromForm(form: AgentForm): {
   if (limits.errors.cpuLimit) errors.cpuLimit = limits.errors.cpuLimit;
   if (limits.errors.memoryLimitMib) errors.memoryLimitMib = limits.errors.memoryLimitMib;
   const timeout = num(form.timeoutS);
-  if (timeout === null || !Number.isInteger(timeout) || timeout < 1 || timeout > AGENT_MAX_TIMEOUT_S)
-    errors.timeoutS = `1 to ${AGENT_MAX_TIMEOUT_S} seconds.`;
+  if (timeout === null || !Number.isInteger(timeout) || timeout < 1)
+    errors.timeoutS = 'A whole number of seconds, 1 or more.';
 
   const deny = form.deny
     .split('\n')

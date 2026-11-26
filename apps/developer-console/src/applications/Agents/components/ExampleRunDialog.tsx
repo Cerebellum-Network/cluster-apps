@@ -8,13 +8,13 @@ import { useNavigate } from 'react-router-dom';
 import { Pill } from '~/components';
 import { useAccount } from '~/hooks';
 import { AGENT_DEFAULT_RESOURCES } from '~/compute/agentDefinition';
-import { modelRule } from '~/compute/agentRun';
+import { agentTimeout, modelRule } from '~/compute/agentRun';
 import { agentRuns } from '~/compute/agentRuns';
 import { saveRunFiles } from '~/compute/agentStore';
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { credentialsFor } from '~/compute/credentials';
 import { coverageBlocks, credentialCoverage } from '~/compute/egressCoverage';
-import { fmtCpu, fmtMib } from '~/compute/format';
+import { fmtCpu, fmtLimit, fmtMib } from '~/compute/format';
 import { useSecrets } from '~/compute/hooks';
 import { effectiveOf } from '~/compute/resources';
 import { useCanSign } from '~/compute/walletSigning';
@@ -113,8 +113,7 @@ const ExampleRunDialog = ({ onClose }: { onClose: () => void }) => {
               Model <Mono>{def.model.model}</Mono> at <Mono>{m.host}</Mono>
             </span>
             <span>
-              {fmtCpu(res.cpu)} and {fmtMib(res.memoryMib)} guaranteed, up to {Math.round((def.timeout_s ?? 900) / 60)}{' '}
-              min
+              {fmtCpu(res.cpu)} and {fmtMib(res.memoryMib)} guaranteed, up to {fmtLimit(agentTimeout(def))}
             </span>
             <span>Tools: {(def.tools ?? []).join(', ') || 'none'}</span>
           </Box>

@@ -52,8 +52,6 @@ export const AGENT_DEFAULT_RESOURCES = { cpu: 0.5, memoryMib: 512, cpuLimit: 2, 
 
 /** Usable as a file name in the bucket and as a label value; the same rule as the CLI. */
 export const AGENT_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
-/** The longest a sandbox may live (`SANDBOX_MAX_TIMEOUT`). */
-export const AGENT_MAX_TIMEOUT_S = 24 * 3600;
 export const AGENT_POLICIES = ['read-only', 'read-write'];
 
 const METHODS: HttpMethod[] = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
@@ -102,8 +100,8 @@ export function validateAgentDefinition(doc: unknown): string[] {
   }
   if (doc.tools !== undefined && !isStrArray(doc.tools)) errs.push('"tools" must be a list of tool names.');
   const t = doc.timeout_s;
-  if (t !== undefined && !(typeof t === 'number' && t >= 0 && t <= AGENT_MAX_TIMEOUT_S))
-    errs.push(`"timeout_s" must be between 0 and ${AGENT_MAX_TIMEOUT_S} seconds.`);
+  if (t !== undefined && !(typeof t === 'number' && Number.isInteger(t) && t >= 0))
+    errs.push('"timeout_s" must be a whole number of seconds (0 or left out: 900).');
   if (doc.policy !== undefined && doc.policy !== '' && !AGENT_POLICIES.includes(String(doc.policy)))
     errs.push(`"policy" must be ${AGENT_POLICIES.map((p) => `"${p}"`).join(' or ')}.`);
   if (doc.max_turns !== undefined && !(typeof doc.max_turns === 'number' && doc.max_turns >= 0))

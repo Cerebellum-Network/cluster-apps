@@ -184,6 +184,16 @@ describe('buildCreateRequest', () => {
     });
   });
 
+  it('gives the exec the definition’s time limit, uncapped, and the sandbox 2 minutes more', async () => {
+    const long = { ...SRE, timeout_s: 4 * 3600 };
+    expect(buildCreateRequest(long, 'r').timeout_s).toBe(4 * 3600 + 120);
+    const { client, log } = fakeClient({ stdout: [], output: '{"output":"ok"}' });
+    await runAgent({ client, def: long, input: 'q', sleep: async () => undefined });
+    expect(log.exec?.timeout_s).toBe(4 * 3600);
+    // 0 or left out: the agent layer's 900 s, as the CLI reads it.
+    expect(buildCreateRequest({ ...SRE, timeout_s: 0 }, 'r').timeout_s).toBe(900 + 120);
+  });
+
   it('leaves path_prefix out for a base URL at the host root', () => {
     expect(modelRule({ ...SRE, model: { ...SRE.model, base_url: 'https://m.example/' } })).toEqual({
       host: 'm.example',

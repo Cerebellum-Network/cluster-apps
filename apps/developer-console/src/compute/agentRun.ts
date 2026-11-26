@@ -43,8 +43,6 @@ export const RETAINED_FILES = [
 export const DEFAULT_AGENT_TIMEOUT_S = 900;
 /** The sandbox outlives the exec by this much, so the output can be read and retained after it. */
 export const SANDBOX_HEADROOM_S = 120;
-/** The gateway's cap on one exec (`SANDBOX_EXEC_MAX_TIMEOUT`). */
-export const EXEC_MAX_TIMEOUT_S = 3600;
 export const MODEL_KEY_PLACEHOLDER = 'placeholder-egress-proxy-injects';
 /** A run the API refused (create, file upload or exec) because the bucket's owner has no balance. */
 export const REFUSED_FOR_BALANCE = 'The bucket is out of balance: top up in Billing, then run the agent again.';
@@ -138,8 +136,9 @@ export function modelRule(def: AgentDefinition): EgressRule {
   };
 }
 
+/** The run's time limit: the definition's `timeout_s` (no upper cap), or 900 s when it leaves it out or says 0. */
 export function agentTimeout(def: AgentDefinition): number {
-  return Math.max(1, Math.round(def.timeout_s ?? DEFAULT_AGENT_TIMEOUT_S));
+  return Math.max(1, Math.round(def.timeout_s || DEFAULT_AGENT_TIMEOUT_S));
 }
 
 /**
@@ -305,7 +304,7 @@ export async function runAgent(opts: RunOptions): Promise<RunResult> {
     };
     result.exit = await client.execStream(
       sb.id,
-      { command: runCommand(def), timeout_s: Math.min(agentTimeout(def), EXEC_MAX_TIMEOUT_S), workdir: '/workspace' },
+      { command: runCommand(def), timeout_s: agentTimeout(def), workdir: '/workspace' },
       (e) => {
         if (e.type === 'stdout') lines.push(e.data).forEach(emitLine);
         else if (e.type === 'stderr') errLines.push(e.data).forEach(emitErr);

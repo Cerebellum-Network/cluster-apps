@@ -109,7 +109,7 @@ describe('definitionFromForm', () => {
       maxTurns: '0',
       cpu: '0',
       memoryMib: '64',
-      timeoutS: '90000',
+      timeoutS: '0',
       deny: '(',
       rules: [
         { host: 'https://api.github.com/', methods: ['GET'], path: '', credential: '' },
@@ -140,6 +140,12 @@ describe('definitionFromForm', () => {
     expect(errors.rules![2]).toMatch(/starts with \//);
     expect(errors.rules![3]).toMatch(/two labels/);
     expect(errors.rules![4]).toBeUndefined();
+  });
+
+  it('takes a time limit of any length', () => {
+    const { def, errors } = definitionFromForm({ ...base(), timeoutS: '172800' });
+    expect(errors).toEqual({});
+    expect(def?.timeout_s).toBe(172800);
   });
 
   it('keeps the files and fields the form doesn’t edit', () => {
