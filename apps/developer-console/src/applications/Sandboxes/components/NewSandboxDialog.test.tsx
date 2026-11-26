@@ -125,6 +125,33 @@ describe('New sandbox', () => {
     expect(req.timeout_s).toBe(300);
   });
 
+  it('sends the files to keep as retain.paths, and refuses a path the API would', async () => {
+    const create = await render();
+    const keep = input('Keep files') as unknown as HTMLTextAreaElement;
+    const typeArea = (value: string) => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(keep, value);
+      keep.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    act(() => typeArea('/workspace/../etc/passwd'));
+    expect(document.body.textContent).toContain('/workspace/../etc/passwd has a . or .. part');
+    await act(async () => button('Create sandbox').click());
+    expect(create).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain('Fix the files to keep first.');
+
+    act(() => typeArea('/workspace/output.json\n/workspace/out/\n/workspace/output.json'));
+    await act(async () => button('Create sandbox').click());
+    await flush();
+    expect(create.mock.calls[0][0].retain).toEqual({ paths: ['/workspace/output.json', '/workspace/out/'] });
+  });
+
+  it('asks to keep nothing when no files are named', async () => {
+    const create = await render();
+    await act(async () => button('Create sandbox').click());
+    await flush();
+    expect(create.mock.calls[0][0]).not.toHaveProperty('retain');
+  });
+
   it('says a create refused for balance in words, with the way to top up', async () => {
     await render(true);
     await act(async () => button('Create sandbox').click());

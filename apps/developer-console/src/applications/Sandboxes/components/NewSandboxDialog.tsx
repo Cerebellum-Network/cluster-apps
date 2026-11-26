@@ -21,6 +21,7 @@ import { LABEL } from '~/compute/agentRun';
 import { credentialsFor, ownSecretsFromForms, RESOLUTION_NOTE, type OwnSecretForm } from '~/compute/credentials';
 import { rulesBlocked } from '~/compute/egressCoverage';
 import { rulesFromForms, type RuleForm } from '~/compute/egressRules';
+import { parseRetainPaths } from '~/compute/lifecycle';
 import {
   DEFAULT_DISK_MIB,
   EMPTY_RESOURCE_FIELDS,
@@ -55,8 +56,9 @@ const IDLE = [
  * New sandbox: the create request as a form: image, command, CPU, memory and
  * disk (the request, and the limits behind "Limits"; empty fields get the
  * cluster's defaults and are left out of the request, as the CLI does),
- * timeouts, environment, labels and the egress allow list, each rule with a
- * credential picked from the bucket or stored here, bound to the rule's host.
+ * timeouts, environment, labels, the files to keep after it ends, and the
+ * egress allow list, each rule with a credential picked from the bucket or
+ * stored here, bound to the rule's host.
  */
 const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const client = useComputeClient();
@@ -70,6 +72,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const [idle, setIdle] = useState(0);
   const [env, setEnv] = useState('');
   const [labels, setLabels] = useState('');
+  const [keep, setKeep] = useState('');
   const [rules, setRules] = useState<RuleForm[]>([]);
   const [own, setOwn] = useState<OwnSecretForm[]>([]);
   const [attempted, setAttempted] = useState(false);
@@ -81,6 +84,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
   const cmd = splitCommand(command);
   const envKv = parseKeyValues(env);
   const labelKv = parseKeyValues(labels);
+  const kept = parseRetainPaths(keep);
   const egress = rulesFromForms(rules.filter((r) => r.host.trim() || r.credential || r.placeholders));
   const ownSecrets = ownSecretsFromForms(own);
   // A rule's credential resolves in this sandbox's own, then its agent's (a `cere.agent` label), then the bucket's.
@@ -93,6 +97,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     cmd.error ??
     envKv.error ??
     labelKv.error ??
+    (kept.error ? 'Fix the files to keep first.' : null) ??
     (image.trim() ? null : 'An image is required.') ??
     (Object.keys(resources.errors).length ? 'Fix CPU and memory first.' : null) ??
     (disk.error ? 'Fix the disk size first.' : null) ??
@@ -111,6 +116,7 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
     idle_timeout_s: idle,
     ...(Object.keys(envKv.values).length ? { env: envKv.values } : {}),
     ...(Object.keys(labelKv.values).length ? { labels: labelKv.values } : {}),
+    ...(kept.paths.length ? { retain: { paths: kept.paths } } : {}),
     egress: { allow: egress.allow },
     ...(ownSecrets.secrets.length ? { secrets: ownSecrets.secrets } : {}),
   });
@@ -247,6 +253,22 @@ const NewSandboxBody = ({ onClose }: { onClose: () => void }) => {
               InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
             />
           </Stack>
+          <TextField
+            label="Keep files"
+            value={keep}
+            onChange={(e) => setKeep(e.target.value)}
+            size="small"
+            fullWidth
+            multiline
+            minRows={2}
+            placeholder="/workspace/output.json"
+            error={!!kept.error}
+            helperText={
+              kept.error ??
+              'Files or directories to keep after it ends, however it ends: absolute paths, one per line. Readable from its page for 24 hours; 64 MiB in all.'
+            }
+            InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
+          />
 
           <Box>
             <Typography sx={{ fontSize: 14, fontWeight: 700 }}>Network access</Typography>

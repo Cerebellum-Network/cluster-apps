@@ -4,14 +4,20 @@ import { Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material
 
 import { useComputeClient } from '~/compute/ComputeProvider';
 import { errorMessage } from '~/compute/client';
+import { fmtLimit } from '~/compute/format';
+import { parseRetainPaths } from '~/compute/lifecycle';
 import type { Sandbox } from '~/compute/types';
 import { mono, text } from '~/theme/tokens';
 
 const REASON_MAX = 120;
 
+/** How long kept files stay when `retain` gave no `ttl_s`: 24 hours (`RETAIN_TTL`). */
+const DEFAULT_RETAIN_TTL_S = 86400;
+
 /**
- * Terminate: `DELETE /v1/sandboxes/{id}?retain=…&reason=…`. Retained files
- * (each ≤ 16 MiB) stay readable from the Files tab after the sandbox ends.
+ * Terminate: `DELETE /v1/sandboxes/{id}?retain=…&reason=…`. The paths given
+ * here add to those it was created to keep (64 MiB in all), and stay readable
+ * from the Files tab until `retained_until`.
  */
 const TerminateDialog = ({
   sb,
@@ -29,11 +35,8 @@ const TerminateDialog = ({
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const paths = retain
-    .split(/[\n,]/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-  const bad = paths.find((p) => !p.startsWith('/'));
+  const { paths, error: bad } = parseRetainPaths(retain);
+  const ttl = fmtLimit(sb.retain?.ttl_s ?? DEFAULT_RETAIN_TTL_S);
 
   const go = async () => {
     setBusy(true);
@@ -56,7 +59,8 @@ const TerminateDialog = ({
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography sx={text.secondary}>
-            It stops at once, its last minute of usage is recorded, and the files you list stay readable for a week.
+            It stops at once and its last minute of usage is recorded. The files you list
+            {sb.retain ? ', and those it was created to keep,' : ''} stay readable for {ttl} after it ends.
           </Typography>
           <TextField
             label="Keep these files"
@@ -68,9 +72,10 @@ const TerminateDialog = ({
             placeholder="/workspace/output.json"
             error={!!bad}
             helperText={
-              bad
-                ? `${bad} is not an absolute path.`
-                : 'Absolute paths, one per line or comma-separated; each up to 16 MiB.'
+              bad ??
+              `Absolute paths of files or directories, one per line or comma-separated; 64 MiB in all.${
+                sb.retain ? '' : ' Copying them out of the running sandbox needs sh and tar in its image.'
+              }`
             }
             InputProps={{ sx: { fontFamily: mono, fontSize: 13 } }}
           />
