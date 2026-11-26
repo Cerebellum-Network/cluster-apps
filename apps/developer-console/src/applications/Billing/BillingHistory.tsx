@@ -1,33 +1,24 @@
 import { Box, Typography, Stack, Button, Table, TableHead, TableBody, TableRow, TableCell } from '@cluster-apps/ui';
 import { useState } from 'react';
 
-import type { LedgerEntry } from '~/billing/api';
-import { shortDate, signedMoney, money } from '~/billing/format';
-import { color } from '~/theme/tokens';
+import type { Payment } from '~/billing/api';
+import { shortDate, money } from '~/billing/format';
+import { paymentKindLabel, paymentStatus } from '~/billing/model';
+import { Pill } from '~/components';
 
 /**
- * All transactions — the full ledger, paged. The per-month view lives in each
- * bill's balance box now, so this has no type-filter chips (#190 review); the
- * "Download CSV" action sits in the section header. The on-chain status column
- * from the prototype stayed behind a feature flag and is omitted.
+ * Payments — every top-up, auto top-up and credit from payment-service, newest
+ * first, paged. Usage is not a row here: it is billed per month (Bills, and each
+ * month's balance box). The status column says whether a paid top-up has reached
+ * the balance yet (its on-chain deposit). "Download CSV" sits in the section
+ * header.
  */
 const PAGE = 8;
 
-const TYPES: Record<string, string> = {
-  manual_topup: 'Top-up',
-  auto_recharge: 'Auto top-up',
-  shortfall_cover: 'Usage charge',
-  shortfall_recharge: 'Balance restore',
-};
-
-function typeLabel(t: string): string {
-  return TYPES[t] ?? t.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
-}
-
-export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | null; loading: boolean }) {
+export function BillingHistory({ payments, loading }: { payments: Payment[] | null; loading: boolean }) {
   const [page, setPage] = useState(0);
 
-  const rows = ledger ?? [];
+  const rows = payments ?? [];
   const pages = Math.max(1, Math.ceil(rows.length / PAGE));
   const current = Math.min(page, pages - 1);
   const shown = rows.slice(current * PAGE, current * PAGE + PAGE);
@@ -42,7 +33,7 @@ export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | nu
   if (shown.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
-        No transactions yet.
+        No payments yet.
       </Typography>
     );
   }
@@ -59,23 +50,19 @@ export function BillingHistory({ ledger, loading }: { ledger: LedgerEntry[] | nu
             <TableCell>Date</TableCell>
             <TableCell>Type</TableCell>
             <TableCell align="right">Amount</TableCell>
-            <TableCell align="right">Balance after</TableCell>
+            <TableCell align="right">Status</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {shown.map((e) => {
-            const amt = Number(e.amount_usd);
+          {shown.map((p) => {
+            const st = paymentStatus(p);
             return (
-              <TableRow key={e.id}>
-                <TableCell>{shortDate(e.created_at)}</TableCell>
-                <TableCell>
-                  {typeLabel(e.entry_type)}
-                </TableCell>
-                <TableCell align="right" sx={{ color: amt > 0 ? color.success : color.text }}>
-                  {signedMoney(amt)}
-                </TableCell>
-                <TableCell align="right" sx={{ color: 'text.secondary' }}>
-                  {money(e.running_balance_usd)}
+              <TableRow key={p.id}>
+                <TableCell>{shortDate(p.created_at)}</TableCell>
+                <TableCell>{paymentKindLabel(p.kind)}</TableCell>
+                <TableCell align="right">{money(p.amount_cents / 100)}</TableCell>
+                <TableCell align="right" title={p.failure ?? undefined}>
+                  <Pill tone={st.tone}>{st.label}</Pill>
                 </TableCell>
               </TableRow>
             );

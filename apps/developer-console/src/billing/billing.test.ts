@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 import { usd, usdBalance, money, signedMoney, monthLabel, brandName, runway } from './format';
-import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding } from './model';
-import type { Bills, Rates, LedgerEntry } from './api';
-import { ApiError, isUnconfirmed, type CardSummary } from './api';
+import { kpis, services, burnPerDay, billSections, balanceBox, monthFunding, paymentStatus, paymentsToCsv } from './model';
+import type { Bills, Rates, Payment } from './api';
+import { ApiError, isUnconfirmed, paymentApi, toCents, type BillingAuth, type CardSummary } from './api';
 import { cardReturnStatus, cardSignature } from './checkout';
 
 /**
@@ -142,32 +142,205 @@ describe('model', () => {
   });
 });
 
-const ledger: LedgerEntry[] = [
-  // newest-first, as the endpoint returns it
-  { id: '2', entry_type: 'usage_charge', amount_usd: '-2', running_balance_usd: '8', era_id: '1', origin_ref: '', created_at: '2026-11-20T00:00:00Z' },
-  { id: '1', entry_type: 'manual_topup', amount_usd: '10', running_balance_usd: '10', era_id: null, origin_ref: '', created_at: '2026-11-05T00:00:00Z' },
+const pay = (over: Partial<Payment>): Payment => ({
+  id: 'p',
+  account: 'abc',
+  kind: 'topup_card',
+  amount_cents: 1000,
+  currency: 'usd',
+  status: 'succeeded',
+  funding_status: 'finalized',
+  checkout_url: null,
+  failure: null,
+  created_at: '2026-11-05T00:00:00Z',
+  ...over,
+});
+
+// newest first, as the endpoint returns them
+const payments: Payment[] = [
+  pay({ id: '5', kind: 'topup_auto', amount_cents: 500, created_at: '2026-11-20T00:00:00Z' }),
+  pay({ id: '4', kind: 'credit', amount_cents: 300, created_at: '2026-11-18T00:00:00Z' }),
+  pay({ id: '3', status: 'failed', failure: 'insufficient_funds', amount_cents: 9900, created_at: '2026-11-10T00:00:00Z' }),
+  pay({ id: '2', kind: 'plan_fee', amount_cents: 2000, created_at: '2026-11-06T00:00:00Z' }),
+  pay({ id: '1', kind: 'topup_checkout', amount_cents: 1000, created_at: '2026-11-05T00:00:00Z' }),
+  pay({ id: '0', amount_cents: 700, created_at: '2026-10-31T23:59:59Z' }),
 ];
 
-describe('balanceBox / monthFunding (ledger → balance box)', () => {
-  it('opening → top-ups → usage → closing for the month', () => {
-    const box = balanceBox(ledger, '2026-11')!;
-    expect(box.opening).toBe(0); // 10 (first running balance) − 10 (its amount)
-    expect(box.topups).toBe(10);
-    expect(box.usage).toBe(-2);
-    expect(box.closing).toBe(8);
+describe('balanceBox / monthFunding (payments + the bill → balance box)', () => {
+  it('top-ups are the paid top-ups and credits of the month; usage is the bill', () => {
+    // 5.00 auto + 3.00 credit + 10.00 checkout; not the declined 99.00, the plan fee or October's 7.00
+    expect(balanceBox(payments, '2026-11', 12)).toEqual({ topups: 18, usage: -12 });
+    expect(balanceBox(payments, '2026-10', 0)).toEqual({ topups: 7, usage: 0 });
   });
 
-  it('null for a month with no entries, and for no ledger', () => {
-    expect(balanceBox(ledger, '2026-10')).toBeNull();
-    expect(balanceBox(null, '2026-11')).toBeNull();
+  it('a month with usage and no top-ups still shows its usage', () => {
+    expect(balanceBox(payments, '2026-09', 4.5)).toEqual({ topups: 0, usage: -4.5 });
   });
 
-  it('monthFunding splits cost into card vs balance', () => {
-    expect(monthFunding(ledger, '2026-11', 2)).toEqual({ card: 2, fromBalance: 0 }); // card covers it
-    expect(monthFunding(ledger, '2026-11', 15)).toEqual({ card: 10, fromBalance: 5 }); // card + balance
+  it('null while payments load, and for a month with nothing in or out', () => {
+    expect(balanceBox(null, '2026-11', 12)).toBeNull();
+    expect(balanceBox(payments, '2026-09', 0)).toBeNull();
+  });
+
+  it('monthFunding counts only card top-ups, never credits', () => {
+    expect(monthFunding(payments, '2026-11', 2)).toEqual({ card: 2, fromBalance: 0 }); // card covers it
+    expect(monthFunding(payments, '2026-11', 20)).toEqual({ card: 15, fromBalance: 5 }); // 10 + 5 by card, credit excluded
+    expect(monthFunding(null, '2026-11', 20)).toEqual({ card: 0, fromBalance: 20 });
   });
 });
 
+describe('payment rows', () => {
+  it('a paid top-up is "added" only once its deposit is finalized', () => {
+    expect(paymentStatus(pay({ funding_status: null })).label).toBe('Adding to balance');
+    expect(paymentStatus(pay({ funding_status: 'in_block' })).label).toBe('Adding to balance');
+    expect(paymentStatus(pay({ funding_status: 'finalized' }))).toEqual({ label: 'Added', tone: 'success' });
+    expect(paymentStatus(pay({ funding_status: 'held' }))).toEqual({ label: 'On hold', tone: 'warning' });
+    expect(paymentStatus(pay({ funding_status: 'failed' })).tone).toBe('warning');
+  });
+
+  it('a plan fee is paid, not added; a decline names itself', () => {
+    expect(paymentStatus(pay({ kind: 'plan_fee', funding_status: null })).label).toBe('Paid');
+    expect(paymentStatus(pay({ status: 'failed', failure: 'card_declined' })).label).toBe('Declined');
+    expect(paymentStatus(pay({ status: 'failed', failure: null })).label).toBe('Failed');
+    expect(paymentStatus(pay({ status: 'checkout_open' })).label).toBe('Awaiting payment');
+  });
+
+  it('CSV: one row per payment, amounts in dollars, quoted when needed', () => {
+    const csv = paymentsToCsv([pay({ id: 'x', failure: 'a, b' })]).split('\n');
+    expect(csv[0]).toBe('Date,Type,Amount (USD),Status,Payment status,Deposit status,Failure,Payment ID');
+    expect(csv[1]).toBe('2026-11-05T00:00:00Z,Top-up,10.00,Added,succeeded,finalized,"a, b",x');
+  });
+});
+
+describe('payment-service client', () => {
+  const BASE = 'https://pay.test';
+  const ACCT = 'ab'.repeat(32);
+  type Seen = { url: string; method: string; auth: string | null; key: string | null; body: unknown };
+  const seen: Seen[] = [];
+  const respond = (...answers: [number, unknown][]) => {
+    seen.length = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const h = new Headers(init?.headers);
+        seen.push({
+          url,
+          method: init?.method ?? 'GET',
+          auth: h.get('Authorization'),
+          key: h.get('Idempotency-Key'),
+          body: typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body ?? null,
+        });
+        const [status, body] = answers.shift() ?? [500, {}];
+        return new Response(JSON.stringify(body), { status });
+      }),
+    );
+  };
+  const auth = (): BillingAuth & { minted: string[] } => {
+    let n = 0;
+    const minted: string[] = [];
+    return {
+      minted,
+      getToken: async () => (minted.length ? minted[minted.length - 1] : (minted.push(`t${n++}`), minted[0])),
+      refresh: async () => (minted.push(`t${n++}`), minted[minted.length - 1]),
+    };
+  };
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends the delegation token, and on a 401 re-mints once and retries', async () => {
+    const a = auth();
+    respond([401, { error: { code: 'unauthorized', message: 'expired' } }], [200, { account: ACCT, attention: [] }]);
+    await paymentApi(a, BASE).account(ACCT);
+    expect(seen.map((s) => s.auth)).toEqual(['Bearer t0', 'Bearer t1']);
+    expect(seen[0].url).toBe(`${BASE}/v1/accounts/${ACCT}`);
+  });
+
+  it('a second 401 is the answer, not a loop', async () => {
+    respond([401, { error: { code: 'unauthorized', message: 'no' } }], [401, { error: { code: 'unauthorized', message: 'still no' } }]);
+    await expect(paymentApi(auth(), BASE).account(ACCT)).rejects.toMatchObject({ status: 401, code: 'unauthorized', message: 'still no' });
+    expect(seen).toHaveLength(2);
+  });
+
+  it('a token the wallet will not mint is a definite refusal, and nothing is sent', async () => {
+    respond();
+    const broken: BillingAuth = { getToken: () => Promise.reject(new Error('popup')), refresh: () => Promise.reject(new Error('popup')) };
+    const e = await paymentApi(broken, BASE).topUp(ACCT, 100, false, 'k').catch((x) => x);
+    expect(e).toMatchObject({ status: 401, code: 'unauthorized' });
+    expect(isUnconfirmed(e)).toBe(false);
+    expect(seen).toHaveLength(0);
+  });
+
+  it('reads the {"error": {code, message}} envelope', async () => {
+    respond([402, { error: { code: 'card_declined', message: 'Your card was declined.' } }]);
+    await expect(paymentApi(auth(), BASE).topUp(ACCT, 2500, false, 'k')).rejects.toMatchObject({
+      status: 402,
+      code: 'card_declined',
+      message: 'Your card was declined.',
+    });
+  });
+
+  it('not_registered is a null account and a null balance; any other 404 is an error', async () => {
+    respond([404, { error: { code: 'not_registered', message: 'account is not registered' } }]);
+    expect(await paymentApi(auth(), BASE).account(ACCT)).toBeNull();
+    respond([404, { error: { code: 'not_registered', message: 'account is not registered' } }]);
+    expect(await paymentApi(auth(), BASE).balance(ACCT)).toBeNull();
+    respond([404, { error: { code: 'not_found', message: 'no' } }]);
+    await expect(paymentApi(auth(), BASE).account(ACCT)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('balance is the on-chain deposit in dollars; an unread balance is an error, not $0', async () => {
+    respond([200, { account: ACCT, balance: { cere_planck: '1', usd_cents: 2550 }, attention: [] }]);
+    expect(await paymentApi(auth(), BASE).balance(ACCT)).toBe(25.5);
+    respond([200, { account: ACCT, attention: [] }]);
+    await expect(paymentApi(auth(), BASE).balance(ACCT)).rejects.toMatchObject({ code: 'unavailable' });
+  });
+
+  it('pages payments by the opaque cursor until it is null, and stops at the cap', async () => {
+    respond(
+      [200, { payments: [pay({ id: 'a' }), pay({ id: 'b' })], next_cursor: 'c/1+' }],
+      [200, { payments: [pay({ id: 'c' })], next_cursor: null }],
+    );
+    const got = await paymentApi(auth(), BASE).payments(ACCT);
+    expect(got.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+    expect(seen.map((s) => s.url)).toEqual([`${BASE}/v1/accounts/${ACCT}/payments`, `${BASE}/v1/accounts/${ACCT}/payments?cursor=c%2F1%2B`]);
+
+    respond([200, { payments: [pay({ id: 'a' }), pay({ id: 'b' })], next_cursor: 'more' }]);
+    expect((await paymentApi(auth(), BASE).payments(ACCT, 2)).length).toBe(2);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('top-up sends integer cents, new_card only when asked, and the caller\'s key', async () => {
+    respond([200, pay({})], [200, pay({})]);
+    const api = paymentApi(auth(), BASE);
+    await api.topUp(ACCT, toCents(25), false, 'k1');
+    await api.topUp(ACCT, toCents(19.99), true, 'k2');
+    expect(seen.map((s) => [s.method, s.url, s.key, s.body])).toEqual([
+      ['POST', `${BASE}/v1/accounts/${ACCT}/topups`, 'k1', { amount_cents: 2500 }],
+      ['POST', `${BASE}/v1/accounts/${ACCT}/topups`, 'k2', { amount_cents: 1999, new_card: true }],
+    ]);
+  });
+
+  it('register, card, and auto top-up on and off', async () => {
+    respond([200, {}], [200, { checkout_url: 'https://checkout.stripe.test/s' }], [200, {}], [200, {}]);
+    const api = paymentApi(auth(), BASE);
+    await api.register(ACCT, '2026-11', 'dev@example.test');
+    expect(await api.saveCard(ACCT)).toBe('https://checkout.stripe.test/s');
+    await api.setAutoTopUp(ACCT, 1000, 2000);
+    await api.disableAutoTopUp(ACCT);
+    expect(seen.map((s) => [s.method, s.url.replace(BASE, ''), s.body])).toEqual([
+      ['POST', `/v1/accounts/${ACCT}/register`, { terms_version: '2026-11', email: 'dev@example.test' }],
+      ['POST', `/v1/accounts/${ACCT}/card`, null],
+      ['PATCH', `/v1/accounts/${ACCT}`, { auto_topup: { threshold_cents: 1000, amount_cents: 2000 } }],
+      ['PATCH', `/v1/accounts/${ACCT}`, { auto_topup: null }],
+    ]);
+    expect(seen[0].key && seen[1].key).toBeTruthy(); // register and card carry a key
+  });
+
+  it('toCents rounds typed dollars to whole cents', () => {
+    expect(toCents(19.99)).toBe(1999);
+    expect(toCents(0.1 + 0.2)).toBe(30);
+    expect(toCents(1000)).toBe(100000);
+  });
+});
 
 describe('back from Replace card', () => {
   const visa: CardSummary = { brand: 'visa', last4: '4242', exp_month: 4, exp_year: 2030 };
@@ -210,7 +383,7 @@ describe('top-up failures', () => {
   });
 
   it('treats a 4xx as a definite answer', () => {
-    expect(isUnconfirmed(new ApiError(402, 'card declined'))).toBe(false);
+    expect(isUnconfirmed(new ApiError(402, 'card declined', 'card_declined'))).toBe(false);
     expect(isUnconfirmed(new ApiError(400, 'amount too large'))).toBe(false);
     expect(isUnconfirmed(new ApiError(409, 'idempotency conflict'))).toBe(false);
   });

@@ -1,58 +1,122 @@
 // Pure view-model functions: recon's bills → what the screens display.
 // Kept free of React so the rules are easy to test and read.
 //
-// Ported verbatim from billing-console (src/lib/model.ts). The `var(--b-*)`
-// colour tokens it returns are defined in billing.css.
+// The bills part is ported verbatim from billing-console (src/lib/model.ts);
+// the payments part (balance box, funding split, statuses, CSV) reads
+// payment-service. The `var(--b-*)` colour tokens it returns are defined in
+// billing.css.
 
-import type { Bills, MonthBill, Rates, LedgerEntry } from './api';
+import type { Bills, MonthBill, Rates, Payment, PaymentKind } from './api';
 import { GIB, money, monthLabel, monthName, num, runway, usd } from './format';
 
 export const n = (s: string | null | undefined) => (s == null ? 0 : Number(s));
 
-/** A month's balance movement, read from the ledger (#190 review: the balance box). */
-export type BalanceBox = { opening: number; topups: number; usage: number; closing: number };
+// ── Payments (payment-service) ──────────────────────────────────────────────
+/** Payments that add to the balance: top-ups and credits. A plan fee does not. */
+const ADDS_TO_BALANCE: ReadonlySet<PaymentKind> = new Set(['topup_checkout', 'topup_card', 'topup_auto', 'credit']);
+/** Payments taken from a card. */
+const BY_CARD: ReadonlySet<PaymentKind> = new Set(['topup_checkout', 'topup_card', 'topup_auto']);
 
-/** Opening → top-ups → usage → closing for `month` (YYYY-MM), or null if no entries. */
-export function balanceBox(ledger: LedgerEntry[] | null | undefined, month: string): BalanceBox | null {
-  if (!ledger || ledger.length === 0) return null;
-  const inMonth = ledger.filter((e) => (e.created_at ?? '').slice(0, 7) === month);
-  if (inMonth.length === 0) return null;
-  const asc = [...inMonth].sort((a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
-  const first = asc[0];
-  const last = asc[asc.length - 1];
-  const closing = n(last.running_balance_usd);
-  const opening = n(first.running_balance_usd) - n(first.amount_usd);
-  let topups = 0;
-  let usage = 0;
-  for (const e of asc) {
-    const amt = n(e.amount_usd);
-    if (amt >= 0) topups += amt;
-    else usage += amt; // debits are negative
-  }
-  return { opening, topups, usage, closing };
+const inMonth = (p: Payment, month: string) => (p.created_at ?? '').slice(0, 7) === month;
+const paid = (p: Payment) => p.status === 'succeeded';
+const sumUsd = (ps: Payment[]) => ps.reduce((s, p) => s + p.amount_cents, 0) / 100;
+
+/**
+ * A month's money in and out (#190 review: the balance box): the top-ups paid
+ * that month (payment-service) and the month's usage (its bill from recon),
+ * negative. No opening or closing balance: the balance lives on chain and
+ * payment-service keeps no running balance to read one from.
+ */
+export type BalanceBox = { topups: number; usage: number };
+
+/** Top-ups paid in `month` (YYYY-MM) and `usageUsd`; null while payments load, or when both are zero. */
+export function balanceBox(payments: Payment[] | null | undefined, month: string, usageUsd: number): BalanceBox | null {
+  if (!payments) return null;
+  const topups = sumUsd(payments.filter((p) => paid(p) && ADDS_TO_BALANCE.has(p.kind) && inMonth(p, month)));
+  if (topups === 0 && usageUsd === 0) return null;
+  return { topups, usage: usageUsd === 0 ? 0 : -usageUsd };
 }
 
-/** The whole ledger as CSV (#190 review: Download CSV for the history). */
-export function ledgerToCsv(ledger: LedgerEntry[] | null | undefined): string {
-  const header = ['Date', 'Type', 'Amount (USD)', 'Balance (USD)', 'Era', 'Reference'];
-  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  const rows = (ledger ?? []).map((e) =>
-    [e.created_at, e.entry_type, e.amount_usd, e.running_balance_usd, e.era_id ?? '', e.origin_ref ?? ''].map((c) =>
-      esc(String(c)),
-    ),
-  );
-  return [header.map(esc), ...rows].map((r) => r.join(',')).join('\n');
-}
-
-/** How a settled month's cost was covered: card top-ups that month vs the balance. */
+/** How a month's cost was covered: card top-ups paid that month vs the balance. */
 export function monthFunding(
-  ledger: LedgerEntry[] | null | undefined,
+  payments: Payment[] | null | undefined,
   month: string,
   costUsd: number,
 ): { card: number; fromBalance: number } {
-  const box = balanceBox(ledger, month);
-  const card = Math.min(box ? box.topups : 0, costUsd);
+  const byCard = sumUsd((payments ?? []).filter((p) => paid(p) && BY_CARD.has(p.kind) && inMonth(p, month)));
+  const card = Math.min(byCard, costUsd);
   return { card, fromBalance: Math.max(costUsd - card, 0) };
+}
+
+const KINDS: Record<PaymentKind, string> = {
+  topup_checkout: 'Top-up',
+  topup_card: 'Top-up',
+  topup_auto: 'Auto top-up',
+  plan_fee: 'Plan fee',
+  credit: 'Credit',
+};
+
+export const paymentKindLabel = (k: string): string =>
+  KINDS[k as PaymentKind] ?? k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+
+export type StatusTone = 'neutral' | 'success' | 'warning';
+
+/**
+ * What a payment's row says. A paid top-up reaches the balance only once its
+ * on-chain deposit is finalized, so "paid" alone is not "added".
+ */
+export function paymentStatus(p: Payment): { label: string; tone: StatusTone } {
+  switch (p.status) {
+    case 'created':
+    case 'checkout_open':
+      return { label: 'Awaiting payment', tone: 'neutral' };
+    case 'processing':
+      return { label: 'Processing', tone: 'neutral' };
+    case 'requires_action':
+      return { label: 'Needs confirmation', tone: 'warning' };
+    case 'failed':
+      return { label: p.failure ? 'Declined' : 'Failed', tone: 'warning' };
+    case 'canceled':
+      return { label: 'Canceled', tone: 'neutral' };
+    case 'refunded':
+      return { label: 'Refunded', tone: 'neutral' };
+    case 'disputed':
+      return { label: 'Disputed', tone: 'warning' };
+    case 'succeeded':
+      if (!ADDS_TO_BALANCE.has(p.kind)) return { label: 'Paid', tone: 'success' };
+      switch (p.funding_status) {
+        case 'finalized':
+          return { label: 'Added', tone: 'success' };
+        case 'held':
+          return { label: 'On hold', tone: 'warning' };
+        case 'expired':
+        case 'failed':
+          return { label: 'Deposit delayed', tone: 'warning' };
+        default:
+          return { label: 'Adding to balance', tone: 'neutral' };
+      }
+    default:
+      return { label: String(p.status), tone: 'neutral' };
+  }
+}
+
+/** The payments as CSV (#190 review: Download CSV for the history). */
+export function paymentsToCsv(payments: Payment[] | null | undefined): string {
+  const header = ['Date', 'Type', 'Amount (USD)', 'Status', 'Payment status', 'Deposit status', 'Failure', 'Payment ID'];
+  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const rows = (payments ?? []).map((p) =>
+    [
+      p.created_at,
+      paymentKindLabel(p.kind),
+      (p.amount_cents / 100).toFixed(2),
+      paymentStatus(p).label,
+      p.status,
+      p.funding_status ?? '',
+      p.failure ?? '',
+      p.id,
+    ].map((c) => esc(String(c))),
+  );
+  return [header.map(esc), ...rows].map((r) => r.join(',')).join('\n');
 }
 
 export function requestsUsd(b: MonthBill): number {

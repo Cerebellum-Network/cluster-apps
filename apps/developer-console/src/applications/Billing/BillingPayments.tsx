@@ -2,24 +2,36 @@ import { Box, Typography, Stack, Button, LoadingButton, TextField, Alert, styled
 import { Link } from '@mui/material';
 import { useEffect, useState } from 'react';
 
-import { payment, ApiError, isUnconfirmed, type DeveloperProfile, type LedgerEntry, type TopupResult } from '~/billing/api';
+import { ApiError, isUnconfirmed, toCents, type Account, type Payment } from '~/billing/api';
 import { saveCheckoutAmount } from '~/billing/checkout';
+import { usePaymentApi } from '~/billing/useBilling';
 import { brandName, usd, longDate } from '~/billing/format';
 import { ComingSoon, Pill } from '~/components';
 import { color, text } from '~/theme/tokens';
 
 /**
  * Top-up and auto-top-up, ported from billing-console (pages/payments/{TopUp,
- * AutoTopUp}.tsx) and rebuilt on @cluster-apps/ui. Money rules kept verbatim:
- *  - With a saved card, a top-up is one off-session charge (payment.topUp) with
- *    an idempotency key held across retries so a network failure cannot
- *    double-charge; a 402 reads as "declined", nothing charged.
- *  - Without a card (or "pay with a different card"), it goes through Stripe Checkout
- *    (payment.checkout), which charges the amount and saves the card; on return
- *    the page carries `?checkout=success` and we poll the reload briefly.
- *  - Auto-top-up needs a card; defaults $10 threshold / $20 amount.
+ * AutoTopUp}.tsx) and rebuilt on @cluster-apps/ui, on payment-service's one
+ * top-up call (POST …/topups):
+ *  - With a saved card, a top-up is one off-session charge with an idempotency
+ *    key held across retries, so a network failure cannot double-charge; a 402
+ *    card_declined reads as "declined", nothing charged.
+ *  - Without a card (or "pay with a different card", `new_card`) the service
+ *    answers with a Stripe Checkout URL, which charges the amount and saves the
+ *    card; so does a saved-card charge the bank wants confirmed (3-D Secure).
+ *    Any answer with a `checkout_url` is a redirect; on return the page carries
+ *    `?checkout=success` and polls the reload briefly.
+ *  - Auto-top-up needs a card; defaults $10 threshold / $20 amount. A declined
+ *    card or a bank asking the cardholder pauses it; saving the settings resumes.
  */
 const PRESETS = [10, 25, 50, 100];
+
+/** Why auto top-up stopped (Account.auto_topup.paused); saving the settings resumes it. */
+const PAUSED: Record<NonNullable<Account['auto_topup']>['paused'] & string, string> = {
+  declined: 'Paused: the last automatic charge was declined. Replace the card or resume to try it again.',
+  requires_action: 'Paused: your bank asked to confirm an automatic charge. Top up once by card, then resume.',
+  cap: 'Paused: a spending cap was reached. Resume to charge again.',
+};
 const MAX = 1000;
 const DEFAULT_THRESHOLD = 10;
 const DEFAULT_AMOUNT = 20;
@@ -35,9 +47,11 @@ const Panel = styled(Box)(() => ({
 type TopUpStatus =
   | { kind: 'idle' }
   | { kind: 'processing' }
+  /** Paid; the on-chain deposit follows. */
   | { kind: 'ok'; amount: number }
   | { kind: 'declined' }
-  | { kind: 'pending' }
+  /** Accepted by Stripe, not settled yet. */
+  | { kind: 'pending'; amount: number }
   /** No answer or a 5xx: it may have been charged. */
   | { kind: 'unconfirmed' }
   | { kind: 'failed'; message: string };
@@ -45,7 +59,7 @@ type TopUpStatus =
 export function BillingPayments({
   account,
   profile,
-  ledger,
+  payments,
   balance,
   onPaid,
   onCancel,
@@ -54,21 +68,22 @@ export function BillingPayments({
 }: {
   /** Lowercase-hex, no 0x — the recon/payment account key. */
   account: string;
-  profile: DeveloperProfile | null;
-  ledger: LedgerEntry[] | null;
+  profile: Account | null;
+  payments: Payment[] | null;
   /** Current balance in USD, for the "Balance after" preview; null while loading. */
   balance: number | null;
-  /** Reload balance + profile + ledger after a charge or a settings change. */
+  /** Reload balance + profile + payments after a charge or a settings change. */
   onPaid: () => void;
   /** Close the Add funds dialog (the Cancel button). */
   onCancel: () => void;
-  /** Idempotency key for a card top-up of `amount`, held by the page so it
-   *  survives this dialog closing; tied to the amount. */
-  idemKeyFor: (amount: number) => string;
+  /** Idempotency key for a top-up of `amount` (and `newCard`), held by the page
+   *  so it survives this dialog closing; tied to the request body. */
+  idemKeyFor: (amount: number, newCard: boolean) => string;
   /** Drops the held key after a definite outcome (success / declined). */
   clearIdem: () => void;
 }) {
-  const card = profile?.has_active_card ? profile.card : null;
+  const api = usePaymentApi();
+  const card = profile?.card ?? null;
   const [newCard, setNewCard] = useState(false);
   const useCheckout = !card || newCard;
 
@@ -87,30 +102,32 @@ export function BillingPayments({
     if (status.kind !== 'processing') setStatus({ kind: 'idle' });
   };
 
-  const goToCheckout = async () => {
-    setRedirecting(true);
-    try {
-      const url = await payment.checkout(account, amount, `${window.location.origin}/billing`);
-      saveCheckoutAmount(amount);
-      window.location.assign(url);
-    } catch (e) {
-      setRedirecting(false);
-      setStatus({ kind: 'failed', message: e instanceof Error ? e.message : String(e) });
-    }
-  };
-
-  const charge = async () => {
-    setStatus({ kind: 'processing' });
-    // The key is held by the page and tied to this amount, so a retry after a
+  const topUp = async () => {
+    const withNewCard = !!card && newCard;
+    if (useCheckout) setRedirecting(true);
+    else setStatus({ kind: 'processing' });
+    // The key is held by the page and tied to this body, so a retry after a
     // network failure reuses it and cannot double-charge.
-    const key = idemKeyFor(amount);
+    const key = idemKeyFor(amount, withNewCard);
     try {
-      const r: TopupResult = await payment.topUp(account, amount, key);
+      const p = await api.topUp(account, toCents(amount), withNewCard, key);
+      if (p.checkout_url) {
+        // Checkout: the amount is charged on Stripe's page (also when the bank
+        // wants a saved-card charge confirmed). The return lands on the page.
+        saveCheckoutAmount(amount);
+        window.location.assign(p.checkout_url);
+        return;
+      }
       clearIdem();
-      setStatus(r.status === 'pending' ? { kind: 'pending' } : { kind: 'ok', amount: Number(r.amount_usd) });
+      setRedirecting(false);
+      const paid = p.amount_cents / 100;
+      if (p.status === 'succeeded') setStatus({ kind: 'ok', amount: paid });
+      else if (p.status === 'processing') setStatus({ kind: 'pending', amount: paid });
+      else setStatus({ kind: 'failed', message: p.failure ?? `the payment is ${p.status.replace(/_/g, ' ')}` });
       onPaid();
     } catch (e) {
-      if (e instanceof ApiError && e.status === 402) {
+      setRedirecting(false);
+      if (e instanceof ApiError && (e.code === 'card_declined' || e.status === 402)) {
         clearIdem();
         setStatus({ kind: 'declined' });
       } else {
@@ -124,10 +141,12 @@ export function BillingPayments({
 
   // ── Auto top-up ─────────────────────────────────────────────────────────────
   const hasCard = !!card;
-  const atThreshold = profile?.auto_recharge_threshold_usd == null ? null : Number(profile.auto_recharge_threshold_usd);
-  const atAmount = profile?.auto_recharge_amount_usd == null ? null : Number(profile.auto_recharge_amount_usd);
-  const autoOn = hasCard && atThreshold != null && atAmount != null;
-  const lastAuto = ledger?.find((e) => e.entry_type === 'auto_recharge');
+  const auto = profile?.auto_topup ?? null;
+  const atThreshold = auto ? auto.threshold_cents / 100 : null;
+  const atAmount = auto ? auto.amount_cents / 100 : null;
+  const autoOn = hasCard && auto != null;
+  const paused = autoOn ? auto.paused : null;
+  const lastAuto = payments?.find((p) => p.kind === 'topup_auto' && p.status === 'succeeded');
 
   const [thr, setThr] = useState('');
   const [amt, setAmt] = useState('');
@@ -139,7 +158,7 @@ export function BillingPayments({
     setAmt(atAmount != null ? String(atAmount) : String(DEFAULT_AMOUNT));
   }, [atThreshold, atAmount]);
 
-  const saveAuto = async (fn: () => Promise<DeveloperProfile>) => {
+  const saveAuto = async (fn: () => Promise<Account>) => {
     setAutoSaving(true);
     setAutoErr(null);
     try {
@@ -216,7 +235,7 @@ export function BillingPayments({
                 variant="contained"
                 loading={redirecting}
                 disabled={!valid}
-                onClick={useCheckout ? goToCheckout : charge}
+                onClick={topUp}
               >
                 {useCheckout ? 'Continue to payment' : `Add ${valid ? usd(amount) : ''}`.trim()}
               </LoadingButton>
@@ -252,7 +271,7 @@ export function BillingPayments({
 
         {status.kind === 'ok' && (
           <Alert severity="success" sx={{ marginTop: '16px' }} onClose={() => setStatus({ kind: 'idle' })}>
-            {usd(status.amount)} added.
+            {usd(status.amount)} paid. It reaches your balance in a minute or two.
           </Alert>
         )}
         {status.kind === 'declined' && (
@@ -262,7 +281,7 @@ export function BillingPayments({
         )}
         {status.kind === 'pending' && (
           <Alert severity="warning" sx={{ marginTop: '16px' }} onClose={() => setStatus({ kind: 'idle' })}>
-            Pending at the card provider. The balance updates when it clears.
+            {usd(status.amount)} is processing at the card provider. The balance updates when it clears.
           </Alert>
         )}
         {status.kind === 'unconfirmed' && (
@@ -281,7 +300,7 @@ export function BillingPayments({
       <Panel flex={1}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Typography component="h3" sx={text.title}>Auto top-up</Typography>
-          <Pill tone={autoOn ? 'success' : 'neutral'}>{autoOn ? 'On' : 'Off'}</Pill>
+          <Pill tone={paused ? 'warning' : autoOn ? 'success' : 'neutral'}>{paused ? 'Paused' : autoOn ? 'On' : 'Off'}</Pill>
         </Stack>
 
         {!hasCard ? (
@@ -293,6 +312,11 @@ export function BillingPayments({
             <Typography sx={{ ...text.secondary, marginTop: '4px' }}>
               When the balance falls below the threshold, charge the amount to {cardLabel}.
             </Typography>
+            {paused && (
+              <Alert severity="warning" sx={{ marginTop: '12px' }}>
+                {PAUSED[paused]}
+              </Alert>
+            )}
             <Stack direction="row" spacing={1} marginTop="16px">
               <TextField
                 label="Below (USD)"
@@ -314,18 +338,16 @@ export function BillingPayments({
                 variant="contained"
                 loading={autoSaving}
                 disabled={!autoValid}
-                onClick={() =>
-                  saveAuto(() => payment.setAutoTopUp(account, Math.round(thrNum * 100) / 100, Math.round(amtNum * 100) / 100))
-                }
+                onClick={() => saveAuto(() => api.setAutoTopUp(account, toCents(thrNum), toCents(amtNum)))}
               >
-                {autoOn ? 'Update' : 'Turn on'}
+                {paused ? 'Resume' : autoOn ? 'Update' : 'Turn on'}
               </LoadingButton>
               {autoOn && (
                 <LoadingButton
                   variant="outlined"
                   color="secondary"
                   loading={autoSaving}
-                  onClick={() => saveAuto(() => payment.disableAutoTopUp(account))}
+                  onClick={() => saveAuto(() => api.disableAutoTopUp(account))}
                 >
                   Turn off
                 </LoadingButton>
@@ -334,7 +356,7 @@ export function BillingPayments({
             {autoOn && (
               <Typography variant="caption" color="text.secondary" display="block" marginTop="12px">
                 Last automatic charge:{' '}
-                {lastAuto ? `${longDate(lastAuto.created_at)} · ${usd(Number(lastAuto.amount_usd))}` : 'none yet'}
+                {lastAuto ? `${longDate(lastAuto.created_at)} · ${usd(lastAuto.amount_cents / 100)}` : 'none yet'}
               </Typography>
             )}
             {autoErr && (
