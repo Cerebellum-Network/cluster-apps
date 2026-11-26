@@ -70,7 +70,7 @@ const RightNow = observer(() => {
   const canSign = useCanSign();
   const list = bucketList(account.buckets, account.bucketsError);
   const defs = useAgentDefinitions(canSign ? bucketNames(list) : []);
-  const runs = useSandboxes({ label: [`${LABEL.kind}:${AGENT_RUN_KIND}`] });
+  const runs = useSandboxes({ label: [`${LABEL.kind}=${AGENT_RUN_KIND}`] });
   const secrets = useSecrets();
   const now = useNow(10_000);
   const rows = runRows(runs.data?.items ?? [], liveRuns());

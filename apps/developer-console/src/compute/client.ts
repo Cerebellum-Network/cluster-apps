@@ -61,7 +61,7 @@ type Query = Record<string, string | number | string[] | undefined | null>;
 
 export interface ListSandboxesQuery {
   status?: SandboxStatus;
-  /** `key:value` pairs, ANDed. */
+  /** `key=value` pairs, ANDed (the API's label filter). */
   label?: string[];
   limit?: number;
   cursor?: string;

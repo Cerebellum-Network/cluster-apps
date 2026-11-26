@@ -12,7 +12,7 @@ import RunsTable, { liveRuns, runRows } from '../components/RunsTable';
 /** Every agent run of this bucket: the sandboxes labelled `cere.kind=agent-run`, from the console, the CLI or the SDK. */
 const Runs = () => {
   const { bucketId } = useCompute();
-  const runs = useSandboxes({ label: [`${LABEL.kind}:${AGENT_RUN_KIND}`] });
+  const runs = useSandboxes({ label: [`${LABEL.kind}=${AGENT_RUN_KIND}`] });
   const rows = runRows(runs.data?.items ?? [], liveRuns());
   return (
     <Box>

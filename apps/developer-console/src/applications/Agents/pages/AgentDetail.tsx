@@ -179,7 +179,7 @@ const AgentDetail = () => {
   const navigate = useNavigate();
   const defs = useAgentDefinitions([bucket]);
   const secrets = useSecrets();
-  const runs = useSandboxes({ label: [`${LABEL.kind}:${AGENT_RUN_KIND}`, `${LABEL.agent}:${name}`] });
+  const runs = useSandboxes({ label: [`${LABEL.kind}=${AGENT_RUN_KIND}`, `${LABEL.agent}=${name}`] });
   const [params, setParams] = useSearchParams();
   const tabParam = params.get('tab') as Tab | null;
   const tab: Tab = tabParam && TABS.includes(tabParam) ? tabParam : 'definition';

@@ -194,7 +194,7 @@ const RunTitle = ({ runId }: { runId: string }) => (
 const RunDetail = () => {
   const { runId = '' } = useParams<{ runId: string }>();
   const live = agentRuns.get(runId);
-  const listed = useSandboxes({ label: [`${LABEL.run}:${runId}`] });
+  const listed = useSandboxes({ label: [`${LABEL.run}=${runId}`] });
   // This tab's final copy of the sandbox is newer than the last listing.
   const sb: Sandbox | null =
     (live?.sandbox && !isLive(live.sandbox.status) ? live.sandbox : null) ??

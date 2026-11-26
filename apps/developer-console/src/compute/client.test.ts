@@ -67,7 +67,7 @@ describe('createComputeClient', () => {
     const c = createComputeClient('tok', `${BASE}/`, fetchImpl);
     const page = await c.listSandboxes({
       status: 'running',
-      label: ['cere.kind:agent-run', 'cere.agent:sre'],
+      label: ['cere.kind=agent-run', 'cere.agent=sre'],
       limit: 100,
     });
     expect(page.next_cursor).toBeNull();
@@ -83,7 +83,7 @@ describe('createComputeClient', () => {
     expect(page.items[0].usage).toMatchObject({ cpu_s: 2, ram_gib_s: 0 });
     expect(calls[0].headers.Authorization).toBe('Bearer tok');
     expect(calls[0].url).toBe(
-      `${BASE}/v1/sandboxes?status=running&label=cere.kind%3Aagent-run&label=cere.agent%3Asre&limit=100`,
+      `${BASE}/v1/sandboxes?status=running&label=cere.kind%3Dagent-run&label=cere.agent%3Dsre&limit=100`,
     );
   });
 
