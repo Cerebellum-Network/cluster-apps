@@ -1,11 +1,10 @@
-// Billing data layer. Ported from billing-console (src/lib/api.ts); the only
-// change is the config source — this app reads billing endpoints from
-// `billingConfig` (runtime config → VITE_* → devnet defaults) rather than the
-// prototype's single `config`. Keep the shapes byte-identical to the prototype
-// so recon/payment responses parse the same way. The console stays on the Cere
-// (DDC-billing) side only: recon (bills) + payment-service (USD). It deliberately
-// does NOT call the Manykind orchestrator's /api/v1/usage — per-call inference
-// usage comes from recon/the usage ledger, not a Manykind dependency.
+// Billing data layer: reconciliation-service (bills, read without auth) and
+// payment-service (account, payments, top-ups, card), read as the connected
+// wallet with its delegation token. The recon shapes are the billing-console
+// prototype's; the payment-service shapes follow ddc-node's
+// cluster/payment-service/openapi.yaml. The console stays on the Cere
+// (DDC-billing) side only — it does NOT call the Manykind orchestrator's
+// /api/v1/usage; usage comes from recon.
 import { billingConfig as config } from './billingConfig';
 
 // ── Shapes ────────────────────────────────────────────────────────────────
@@ -55,43 +54,69 @@ export interface Rates {
   get_usd_per_request: string;
 }
 
-// payment-service
+// payment-service (ddc-node cluster/payment-service, openapi.yaml). Money is
+// integer cents; the service never sends floats.
 export type CardSummary = { brand: string | null; last4: string | null; exp_month: number | null; exp_year: number | null };
 
-export interface DeveloperProfile {
-  account_pubkey: string;
-  has_active_card: boolean;
-  card: CardSummary | null;
-  auto_recharge_threshold_usd: string | null;
-  auto_recharge_amount_usd: string | null;
-  status: string;
+export interface AutoTopup {
+  threshold_cents: number;
+  amount_cents: number;
+  /** Why auto top-up stopped charging: the card was declined, the bank asked the cardholder, or a cap. */
+  paused: 'declined' | 'requires_action' | 'cap' | null;
 }
 
-export interface LedgerEntry {
+/** GET /v1/accounts/{account}. */
+export interface Account {
+  account: string;
+  status: 'active' | 'suspended' | 'closed';
+  card?: CardSummary | null;
+  auto_topup: AutoTopup | null;
+  spend_alert_cents: number | null;
+  plan: string;
+  /** The active on-chain deposit, read live; omitted when the chain read fails. */
+  balance?: { cere_planck: string; usd_cents: number; usd_micros?: number };
+  month_so_far_cents?: number;
+  attention: string[];
+}
+
+export type PaymentKind = 'topup_checkout' | 'topup_card' | 'topup_auto' | 'plan_fee' | 'credit';
+export type PaymentStatus =
+  | 'created'
+  | 'checkout_open'
+  | 'processing'
+  | 'requires_action'
+  | 'succeeded'
+  | 'failed'
+  | 'canceled'
+  | 'refunded'
+  | 'disputed';
+export type FundingStatus = 'queued' | 'signed' | 'submitted' | 'in_block' | 'finalized' | 'held' | 'expired' | 'failed';
+
+/** One payment or credit: GET /v1/accounts/{account}/payments, POST …/topups. */
+export interface Payment {
   id: string;
-  entry_type: 'manual_topup' | 'auto_recharge' | 'shortfall_cover' | 'shortfall_recharge' | string;
-  amount_usd: string;
-  running_balance_usd: string;
-  era_id: string | null;
-  origin_ref: string;
+  account: string;
+  kind: PaymentKind;
+  amount_cents: number;
+  currency: 'usd';
+  status: PaymentStatus;
+  /** The on-chain deposit that follows a paid top-up; null until it succeeds. */
+  funding_status: FundingStatus | null;
+  /** Set only by the top-up call while Stripe Checkout is open. */
+  checkout_url: string | null;
+  failure?: string | null;
   created_at: string;
-}
-
-export interface TopupResult {
-  transaction_id: string;
-  status: 'succeeded' | 'pending';
-  amount_usd: string;
-  balance_usd: string;
-  chain_funding: 'pending' | 'sent' | 'dry_run' | 'failed' | 'disabled' | 'awaiting_settlement' | 'not_recorded' | string;
-  replayed: boolean;
 }
 
 // ── Transport ─────────────────────────────────────────────────────────────
 export class ApiError extends Error {
   readonly status: number;
-  constructor(status: number, message: string) {
+  /** payment-service's stable error code (`card_declined`, `not_registered`, …); null when absent. */
+  readonly code: string | null;
+  constructor(status: number, message: string, code: string | null = null) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -101,23 +126,61 @@ export class ApiError extends Error {
  */
 export const isUnconfirmed = (e: unknown): boolean => !(e instanceof ApiError) || e.status === 0 || e.status >= 500;
 
-async function call<T>(url: string, init?: RequestInit): Promise<T> {
-  let res: Response;
+/**
+ * The wallet delegation token payment-service takes as `Authorization: Bearer`
+ * (the session's `DelegationHandle`). null in the dev `?account=` view, which
+ * has no wallet: payment-service then answers 401.
+ */
+export interface BillingAuth {
+  getToken(): Promise<string>;
+  /** Forces a re-mint; called once on a 401. */
+  refresh(): Promise<string>;
+}
+
+/** The error body: payment-service's {"error": {code, message}}, or the old flat {"error": "…"}. */
+async function readError(res: Response): Promise<ApiError> {
+  let message = `Request failed (${res.status})`;
+  let code: string | null = null;
   try {
-    res = await fetch(url, init);
+    const body = await res.json();
+    const err = body?.error;
+    if (err && typeof err === 'object') {
+      if (typeof err.message === 'string' && err.message) message = err.message;
+      if (typeof err.code === 'string') code = err.code;
+    } else if (err) {
+      message = String(err);
+    }
+  } catch {
+    /* not JSON */
+  }
+  return new ApiError(res.status, message, code);
+}
+
+async function send(url: string, init: RequestInit | undefined, token: string | null): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  try {
+    return await fetch(url, { ...init, headers });
   } catch {
     throw new ApiError(0, 'The service did not respond.');
   }
-  if (!res.ok) {
-    let message = `Request failed (${res.status})`;
-    try {
-      const body = await res.json();
-      if (body?.error) message = String(body.error);
-    } catch {
-      /* not JSON */
-    }
-    throw new ApiError(res.status, message);
+}
+
+/** A token, or a definite (4xx) refusal: nothing was sent, so nothing was charged. */
+async function token(get: () => Promise<string>): Promise<string> {
+  try {
+    return await get();
+  } catch {
+    throw new ApiError(401, 'Your wallet did not authorize billing. Sign in again.', 'unauthorized');
   }
+}
+
+async function call<T>(url: string, init?: RequestInit, auth?: BillingAuth | null): Promise<T> {
+  let res = await send(url, init, auth ? await token(() => auth.getToken()) : null);
+  // A token that expired or was revoked between mint and use: re-mint once.
+  // Safe to repeat — every call that creates something carries an Idempotency-Key.
+  if (res.status === 401 && auth) res = await send(url, init, await token(() => auth.refresh()));
+  if (!res.ok) throw await readError(res);
   return res.json() as Promise<T>;
 }
 
@@ -134,6 +197,9 @@ export const newIdempotencyKey = () => crypto.randomUUID();
 /** Recon and payment-service key accounts as lowercase hex, no 0x. */
 export const normalizeAccount = (pk: string) => pk.trim().toLowerCase().replace(/^0x/, '');
 
+/** Dollars as typed (two decimals) to the integer cents payment-service takes. */
+export const toCents = (usd: number): number => Math.round(usd * 100);
+
 // ── reconciliation-service ────────────────────────────────────────────────
 export const recon = {
   bills: (account: string) => call<Bills>(`${config.reconUrl}/v1/accounts/${account}/bills?months=12`),
@@ -146,79 +212,86 @@ export const recon = {
 };
 
 // ── payment-service ───────────────────────────────────────────────────────
-const pay = config.paymentUrl;
+/** How many payments the console reads at most (the service pages at PAYMENTS_PAGE_SIZE). */
+export const PAYMENTS_CAP = 500;
 
-export const payment = {
-  /** The account's profile, or null when it is not registered yet. */
-  profile: async (account: string): Promise<DeveloperProfile | null> => {
+/**
+ * payment-service, authorized as the connected wallet. Checkout's return URLs
+ * are the service's own config (STRIPE_SUCCESS_URL, STRIPE_CANCEL_URL,
+ * STRIPE_CARD_SUCCESS_URL), so the console sends none: they must point at this
+ * console's `/billing?checkout=success|cancelled|card`.
+ */
+export function paymentApi(auth: BillingAuth | null, base = config.paymentUrl) {
+  const acct = (account: string) => `${base}/v1/accounts/${account}`;
+  const account = async (a: string): Promise<Account | null> => {
     try {
-      return await call<DeveloperProfile>(`${pay}/v1/developers/${account}`);
+      return await call<Account>(acct(a), undefined, auth);
     } catch (e) {
-      if (e instanceof ApiError && (e.status === 400 || e.status === 404) && /not registered/i.test(e.message)) {
-        return null;
-      }
+      if (e instanceof ApiError && e.code === 'not_registered') return null;
       throw e;
     }
-  },
-  register: (account: string) =>
-    call<unknown>(`${pay}/v1/developers`, { method: 'POST', ...json({ account_pubkey: account }, newIdempotencyKey()) }),
-  balance: (account: string) =>
-    call<{ balance_usd: string }>(`${pay}/v1/developers/${account}/usd-balance`).then((b) => Number(b.balance_usd)),
-  /** Every ledger entry, newest first, up to `cap` (the endpoint pages at 100). */
-  ledger: async (account: string, cap = 500): Promise<LedgerEntry[]> => {
-    const out: LedgerEntry[] = [];
-    for (let offset = 0; offset < cap; offset += 100) {
-      const page = await call<{ entries: LedgerEntry[]; total: number }>(
-        `${pay}/v1/developers/${account}/usd-ledger?limit=100&offset=${offset}`,
-      );
-      out.push(...page.entries);
-      if (out.length >= page.total || page.entries.length === 0) break;
-    }
-    return out;
-  },
-  /** Stripe Checkout: charges `amountUsd` and saves the card. Returns the redirect URL. */
-  checkout: (account: string, amountUsd: number, returnTo: string) =>
-    call<{ checkout_url: string }>(`${pay}/v1/psp-methods`, {
-      method: 'POST',
-      ...json(
-        {
-          account_pubkey: account,
-          role: 'developer',
-          initial_charge_usd: amountUsd.toFixed(2),
-          success_url: `${returnTo}?checkout=success`,
-          cancel_url: `${returnTo}?checkout=cancelled`,
-        },
-        newIdempotencyKey(),
-      ),
-    }).then((r) => r.checkout_url),
-  /** Stripe Checkout in setup mode: saves a new card without charging; it becomes the card on file. */
-  replaceCard: (account: string, returnTo: string) =>
-    call<{ checkout_url: string }>(`${pay}/v1/psp-methods`, {
-      method: 'POST',
-      ...json(
-        {
-          account_pubkey: account,
-          role: 'developer',
-          setup_only: true,
-          success_url: `${returnTo}?checkout=card`,
-          cancel_url: `${returnTo}?checkout=cancelled`,
-        },
-        newIdempotencyKey(),
-      ),
-    }).then((r) => r.checkout_url),
-  topUp: (account: string, amountUsd: number, idempotencyKey: string) =>
-    call<TopupResult>(`${pay}/v1/developers/${account}/topups`, {
-      method: 'POST',
-      ...json({ amount_usd: amountUsd.toFixed(2) }, idempotencyKey),
-    }),
-  setAutoTopUp: (account: string, threshold: number, amount: number) =>
-    call<DeveloperProfile>(`${pay}/v1/developers/${account}`, {
-      method: 'PATCH',
-      ...json({ auto_recharge_threshold_usd: threshold.toFixed(2), auto_recharge_amount_usd: amount.toFixed(2) }),
-    }),
-  disableAutoTopUp: (account: string) =>
-    call<DeveloperProfile>(`${pay}/v1/developers/${account}`, {
-      method: 'PATCH',
-      ...json({ auto_recharge_enabled: false }),
-    }),
-};
+  };
+  return {
+    /** The account, or null when it is not registered yet. */
+    account,
+    /** Registers the account (an upsert: safe to repeat) and records the terms version shown. */
+    register: (a: string, termsVersion: string, email?: string | null) =>
+      call<Account>(`${acct(a)}/register`, {
+        method: 'POST',
+        ...json({ terms_version: termsVersion, ...(email ? { email } : {}) }, newIdempotencyKey()),
+      }, auth),
+    /**
+     * The active on-chain deposit in USD, or null for an account not registered
+     * yet. A registered account whose balance the service could not read is an
+     * error, never a zero.
+     */
+    balance: async (a: string): Promise<number | null> => {
+      const acc = await account(a);
+      if (!acc) return null;
+      if (!acc.balance) throw new ApiError(503, 'The balance is unavailable right now.', 'unavailable');
+      return acc.balance.usd_micros != null ? acc.balance.usd_micros / 1e6 : acc.balance.usd_cents / 100;
+    },
+    /** Payments and credits, newest first, up to `cap`. */
+    payments: async (a: string, cap = PAYMENTS_CAP): Promise<Payment[]> => {
+      const out: Payment[] = [];
+      let cursor: string | null = null;
+      do {
+        const q: string = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+        const page: { payments: Payment[]; next_cursor: string | null } = await call(`${acct(a)}/payments${q}`, undefined, auth);
+        out.push(...page.payments);
+        cursor = page.payments.length > 0 ? page.next_cursor : null;
+      } while (cursor && out.length < cap);
+      return out.slice(0, cap);
+    },
+    /**
+     * Top up `amountCents`. With a saved card (and not `newCard`) it is charged
+     * off-session and comes back `processing`; otherwise — or when the bank
+     * wants the cardholder — it comes back `checkout_open` with a
+     * `checkout_url`. A declined card is a 402 `card_declined`. The key is held
+     * by the caller across retries, so a retry cannot charge twice; it is tied
+     * to the amount and `newCard`, since another body under the same key is
+     * refused.
+     */
+    topUp: (a: string, amountCents: number, newCard: boolean, idempotencyKey: string) =>
+      call<Payment>(`${acct(a)}/topups`, {
+        method: 'POST',
+        ...json({ amount_cents: amountCents, ...(newCard ? { new_card: true } : {}) }, idempotencyKey),
+      }, auth),
+    /** Stripe Checkout in setup mode: saves a card without charging; it becomes the saved card. */
+    saveCard: (a: string) =>
+      call<{ checkout_url: string }>(
+        `${acct(a)}/card`,
+        { method: 'POST', headers: { 'Idempotency-Key': newIdempotencyKey() } },
+        auth,
+      ).then((r) => r.checkout_url),
+    /** Turns auto top-up on or updates it; also clears a pause. Needs a saved card (409 card_required). */
+    setAutoTopUp: (a: string, thresholdCents: number, amountCents: number) =>
+      call<Account>(acct(a), {
+        method: 'PATCH',
+        ...json({ auto_topup: { threshold_cents: thresholdCents, amount_cents: amountCents } }),
+      }, auth),
+    disableAutoTopUp: (a: string) => call<Account>(acct(a), { method: 'PATCH', ...json({ auto_topup: null }) }, auth),
+  };
+}
+
+export type PaymentApi = ReturnType<typeof paymentApi>;

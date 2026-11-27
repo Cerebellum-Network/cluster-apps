@@ -22,10 +22,10 @@ import { useSearchParams } from 'react-router-dom';
 import { useAccount } from '~/hooks';
 import { PageHeader, Section, ComingSoon, Pill } from '~/components';
 import { text } from '~/theme/tokens';
-import { useBills, useBalance, useProfile, useLedger, useEnsureDeveloper } from '~/billing/useBilling';
-import { burnPerDay, billSections, balanceBox, monthFunding, ledgerToCsv } from '~/billing/model';
-import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
-import { normalizeAccount, newIdempotencyKey, type MonthBill } from '~/billing/api';
+import { useBills, useBalance, useProfile, usePayments, useEnsureRegistered } from '~/billing/useBilling';
+import { burnPerDay, billSections, balanceBox, monthFunding, paymentsToCsv } from '~/billing/model';
+import { money, usd, usdBalance, signedMoney, signedUsd, monthLabel, brandName, runway, shortDate } from '~/billing/format';
+import { normalizeAccount, newIdempotencyKey, toCents, type MonthBill } from '~/billing/api';
 import { cardReturnStatus, readCardBefore, readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
 import { BillingPayments } from './BillingPayments';
@@ -38,17 +38,17 @@ import { ReplaceCardDialog } from './ReplaceCardDialog';
  * Every number appears once; the KPI cards, the second balance and the separate
  * "Spend by service" block are gone (#190 review). The inline Add funds / history
  * are interim — they become the Add funds dialog and the per-month balance box.
- * Data comes from recon (bills) and payment-service (balance, profile, ledger).
+ * Data comes from recon (bills) and payment-service (account, balance, payments).
  */
 const Billing = () => {
   const account = useAccount();
   const bills = useBills();
   const balance = useBalance();
   const profile = useProfile();
-  const ledger = useLedger();
-  // Provision the developer record on first visit so top-up / checkout don't 400
-  // with "not registered as developer" (#190 follow-up).
-  useEnsureDeveloper(profile);
+  const payments = usePayments();
+  // Register the account on first visit so a top-up doesn't fail with
+  // not_registered (#190 follow-up); the balance reads once it is registered.
+  useEnsureRegistered(profile, balance.reload);
   const [openMonth, setOpenMonth] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
@@ -70,18 +70,19 @@ const Billing = () => {
   const reloadPayments = () => {
     balance.reload();
     profile.reload();
-    ledger.reload();
+    payments.reload();
   };
 
-  // Idempotency key for a card top-up, held by the page (not the dialog) so
-  // closing and reopening Add funds cannot mint a new key for the same charge
-  // and double-charge. Tied to the amount — editing it starts a fresh key — and
-  // cleared by the dialog only on a definite outcome (success / 402 declined).
-  const idemRef = useRef<{ cents: number; key: string } | null>(null);
-  const idemKeyFor = (amt: number): string => {
-    const cents = Math.round(amt * 100);
-    if (!idemRef.current || idemRef.current.cents !== cents) {
-      idemRef.current = { cents, key: newIdempotencyKey() };
+  // Idempotency key for a top-up, held by the page (not the dialog) so closing
+  // and reopening Add funds cannot mint a new key for the same charge and
+  // double-charge. Tied to the body — editing the amount or switching to a new
+  // card starts a fresh key, since payment-service refuses another body under a
+  // key — and cleared by the dialog only on a definite outcome.
+  const idemRef = useRef<{ cents: number; newCard: boolean; key: string } | null>(null);
+  const idemKeyFor = (amt: number, newCard: boolean): string => {
+    const cents = toCents(amt);
+    if (!idemRef.current || idemRef.current.cents !== cents || idemRef.current.newCard !== newCard) {
+      idemRef.current = { cents, newCard, key: newIdempotencyKey() };
     }
     return idemRef.current.key;
   };
@@ -147,11 +148,11 @@ const Billing = () => {
   const runwayText = bal != null && perDay > 0 ? `${runway(bal, perDay).text} at this month’s use` : null;
 
   const downloadCsv = () => {
-    const blob = new Blob([ledgerToCsv(ledger.data)], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([paymentsToCsv(payments.data)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'billing-history.csv';
+    a.download = 'payments.csv';
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
@@ -160,13 +161,15 @@ const Billing = () => {
     }, 100);
   };
 
-  const card = profile.data?.has_active_card ? profile.data.card : null;
+  const card = profile.data?.card ?? null;
   // The new card shows only once the PSP webhook lands: "saving" until the profile has it.
   const cardStatus = cardReturn && cardReturnStatus(cardReturn.before, profile.data ? card : undefined, pollDone);
-  const autoOn = profile.data?.auto_recharge_threshold_usd && profile.data?.auto_recharge_amount_usd;
-  const autoStatus = autoOn
-    ? `Auto top-up ${money(profile.data!.auto_recharge_amount_usd)} below ${money(profile.data!.auto_recharge_threshold_usd)}`
-    : 'Auto top-up off';
+  const auto = card ? (profile.data?.auto_topup ?? null) : null;
+  const autoStatus = !auto
+    ? 'Auto top-up off'
+    : auto.paused
+      ? 'Auto top-up paused'
+      : `Auto top-up ${money(auto.amount_cents / 100)} below ${money(auto.threshold_cents / 100)}`;
 
   const current = bills.data?.current_month;
   // Last day of a YYYY-MM month, for the forecast's "by <date>".
@@ -176,22 +179,20 @@ const Billing = () => {
   };
   // One-line summary under each month (mockup): open → "$X so far, about $Y by
   // <month end>" from current_month.forecast_usd (not the month-to-date total at
-  // as_of); settled → how the cost was covered, but only once the ledger is in,
-  // so a loading/failed ledger doesn't read as "$total from balance".
+  // as_of); settled → how the cost was covered, but only once the payments are
+  // in, so a loading/failed list doesn't read as "$total from balance".
   const summaryFor = (m: MonthBill): string => {
     if (m.status !== 'settled') {
-      const soFar = money(m.total_usd);
+      const soFar = usd(m.total_usd);
       const forecast = current && current.month === m.month ? current.forecast_usd : null;
       return forecast != null
         ? `${soFar} so far, about ${money(forecast)} by ${shortDate(monthEnd(m.month))}`
         : `${soFar} so far`;
     }
-    if (ledger.loading || !ledger.data) return '';
-    // Only say how a month was paid when the ledger recorded that month's usage.
-    // Without usage debits the split would attribute the whole bill to the balance.
-    const box = balanceBox(ledger.data, m.month);
-    if (!box || box.usage === 0) return '';
-    const f = monthFunding(ledger.data, m.month, Number(m.total_usd));
+    if (payments.loading || !payments.data) return '';
+    const total = Number(m.total_usd);
+    if (!(total > 0)) return '';
+    const f = monthFunding(payments.data, m.month, total);
     if (f.card > 0 && f.fromBalance > 0) return `${money(f.card)} by card, ${money(f.fromBalance)} from balance`;
     if (f.card > 0) return `${money(f.card)} by card`;
     return `${money(f.fromBalance)} from balance`;
@@ -215,9 +216,9 @@ const Billing = () => {
         subtitle="US dollars"
       />
 
-      {(bills.error || balance.error) && (
+      {(bills.error || balance.error || profile.error) && (
         <Typography color="error" variant="body2">
-          {bills.error ?? balance.error}
+          {bills.error ?? balance.error ?? profile.error}
         </Typography>
       )}
 
@@ -235,7 +236,7 @@ const Billing = () => {
 
       {checkoutOk != null && (
         <Alert severity="success" onClose={() => setCheckoutOk(null)}>
-          {checkoutOk > 0 ? `${money(checkoutOk)} added.` : 'Payment received.'}
+          {checkoutOk > 0 ? `${money(checkoutOk)} paid.` : 'Payment received.'} Your balance updates in a minute or two.
         </Alert>
       )}
 
@@ -244,7 +245,7 @@ const Billing = () => {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' }, gap: '20px' }}>
         <Section title="Balance" fill>
           <Typography sx={{ ...text.amount, fontVariantNumeric: 'tabular-nums' }}>
-            {balance.loading && bal == null ? '…' : money(bal)}
+            {balance.loading && bal == null ? '…' : usdBalance(bal)}
           </Typography>
           <Typography sx={{ ...text.secondary, marginTop: '4px' }}>{runwayText ?? autoStatus}</Typography>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ marginTop: 'auto', paddingTop: '16px' }}>
@@ -307,7 +308,7 @@ const Billing = () => {
             <BillingPayments
               account={pubkey}
               profile={profile.data}
-              ledger={ledger.data}
+              payments={payments.data}
               balance={bal ?? null}
               onPaid={reloadPayments}
               onCancel={closeAdd}
@@ -375,7 +376,7 @@ const Billing = () => {
                       <TableCell>
                         <Pill tone={m.status === 'settled' ? 'success' : 'neutral'}>{m.status === 'settled' ? 'Settled' : 'Estimated'}</Pill>
                       </TableCell>
-                      <TableCell align="right">{money(m.total_usd)}</TableCell>
+                      <TableCell align="right">{usd(m.total_usd)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell colSpan={4} sx={{ p: 0, borderBottom: open ? undefined : 'none' }}>
@@ -442,39 +443,28 @@ const Billing = () => {
                               </Box>
                             ))}
 
-                            {/* Balance box: the money that moved this month (from the ledger). */}
+                            {/* Balance box: the money in and out this month — top-ups paid
+                                (payment-service) and the month's usage (its bill). */}
                             {(() => {
-                              const box = balanceBox(ledger.data, m.month);
+                              const box = balanceBox(payments.data, m.month, Number(m.total_usd));
                               if (!box) return null;
                               const lines: [string, string][] = [
-                                ['Opening', money(box.opening)],
                                 ['Top-ups', signedMoney(box.topups)],
-                                ['Usage', signedMoney(box.usage)],
-                                ['Closing', money(box.closing)],
+                                ['Usage', signedUsd(box.usage)],
                               ];
                               return (
                                 <Box marginTop="20px" padding="12px 16px" sx={{ backgroundColor: 'background.default', borderRadius: '8px' }}>
                                   <Typography variant="subtitle2" marginBottom="8px">
                                     Balance
                                   </Typography>
-                                  {lines.map(([label, val], i) => {
-                                    const last = i === lines.length - 1;
-                                    return (
-                                      <Stack
-                                        key={label}
-                                        direction="row"
-                                        justifyContent="space-between"
-                                        sx={{ paddingY: '3px', borderTop: last ? (theme) => `1px solid ${theme.palette.divider}` : undefined, marginTop: last ? '4px' : 0, paddingTop: last ? '7px' : '3px' }}
-                                      >
-                                        <Typography variant="body2" color={last ? 'text.primary' : 'text.secondary'} sx={{ fontWeight: last ? 700 : 400 }}>
-                                          {label}
-                                        </Typography>
-                                        <Typography variant="body2" sx={{ fontWeight: last ? 700 : 400 }}>
-                                          {val}
-                                        </Typography>
-                                      </Stack>
-                                    );
-                                  })}
+                                  {lines.map(([label, val]) => (
+                                    <Stack key={label} direction="row" justifyContent="space-between" sx={{ paddingY: '3px' }}>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {label}
+                                      </Typography>
+                                      <Typography variant="body2">{val}</Typography>
+                                    </Stack>
+                                  ))}
                                 </Box>
                               );
                             })()}
@@ -490,13 +480,13 @@ const Billing = () => {
         )}
       </Section>
 
-      {/* All transactions — the per-month balance box covers the per-month view;
-          this is the full ledger, with a CSV export. */}
+      {/* Payments — the per-month balance box covers the per-month view; this is
+          every payment, with a CSV export. */}
       <Section
-        title="All transactions"
+        title="Payments"
         actions={
           <>
-            <Button variant="outlined" color="secondary" size="small" onClick={downloadCsv} disabled={!ledger.data?.length}>
+            <Button variant="outlined" color="secondary" size="small" onClick={downloadCsv} disabled={!payments.data?.length}>
               Download CSV
             </Button>
             <Button variant="outlined" color="secondary" size="small" disabled>
@@ -506,7 +496,7 @@ const Billing = () => {
           </>
         }
       >
-        <BillingHistory ledger={ledger.data} loading={ledger.loading} />
+        <BillingHistory payments={payments.data} loading={payments.loading} />
       </Section>
     </Stack>
   );

@@ -119,6 +119,7 @@ describe('Home and Login', () => {
     getSigner: () => {
       throw new Error('no wallet');
     },
+    delegation: null,
     ...over,
   });
   const store = { accountStore: { isReady: () => false } } as unknown as AppStore;

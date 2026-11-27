@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { type CefSigner } from '@cef-ai/wallet';
+import { createDelegationHandle, type CefSigner, type DelegationHandle } from '@cef-ai/wallet';
 import { useWalletConnect } from '@cef-ai/wallet-react';
 import { config } from '../config';
 import { clearUsageTokens } from '../inference/usageToken';
@@ -40,7 +40,19 @@ export interface Session {
    * there is no wallet session. Not available in dev `?account=` view.
    */
   getSigner: () => CefSigner;
+  /**
+   * The wallet's delegation token for payment-service (`Authorization: Bearer`),
+   * minted on first use and re-minted near expiry or on `refresh()`. null with
+   * no wallet session, including the dev `?account=` view.
+   */
+  delegation: DelegationHandle | null;
 }
+
+/**
+ * Delegation tokens for payment-service. One hour: the token can start a card
+ * charge, and re-minting needs no keys and no prompt.
+ */
+const DELEGATION_TTL = '1h';
 
 /** Exported for render tests, which provide a fixed session. */
 export const SessionContext = createContext<Session | null>(null);
@@ -65,6 +77,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const wasConnected = useRef(false);
   const [lastAccount, setLastAccount] = useState<string | null>(null);
   const [boot, setBoot] = useState<BootPhase>('pending');
+
+  // Minting is lazy (on the first getToken), so building the handle has no effect
+  // until billing asks; a new wallet gets a new handle and the old one is closed.
+  const wallet = w.wallet;
+  const delegation = useMemo(
+    () =>
+      wallet
+        ? createDelegationHandle(() =>
+            wallet.requestDelegation({ capabilities: ['ddc-read'], appId: config.appId, ttl: DELEGATION_TTL }),
+          )
+        : null,
+    [wallet],
+  );
+  useEffect(() => () => delegation?.close(), [delegation]);
 
   useEffect(() => setBoot((p) => nextBootPhase(p, w.status)), [w.status]);
   useEffect(() => {
@@ -132,8 +158,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!w.wallet) throw new Error('not signed in');
         return w.wallet.signer;
       },
+      delegation: override ? null : delegation,
     };
-  }, [w, override, expired, cancelled, lastAccount, boot]);
+  }, [w, override, expired, cancelled, lastAccount, boot, delegation]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
