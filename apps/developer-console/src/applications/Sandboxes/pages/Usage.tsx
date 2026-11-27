@@ -273,7 +273,7 @@ const BilledChart = ({
 };
 
 /**
- * Usage (`GET /v1/usage/records`, this bucket): what sandboxes were billed and
+ * Usage (`GET /v1/sandboxes/usage/records`, this bucket): what sandboxes were billed and
  * what they used, over time and by sandbox, and whether it has all been
  * counted for billing. A sandbox's minute-by-minute usage is on its own Usage
  * tab. There is no price list for sandboxes yet, so nothing is money.

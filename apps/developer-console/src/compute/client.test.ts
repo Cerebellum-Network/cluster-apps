@@ -189,6 +189,17 @@ describe('createComputeClient', () => {
     expect(calls[1].body).toBe('hi');
   });
 
+  it('reads the egress log and usage records under /v1/sandboxes/', async () => {
+    const { calls, fetchImpl } = stubFetch(() => json(200, { items: [], next_cursor: '' }));
+    const c = createComputeClient('tok', BASE, fetchImpl);
+    await c.egressLog({ sandbox_id: 'sb-1' });
+    await c.usageRecords({ sandbox_id: 'sb-1' });
+    expect(calls.map((x) => x.url)).toEqual([
+      `${BASE}/v1/sandboxes/egress/log?sandbox_id=sb-1`,
+      `${BASE}/v1/sandboxes/usage/records?sandbox_id=sb-1`,
+    ]);
+  });
+
   it('puts a secret without echoing it and lists names only', async () => {
     const { calls, fetchImpl } = stubFetch((c) =>
       c.method === 'PUT'

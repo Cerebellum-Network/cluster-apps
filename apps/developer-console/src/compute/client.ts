@@ -333,9 +333,9 @@ export function createComputeClient(
       json<void>('PUT', `${sb(id)}/secrets/${encodeURIComponent(name)}`, { json: { value }, signal }),
 
     egressLog: async (q, signal) =>
-      page<EgressEntry>(await json('GET', `/v1/egress/log${queryString({ ...q })}`, { signal })),
+      page<EgressEntry>(await json('GET', `/v1/sandboxes/egress/log${queryString({ ...q })}`, { signal })),
     usageRecords: async (q, signal) =>
-      page<UsageRecord>(await json('GET', `/v1/usage/records${queryString({ ...q })}`, { signal })),
+      page<UsageRecord>(await json('GET', `/v1/sandboxes/usage/records${queryString({ ...q })}`, { signal })),
   };
 }
 

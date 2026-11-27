@@ -7,7 +7,7 @@ import { color, mono, text } from '~/theme/tokens';
 import { CredentialChip, DecisionPill, sbColor } from '../ui';
 
 /**
- * Requests as the egress proxy logged them (`GET /v1/egress/log`): allowed,
+ * Requests as the egress proxy logged them (`GET /v1/sandboxes/egress/log`): allowed,
  * refused or failed upstream, and which secret the proxy added. A host not on
  * the list is refused at CONNECT, before any request, so it has no path. A
  * `policy` entry is a change to a running sandbox's rules: the rule added or
