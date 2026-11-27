@@ -1,0 +1,39 @@
+{
+  "schema": "cere.agent/v1",
+  "name": "langgraph",
+  "description": "A LangGraph ReAct agent in its own image (bring your own container): answers questions about Python packages from PyPI",
+  "harness": "container",
+  "image": "cerebellumnetwork/ddc-example-langgraph-agent:0.1.1",
+  "command": [
+    "/app/entrypoint.sh",
+    "python",
+    "/app/agent.py"
+  ],
+  "system_prompt": "You answer questions about Python packages. Use the tools; never guess a version or a date. Quote the tool output you relied on.",
+  "model": {
+    "base_url": "https://inference-gateway.compute.dev.ddcdragon.com/anthropic",
+    "model": "glm-5.3",
+    "credential": "ddc-inference"
+  },
+  "tools": [
+    "pypi_latest",
+    "days_since"
+  ],
+  "policy": "read-only",
+  "deny": [],
+  "max_turns": 10,
+  "resources": {"cpu": 0.5, "memory": 512, "cpu_limit": 2, "memory_limit": 2048},
+  "timeout_s": 300,
+  "egress": {
+    "allow": [
+      {
+        "host": "pypi.org",
+        "methods": [
+          "GET"
+        ],
+        "path_prefix": "/pypi/"
+      }
+    ]
+  },
+  "files": {}
+}

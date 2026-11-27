@@ -1,7 +1,9 @@
 /**
- * The token Inference → Usage reads the gateway with, cached in localStorage
- * per (account, bucket) until it expires, so the wallet is asked once a day,
- * not on every visit.
+ * The console's COMPUTE token for a bucket (compute/useComputeToken.ts): what
+ * Inference → Usage reads the inference gateway with, and what Sandboxes and
+ * Agents call the compute gateway with. Cached in localStorage per (account,
+ * bucket) until it expires, so the wallet is asked once a day, not on every
+ * visit, and one token serves every page.
  *
  * The gateway's /api/v1/metrics and /api/v1/limits sit behind the same
  * COMPUTE check as inference (ddc-node pkg/shared/auth tokenmiddleware): there
@@ -38,8 +40,13 @@ function storage(): ListableStorage | null {
   }
 }
 
-/** The cached token for (account, bucket), or null when none, unreadable, or about to expire. */
-export function readUsageToken(account: string, bucketId: string, nowMs = Date.now(), store = storage()): string | null {
+/** The cached token for (account, bucket) with its expiry, or null when none, unreadable, or about to expire. */
+export function readUsageTokenEntry(
+  account: string,
+  bucketId: string,
+  nowMs = Date.now(),
+  store = storage(),
+): CachedToken | null {
   if (!store) return null;
   try {
     const raw = store.getItem(usageTokenKey(account, bucketId));
@@ -50,13 +57,29 @@ export function readUsageToken(account: string, bucketId: string, nowMs = Date.n
       store.removeItem(usageTokenKey(account, bucketId));
       return null;
     }
-    return c.token;
+    return { token: c.token, expiresAt: c.expiresAt };
   } catch {
     return null;
   }
 }
 
-export function writeUsageToken(account: string, bucketId: string, token: string, expiresAt: number, store = storage()): void {
+/** The cached token for (account, bucket), or null when none, unreadable, or about to expire. */
+export function readUsageToken(
+  account: string,
+  bucketId: string,
+  nowMs = Date.now(),
+  store = storage(),
+): string | null {
+  return readUsageTokenEntry(account, bucketId, nowMs, store)?.token ?? null;
+}
+
+export function writeUsageToken(
+  account: string,
+  bucketId: string,
+  token: string,
+  expiresAt: number,
+  store = storage(),
+): void {
   try {
     store?.setItem(usageTokenKey(account, bucketId), JSON.stringify({ token, expiresAt } satisfies CachedToken));
   } catch {

@@ -1,3 +1,4 @@
+import type { GatewayCredentials } from '~/storage/ddc/gatewayClient';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 
@@ -27,6 +28,12 @@ export interface SessionInput {
   address: string | null;
   email: string | null;
   getSigner: () => CefSigner;
+  /**
+   * True in the development view (`?account=` on a local `npm run start`):
+   * an account without its wallet, so nothing can be signed, and reads that
+   * need a signature (the S3 gateway's bucket list) are not attempted.
+   */
+  walletless?: boolean;
 }
 
 export interface Account {
@@ -40,6 +47,8 @@ export interface Account {
   readonly deposit?: number;
   readonly buckets?: Bucket[];
   readonly bucketsLoading?: boolean;
+  /** Why the last bucket listing failed (then `buckets` is stale or empty), or null. */
+  readonly bucketsError?: string | null;
   readonly status: AccountStatus;
   /** Whether this wallet has authorized the storage gateway (gates the revoke control). */
   readonly gatewayAuthorized?: boolean;
@@ -53,6 +62,13 @@ export interface Account {
    * `bucketId`, signed by this wallet. Shown once; stateless (expires only).
    */
   createInferenceApiKey(bucketId: bigint, ttlMs: number): Promise<string>;
+  createCliGrant(bucketId: bigint, cliKey: string, ttlMs: number): Promise<string>;
+  /**
+   * Register a separate DDC S3 gateway credential (its own label) to hand to
+   * another client, e.g. the `cere` CLI for agent definitions. Wallet-wide,
+   * lives as long as its 24h delegation token. Shown once by the caller.
+   */
+  createS3Credential(label: string): Promise<GatewayCredentials>;
   /** Revoke the storage gateway's on-chain proxy authorization for this wallet. */
   revokeGateway(): Promise<void>;
   topUp(amount: number): Promise<void>;

@@ -8,6 +8,8 @@ export type SubNavItem = {
   /** Path relative to the app's `rootPath` (''=the index sub-route). */
   path: string;
   label: string;
+  /** Stay highlighted on the item's child pages too (e.g. a list and its detail pages). */
+  prefix?: boolean;
 };
 
 export type Application = {
@@ -22,5 +24,7 @@ export type Application = {
   group: AppGroup;
   /** Sub-navigation shown when the item is active. */
   subNav?: SubNavItem[];
+  /** Still experimental: an "Exp" label beside it in the sidebar, and "Experimental" beside each page's title. */
+  experimental?: boolean;
   widget?: ReactNode;
 };

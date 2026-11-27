@@ -8,13 +8,12 @@
  *   - useModelDetail — an opened row's in-flight peaks and refusals per bar.
  * The arithmetic is in usageMath.ts.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { useAccount } from '~/hooks';
 import type { Series } from './metricsApi';
 import type { UsagePreset, UsageWindow } from './usageMath';
 import { isAuthError, LIMITED, loadUsage, metricsNotConfigured, PEAK, readBars, type UsageState } from './usageReads';
-import { dropUsageToken, readUsageToken, writeUsageToken, USAGE_TOKEN_TTL_MS } from './usageToken';
+import { useComputeToken, type ComputeToken } from '~/compute/useComputeToken';
 
 /** Every failure the page shows, in user words; the raw message goes in a tooltip. */
 export const USAGE_DOWN = 'The usage service isn’t responding. Try Refresh.';
@@ -25,85 +24,18 @@ export type { UsageData, UsageState } from './usageReads';
 
 // ── Token ────────────────────────────────────────────────────────────────────
 
-export type UsageKey =
-  | { kind: 'minting' }
-  | { kind: 'ready'; key: string }
-  | { kind: 'error'; message: string; detail: string };
+export type UsageKey = ComputeToken;
 
 /**
- * One mint per (account, bucket) at a time across the app, so React's
- * double-run effects (and a quick remount) never pop the wallet twice.
- */
-const inFlight = new Map<string, Promise<string>>();
-
-/** A token rejected within this long of its mint is not re-minted again: one automatic re-mint, then an error. */
-const FRESH_MS = 10 * 60 * 1000;
-
-/**
- * The usage token for `bucketId`: the cached one, or a fresh one minted on
- * mount. `onAuthError` (a read got 401/403) drops it and re-mints once; a
- * freshly minted token rejected again is an error, not a loop of wallet prompts. `retry` (Refresh) mints again.
+ * The usage token for `bucketId`: the console's COMPUTE token for the bucket
+ * (compute/useComputeToken.ts), shared with Sandboxes and Agents. `onAuthError`
+ * (a read got 401/403) drops it and re-mints once; `retry` (Refresh) mints again.
  */
 export function useUsageKey(bucketId: string | null): { state: UsageKey; onAuthError: () => void; retry: () => void } {
-  const account = useAccount();
-  const accountRef = useRef(account);
-  accountRef.current = account;
-  const owner = account.account;
-  /** Which (account, bucket) the state is for: another's token is never handed out, not even for one render. */
-  const source = `${owner}:${bucketId}`;
-  const [tagged, setTagged] = useState<{ for: string; value: UsageKey }>({ for: source, value: { kind: 'minting' } });
-  const setState = useCallback((value: UsageKey) => setTagged({ for: source, value }), [source]);
-  const [attempt, setAttempt] = useState(0);
-  /** When this hook last minted: a token rejected soon after is not stale, the gateway is refusing it. */
-  const mintedAt = useRef(0);
-
-  useEffect(() => {
-    if (!bucketId) return undefined;
-    let dead = false;
-    const cached = readUsageToken(owner, bucketId);
-    if (cached) {
-      setState({ kind: 'ready', key: cached });
-      return undefined;
-    }
-    setState({ kind: 'minting' });
-    const id = `${owner}:${bucketId}`;
-    let mint = inFlight.get(id);
-    if (!mint) {
-      const expiresAt = Date.now() + USAGE_TOKEN_TTL_MS;
-      mintedAt.current = Date.now();
-      mint = accountRef.current.createInferenceApiKey(BigInt(bucketId), USAGE_TOKEN_TTL_MS).then((token) => {
-        writeUsageToken(owner, bucketId, token, expiresAt);
-        return token;
-      });
-      inFlight.set(id, mint);
-      const clear = () => inFlight.delete(id);
-      mint.then(clear, clear);
-    }
-    mint.then(
-      (key) => { if (!dead) setState({ kind: 'ready', key }); },
-      (e: unknown) => { if (!dead) setState({ kind: 'error', message: MINT_FAILED, detail: messageOf(e) }); },
-    );
-    return () => { dead = true; };
-  }, [owner, bucketId, attempt, setState]);
-
-  const onAuthError = useCallback(() => {
-    if (!bucketId) return;
-    dropUsageToken(owner, bucketId);
-    if (Date.now() - mintedAt.current < FRESH_MS) {
-      setState({ kind: 'error', message: USAGE_DOWN, detail: 'The gateway rejected a freshly minted token.' });
-      return;
-    }
-    setAttempt((n) => n + 1);
-  }, [owner, bucketId, setState]);
-
-  const retry = useCallback(() => {
-    mintedAt.current = 0;
-    setAttempt((n) => n + 1);
-  }, []);
-
-  const state: UsageKey = tagged.for === source ? tagged.value : { kind: 'minting' };
-  return { state, onAuthError, retry };
+  return useComputeToken(bucketId, USAGE_TOKEN_MESSAGES);
 }
+
+const USAGE_TOKEN_MESSAGES = { mintFailed: MINT_FAILED, rejected: USAGE_DOWN };
 
 /**
  * The window's reads; a refresh keeps the last answer on screen until the new

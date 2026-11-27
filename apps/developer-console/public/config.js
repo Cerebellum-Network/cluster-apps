@@ -2,5 +2,7 @@
 // populated config.js over this file; locally, src/config.ts + the storage slice
 // (src/storage/storageConfig.ts) fall back to VITE_* env vars. Keys:
 //   walletOrigin, network, walletTransport,
-//   storage { blockchainIndexUrl, ddcS3GatewayUrl, ddcCdnUrl, clusterId, statsEndpoint }.
+//   storage { blockchainIndexUrl, ddcS3GatewayUrl, ddcCdnUrl, clusterId, statsEndpoint },
+//   inference { gatewayUrl, modelsCdnUrl },
+//   compute { gatewayUrl }  (the compute gateway: sandboxes and agents, src/compute/computeConfig.ts).
 window.__RUNTIME_CONFIG__ = window.__RUNTIME_CONFIG__ || {};

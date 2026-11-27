@@ -6,9 +6,11 @@ import { createChainClient } from '~/storage/ddc/chainClient';
 import { createBucketStorage } from '~/storage/ddc/bucketStorage';
 import { createDdcSigner } from '~/storage/ddc/signer';
 import { createGatewayClient } from '~/storage/ddc/gatewayClient';
-import { gatewayPubKeyToSs58 } from '~/storage/ddc/gatewayCredential';
+import { gatewayPubKeyToSs58, registerGatewayCredential } from '~/storage/ddc/gatewayCredential';
+import type { GatewayCredentials } from '~/storage/ddc/gatewayClient';
 import { generateBucketName } from '~/storage/gatewayBuckets';
 import { buildInferenceApiKey } from '~/inference/inferenceKey';
+import { buildCliGrant } from '~/compute/cliGrant';
 import type { CefSigner } from '@cef-ai/wallet';
 import type { BucketStorage } from '~/storage/ddc/types';
 import type { Account, AccountStatus, Bucket, ReadyAccount, SessionInput } from './types';
@@ -32,6 +34,7 @@ export class AccountStore implements Account {
   private session: SessionInput | null = null;
   private _buckets?: Bucket[];
   private _bucketsLoading = false;
+  private _bucketsError: string | null = null;
   private _deposit?: bigint;
   private _balance?: bigint;
   private _gatewayAuthorized = false;
@@ -80,7 +83,7 @@ export class AccountStore implements Account {
 
   private async bootstrap() {
     const acc = this.session?.account;
-    if (acc) {
+    if (acc && !this.session?.walletless) {
       // Read the proxy state from the gateway, not a local flag, so a returning
       // device doesn't get a needless re-grant prompt.
       this.storage
@@ -95,6 +98,7 @@ export class AccountStore implements Account {
     runInAction(() => {
       this._buckets = undefined;
       this._bucketsLoading = false;
+      this._bucketsError = null;
       this._deposit = undefined;
       this._balance = undefined;
       this._gatewayAuthorized = false;
@@ -129,6 +133,14 @@ export class AccountStore implements Account {
   get bucketsLoading() {
     return this._bucketsLoading;
   }
+  /**
+   * Why the last bucket listing failed, or null. While set, `buckets` is the
+   * list from before the failure (or [] when there was none), so an empty list
+   * does not mean "no buckets".
+   */
+  get bucketsError() {
+    return this._bucketsError;
+  }
   /** Whether this wallet has authorized the storage gateway (observable). */
   get gatewayAuthorized() {
     return this._gatewayAuthorized;
@@ -139,6 +151,15 @@ export class AccountStore implements Account {
     if (!this.session?.account) {
       runInAction(() => {
         this._buckets = undefined;
+        this._bucketsError = null;
+      });
+      return;
+    }
+    if (this.session.walletless) {
+      // Listing signs a gateway request; this view has no wallet to sign with.
+      runInAction(() => {
+        this._buckets = [];
+        this._bucketsError = 'no wallet in this development view';
       });
       return;
     }
@@ -160,12 +181,15 @@ export class AccountStore implements Account {
       );
       runInAction(() => {
         this._buckets = buckets;
+        this._bucketsError = null;
       });
     } catch (e) {
       Reporting.error(e);
-      // Keep whatever we had rather than flipping a populated list to empty.
+      // Keep whatever we had rather than flipping a populated list to empty,
+      // and say that the listing failed so pages don't read [] as "no buckets".
       runInAction(() => {
         this._buckets = this._buckets ?? [];
+        this._bucketsError = e instanceof Error ? e.message : String(e);
       });
     } finally {
       runInAction(() => {
@@ -285,6 +309,26 @@ export class AccountStore implements Account {
     this.requireAccount();
     const signer = createDdcSigner(() => this.requireSigner());
     return buildInferenceApiKey(signer, { bucketId, expiresInMs: ttlMs });
+  }
+
+  /**
+   * Sign the `cere` CLI's grant (browser sign-in): a COMPUTE token for `bucketId` whose subject is the CLI's own
+   * ed25519 key, so the CLI must sign a token under it to use it. Signs, so call from a user gesture.
+   */
+  async createCliGrant(bucketId: bigint, cliKey: string, ttlMs: number): Promise<string> {
+    this.requireAccount();
+    const signer = createDdcSigner(() => this.requireSigner());
+    return buildCliGrant(signer, { bucketId, cliKey, expiresInMs: ttlMs });
+  }
+
+  /**
+   * A separate S3 gateway credential for another client (the `cere` CLI): its
+   * own label at the gateway, not the console's cached one, so handing it out
+   * never shares the console's credential. Signs, so call from a user gesture.
+   */
+  async createS3Credential(label: string): Promise<GatewayCredentials> {
+    this.requireAccount();
+    return registerGatewayCredential(() => this.requireSigner(), this.gateway, label);
   }
 
   async topUp(amount: number) {

@@ -7,6 +7,7 @@ import { Box, Stack, styled, Typography } from '@cluster-apps/ui';
 
 import { color } from '~/theme/tokens';
 import type { SubNavItem } from '~/applications';
+import { ExperimentalBadge } from '../Experimental';
 
 export type NavigationItemProps = {
   title: string;
@@ -15,6 +16,7 @@ export type NavigationItemProps = {
   description: string;
   icon: ReactNode;
   subNav?: SubNavItem[];
+  experimental?: boolean;
   widget?: ReactNode;
 };
 
@@ -76,7 +78,7 @@ const SubLink = styled(NavLink)(() => ({
   },
 }));
 
-const NavigationItem = ({ rootPath, title, navLabel, icon, subNav }: NavigationItemProps) => {
+const NavigationItem = ({ rootPath, title, navLabel, icon, subNav, experimental }: NavigationItemProps) => {
   const hasSub = !!subNav?.length;
   // Active for the item (and its sub-pages): matches `rootPath` and anything under it.
   const active = !!useMatch(`${rootPath}/*`);
@@ -89,13 +91,14 @@ const NavigationItem = ({ rootPath, title, navLabel, icon, subNav }: NavigationI
       <Item active={active} filled={active && !hasSub} to={rootPath}>
         {icon}
         <Typography sx={{ fontSize: 14.5, fontWeight: 'inherit', color: 'inherit' }}>{label}</Typography>
+        {experimental && <ExperimentalBadge />}
         {hasSub && <Chevron open={active} />}
       </Item>
 
       {active && hasSub && (
         <Stack spacing={0.25} marginTop={0.25} paddingLeft={4.5}>
           {subNav!.map((s) => (
-            <SubLink key={s.path || 'index'} to={s.path ? `${rootPath}/${s.path}` : rootPath} end>
+            <SubLink key={s.path || 'index'} to={s.path ? `${rootPath}/${s.path}` : rootPath} end={!s.prefix}>
               {s.label}
             </SubLink>
           ))}

@@ -43,9 +43,14 @@ export function gatewayPubKeyToSs58(pubKeyOrAddress: string): string {
   return encodeAddress(hexToBytes(hex));
 }
 
+/**
+ * `label` names the credential at the gateway: the console's own is
+ * `developer-console`; one handed to the `cere` CLI is `cere-cli`.
+ */
 export async function registerGatewayCredential(
   getSigner: () => CefSigner,
   gateway: GatewayClient,
+  label: string = CREDENTIAL_LABEL,
 ): Promise<GatewayCredentials> {
   // `.describing(...)` labels what the signature authorizes. The token/data
   // signing intents used below do not raise the wallet's consent screen (only
@@ -62,7 +67,7 @@ export async function registerGatewayCredential(
   await token.sign(signer);
   const delegationToken = token.toString();
 
-  const body = buildRegistrationBody(delegationToken, CREDENTIAL_LABEL);
+  const body = buildRegistrationBody(delegationToken, label);
   // 'data' intent: a plain message signature (no wallet consent screen, no
   // MultiSignature variant byte) -- the gateway verifies raw bytes.
   const signature = bytesToHex(await signer.sign(new TextEncoder().encode(body), 'data'));
@@ -73,7 +78,7 @@ export async function registerGatewayCredential(
     signature,
     signatureType: signer.type,
     delegationToken,
-    label: CREDENTIAL_LABEL,
+    label,
   });
   // The S3 credential can outlive -- or carry no expiry at all, in which case it
   // would read as "fresh forever" -- but the delegation token it rides on lapses

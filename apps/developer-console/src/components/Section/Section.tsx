@@ -6,6 +6,8 @@ import { color, text } from '~/theme/tokens';
 export type SectionProps = {
   /** Card title (18 bold). Omit for a plain card. */
   title?: string;
+  /** A label beside the title, such as `<ExperimentalPill />`. */
+  badge?: ReactNode;
   /** Actions shown on the card's header row (right-aligned). */
   actions?: ReactNode;
   children?: ReactNode;
@@ -20,7 +22,7 @@ export type SectionProps = {
  * radius, 18/22 padding, optional 18px-bold title row. Replaces the per-page card
  * styles that had drifted across 4/8/10/12px radii.
  */
-const Section = ({ title, actions, children, flush, fill }: SectionProps) => {
+const Section = ({ title, badge, actions, children, flush, fill }: SectionProps) => {
   const hasHeader = !!title || !!actions;
   return (
     <Box
@@ -40,7 +42,19 @@ const Section = ({ title, actions, children, flush, fill }: SectionProps) => {
           gap={2}
           sx={{ padding: '18px 22px', paddingBottom: title ? '12px' : '18px' }}
         >
-          {title && <Typography component="h2" sx={text.title}>{title}</Typography>}
+          {title &&
+            (badge ? (
+              <Stack direction="row" alignItems="center" gap="10px" flexWrap="wrap">
+                <Typography component="h2" sx={text.title}>
+                  {title}
+                </Typography>
+                {badge}
+              </Stack>
+            ) : (
+              <Typography component="h2" sx={text.title}>
+                {title}
+              </Typography>
+            ))}
           {actions && (
             <Stack direction="row" spacing={1} alignItems="center" flexShrink={0}>
               {actions}
