@@ -74,7 +74,7 @@ export interface Account {
   spend_alert_cents: number | null;
   plan: string;
   /** The active on-chain deposit, read live; omitted when the chain read fails. */
-  balance?: { cere_planck: string; usd_cents: number };
+  balance?: { cere_planck: string; usd_cents: number; usd_micros?: number };
   month_so_far_cents?: number;
   attention: string[];
 }
@@ -249,7 +249,7 @@ export function paymentApi(auth: BillingAuth | null, base = config.paymentUrl) {
       const acc = await account(a);
       if (!acc) return null;
       if (!acc.balance) throw new ApiError(503, 'The balance is unavailable right now.', 'unavailable');
-      return acc.balance.usd_cents / 100;
+      return acc.balance.usd_micros != null ? acc.balance.usd_micros / 1e6 : acc.balance.usd_cents / 100;
     },
     /** Payments and credits, newest first, up to `cap`. */
     payments: async (a: string, cap = PAYMENTS_CAP): Promise<Payment[]> => {

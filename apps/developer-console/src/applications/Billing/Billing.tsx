@@ -24,7 +24,7 @@ import { PageHeader, Section, ComingSoon, Pill } from '~/components';
 import { text } from '~/theme/tokens';
 import { useBills, useBalance, useProfile, usePayments, useEnsureRegistered } from '~/billing/useBilling';
 import { burnPerDay, billSections, balanceBox, monthFunding, paymentsToCsv } from '~/billing/model';
-import { money, signedMoney, monthLabel, brandName, runway, shortDate } from '~/billing/format';
+import { money, usd, usdBalance, signedMoney, signedUsd, monthLabel, brandName, runway, shortDate } from '~/billing/format';
 import { normalizeAccount, newIdempotencyKey, toCents, type MonthBill } from '~/billing/api';
 import { cardReturnStatus, readCardBefore, readCheckoutAmount } from '~/billing/checkout';
 import { isBillingConfigured } from '~/billing/billingConfig';
@@ -183,7 +183,7 @@ const Billing = () => {
   // in, so a loading/failed list doesn't read as "$total from balance".
   const summaryFor = (m: MonthBill): string => {
     if (m.status !== 'settled') {
-      const soFar = money(m.total_usd);
+      const soFar = usd(m.total_usd);
       const forecast = current && current.month === m.month ? current.forecast_usd : null;
       return forecast != null
         ? `${soFar} so far, about ${money(forecast)} by ${shortDate(monthEnd(m.month))}`
@@ -245,7 +245,7 @@ const Billing = () => {
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(3, minmax(0, 1fr))' }, gap: '20px' }}>
         <Section title="Balance" fill>
           <Typography sx={{ ...text.amount, fontVariantNumeric: 'tabular-nums' }}>
-            {balance.loading && bal == null ? '…' : money(bal)}
+            {balance.loading && bal == null ? '…' : usdBalance(bal)}
           </Typography>
           <Typography sx={{ ...text.secondary, marginTop: '4px' }}>{runwayText ?? autoStatus}</Typography>
           <Stack direction="row" alignItems="center" spacing={1.5} sx={{ marginTop: 'auto', paddingTop: '16px' }}>
@@ -376,7 +376,7 @@ const Billing = () => {
                       <TableCell>
                         <Pill tone={m.status === 'settled' ? 'success' : 'neutral'}>{m.status === 'settled' ? 'Settled' : 'Estimated'}</Pill>
                       </TableCell>
-                      <TableCell align="right">{money(m.total_usd)}</TableCell>
+                      <TableCell align="right">{usd(m.total_usd)}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell colSpan={4} sx={{ p: 0, borderBottom: open ? undefined : 'none' }}>
@@ -450,7 +450,7 @@ const Billing = () => {
                               if (!box) return null;
                               const lines: [string, string][] = [
                                 ['Top-ups', signedMoney(box.topups)],
-                                ['Usage', signedMoney(box.usage)],
+                                ['Usage', signedUsd(box.usage)],
                               ];
                               return (
                                 <Box marginTop="20px" padding="12px 16px" sx={{ backgroundColor: 'background.default', borderRadius: '8px' }}>
