@@ -3,9 +3,10 @@ import { Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material
 import { Close, CreditCard, LockOutlined } from '@mui/icons-material';
 import { useState } from 'react';
 
-import { payment, type CardSummary } from '~/billing/api';
+import { type CardSummary } from '~/billing/api';
 import { saveCardBefore } from '~/billing/checkout';
 import { brandName } from '~/billing/format';
+import { usePaymentApi } from '~/billing/useBilling';
 import { color, text } from '~/theme/tokens';
 
 /**
@@ -27,6 +28,7 @@ export function ReplaceCardDialog({
   card: CardSummary | null;
   onClose: () => void;
 }) {
+  const api = usePaymentApi();
   const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const title = card ? 'Replace card' : 'Add card';
@@ -35,7 +37,8 @@ export function ReplaceCardDialog({
     setRedirecting(true);
     setError(null);
     try {
-      const url = await payment.replaceCard(account, `${window.location.origin}/billing`);
+      // Stripe returns to payment-service's STRIPE_CARD_SUCCESS_URL (/billing?checkout=card).
+      const url = await api.saveCard(account);
       saveCardBefore(card);
       window.location.assign(url);
     } catch (e) {

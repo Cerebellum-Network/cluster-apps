@@ -18,6 +18,7 @@ interface ImportMetaEnv {
   // Billing slice (src/billing/billingConfig.ts)
   readonly VITE_RECON_URL?: string;
   readonly VITE_PAYMENT_URL?: string;
+  readonly VITE_TERMS_VERSION?: string;
   // Inference slice (src/inference/inferenceConfig.ts)
   readonly VITE_INFERENCE_GATEWAY_URL?: string;
   readonly VITE_MODELS_CDN_URL?: string;
@@ -44,6 +45,7 @@ interface RuntimeConfig {
   billing?: {
     reconUrl?: string;
     paymentUrl?: string;
+    termsVersion?: string;
   };
   /** Inference slice (src/inference/inferenceConfig.ts). */
   inference?: {
